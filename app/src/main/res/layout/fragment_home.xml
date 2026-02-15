@@ -512,21 +512,13 @@
                 android:textColor="@color/grey"
                 android:textSize="16sp" />
 
-            <ScrollView
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/transactionListRecycler"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:layout_below="@+id/recentTextView"
-                android:layout_alignParentStart="true"
-                android:layout_alignParentEnd="true"
-                android:layout_alignParentBottom="true"
-                android:layout_marginTop="4dp">
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/transactionListRecycler"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    tools:listitem="@layout/fragment_transaction" />
-            </ScrollView>
+                android:layout_marginTop="4dp"
+                tools:listitem="@layout/fragment_transaction" />
 
             <com.google.android.material.floatingactionbutton.FloatingActionButton
                 android:id="@+id/fab_addTransaction"
@@ -536,9 +528,9 @@
                 android:layout_alignParentBottom="true"
                 android:layout_marginEnd="12dp"
                 android:layout_marginBottom="48dp"
+                android:contentDescription="@string/add_new_transaction_description"
                 app:backgroundTint="#FFBA08"
-                app:srcCompat="@drawable/baseline_add_24"
-                tools:ignore="SpeakableTextPresentCheck" />
+                app:srcCompat="@drawable/baseline_add_24" />
 
         </RelativeLayout>
 

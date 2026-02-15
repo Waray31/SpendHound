@@ -12,6 +12,36 @@
     <string name="default_web_client_id">1036031691832-bj2a27go248odv58gfkcqb7dfudl65k8.apps.googleusercontent.com</string>
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="profile_title">Profile</string>
+    <string name="settings_icon_description">Settings</string>
+    <string name="profile_image_description">User\'s profile image</string>
+    <string name="nickname_label">Nickname:</string>
+    <string name="nickname_placeholder">Waray</string>
+    <string name="edit_nickname_description">Edit nickname</string>
+    <string name="save_nickname_description">Save nickname</string>
+    <string name="total_balance_label">Total Balance:</string>
+    <string name="total_balance_placeholder">₱ 5,500.00</string>
+    <string name="chip_icon_description">Credit card chip icon</string>
+    <string name="card_background_description">Background image for the card</string>
+    <string name="balance_label">Balance</string>
+    <string name="unpaid_label">Unpaid</string>
+    <string name="owe_label">Owe</string>
+    <string name="debt_label">Debt</string>
+    <string name="recent_notifications_label">Recent Notifications</string>
+    <string name="logout_button_text">Log out</string>
+    <string name="add_new_transaction_description">Add a new transaction</string>
+    <string name="borrow_money_title">Borrow Money</string>
+    <string name="month_year_label">Month &amp; Year</string>
+    <string name="status_label">Status</string>
+    <string name="select_all_label">Select All</string>
+    <string name="select_all_checkbox_description">Select all items</string>
+    <string name="no_debt_data_message">No Debt Data!</string>
+    <string name="no_owed_data_message">No Owed Data!</string>
+    <string name="borrow_now_button">Borrow Now</string>
+    <string name="pay_now_button">Pay Now</string>
+    <string name="cancel_button">Cancel</string>
+    <string name="select_button">Select</string>
+    <string name="pending_status_button">Pending status</string>
 
     <string-array name="transactionTypes_String">
         <item>Select a transaction:</item>

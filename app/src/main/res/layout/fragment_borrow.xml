@@ -28,7 +28,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:fontFamily="@font/montserratalternatess_bold"
-                android:text="Borrow Money"
+                android:text="@string/borrow_money_title"
                 android:textAlignment="center"
                 android:textColor="@color/darkBlue"
                 android:textSize="20sp" />
@@ -67,7 +67,7 @@
                     android:background="@drawable/top_round_border"
                     android:fontFamily="@font/montserratalternatess_regular"
                     android:paddingVertical="12dp"
-                    android:text="Owed"
+                    android:text="@string/owe_label"
                     android:textAlignment="center"
                     android:textColor="@color/darkBlue"
                     android:textSize="16dp" />
@@ -79,7 +79,7 @@
                     android:layout_weight="1"
                     android:fontFamily="@font/montserratalternatess_regular"
                     android:paddingVertical="12dp"
-                    android:text="Debt"
+                    android:text="@string/debt_label"
                     android:textAlignment="center"
                     android:textColor="@color/white"
                     android:textSize="16dp" />
@@ -118,7 +118,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/montserratalternatess_regular"
-                                android:text="Month &amp; Year"
+                                android:text="@string/month_year_label"
                                 android:textAlignment="center"
                                 android:textSize="12dp" />
 
@@ -141,7 +141,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/montserratalternatess_regular"
-                                android:text="Status"
+                                android:text="@string/status_label"
                                 android:textAlignment="center"
                                 android:textSize="12dp" />
 
@@ -166,7 +166,7 @@
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/montserratalternatess_regular"
-                                android:text="Select All"
+                                android:text="@string/select_all_label"
                                 android:textAlignment="center"
                                 android:textSize="12dp" />
 
@@ -176,9 +176,8 @@
                                 android:layout_gravity="center"
                                 android:layout_marginHorizontal="12dp"
                                 android:layout_marginTop="8dp"
-                                android:layout_height="20dp"/>
-
-
+                                android:layout_height="20dp"
+                                android:contentDescription="@string/select_all_checkbox_description"/>
 
                         </LinearLayout>
 
@@ -190,54 +189,35 @@
                         android:layout_height="1dp"
                         android:background="@drawable/border_line_darkblue" />
 
-                    <ScrollView
-                        android:id="@+id/owedScrollView"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp">
-
-                        <androidx.recyclerview.widget.RecyclerView
-                            android:id="@+id/owedRecyclerList"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            tools:listitem="@layout/owed_row_layout" />
-                    </ScrollView>
-
-                    <ScrollView
-                        android:id="@+id/debtScrollView"
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/owedRecyclerList"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:visibility="gone">
+                        tools:listitem="@layout/owed_row_layout" />
 
-                        <androidx.recyclerview.widget.RecyclerView
-                            android:id="@+id/debtRecyclerList"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            tools:listitem="@layout/debt_row_layout"/>
-
-                    </ScrollView>
-
-                    <ScrollView
-                        android:id="@+id/debtCheckboxScrollView"
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/debtRecyclerList"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
-                        android:visibility="gone">
+                        android:visibility="gone"
+                        tools:listitem="@layout/debt_row_layout"/>
 
-                        <androidx.recyclerview.widget.RecyclerView
-                            android:id="@+id/debtCheckboxRecyclerList"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            tools:listitem="@layout/debt_rowcheckbox_layout"/>
-                    </ScrollView>
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/debtCheckboxRecyclerList"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:visibility="gone"
+                        tools:listitem="@layout/debt_rowcheckbox_layout"/>
 
                     <TextView
                         android:id="@+id/noDebtTextView"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/montserratalternatess_regular"
-                        android:text="No Debt Data!"
+                        android:text="@string/no_debt_data_message"
                         android:textAlignment="center"
                         android:textSize="12dp"
                         android:visibility="gone"
@@ -247,7 +227,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/montserratalternatess_regular"
-                        android:text="No Owed Data!"
+                        android:text="@string/no_owed_data_message"
                         android:textAlignment="center"
                         android:textSize="12dp"
                         android:visibility="gone"
@@ -316,7 +296,7 @@
                 android:elevation="4dp"
                 android:fontFamily="@font/montserratalternatess_bold"
                 android:paddingVertical="16dp"
-                android:text="Borrow Now"
+                android:text="@string/borrow_now_button"
                 android:textColor="@color/whitest" />
 
 
@@ -330,7 +310,7 @@
                 android:elevation="4dp"
                 android:fontFamily="@font/montserratalternatess_bold"
                 android:paddingVertical="16dp"
-                android:text="Pay Now"
+                android:text="@string/pay_now_button"
                 android:textColor="@color/whitest" />
 
             <Button
@@ -343,7 +323,7 @@
                 android:elevation="4dp"
                 android:fontFamily="@font/montserratalternatess_bold"
                 android:paddingVertical="16dp"
-                android:text="Cancel"
+                android:text="@string/cancel_button"
                 android:textColor="@color/whitest" />
 
             <Button
@@ -356,22 +336,9 @@
                 android:elevation="4dp"
                 android:fontFamily="@font/montserratalternatess_bold"
                 android:paddingVertical="16dp"
-                android:text="Select"
+                android:text="@string/select_button"
                 android:textColor="@color/whitest" />
 
-            <!--<Button
-                android:id="@+id/cancelNowBtn"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="8dp"
-                android:layout_weight="1"
-                android:backgroundTint="@color/darkBlue"
-                android:elevation="4dp"
-                android:fontFamily="@font/montserratalternatess_bold"
-                android:paddingVertical="16dp"
-                android:text="Cancel"
-                android:visibility="gone"
-                android:textColor="@color/whitest" />-->
         </LinearLayout>
 
         <Button
@@ -384,7 +351,7 @@
             android:elevation="4dp"
             android:fontFamily="@font/montserratalternatess_bold"
             android:paddingVertical="16dp"
-            android:text="Pending status"
+            android:text="@string/pending_status_button"
             android:textColor="@color/whitest" />
 
     </LinearLayout>

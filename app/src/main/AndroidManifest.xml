@@ -45,7 +45,7 @@
             android:name=".MainActivity"
             android:exported="true"/>
 
-        <activity android:name=".AddTranscationActivity"
+        <activity android:name=".AddTransactionActivity"
             android:exported="true"
             android:parentActivityName=".MainActivity"
             android:label="Add Transaction"

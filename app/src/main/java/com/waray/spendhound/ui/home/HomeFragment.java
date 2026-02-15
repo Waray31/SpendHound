@@ -13,6 +13,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.PopupMenu;
 import androidx.cardview.widget.CardView;
@@ -25,7 +26,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
-import com.waray.spendhound.AddTranscationActivity;
+import com.waray.spendhound.AddTransactionActivity;
 import com.waray.spendhound.DeclareDatabase;
 import com.waray.spendhound.LoginActivity;
 import com.waray.spendhound.MainActivity;
@@ -63,7 +64,6 @@ public class HomeFragment extends Fragment {
         cardViewProfile = view.findViewById(R.id.cardView_profile);
         mAuth = DeclareDatabase.getAuth();
 
-        callMainActivityMethod();
         LogoutButton();
         addTransactionButton();
         setTextViews();
@@ -76,6 +76,12 @@ public class HomeFragment extends Fragment {
         }
 
         return view;
+    }
+
+    @Override
+    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
+        super.onViewCreated(view, savedInstanceState);
+        callMainActivityMethod();
     }
 
     @Override
@@ -133,6 +139,7 @@ public class HomeFragment extends Fragment {
                 @Override
                 public void onFailure(@NonNull Exception exception) {
                     // Handle image retrieval failure
+                    imageView.setImageResource(R.drawable.placeholder_profile_image);
                 }
             });
         } else {
@@ -147,7 +154,7 @@ public class HomeFragment extends Fragment {
             @Override
             public void onClick(View v) {
                 // Create an Intent to navigate to NewActivity
-                Intent intent = new Intent(getActivity(), AddTranscationActivity.class);
+                Intent intent = new Intent(getActivity(), AddTransactionActivity.class);
                 startActivity(intent);
             }
         });
@@ -167,9 +174,9 @@ public class HomeFragment extends Fragment {
                         if (item.getItemId() == R.id.menu_logout) {
                             // Handle logout action
                             Toast.makeText(getActivity(), "Logout Successfully", Toast.LENGTH_SHORT).show();
+                            mAuth.signOut();
                             Intent intent = new Intent(getActivity(), LoginActivity.class);
                             startActivity(intent);
-                            mAuth.signOut();
                             return true;
                         } else {
                             // Handle other menu item clicks

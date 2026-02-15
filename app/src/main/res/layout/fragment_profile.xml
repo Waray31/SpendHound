@@ -23,7 +23,7 @@
             android:layout_gravity="center"
             android:layout_weight="1"
             android:fontFamily="@font/montserratalternatess_bold"
-            android:text="Profile"
+            android:text="@string/profile_title"
             android:textAlignment="center"
             android:textColor="@color/darkBlue"
             android:textSize="20sp" />
@@ -34,6 +34,7 @@
             android:layout_height="27dp"
             android:layout_gravity="center"
             android:alpha="0.8"
+            android:contentDescription="@string/settings_icon_description"
             android:foreground="@drawable/round_border"
             android:padding="4dp"
             android:src="@drawable/settings" />
@@ -71,6 +72,7 @@
                 android:id="@+id/profileImageView"
                 android:layout_width="100dp"
                 android:layout_height="100dp"
+                android:contentDescription="@string/profile_image_description"
                 android:scaleType="centerCrop"
                 android:src="@drawable/placeholder_profile_image" />
         </androidx.cardview.widget.CardView>
@@ -87,7 +89,7 @@
                 android:layout_height="wrap_content"
                 android:layout_marginLeft="4dp"
                 android:fontFamily="@font/montserratalternatess_regular"
-                android:text="Nickname:"
+                android:text="@string/nickname_label"
                 android:textSize="12sp" />
 
             <LinearLayout
@@ -102,7 +104,7 @@
                     android:layout_weight="1"
                     android:fontFamily="@font/montserratalternatess_bold"
                     android:padding="4dp"
-                    android:text="Waray"
+                    android:text="@string/nickname_placeholder"
                     android:textColor="@color/darkBlue"
                     android:textSize="28sp" />
 
@@ -124,6 +126,7 @@
                     android:layout_height="match_parent"
                     android:layout_gravity="bottom"
                     android:alpha="0.8"
+                    android:contentDescription="@string/edit_nickname_description"
                     android:src="@drawable/pencil" />
 
                 <ImageView
@@ -132,6 +135,7 @@
                     android:layout_height="match_parent"
                     android:layout_gravity="bottom"
                     android:alpha="0.8"
+                    android:contentDescription="@string/save_nickname_description"
                     android:src="@drawable/check"
                     android:visibility="gone" />
 
@@ -163,6 +167,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="@drawable/background_card2"
+            android:contentDescription="@string/card_background_description"
             android:orientation="vertical" />
 
         <LinearLayout
@@ -177,7 +182,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/montserratalternatess_regular"
-                android:text="Total Balance:"
+                android:text="@string/total_balance_label"
                 android:textColor="@color/white"
                 android:textSize="14sp" />
 
@@ -193,7 +198,7 @@
                     android:layout_gravity="center"
                     android:layout_weight="4"
                     android:fontFamily="@font/montserratalternatess_regular"
-                    android:text="₱ 5,500.00"
+                    android:text="@string/total_balance_placeholder"
                     android:textColor="@color/whitest"
                     android:textSize="36sp" />
 
@@ -203,35 +208,11 @@
                     android:layout_marginEnd="20dp"
                     android:layout_weight="1"
                     android:background="@drawable/glassy_background2"
+                    android:contentDescription="@string/chip_icon_description"
                     android:elevation="4dp"
                     android:src="@drawable/chip" />
 
             </LinearLayout>
-
-            <!--<LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:gravity="center_vertical"
-                    android:text="in month of:"
-                    android:textColor="@color/white"
-                    android:textSize="12sp" />
-
-                <Spinner
-                    android:id="@+id/monthSpinner"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="end|center"
-                    android:layout_marginLeft="4dp"
-                    android:background="@drawable/transparent_background" />
-
-            </LinearLayout>-->
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -253,7 +234,7 @@
                         android:fontFamily="@font/montserratalternatess_regular"
                         android:paddingVertical="8dp"
                         android:paddingHorizontal="12dp"
-                        android:text="Balance"
+                        android:text="@string/balance_label"
                         android:textAlignment="center"
                         android:textColor="@color/whitest"
                         android:textSize="12sp" />
@@ -266,7 +247,7 @@
                         android:fontFamily="@font/montserratalternatess_regular"
                         android:paddingVertical="8dp"
                         android:paddingHorizontal="12dp"
-                        android:text="Unpaid"
+                        android:text="@string/unpaid_label"
                         android:textAlignment="center"
                         android:textColor="@color/whitest"
                         android:textSize="12sp" />
@@ -287,7 +268,7 @@
                         android:fontFamily="@font/montserratalternatess_regular"
                         android:paddingVertical="8dp"
                         android:paddingHorizontal="12dp"
-                        android:text="Owe"
+                        android:text="@string/owe_label"
                         android:textAlignment="center"
                         android:textColor="@color/whitest"
                         android:textSize="12sp" />
@@ -300,7 +281,7 @@
                         android:fontFamily="@font/montserratalternatess_regular"
                         android:paddingVertical="8dp"
                         android:paddingHorizontal="12dp"
-                        android:text="Debt"
+                        android:text="@string/debt_label"
                         android:textAlignment="center"
                         android:textColor="@color/whitest"
                         android:textSize="12sp" />
@@ -322,7 +303,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/montserratalternatess_bold"
-                android:text="Recent Notifications"
+                android:text="@string/recent_notifications_label"
                 android:textColor="@color/grey"
                 android:textSize="16sp" />
 
@@ -336,7 +317,7 @@
         android:layout_marginBottom="50dp"
         android:elevation="4dp"
         android:fontFamily="@font/montserratalternatess_bold"
-        android:text="Log out"
+        android:text="@string/logout_button_text"
         android:textColor="@color/whitest"
         />
 </LinearLayout>

@@ -35,6 +35,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -47,6 +48,7 @@ public class MainActivity extends AppCompatActivity {
     private ArrayList<RecentTransaction> recentTransactionList = new ArrayList<>();
     public ArrayList<BorrowTransaction> debtList = new ArrayList<>();
     public ArrayList<OwedTransaction> owedList = new ArrayList<>();
+    private RecentTransactionAdapter recentTransactionAdapter;
 
     public interface OwedNumCallback {
         void onOwedNumReceived(int owedNum);
@@ -77,6 +79,14 @@ public class MainActivity extends AppCompatActivity {
         });
 
         navView = findViewById(R.id.navView);
+
+        // Setup Recent Transactions RecyclerView
+        RecyclerView recyclerView = findViewById(R.id.transactionListRecycler);
+        recentTransactionList = new ArrayList<>();
+        recentTransactionAdapter = new RecentTransactionAdapter(recentTransactionList);
+        recyclerView.setAdapter(recentTransactionAdapter);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+
         // Passing each menu ID as a set of Ids because each
         // menu should be considered as top level destinations.
         AppBarConfiguration appBarConfiguration = new AppBarConfiguration.Builder(
@@ -84,6 +94,7 @@ public class MainActivity extends AppCompatActivity {
                 .build();
         NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_activity_main);
         NavigationUI.setupWithNavController(navView, navController);
+
 
         progressBar.setVisibility(View.GONE);
     }
@@ -137,49 +148,30 @@ public class MainActivity extends AppCompatActivity {
 
     @SuppressLint("DefaultLocale")
     public void getEverydaySpends() {
-        // Initialize an array to store daily spends for each day of the week
         int[] dailySpends = new int[7];
-
         Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
+        SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
         SimpleDateFormat dayFormat = new SimpleDateFormat("dd", Locale.getDefault());
 
-        String currentMonthYear = dateFormat.format(calendar.getTime());
-        String currentDay = dayFormat.format(calendar.getTime());
-
-        // Loop through the last 7 days
         for (int i = 0; i < 7; i++) {
-            // Create a reference to the "transactions" node
-            DatabaseReference databaseReference = DeclareDatabase.getDBRefTransaction();
-            // Create a child with the format "YYYY-MM" (year-month)
-            DatabaseReference monthYearRef = databaseReference.child(currentMonthYear);
-            // Create a child with the current day
-            DatabaseReference dayRef = monthYearRef.child(currentDay);
+            String currentMonthYear = monthFormat.format(calendar.getTime());
+            String currentDay = dayFormat.format(calendar.getTime());
 
-            // Initialize daily spend for the current day
-            dailySpend = 0;
+            DatabaseReference dayRef = DeclareDatabase.getDBRefTransaction().child(currentMonthYear).child(currentDay);
 
-            // Add a listener to retrieve data for the current date
-            final int days = i; // Store the day index for use inside the listener
+            final int dayIndex = i;
             dayRef.addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    int dailySpend = 0;
                     for (DataSnapshot timeSnapshot : dataSnapshot.getChildren()) {
                         Transaction transaction = timeSnapshot.getValue(Transaction.class);
                         if (transaction != null) {
-                            // Retrieve the paymentAmount from the transaction
-                            int paymentAmount = transaction.getPaymentAmount();
-
-                            // Add the paymentAmount to dailySpend
-                            dailySpend += paymentAmount;
-
+                            dailySpend += transaction.getPaymentAmount();
                         }
                     }
-
-                    // Store the daily spend in the array
-                    dailySpends[days] = dailySpend;
-                    dailySpend = 0;
-                    setViewHeightForDay(days, dailySpends[days]);
+                    dailySpends[dayIndex] = dailySpend;
+                    setViewHeightForDay(dayIndex, dailySpends[dayIndex]);
                 }
 
                 @Override
@@ -189,10 +181,8 @@ public class MainActivity extends AppCompatActivity {
                     Log.e("FirebaseDatabase", errorMessage);
                 }
             });
-            // Convert currentDay to an integer
-            int currentDayInt = Integer.parseInt(currentDay);
-            currentDayInt--;
-            currentDay = String.format("%02d", currentDayInt);
+
+            calendar.add(Calendar.DAY_OF_YEAR, -1); // Go to previous day for next iteration
         }
     }
 
@@ -260,26 +250,22 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void getRecentTransaction() {
-        // Clear the existing transaction data
         recentTransactionList.clear();
 
         Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
+        SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
         SimpleDateFormat dayFormat = new SimpleDateFormat("dd", Locale.getDefault());
 
-        String currentMonthYear = dateFormat.format(calendar.getTime());
-        String currentDay = dayFormat.format(calendar.getTime());
+        int daysToFetch = 3;
+        AtomicInteger daysFetched = new AtomicInteger(0);
 
+        for (int i = 0; i < daysToFetch; i++) {
+            String currentMonthYear = monthFormat.format(calendar.getTime());
+            String currentDay = dayFormat.format(calendar.getTime());
 
-        // Loop through the last 3 days
-        for (int i = 0; i < 3; i++) {
-            // Create a reference to the "transactions" node
-            DatabaseReference databaseReference = DeclareDatabase.getDBRefTransaction();
-            // Create a child with the format "YYYY-MM" (year-month)
-            DatabaseReference monthYearRef = databaseReference.child(currentMonthYear);
-            // Create a child with the current day
-            DatabaseReference dayRef = monthYearRef.child(currentDay);
+            DatabaseReference dayRef = DeclareDatabase.getDBRefTransaction().child(currentMonthYear).child(currentDay);
 
+            String finalCurrentMonthYear = currentMonthYear;
             String finalCurrentDay = currentDay;
             dayRef.addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
@@ -287,8 +273,7 @@ public class MainActivity extends AppCompatActivity {
                     for (DataSnapshot timeSnapshot : dataSnapshot.getChildren()) {
                         Transaction transaction = timeSnapshot.getValue(Transaction.class);
                         if (transaction != null) {
-                            // Split the string by hyphen and keep only the first part (the month)
-                            String[] parts = currentMonthYear.split("-");
+                            String[] parts = finalCurrentMonthYear.split("-");
                             String finalCurrentMonth = parts[0];
                             String mostRecentDate = finalCurrentMonth + " - " + finalCurrentDay;
                             String mostRecentTransactionType = transaction.getTransactionType();
@@ -314,7 +299,6 @@ public class MainActivity extends AppCompatActivity {
                             } else {
                                 iconResource = R.drawable.house;
                             }
-                            // Create a RecentTransaction object and add it to the list
                             RecentTransaction recentTrans = new RecentTransaction(
                                     mostRecentDate,
                                     mostRecentTransactionType,
@@ -324,30 +308,26 @@ public class MainActivity extends AppCompatActivity {
                             );
                             recentTransactionList.add(recentTrans);
                         }
-                        // Now you have populated recentTransactionList with data
-                        // You can pass this list to your RecyclerView adapter here or in onCreate
-                        RecyclerView recyclerView = findViewById(R.id.transactionListRecycler);
-                        RecyclerView.Adapter<RecentTransactionAdapter.ViewHolder> adapter = new RecentTransactionAdapter(recentTransactionList);
-                        recyclerView.setAdapter(adapter);
-                        adapter.notifyDataSetChanged();
+                    }
 
-                        // Set the RecyclerView.LayoutManager
-                        RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
-                        recyclerView.setLayoutManager(layoutManager);
+                    if (daysFetched.incrementAndGet() == daysToFetch) {
+                        if (recentTransactionAdapter != null) {
+                            recentTransactionAdapter.notifyDataSetChanged();
+                        }
                     }
                 }
 
                 @Override
                 public void onCancelled(@NonNull DatabaseError databaseError) {
-                    // Handle database read error
-                    String errorMessage = "Database read error occurred: " + databaseError.getMessage();
-                    Log.e("FirebaseDatabase", errorMessage);
+                    Log.e("FirebaseDatabase", "Database read error occurred: " + databaseError.getMessage());
+                    if (daysFetched.incrementAndGet() == daysToFetch) {
+                        if (recentTransactionAdapter != null) {
+                            recentTransactionAdapter.notifyDataSetChanged();
+                        }
+                    }
                 }
             });
-            // Convert currentDay to an integer
-            int currentDayInt = Integer.parseInt(currentDay);
-            currentDayInt--;
-            currentDay = String.format("%02d", currentDayInt);
+            calendar.add(Calendar.DAY_OF_YEAR, -1);
         }
     }
 
