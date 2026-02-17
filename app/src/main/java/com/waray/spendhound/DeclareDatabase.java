@@ -35,6 +35,10 @@ public class DeclareDatabase {
         return FirebaseDatabase.getInstance().getReference("borrows");
     }
 
+    public static DatabaseReference getDBRefGroups() {
+        return FirebaseDatabase.getInstance().getReference("payerGroups");
+    }
+
     // Get a reference to the Firebase Storage
     public static StorageReference getStorageReference() {
         return mStorage.getReference();

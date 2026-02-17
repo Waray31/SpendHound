@@ -1,5 +1,6 @@
 package com.waray.spendhound;
 
+import android.app.AlertDialog;
 import android.content.Intent;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
@@ -10,6 +11,7 @@ import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
@@ -39,7 +41,9 @@ import java.util.Locale;
 public class AddTransactionActivity extends AppCompatActivity {
 
     private LinearLayout container;
+    private LinearLayout groupsContainer;
     private Button btnAdd;
+    private Button btnAddGroup;
     private Button addTransactionbtn;
     private Spinner payorSpinner;
     private Spinner transactionTypeSpinner;
@@ -50,6 +54,8 @@ public class AddTransactionActivity extends AppCompatActivity {
     public List<String> usernames;
     public FirebaseAuth mAuth;
     private List<View> rows;
+    private List<View> groupViews;
+    private List<PayerGroup> payerGroups;
     public List<String> payorsList;
     public List<Integer> amountsPaidList;
     public Integer totalAmountPaid = 0;
@@ -59,6 +65,7 @@ public class AddTransactionActivity extends AppCompatActivity {
     private TextView individualPayment;
     private int totalIndividualPayment, totalBalanced, totalUnpaid, totalOwed, totalDept;
     public String usernamePost;
+    private String currentUserId;
     private ArrayList<RecentTransaction> recentTransactionList = new ArrayList<>();
 
     @Override
@@ -86,11 +93,17 @@ public class AddTransactionActivity extends AppCompatActivity {
         transactionTypeSpinner.setAdapter(adapter);
 
         container = findViewById(R.id.container);
+        groupsContainer = findViewById(R.id.groupsContainer);
         btnAdd = findViewById(R.id.btnAdd);
+        btnAddGroup = findViewById(R.id.btnAddGroup);
         rows = new ArrayList<>();
+        groupViews = new ArrayList<>();
+        payerGroups = new ArrayList<>();
         progressBar = findViewById(R.id.progressBar);
+        currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
 
         fetchUsernamesAndSetupInitialRow();
+        loadExistingGroups();
 
         btnAdd.setOnClickListener(v -> {
             if (usernames != null && rows.size() < usernames.size() - 1) {
@@ -102,6 +115,8 @@ public class AddTransactionActivity extends AppCompatActivity {
 
         addTransactionbtn = findViewById(R.id.addTransactionbtn);
         addTransactionbtn.setOnClickListener(v -> addTransaction());
+
+        btnAddGroup.setOnClickListener(v -> showCreateGroupDialog());
 
         paymentAmountEditText = findViewById(R.id.paymentAmount);
         individualPayment = findViewById(R.id.individualPayment);
@@ -320,5 +335,166 @@ public class AddTransactionActivity extends AppCompatActivity {
 
     private void exitEditText() {
         // Implement exit edit text logic here if needed
+    }
+
+    private void loadExistingGroups() {
+        DatabaseReference groupsRef = DeclareDatabase.getDBRefGroups().child(currentUserId);
+        groupsRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                groupsContainer.removeAllViews();
+                groupViews.clear();
+                payerGroups.clear();
+
+                for (DataSnapshot groupSnapshot : dataSnapshot.getChildren()) {
+                    PayerGroup group = groupSnapshot.getValue(PayerGroup.class);
+                    if (group != null) {
+                        group.setGroupId(groupSnapshot.getKey());
+                        payerGroups.add(group);
+                        addGroupView(group);
+                    }
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                Log.e("FirebaseDatabase", "Failed to load groups: " + databaseError.getMessage());
+            }
+        });
+    }
+
+    private void addGroupView(PayerGroup group) {
+        LayoutInflater inflater = LayoutInflater.from(this);
+        View groupView = inflater.inflate(R.layout.item_group, groupsContainer, false);
+
+        TextView groupNameTV = groupView.findViewById(R.id.groupName);
+        TextView groupMembersTV = groupView.findViewById(R.id.groupMembers);
+        Button removeBtn = groupView.findViewById(R.id.removeGroupBtn);
+
+        groupNameTV.setText(group.getGroupName());
+        String membersText = "Members: " + String.join(", ", group.getMembers());
+        groupMembersTV.setText(membersText);
+
+        removeBtn.setOnClickListener(v -> showRemoveGroupConfirmation(group, groupView));
+
+        groupViews.add(groupView);
+        groupsContainer.addView(groupView);
+    }
+
+    private void showCreateGroupDialog() {
+        if (usernames == null || usernames.size() <= 1) {
+            Toast.makeText(this, "No users available to add to group", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_create_group, null);
+        builder.setView(dialogView);
+
+        AlertDialog dialog = builder.create();
+
+        EditText groupNameEditText = dialogView.findViewById(R.id.groupNameEditText);
+        LinearLayout usersCheckboxContainer = dialogView.findViewById(R.id.usersCheckboxContainer);
+        Button cancelBtn = dialogView.findViewById(R.id.cancelGroupBtn);
+        Button createBtn = dialogView.findViewById(R.id.createGroupBtn);
+
+        List<CheckBox> checkBoxes = new ArrayList<>();
+
+        // Add checkboxes for each user (skip "Select a payor:")
+        for (int i = 1; i < usernames.size(); i++) {
+            String username = usernames.get(i);
+            CheckBox checkBox = new CheckBox(this);
+            checkBox.setText(username);
+            checkBox.setTextColor(getResources().getColor(R.color.darkBlue));
+            checkBox.setPadding(8, 8, 8, 8);
+            checkBoxes.add(checkBox);
+            usersCheckboxContainer.addView(checkBox);
+        }
+
+        cancelBtn.setOnClickListener(v -> dialog.dismiss());
+
+        createBtn.setOnClickListener(v -> {
+            String groupName = groupNameEditText.getText().toString().trim();
+
+            if (TextUtils.isEmpty(groupName)) {
+                Toast.makeText(this, "Please enter a group name", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            List<String> selectedMembers = new ArrayList<>();
+            for (CheckBox checkBox : checkBoxes) {
+                if (checkBox.isChecked()) {
+                    selectedMembers.add(checkBox.getText().toString());
+                }
+            }
+
+            if (selectedMembers.isEmpty()) {
+                Toast.makeText(this, "Please select at least one member", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            saveGroupToDatabase(groupName, selectedMembers);
+            dialog.dismiss();
+        });
+
+        dialog.show();
+    }
+
+    private void saveGroupToDatabase(String groupName, List<String> members) {
+        DatabaseReference groupsRef = DeclareDatabase.getDBRefGroups().child(currentUserId);
+        String groupId = groupsRef.push().getKey();
+
+        if (groupId != null) {
+            PayerGroup newGroup = new PayerGroup(groupId, groupName, members, currentUserId);
+            groupsRef.child(groupId).setValue(newGroup)
+                    .addOnSuccessListener(aVoid -> {
+                        Toast.makeText(this, "Group created successfully", Toast.LENGTH_SHORT).show();
+                    })
+                    .addOnFailureListener(e -> {
+                        Toast.makeText(this, "Failed to create group", Toast.LENGTH_SHORT).show();
+                        Log.e("FirebaseDatabase", "Failed to save group: " + e.getMessage());
+                    });
+        }
+    }
+
+    private void showRemoveGroupConfirmation(PayerGroup group, View groupView) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_remove_group, null);
+        builder.setView(dialogView);
+
+        AlertDialog dialog = builder.create();
+
+        TextView groupNameTV = dialogView.findViewById(R.id.groupNameToRemove);
+        Button cancelBtn = dialogView.findViewById(R.id.cancelRemoveBtn);
+        Button confirmBtn = dialogView.findViewById(R.id.confirmRemoveBtn);
+
+        groupNameTV.setText(group.getGroupName());
+
+        cancelBtn.setOnClickListener(v -> dialog.dismiss());
+
+        confirmBtn.setOnClickListener(v -> {
+            removeGroupFromDatabase(group, groupView);
+            dialog.dismiss();
+        });
+
+        dialog.show();
+    }
+
+    private void removeGroupFromDatabase(PayerGroup group, View groupView) {
+        DatabaseReference groupRef = DeclareDatabase.getDBRefGroups()
+                .child(currentUserId)
+                .child(group.getGroupId());
+
+        groupRef.removeValue()
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Group removed successfully", Toast.LENGTH_SHORT).show();
+                    groupsContainer.removeView(groupView);
+                    groupViews.remove(groupView);
+                    payerGroups.remove(group);
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(this, "Failed to remove group", Toast.LENGTH_SHORT).show();
+                    Log.e("FirebaseDatabase", "Failed to remove group: " + e.getMessage());
+                });
     }
 }
