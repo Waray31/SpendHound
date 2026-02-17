@@ -67,6 +67,8 @@ public class AddTransactionActivity extends AppCompatActivity {
     public String usernamePost;
     private String currentUserId;
     private ArrayList<RecentTransaction> recentTransactionList = new ArrayList<>();
+    private PayerGroup selectedGroup = null;
+    private View selectedGroupView = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -201,44 +203,65 @@ public class AddTransactionActivity extends AppCompatActivity {
             return;
         }
 
-        HashSet<String> uniquePayors = new HashSet<>();
-        totalAmountPaid = 0;
+        // Check if a group is selected
+        if (selectedGroup != null && selectedGroup.getMembers() != null && !selectedGroup.getMembers().isEmpty()) {
+            // Use the selected group's members as payors with equal individual payment
+            List<String> groupMembers = selectedGroup.getMembers();
+            int numberOfMembers = groupMembers.size();
+            int individualAmount = paymentAmount / numberOfMembers;
+            int remainder = paymentAmount % numberOfMembers;
 
-        for (View row : rows) {
-            Spinner payorSpinner = row.findViewById(R.id.payor);
-            EditText amountPaidEditText = row.findViewById(R.id.amountPaid);
+            totalAmountPaid = 0;
+            for (int i = 0; i < groupMembers.size(); i++) {
+                payorsList.add(groupMembers.get(i));
+                // Distribute remainder to first few members to ensure total matches
+                int amount = individualAmount + (i < remainder ? 1 : 0);
+                amountsPaidList.add(amount);
+                totalAmountPaid += amount;
+            }
 
-            String payor = payorSpinner.getSelectedItem().toString();
-            String amountPaidStr = amountPaidEditText.getText().toString().trim();
+            totalIndividualPayment = individualAmount;
+        } else {
+            // Fall back to manual payors from rows if no group is selected
+            HashSet<String> uniquePayors = new HashSet<>();
+            totalAmountPaid = 0;
 
-            if ("Select a payor:".equals(payor) || TextUtils.isEmpty(amountPaidStr)) {
-                Toast.makeText(AddTransactionActivity.this, "Please fill in all fields", Toast.LENGTH_SHORT).show();
+            for (View row : rows) {
+                Spinner payorSpinner = row.findViewById(R.id.payor);
+                EditText amountPaidEditText = row.findViewById(R.id.amountPaid);
+
+                String payor = payorSpinner.getSelectedItem().toString();
+                String amountPaidStr = amountPaidEditText.getText().toString().trim();
+
+                if ("Select a payor:".equals(payor) || TextUtils.isEmpty(amountPaidStr)) {
+                    Toast.makeText(AddTransactionActivity.this, "Please select a group or fill in all payor fields", Toast.LENGTH_SHORT).show();
+                    progressBar.setVisibility(View.GONE);
+                    return;
+                }
+
+                if (!uniquePayors.add(payor)) {
+                    Toast.makeText(AddTransactionActivity.this, "Duplicate payor detected: " + payor, Toast.LENGTH_SHORT).show();
+                    progressBar.setVisibility(View.GONE);
+                    return;
+                }
+
+                try {
+                    int amountPaid = Integer.parseInt(amountPaidStr);
+                    payorsList.add(payor);
+                    amountsPaidList.add(amountPaid);
+                    totalAmountPaid += amountPaid;
+                } catch (NumberFormatException e) {
+                    Toast.makeText(AddTransactionActivity.this, "Invalid amount format for payor: " + payor, Toast.LENGTH_SHORT).show();
+                    progressBar.setVisibility(View.GONE);
+                    return;
+                }
+            }
+
+            if (!paymentAmount.equals(totalAmountPaid)) {
+                Toast.makeText(AddTransactionActivity.this, "Total amount paid does not match the payment amount.", Toast.LENGTH_SHORT).show();
                 progressBar.setVisibility(View.GONE);
                 return;
             }
-
-            if (!uniquePayors.add(payor)) {
-                Toast.makeText(AddTransactionActivity.this, "Duplicate payor detected: " + payor, Toast.LENGTH_SHORT).show();
-                progressBar.setVisibility(View.GONE);
-                return;
-            }
-
-            try {
-                int amountPaid = Integer.parseInt(amountPaidStr);
-                payorsList.add(payor);
-                amountsPaidList.add(amountPaid);
-                totalAmountPaid += amountPaid;
-            } catch (NumberFormatException e) {
-                Toast.makeText(AddTransactionActivity.this, "Invalid amount format for payor: " + payor, Toast.LENGTH_SHORT).show();
-                progressBar.setVisibility(View.GONE);
-                return;
-            }
-        }
-
-        if (!paymentAmount.equals(totalAmountPaid)) {
-            Toast.makeText(AddTransactionActivity.this, "Total amount paid does not match the payment amount.", Toast.LENGTH_SHORT).show();
-            progressBar.setVisibility(View.GONE);
-            return;
         }
 
         String currentUserID = FirebaseAuth.getInstance().getCurrentUser().getUid();
@@ -279,7 +302,12 @@ public class AddTransactionActivity extends AppCompatActivity {
                 .child(currentDay)
                 .child(currentTime);
 
-        Transaction transaction = new Transaction(transactionType, paymentAmount, multilineStr, payorsList, amountsPaidList, usernamePost, totalIndividualPayment);
+        Transaction transaction;
+        if (selectedGroup != null) {
+            transaction = new Transaction(transactionType, paymentAmount.intValue(), multilineStr, payorsList, amountsPaidList, usernamePost, totalIndividualPayment, selectedGroup.getGroupId(), selectedGroup.getGroupName());
+        } else {
+            transaction = new Transaction(transactionType, paymentAmount.intValue(), multilineStr, payorsList, amountsPaidList, usernamePost, totalIndividualPayment);
+        }
 
         timestampRef.setValue(transaction)
                 .addOnSuccessListener(aVoid -> {
@@ -315,10 +343,22 @@ public class AddTransactionActivity extends AppCompatActivity {
 
     private void calculateAndDisplayIndividualPayment() {
         String amountStr = paymentAmountEditText.getText().toString();
-        if (!TextUtils.isEmpty(amountStr) && usernames != null && usernames.size() > 1) {
+        if (!TextUtils.isEmpty(amountStr)) {
             try {
                 int amount = Integer.parseInt(amountStr);
-                int numberOfUsers = usernames.size() - 1; // Exclude "Select a payor:"
+                int numberOfUsers;
+
+                // If a group is selected, use the group's member count
+                if (selectedGroup != null && selectedGroup.getMembers() != null && !selectedGroup.getMembers().isEmpty()) {
+                    numberOfUsers = selectedGroup.getMembers().size();
+                } else if (usernames != null && usernames.size() > 1) {
+                    // Fall back to all users if no group is selected
+                    numberOfUsers = usernames.size() - 1; // Exclude "Select a payor:"
+                } else {
+                    individualPayment.setText("₱ 0.00");
+                    return;
+                }
+
                 totalIndividualPayment = amount / numberOfUsers;
                 individualPayment.setText("₱ " + totalIndividualPayment + ".00");
             } catch (NumberFormatException e) {
@@ -377,8 +417,44 @@ public class AddTransactionActivity extends AppCompatActivity {
 
         removeBtn.setOnClickListener(v -> showRemoveGroupConfirmation(group, groupView));
 
+        // Add click listener for group selection
+        groupView.setOnClickListener(v -> selectGroup(group, groupView));
+
         groupViews.add(groupView);
         groupsContainer.addView(groupView);
+    }
+
+    private void selectGroup(PayerGroup group, View groupView) {
+        // If the same group is tapped again, deselect it
+        if (selectedGroup != null && selectedGroup.getGroupId().equals(group.getGroupId())) {
+            deselectGroup();
+            return;
+        }
+
+        // Deselect previous group if any
+        if (selectedGroupView != null) {
+            selectedGroupView.setBackgroundResource(R.drawable.rounded_border_transparent_bg);
+        }
+
+        // Select the new group
+        selectedGroup = group;
+        selectedGroupView = groupView;
+        groupView.setBackgroundResource(R.drawable.rounded_border_selected_bg);
+
+        // Recalculate individual payment based on selected group members
+        calculateAndDisplayIndividualPayment();
+
+        Toast.makeText(this, "Selected group: " + group.getGroupName(), Toast.LENGTH_SHORT).show();
+    }
+
+    private void deselectGroup() {
+        if (selectedGroupView != null) {
+            selectedGroupView.setBackgroundResource(R.drawable.rounded_border_transparent_bg);
+        }
+        selectedGroup = null;
+        selectedGroupView = null;
+        calculateAndDisplayIndividualPayment();
+        Toast.makeText(this, "Group deselected", Toast.LENGTH_SHORT).show();
     }
 
     private void showCreateGroupDialog() {

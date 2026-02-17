@@ -16,6 +16,8 @@ public class Transaction {
     private List<Integer> amountsPaidList;
     private String usernamePost;
     private int totalIndividualPayment;
+    private String groupId;
+    private String groupName;
 
     public Transaction(String transactionType, int paymentAmount,String multilineStr, List<String> payorsList, List<Integer> amountsPaidList, String usernamePost, int totalIndividualPayment) {
         this.transactionType = transactionType;
@@ -25,6 +27,18 @@ public class Transaction {
         this.amountsPaidList = amountsPaidList;
         this.usernamePost= usernamePost;
         this.totalIndividualPayment= totalIndividualPayment;
+    }
+
+    public Transaction(String transactionType, int paymentAmount, String multilineStr, List<String> payorsList, List<Integer> amountsPaidList, String usernamePost, int totalIndividualPayment, String groupId, String groupName) {
+        this.transactionType = transactionType;
+        this.paymentAmount = paymentAmount;
+        this.multilineStr = multilineStr;
+        this.payorsList = payorsList;
+        this.amountsPaidList = amountsPaidList;
+        this.usernamePost = usernamePost;
+        this.totalIndividualPayment = totalIndividualPayment;
+        this.groupId = groupId;
+        this.groupName = groupName;
     }
 
     // Add an empty constructor
@@ -89,5 +103,21 @@ public class Transaction {
 
     public void setTotalIndividualPayment(int totalIndividualPayment) {
         this.totalIndividualPayment = totalIndividualPayment;
+    }
+
+    public String getGroupId() {
+        return groupId;
+    }
+
+    public void setGroupId(String groupId) {
+        this.groupId = groupId;
+    }
+
+    public String getGroupName() {
+        return groupName;
+    }
+
+    public void setGroupName(String groupName) {
+        this.groupName = groupName;
     }
 }
