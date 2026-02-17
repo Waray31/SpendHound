@@ -409,12 +409,14 @@ public class AddTransactionActivity extends AppCompatActivity {
 
         TextView groupNameTV = groupView.findViewById(R.id.groupName);
         TextView groupMembersTV = groupView.findViewById(R.id.groupMembers);
+        Button editBtn = groupView.findViewById(R.id.editGroupBtn);
         Button removeBtn = groupView.findViewById(R.id.removeGroupBtn);
 
         groupNameTV.setText(group.getGroupName());
         String membersText = "Members: " + String.join(", ", group.getMembers());
         groupMembersTV.setText(membersText);
 
+        editBtn.setOnClickListener(v -> showEditGroupDialog(group, groupView));
         removeBtn.setOnClickListener(v -> showRemoveGroupConfirmation(group, groupView));
 
         // Add click listener for group selection
@@ -531,6 +533,104 @@ public class AddTransactionActivity extends AppCompatActivity {
                         Log.e("FirebaseDatabase", "Failed to save group: " + e.getMessage());
                     });
         }
+    }
+
+    private void showEditGroupDialog(PayerGroup group, View groupView) {
+        if (usernames == null || usernames.size() <= 1) {
+            Toast.makeText(this, "No users available to edit group", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_edit_group, null);
+        builder.setView(dialogView);
+
+        AlertDialog dialog = builder.create();
+
+        EditText groupNameEditText = dialogView.findViewById(R.id.editGroupNameEditText);
+        LinearLayout usersCheckboxContainer = dialogView.findViewById(R.id.editUsersCheckboxContainer);
+        Button cancelBtn = dialogView.findViewById(R.id.cancelEditGroupBtn);
+        Button saveBtn = dialogView.findViewById(R.id.saveEditGroupBtn);
+
+        // Pre-fill the group name
+        groupNameEditText.setText(group.getGroupName());
+
+        List<CheckBox> checkBoxes = new ArrayList<>();
+
+        // Add checkboxes for each user (skip "Select a payor:")
+        for (int i = 1; i < usernames.size(); i++) {
+            String username = usernames.get(i);
+            CheckBox checkBox = new CheckBox(this);
+            checkBox.setText(username);
+            checkBox.setTextColor(getResources().getColor(R.color.darkBlue));
+            checkBox.setPadding(8, 8, 8, 8);
+
+            // Check if this user is already in the group
+            if (group.getMembers().contains(username)) {
+                checkBox.setChecked(true);
+            }
+
+            checkBoxes.add(checkBox);
+            usersCheckboxContainer.addView(checkBox);
+        }
+
+        cancelBtn.setOnClickListener(v -> dialog.dismiss());
+
+        saveBtn.setOnClickListener(v -> {
+            String groupName = groupNameEditText.getText().toString().trim();
+
+            if (TextUtils.isEmpty(groupName)) {
+                Toast.makeText(this, "Please enter a group name", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            List<String> selectedMembers = new ArrayList<>();
+            for (CheckBox checkBox : checkBoxes) {
+                if (checkBox.isChecked()) {
+                    selectedMembers.add(checkBox.getText().toString());
+                }
+            }
+
+            if (selectedMembers.isEmpty()) {
+                Toast.makeText(this, "Please select at least one member", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            updateGroupInDatabase(group.getGroupId(), groupName, selectedMembers, groupView);
+            dialog.dismiss();
+        });
+
+        dialog.show();
+    }
+
+    private void updateGroupInDatabase(String groupId, String groupName, List<String> members, View groupView) {
+        DatabaseReference groupRef = DeclareDatabase.getDBRefGroups()
+                .child(currentUserId)
+                .child(groupId);
+
+        PayerGroup updatedGroup = new PayerGroup(groupId, groupName, members, currentUserId);
+        groupRef.setValue(updatedGroup)
+                .addOnSuccessListener(aVoid -> {
+                    Toast.makeText(this, "Group updated successfully", Toast.LENGTH_SHORT).show();
+
+                    // Update the group view immediately
+                    TextView groupNameTV = groupView.findViewById(R.id.groupName);
+                    TextView groupMembersTV = groupView.findViewById(R.id.groupMembers);
+                    groupNameTV.setText(groupName);
+                    String membersText = "Members: " + String.join(", ", members);
+                    groupMembersTV.setText(membersText);
+
+                    // If this group is currently selected, update the selected group object
+                    if (selectedGroup != null && selectedGroup.getGroupId().equals(groupId)) {
+                        selectedGroup.setGroupName(groupName);
+                        selectedGroup.setMembers(members);
+                        calculateAndDisplayIndividualPayment();
+                    }
+                })
+                .addOnFailureListener(e -> {
+                    Toast.makeText(this, "Failed to update group", Toast.LENGTH_SHORT).show();
+                    Log.e("FirebaseDatabase", "Failed to update group: " + e.getMessage());
+                });
     }
 
     private void showRemoveGroupConfirmation(PayerGroup group, View groupView) {

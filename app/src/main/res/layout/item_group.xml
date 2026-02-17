@@ -3,7 +3,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
-    android:layout_margin="4dp"
+    android:layout_marginVertical="4dp"
     android:padding="12dp"
     android:background="@drawable/rounded_border_transparent_bg"
     android:elevation="2dp"
@@ -37,10 +37,20 @@
     </LinearLayout>
 
     <Button
+        android:id="@+id/editGroupBtn"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:background="@drawable/pencil"
+        android:layout_marginEnd="8dp" />
+
+    <Button
         android:id="@+id/removeGroupBtn"
         android:layout_width="24dp"
         android:layout_height="24dp"
         android:background="@drawable/close"
-        android:layout_marginStart="8dp" />
+        android:layout_marginStart="8dp"
+        android:elevation="10dp"
+        android:translationZ="10dp" />
 
 </LinearLayout>
+
