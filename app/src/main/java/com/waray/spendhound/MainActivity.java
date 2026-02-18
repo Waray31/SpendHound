@@ -256,7 +256,7 @@ public class MainActivity extends AppCompatActivity {
         SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
         SimpleDateFormat dayFormat = new SimpleDateFormat("dd", Locale.getDefault());
 
-        int daysToFetch = 3;
+        int daysToFetch = 7;
         AtomicInteger daysFetched = new AtomicInteger(0);
 
         for (int i = 0; i < daysToFetch; i++) {
@@ -284,20 +284,26 @@ public class MainActivity extends AppCompatActivity {
 
                             if ("Electricity".equals(mostRecentTransactionType)) {
                                 iconResource = R.drawable.lightning_bolt;
-                            } else if ("Water Bill".equals(mostRecentTransactionType)) {
+                            } else if ("Water".equals(mostRecentTransactionType)) {
                                 iconResource = R.drawable.faucet;
-                            } else if ("Mineral Water".equals(mostRecentTransactionType)) {
-                                iconResource = R.drawable.water;
+                            } else if ("Rent".equals(mostRecentTransactionType)) {
+                                iconResource = R.drawable.house;
+                            }else if ("Internet".equals(mostRecentTransactionType)) {
+                                iconResource = R.drawable.internet;
+                            }else if ("Online Shopping".equals(mostRecentTransactionType)) {
+                                iconResource = R.drawable.online_shopping;
+                            }else if ("Travel".equals(mostRecentTransactionType)) {
+                                iconResource = R.drawable.travel;
                             } else if ("Groceries".equals(mostRecentTransactionType)) {
                                 iconResource = R.drawable.groceries;
                             } else if ("Foods".equals(mostRecentTransactionType)) {
                                 iconResource = R.drawable.hamburger;
                             } else if ("House Necessity".equals(mostRecentTransactionType)) {
-                                iconResource = R.drawable.sofa;
+                                iconResource = R.drawable.necessities;
                             } else if ("Transportation".equals(mostRecentTransactionType)) {
                                 iconResource = R.drawable.vehicles;
                             } else {
-                                iconResource = R.drawable.house;
+                                iconResource = R.drawable.others;
                             }
                             RecentTransaction recentTrans = new RecentTransaction(
                                     mostRecentDate,

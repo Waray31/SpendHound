@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Circle background -->
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="#ffba08" /> <!-- Set the desired circle background color -->
+        </shape>
+    </item>
+
+    <!-- Arrow right icon -->
+    <item android:drawable="@drawable/ic_arrow_right" />
+</layer-list>

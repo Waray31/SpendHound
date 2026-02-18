@@ -44,12 +44,15 @@
     <string name="pending_status_button">Pending status</string>
 
     <string-array name="transactionTypes_String">
-        <item>Select a transaction:</item>
-        <item>Electricity Bill</item>
-        <item>Water Bill</item>
-        <item>Mineral Water</item>
+        <item>Select what kind of bill:</item>
+        <item>Rent</item>
+        <item>Electricity</item>
+        <item>Water</item>
+        <item>Internet</item>
         <item>Groceries</item>
         <item>Foods</item>
+        <item>Online Shopping</item>
+        <item>Travel</item>
         <item>House Necessity</item>
         <item>Transportation</item>
         <item>Others</item>

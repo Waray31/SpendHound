@@ -4,7 +4,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@drawable/glassy_background"
+    android:background="@color/white"
     android:gravity="top|center"
     android:orientation="vertical"
     tools:context=".AddTransactionActivity">
@@ -35,7 +35,7 @@
                 android:layout_marginTop="12dp"
                 android:layout_marginBottom="4dp"
                 android:fontFamily="@font/montserratalternatess_regular"
-                android:text="Type of transaction:"
+                android:text="Type of Bill:"
                 android:textColor="@color/darkBlue" />
 
             <LinearLayout
@@ -122,16 +122,16 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
                 android:orientation="horizontal">
 
                 <TextView
                     android:id="@+id/textView6"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="4dp"
                     android:layout_weight="1"
                     android:fontFamily="@font/montserratalternatess_regular"
-                    android:text="Select group of payers:"
+                    android:text="Select group to split bill:"
                     android:textAlignment="textStart"
                     android:textColor="@color/darkBlue" />
 
@@ -242,6 +242,7 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="4dp"
                 android:orientation="horizontal">
 
                 <TextView
