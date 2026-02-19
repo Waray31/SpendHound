@@ -55,14 +55,13 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginVertical="36dp"
+        android:layout_marginVertical="20dp"
         android:gravity="start"
         android:orientation="horizontal">
 
 <LinearLayout
-    android:layout_width="0dp"
+    android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:layout_weight="3"
     android:gravity="center"
     android:orientation="vertical">
         <TextView
@@ -88,20 +87,6 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@+id/textView2" />
 </LinearLayout>
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:gravity="center">
-
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fab_addTransaction"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:contentDescription="@string/add_new_transaction_description"
-            app:backgroundTint="#FFBA08"
-            app:srcCompat="@drawable/baseline_add_24" />
-        </LinearLayout>
 
     </LinearLayout>
 
@@ -527,18 +512,35 @@
         android:layout_weight="5"
         android:orientation="vertical">
 
-        <RelativeLayout
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent">
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
             <TextView
                 android:id="@+id/recentTextView"
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
                 android:fontFamily="@font/montserratalternatess_bold"
                 android:text="Recent transactions"
                 android:textColor="@color/grey"
                 android:textSize="16sp" />
+
+            <ImageButton
+                android:id="@+id/btn_addTransaction"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:background="@drawable/circular_button_background"
+                android:contentDescription="@string/add_new_transaction_description"
+                android:elevation="4dp"
+                android:scaleType="centerInside"
+                android:padding="4dp"
+                android:src="@drawable/baseline_add_24"
+                app:tint="@color/white" />
+
+        </LinearLayout>
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/transactionListRecycler"
@@ -547,8 +549,6 @@
                 android:layout_below="@+id/recentTextView"
                 android:layout_marginTop="4dp"
                 tools:listitem="@layout/fragment_transaction" />
-
-        </RelativeLayout>
 
     </LinearLayout>
 

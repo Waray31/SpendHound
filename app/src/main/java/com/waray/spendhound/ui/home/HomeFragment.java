@@ -33,7 +33,6 @@ import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -61,7 +60,7 @@ public class HomeFragment extends Fragment {
     private TextView day7TextView, day6TextView, day5TextView, day4TextView, day3TextView, day2TextView, day1TextView;
     private FragmentHomeBinding binding;
     private ImageView profileImageView;
-    private FloatingActionButton fab_addTransaction;
+    private ImageButton btnAddTransaction;
     private CardView cardViewProfile;
     public FirebaseAuth mAuth;
 
@@ -87,7 +86,7 @@ public class HomeFragment extends Fragment {
         day3TextView = view.findViewById(R.id.day3);
         day2TextView = view.findViewById(R.id.day2);
         day1TextView = view.findViewById(R.id.day1);
-        fab_addTransaction = view.findViewById(R.id.fab_addTransaction);
+        btnAddTransaction = view.findViewById(R.id.btn_addTransaction);
         cardViewProfile = view.findViewById(R.id.cardView_profile);
         mAuth = DeclareDatabase.getAuth();
 
@@ -181,7 +180,7 @@ public class HomeFragment extends Fragment {
 
 
     public void addTransactionButton(){
-        fab_addTransaction.setOnClickListener(new View.OnClickListener() {
+        btnAddTransaction.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
                 // Create an Intent to navigate to NewActivity
