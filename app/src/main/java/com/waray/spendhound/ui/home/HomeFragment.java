@@ -146,23 +146,8 @@ public class HomeFragment extends Fragment {
     }
 
     public void setTextViews() {
-        Calendar calendar = Calendar.getInstance();
-        calendar.add(Calendar.DAY_OF_YEAR, -6); // Start with 6 days ago
-
-        // Set the text for each TextView
-        day7TextView.setText(getFormattedDay(calendar));
-        calendar.add(Calendar.DAY_OF_YEAR, 1);
-        day6TextView.setText(getFormattedDay(calendar));
-        calendar.add(Calendar.DAY_OF_YEAR, 1);
-        day5TextView.setText(getFormattedDay(calendar));
-        calendar.add(Calendar.DAY_OF_YEAR, 1);
-        day4TextView.setText(getFormattedDay(calendar));
-        calendar.add(Calendar.DAY_OF_YEAR, 1);
-        day3TextView.setText(getFormattedDay(calendar));
-        calendar.add(Calendar.DAY_OF_YEAR, 1);
-        day2TextView.setText(getFormattedDay(calendar));
-        calendar.add(Calendar.DAY_OF_YEAR, 1);
-        day1TextView.setText(getFormattedDay(calendar));
+        // Use the current week's display which handles Sunday-Saturday order and current day highlighting
+        setTextViewsForWeek();
     }
 
     public String getFormattedDay(Calendar calendar) {
@@ -343,21 +328,31 @@ public class HomeFragment extends Fragment {
 
     private void setTextViewsForWeek() {
         Calendar calendar = (Calendar) currentWeekStart.clone();
+        Calendar today = Calendar.getInstance();
+
+        // Array of TextViews in order: Sun, Mon, Tue, Wed, Thu, Fri, Sat
+        TextView[] dayTextViews = {day7TextView, day6TextView, day5TextView, day4TextView, day3TextView, day2TextView, day1TextView};
 
         // Set the text for each TextView (Sunday to Saturday)
-        day7TextView.setText(getFormattedDay(calendar));
-        calendar.add(Calendar.DAY_OF_YEAR, 1);
-        day6TextView.setText(getFormattedDay(calendar));
-        calendar.add(Calendar.DAY_OF_YEAR, 1);
-        day5TextView.setText(getFormattedDay(calendar));
-        calendar.add(Calendar.DAY_OF_YEAR, 1);
-        day4TextView.setText(getFormattedDay(calendar));
-        calendar.add(Calendar.DAY_OF_YEAR, 1);
-        day3TextView.setText(getFormattedDay(calendar));
-        calendar.add(Calendar.DAY_OF_YEAR, 1);
-        day2TextView.setText(getFormattedDay(calendar));
-        calendar.add(Calendar.DAY_OF_YEAR, 1);
-        day1TextView.setText(getFormattedDay(calendar));
+        for (int i = 0; i < 7; i++) {
+            dayTextViews[i].setText(getFormattedDay(calendar));
+
+            // Check if this day is today
+            if (isSameDay(calendar, today)) {
+                dayTextViews[i].setTextColor(ContextCompat.getColor(requireContext(), R.color.yellow));
+                dayTextViews[i].setTypeface(null, android.graphics.Typeface.BOLD);
+            } else {
+                dayTextViews[i].setTextColor(Color.WHITE);
+                dayTextViews[i].setTypeface(null, android.graphics.Typeface.NORMAL);
+            }
+
+            calendar.add(Calendar.DAY_OF_YEAR, 1);
+        }
+    }
+
+    private boolean isSameDay(Calendar cal1, Calendar cal2) {
+        return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
+               cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR);
     }
 
     private void showWeeklyChart() {

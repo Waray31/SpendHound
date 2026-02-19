@@ -150,16 +150,25 @@ public class MainActivity extends AppCompatActivity {
     public void getEverydaySpends() {
         int[] dailySpends = new int[7];
         Calendar calendar = Calendar.getInstance();
+        // Set to beginning of current week (Sunday)
+        calendar.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY);
+        calendar.set(Calendar.HOUR_OF_DAY, 0);
+        calendar.set(Calendar.MINUTE, 0);
+        calendar.set(Calendar.SECOND, 0);
+        calendar.set(Calendar.MILLISECOND, 0);
+
         SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
         SimpleDateFormat dayFormat = new SimpleDateFormat("dd", Locale.getDefault());
 
+        // Iterate from Sunday (i=0) to Saturday (i=6)
         for (int i = 0; i < 7; i++) {
             String currentMonthYear = monthFormat.format(calendar.getTime());
             String currentDay = dayFormat.format(calendar.getTime());
 
             DatabaseReference dayRef = DeclareDatabase.getDBRefTransaction().child(currentMonthYear).child(currentDay);
 
-            final int dayIndex = i;
+            // dayIndex: 6=Sunday, 5=Monday, 4=Tuesday, 3=Wednesday, 2=Thursday, 1=Friday, 0=Saturday
+            final int dayIndex = 6 - i;
             dayRef.addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
@@ -182,7 +191,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             });
 
-            calendar.add(Calendar.DAY_OF_YEAR, -1); // Go to previous day for next iteration
+            calendar.add(Calendar.DAY_OF_YEAR, 1); // Go to next day for week iteration
         }
     }
 
@@ -238,44 +247,46 @@ public class MainActivity extends AppCompatActivity {
         TextView day7SpendTextView = findViewById(R.id.totalday7);
         int viewId = 0;
 
+        // Mapping: day7=Sunday(index 6), day6=Monday(5), day5=Tuesday(4),
+        // day4=Wednesday(3), day3=Thursday(2), day2=Friday(1), day1=Saturday(0)
         switch (day) {
-            case 0:
-                day1SpendTextView.setText(dailySpendString);
-                viewId = R.id.day1_bar;
+            case 6: // Sunday
+                day7SpendTextView.setText(dailySpendString);
+                viewId = R.id.day7_bar;
                 break;
-            case 1:
-                day2SpendTextView.setText(dailySpendString);
-                viewId = R.id.day2_bar;
-                break;
-            case 2:
-                day3SpendTextView.setText(dailySpendString);
-                viewId = R.id.day3_bar;
-                break;
-            case 3:
-                day4SpendTextView.setText(dailySpendString);
-                viewId = R.id.day4_bar;
-                break;
-            case 4:
-                day5SpendTextView.setText(dailySpendString);
-                viewId = R.id.day5_bar;
-                break;
-            case 5:
+            case 5: // Monday
                 day6SpendTextView.setText(dailySpendString);
                 viewId = R.id.day6_bar;
                 break;
-            case 6:
-                day7SpendTextView.setText(dailySpendString);
-                viewId = R.id.day7_bar;
+            case 4: // Tuesday
+                day5SpendTextView.setText(dailySpendString);
+                viewId = R.id.day5_bar;
+                break;
+            case 3: // Wednesday
+                day4SpendTextView.setText(dailySpendString);
+                viewId = R.id.day4_bar;
+                break;
+            case 2: // Thursday
+                day3SpendTextView.setText(dailySpendString);
+                viewId = R.id.day3_bar;
+                break;
+            case 1: // Friday
+                day2SpendTextView.setText(dailySpendString);
+                viewId = R.id.day2_bar;
+                break;
+            case 0: // Saturday
+                day1SpendTextView.setText(dailySpendString);
+                viewId = R.id.day1_bar;
                 break;
         }
         // Calculate the desired height based on the daily spend
         int desiredHeightInPixels;
         if (dailySpends >= 1000) {
-            desiredHeightInPixels = 250;
-        } else if (dailySpends <= 100) {
-            desiredHeightInPixels = 25;
+            desiredHeightInPixels = 300;
+        } else if (dailySpends <= 50) {
+            desiredHeightInPixels = 17;
         } else {
-            desiredHeightInPixels = dailySpends / 4;
+            desiredHeightInPixels = dailySpends / 3;
         }
 
         if (viewId != 0) {
@@ -312,9 +323,15 @@ public class MainActivity extends AppCompatActivity {
                     for (DataSnapshot timeSnapshot : dataSnapshot.getChildren()) {
                         Transaction transaction = timeSnapshot.getValue(Transaction.class);
                         if (transaction != null) {
+                            String timeKey = timeSnapshot.getKey(); // Time in HH:mm:ss format
                             String[] parts = finalCurrentMonthYear.split("-");
                             String finalCurrentMonth = parts[0];
+                            String finalCurrentYear = parts[1];
                             String mostRecentDate = finalCurrentMonth + " - " + finalCurrentDay;
+
+                            // Create sortDateTime for proper sorting (format: yyyy-MM-dd HH:mm:ss)
+                            String sortDateTime = finalCurrentYear + "-" + finalCurrentMonth + "-" + finalCurrentDay + " " + timeKey;
+
                             String mostRecentTransactionType = transaction.getTransactionType();
                             String mostRecentDetails = transaction.getMultilineStr();
                             int mostRecentPaymentAmount = transaction.getPaymentAmount();
@@ -349,13 +366,24 @@ public class MainActivity extends AppCompatActivity {
                                     mostRecentTransactionType,
                                     mostRecentDetails,
                                     mostRecentPaymentAmountStr,
-                                    iconResource
+                                    iconResource,
+                                    sortDateTime
                             );
                             recentTransactionList.add(recentTrans);
                         }
                     }
 
                     if (daysFetched.incrementAndGet() == daysToFetch) {
+                        // Sort transactions in descending order by date and time
+                        Collections.sort(recentTransactionList, (t1, t2) -> {
+                            String dateTime1 = t1.getSortDateTime();
+                            String dateTime2 = t2.getSortDateTime();
+                            if (dateTime1 != null && dateTime2 != null) {
+                                return dateTime2.compareTo(dateTime1); // Descending order
+                            }
+                            return 0;
+                        });
+
                         if (recentTransactionAdapter != null) {
                             recentTransactionAdapter.notifyDataSetChanged();
                         }

@@ -6,6 +6,7 @@ public class RecentTransaction {
     private String mostRecentDetails;
     private String mostRecentPaymentAmountStr;
     private int iconResource;
+    private String sortDateTime; // For sorting by date and time (format: "yyyy-MM-dd HH:mm:ss")
 
     public RecentTransaction(String mostRecentDate, String mostRecentTransactionType, String mostRecentDetails, String mostRecentPaymentAmountStr, int iconResource) {
         this.mostRecentDate = mostRecentDate;
@@ -13,6 +14,23 @@ public class RecentTransaction {
         this.mostRecentDetails = mostRecentDetails;
         this.mostRecentPaymentAmountStr = mostRecentPaymentAmountStr;
         this.iconResource = iconResource;
+    }
+
+    public RecentTransaction(String mostRecentDate, String mostRecentTransactionType, String mostRecentDetails, String mostRecentPaymentAmountStr, int iconResource, String sortDateTime) {
+        this.mostRecentDate = mostRecentDate;
+        this.mostRecentTransactionType = mostRecentTransactionType;
+        this.mostRecentDetails = mostRecentDetails;
+        this.mostRecentPaymentAmountStr = mostRecentPaymentAmountStr;
+        this.iconResource = iconResource;
+        this.sortDateTime = sortDateTime;
+    }
+
+    public String getSortDateTime() {
+        return sortDateTime;
+    }
+
+    public void setSortDateTime(String sortDateTime) {
+        this.sortDateTime = sortDateTime;
     }
 
     public String getMostRecentDate() {
