@@ -104,400 +104,419 @@
 
     </LinearLayout>
 
-    <androidx.constraintlayout.widget.ConstraintLayout
-        android:id="@+id/constraintLayout"
+    <!-- Analytics Section - LinearLayout -->
+    <LinearLayout
+        android:id="@+id/analyticsContainer"
         android:layout_width="match_parent"
-        android:layout_height="300dp"
-        android:layout_below="@+id/textView"
+        android:layout_height="wrap_content"
         android:background="@drawable/rounded_background8"
         android:elevation="4dp"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textView">
+        android:orientation="vertical"
+        android:padding="16dp">
 
-
-        <TextView
-            android:id="@+id/textView7"
-            android:layout_width="match_parent"
-            android:layout_height="32dp"
-            android:alpha="0.8"
-            android:fontFamily="sans-serif-thin"
-            android:text="- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
-            android:textColor="@color/grey"
-            android:textSize="20dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
-            app:layout_constraintVertical_bias="0.51" />
-
-
+        <!-- Header Row: Title + Toggle -->
         <LinearLayout
             android:id="@+id/topBarText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:orientation="horizontal"
-            android:paddingHorizontal="16dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/textView5"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_weight="2"
+                android:layout_weight="1"
                 android:fontFamily="@font/montserratalternatess_regular"
                 android:text="Analytics"
-                android:textAlignment="textStart"
                 android:textColor="@color/white"
-                android:textSize="16sp" />
+                android:textSize="18sp"
+                android:textStyle="bold" />
 
-            <ImageButton
-                android:id="@+id/myImageView3"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:scaleType="center"
-                android:src="@drawable/arrow_left_with_circle" />
-            <TextView
-                android:id="@+id/textView6"
+            <!-- Weekly/Monthly Toggle -->
+            <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:paddingHorizontal="12dp"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="This week"
-                android:textColor="#adb5bd"
-                android:textSize="16sp" />
+                android:background="@drawable/toggle_background"
+                android:orientation="horizontal"
+                android:padding="3dp">
 
-            <ImageButton
-                android:id="@+id/myImageView33"
-                android:layout_width="28dp"
-                android:layout_height="28dp"
-                android:scaleType="center"
-                android:src="@drawable/arrow_right_with_circle" />
+                <TextView
+                    android:id="@+id/btnWeekly"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/toggle_selected_background"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:paddingHorizontal="14dp"
+                    android:paddingVertical="6dp"
+                    android:text="Weekly"
+                    android:textColor="@color/darkBlue"
+                    android:textSize="12sp" />
 
+                <TextView
+                    android:id="@+id/btnMonthly"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@android:color/transparent"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:paddingHorizontal="14dp"
+                    android:paddingVertical="6dp"
+                    android:text="Monthly"
+                    android:textColor="#adb5bd"
+                    android:textSize="12sp" />
+            </LinearLayout>
         </LinearLayout>
 
+        <!-- Navigation Row: Prev + Date Range + Next -->
         <LinearLayout
-            android:id="@+id/linearLayout4"
+            android:id="@+id/navigationBar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <ImageButton
+                android:id="@+id/btnPrevious"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="Previous"
+                android:scaleType="centerInside"
+                android:src="@drawable/arrow_left_with_circle" />
+
+            <TextView
+                android:id="@+id/dateRangeText"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:gravity="center"
+                android:text="Feb 13 - Feb 19, 2026"
+                android:textColor="#adb5bd"
+                android:textSize="14sp" />
+
+            <ImageButton
+                android:id="@+id/btnNext"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="@android:color/transparent"
+                android:contentDescription="Next"
+                android:scaleType="centerInside"
+                android:src="@drawable/arrow_right_with_circle" />
+        </LinearLayout>
+
+        <!-- Weekly Chart Container -->
+        <LinearLayout
+            android:id="@+id/weeklyChartContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:orientation="horizontal"
-            android:layout_marginHorizontal="24dp"
-            app:layout_constraintEnd_toStartOf="@+id/myImageView2"
-            app:layout_constraintStart_toEndOf="@+id/myImageView"
-            app:layout_constraintTop_toBottomOf="@+id/topBarText">
+            android:orientation="vertical"
+            android:visibility="visible">
 
+            <!-- Dashed Line Separator -->
             <TextView
-                android:id="@+id/totalday7"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="1000"
-                android:textAlignment="center"
+                android:id="@+id/textView7"
+                android:layout_width="match_parent"
+                android:layout_height="24dp"
+                android:alpha="0.6"
+                android:fontFamily="sans-serif-thin"
+                android:gravity="center"
+                android:text="- - - - - - - - - - - - - - - - - - - - - - - - - - - - - -"
                 android:textColor="@color/grey"
-                android:textSize="12sp" />
+                android:textSize="16sp" />
 
-            <TextView
-                android:id="@+id/totalday6"
-                android:layout_width="0dp"
-                android:layout_weight="1"
+            <!-- Daily Amounts Row -->
+            <LinearLayout
+                android:id="@+id/linearLayout4"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="1000"
-                android:textAlignment="center"
-                android:textColor="@color/grey"
-                android:textSize="12sp" />
+                android:layout_marginTop="4dp"
+                android:baselineAligned="false"
+                android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/totalday5"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="1000"
-                android:textAlignment="center"
-                android:textColor="@color/grey"
-                android:textSize="12sp" />
+                <TextView
+                    android:id="@+id/totalday7"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:gravity="center"
+                    android:text="0"
+                    android:textColor="@color/grey"
+                    android:textSize="10sp" />
 
-            <TextView
-                android:id="@+id/totalday4"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="1000"
-                android:textAlignment="center"
-                android:textColor="@color/grey"
-                android:textSize="12sp" />
+                <TextView
+                    android:id="@+id/totalday6"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:gravity="center"
+                    android:text="0"
+                    android:textColor="@color/grey"
+                    android:textSize="10sp" />
 
-            <TextView
-                android:id="@+id/totalday3"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="1000"
-                android:textAlignment="center"
-                android:textColor="@color/grey"
-                android:textSize="12sp" />
+                <TextView
+                    android:id="@+id/totalday5"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:gravity="center"
+                    android:text="0"
+                    android:textColor="@color/grey"
+                    android:textSize="10sp" />
 
-            <TextView
-                android:id="@+id/totalday2"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="1000"
-                android:textAlignment="center"
-                android:textColor="@color/grey"
-                android:textSize="12sp" />
+                <TextView
+                    android:id="@+id/totalday4"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:gravity="center"
+                    android:text="0"
+                    android:textColor="@color/grey"
+                    android:textSize="10sp" />
 
-            <TextView
-                android:id="@+id/totalday1"
-                android:layout_width="0dp"
-                android:layout_weight="1"
+                <TextView
+                    android:id="@+id/totalday3"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:gravity="center"
+                    android:text="0"
+                    android:textColor="@color/grey"
+                    android:textSize="10sp" />
+
+                <TextView
+                    android:id="@+id/totalday2"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:gravity="center"
+                    android:text="0"
+                    android:textColor="@color/grey"
+                    android:textSize="10sp" />
+
+                <TextView
+                    android:id="@+id/totalday1"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:gravity="center"
+                    android:text="0"
+                    android:textColor="@color/grey"
+                    android:textSize="10sp" />
+            </LinearLayout>
+
+            <!-- Bar Chart Row -->
+            <LinearLayout
+                android:id="@+id/linearLayout3"
+                android:layout_width="match_parent"
+                android:layout_height="100dp"
+                android:layout_marginTop="8dp"
+                android:baselineAligned="false"
+                android:gravity="bottom"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:gravity="bottom|center_horizontal">
+
+                    <View
+                        android:id="@+id/day7_bar"
+                        android:layout_width="12dp"
+                        android:layout_height="10dp"
+                        android:background="@drawable/rounded_background" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:gravity="bottom|center_horizontal">
+
+                    <View
+                        android:id="@+id/day6_bar"
+                        android:layout_width="12dp"
+                        android:layout_height="10dp"
+                        android:background="@drawable/rounded_background2" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:gravity="bottom|center_horizontal">
+
+                    <View
+                        android:id="@+id/day5_bar"
+                        android:layout_width="12dp"
+                        android:layout_height="10dp"
+                        android:background="@drawable/rounded_background3" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:gravity="bottom|center_horizontal">
+
+                    <View
+                        android:id="@+id/day4_bar"
+                        android:layout_width="12dp"
+                        android:layout_height="10dp"
+                        android:background="@drawable/rounded_background4" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:gravity="bottom|center_horizontal">
+
+                    <View
+                        android:id="@+id/day3_bar"
+                        android:layout_width="12dp"
+                        android:layout_height="10dp"
+                        android:background="@drawable/rounded_background5" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:gravity="bottom|center_horizontal">
+
+                    <View
+                        android:id="@+id/day2_bar"
+                        android:layout_width="12dp"
+                        android:layout_height="10dp"
+                        android:background="@drawable/rounded_background6" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:gravity="bottom|center_horizontal">
+
+                    <View
+                        android:id="@+id/day1_bar"
+                        android:layout_width="12dp"
+                        android:layout_height="10dp"
+                        android:background="@drawable/rounded_background7" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Day Labels Row -->
+            <LinearLayout
+                android:id="@+id/linearLayout2"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="1000"
-                android:textAlignment="center"
-                android:textColor="@color/grey"
-                android:textSize="12sp" />
+                android:layout_marginTop="8dp"
+                android:baselineAligned="false"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/day7"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:gravity="center"
+                    android:text="Mon"
+                    android:textColor="@color/white"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/day6"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:gravity="center"
+                    android:text="Tue"
+                    android:textColor="@color/white"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/day5"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:gravity="center"
+                    android:text="Wed"
+                    android:textColor="@color/white"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/day4"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:gravity="center"
+                    android:text="Thu"
+                    android:textColor="@color/white"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/day3"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:gravity="center"
+                    android:text="Fri"
+                    android:textColor="@color/white"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/day2"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:gravity="center"
+                    android:text="Sat"
+                    android:textColor="@color/white"
+                    android:textSize="11sp" />
+
+                <TextView
+                    android:id="@+id/day1"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:gravity="center"
+                    android:text="Sun"
+                    android:textColor="@color/yellow"
+                    android:textSize="11sp" />
+            </LinearLayout>
         </LinearLayout>
 
-        <LinearLayout
-            android:id="@+id/linearLayout2"
+        <!-- Monthly Line Chart Container -->
+        <com.github.mikephil.charting.charts.LineChart
+            android:id="@+id/monthlyLineChart"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="20dp"
-            android:orientation="horizontal"
-            android:layout_marginHorizontal="24dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@+id/myImageView2"
-            app:layout_constraintStart_toEndOf="@+id/myImageView">
+            android:layout_height="180dp"
+            android:layout_marginTop="12dp"
+            android:visibility="gone" />
 
-            <TextView
-                android:id="@+id/day7"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="Mon"
-                android:textAlignment="center"
-                android:textColor="@color/white" />
-
-            <TextView
-                android:id="@+id/day6"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="Tue"
-                android:textAlignment="center"
-                android:textColor="@color/white" />
-
-            <TextView
-                android:id="@+id/day5"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="Wed"
-                android:textAlignment="center"
-                android:textColor="@color/white" />
-
-            <TextView
-                android:id="@+id/day4"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="Thu"
-                android:textAlignment="center"
-                android:textColor="@color/white" />
-
-            <TextView
-                android:id="@+id/day3"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="Fri"
-                android:textAlignment="center"
-                android:textColor="@color/white" />
-
-            <TextView
-                android:id="@+id/day2"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="Sat"
-                android:textAlignment="center"
-                android:textColor="@color/white" />
-
-            <TextView
-                android:id="@+id/day1"
-                android:layout_width="0dp"
-                android:layout_weight="1"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_bold"
-                android:text="Sun"
-                android:textAlignment="center"
-                android:textColor="@color/yellow" />
-        </LinearLayout>
-
-        <LinearLayout
-            android:id="@+id/linearLayout3"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="24dp"
-            android:orientation="horizontal"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toStartOf="@+id/myImageView2"
-            app:layout_constraintStart_toEndOf="@+id/myImageView"
-            app:layout_constraintTop_toTopOf="parent">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <View
-                    android:id="@+id/day7_bar"
-                    android:layout_width="10dp"
-                    android:layout_height="10dp"
-                    android:layout_gravity="center_vertical"
-                    android:background="@drawable/rounded_background" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <View
-                    android:id="@+id/day6_bar"
-                    android:layout_width="10dp"
-                    android:layout_height="10dp"
-                    android:layout_gravity="center_vertical"
-                    android:background="@drawable/rounded_background2" />
-            </LinearLayout>
-
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <View
-                    android:id="@+id/day5_bar"
-                    android:layout_width="10dp"
-                    android:layout_height="10dp"
-                    android:layout_gravity="center_vertical"
-                    android:background="@drawable/rounded_background3" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <View
-                    android:id="@+id/day4_bar"
-                    android:layout_width="10dp"
-                    android:layout_height="10dp"
-                    android:background="@drawable/rounded_background4" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <View
-                    android:id="@+id/day3_bar"
-                    android:layout_width="10dp"
-                    android:layout_height="10dp"
-                    android:layout_gravity="center_vertical"
-                    android:background="@drawable/rounded_background5" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <View
-                    android:id="@+id/day2_bar"
-                    android:layout_width="10dp"
-                    android:layout_height="10dp"
-                    android:layout_gravity="center_vertical"
-                    android:background="@drawable/rounded_background6" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:orientation="horizontal">
-
-                <View
-                    android:id="@+id/day1_bar"
-                    android:layout_width="10dp"
-                    android:layout_height="10dp"
-                    android:layout_gravity="center_vertical"
-                    android:background="@drawable/rounded_background7" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <ImageView
-            android:id="@+id/myImageView"
-            android:layout_width="50dp"
-            android:layout_height="50dp"
-            android:src="@drawable/diamond_shape"
-            app:layout_constraintBottom_toBottomOf="@+id/constraintLayout"
-            app:layout_constraintEnd_toStartOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/constraintLayout" />
-
-        <ImageView
-            android:id="@+id/myImageView2"
-            android:layout_width="50dp"
-            android:layout_height="50dp"
-            android:src="@drawable/diamond_shape"
-            app:layout_constraintBottom_toBottomOf="@+id/constraintLayout"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="@+id/constraintLayout" />
-
+        <!-- Loading Progress -->
         <FrameLayout
-            android:layout_width="wrap_content"
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_alignParentTop="true"
-            android:layout_alignParentEnd="true"
-            android:layout_alignParentBottom="true"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
+            android:layout_gravity="center">
 
             <ProgressBar
                 android:id="@+id/progressBar"
@@ -508,10 +527,10 @@
                 android:background="@drawable/glassy_background"
                 android:padding="20dp"
                 android:visibility="gone" />
-
         </FrameLayout>
 
-    </androidx.constraintlayout.widget.ConstraintLayout>
+    </LinearLayout>
+
 
     <LinearLayout
         android:id="@+id/RecentLayout"

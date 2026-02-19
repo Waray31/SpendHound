@@ -186,6 +186,45 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    @SuppressLint("DefaultLocale")
+    public void getEverydaySpendsForWeek(Calendar weekStart) {
+        int[] dailySpends = new int[7];
+        Calendar calendar = (Calendar) weekStart.clone();
+        SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
+        SimpleDateFormat dayFormat = new SimpleDateFormat("dd", Locale.getDefault());
+
+        for (int i = 0; i < 7; i++) {
+            String currentMonthYear = monthFormat.format(calendar.getTime());
+            String currentDay = dayFormat.format(calendar.getTime());
+
+            DatabaseReference dayRef = DeclareDatabase.getDBRefTransaction().child(currentMonthYear).child(currentDay);
+
+            final int dayIndex = 6 - i; // Reverse order to match UI (day7 first, day1 last)
+            dayRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    int dailySpend = 0;
+                    for (DataSnapshot timeSnapshot : dataSnapshot.getChildren()) {
+                        Transaction transaction = timeSnapshot.getValue(Transaction.class);
+                        if (transaction != null) {
+                            dailySpend += transaction.getPaymentAmount();
+                        }
+                    }
+                    dailySpends[dayIndex] = dailySpend;
+                    setViewHeightForDay(dayIndex, dailySpends[dayIndex]);
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError databaseError) {
+                    String errorMessage = "Database read error occurred: " + databaseError.getMessage();
+                    Log.e("FirebaseDatabase", errorMessage);
+                }
+            });
+
+            calendar.add(Calendar.DAY_OF_YEAR, 1); // Go to next day for week iteration
+        }
+    }
+
     public void setViewHeightForDay(int day, int dailySpends) {
         int[] dailySpendsArray = new int[7];
         dailySpendsArray[day] = dailySpends;
