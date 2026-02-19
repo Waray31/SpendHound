@@ -516,6 +516,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
+            android:padding="8dp"
             android:gravity="center_vertical">
 
             <TextView
@@ -528,16 +529,16 @@
                 android:textColor="@color/grey"
                 android:textSize="16sp" />
 
+
             <ImageButton
                 android:id="@+id/btn_addTransaction"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:background="@drawable/circular_button_background"
                 android:contentDescription="@string/add_new_transaction_description"
-                android:elevation="4dp"
-                android:scaleType="centerInside"
-                android:padding="4dp"
                 android:src="@drawable/baseline_add_24"
+                android:scaleType="centerInside"
+                android:elevation="3dp"
                 app:tint="@color/white" />
 
         </LinearLayout>
