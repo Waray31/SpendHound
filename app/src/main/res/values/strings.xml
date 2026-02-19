@@ -42,6 +42,9 @@
     <string name="cancel_button">Cancel</string>
     <string name="select_button">Select</string>
     <string name="pending_status_button">Pending status</string>
+    <string name="tooltip_add_transaction_text">Tap to add transaction</string>
+    <string name="recent_transactions">Recent transactions</string>
+    <string name="app_logo_description">App logo</string>
 
     <string-array name="transactionTypes_String">
         <item>Select what kind of bill:</item>

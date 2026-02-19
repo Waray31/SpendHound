@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/tooltip_text"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="@string/tooltip_add_transaction_text"
+    android:textColor="@color/white"
+    android:fontFamily="@font/montserratalternatess_regular"
+    android:textSize="8sp"
+    android:padding="8dp"
+    android:background="@drawable/tooltip_background" />

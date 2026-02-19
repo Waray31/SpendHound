@@ -213,17 +213,13 @@ public class HomeFragment extends Fragment {
         // Don't show tooltip if already dismissed this session
         if (tooltipDismissedThisSession) return;
 
-        // Create tooltip view
-        TextView tooltipText = new TextView(getContext());
-        tooltipText.setText("Tap + to add transaction");
-        tooltipText.setTextColor(Color.WHITE);
-        tooltipText.setTextSize(12);
-        tooltipText.setPadding(32, 20, 32, 20);
-        tooltipText.setBackgroundResource(R.drawable.tooltip_background);
+        // Inflate tooltip view from XML
+        View tooltipView = LayoutInflater.from(getContext()).inflate(R.layout.tooltip_add_transaction, null);
+        TextView tooltipText = tooltipView.findViewById(R.id.tooltip_text);
 
         // Create PopupWindow
         tooltipPopup = new PopupWindow(
-                tooltipText,
+                tooltipView,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 false
@@ -231,16 +227,22 @@ public class HomeFragment extends Fragment {
         tooltipPopup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         tooltipPopup.setOutsideTouchable(false);
 
-        // Get button location and show tooltip above/to the left of the button
+        // Get button location and show tooltip at upper left of the button
         int[] location = new int[2];
         btnAddTransaction.getLocationOnScreen(location);
 
-        tooltipText.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
-        int tooltipWidth = tooltipText.getMeasuredWidth();
-        int tooltipHeight = tooltipText.getMeasuredHeight();
+        tooltipView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        int tooltipWidth = tooltipView.getMeasuredWidth();
+        int tooltipHeight = tooltipView.getMeasuredHeight();
 
-        int x = location[0] - tooltipWidth - 16;
-        int y = location[1] + (btnAddTransaction.getHeight() / 2) - (tooltipHeight / 2);
+        // Use dp offsets converted to pixels for consistent placement across densities
+        final float density = getResources().getDisplayMetrics().density;
+        int offsetX = Math.round(12 * density); // 12dp
+        int offsetY = Math.round(12 * density); // 12dp
+
+        // Position tooltip at upper left: x = button left - tooltip width + offsetX, y = button top - offsetY
+        int x = location[0] - tooltipWidth + offsetX;
+        int y = location[1] - offsetY;
 
         tooltipPopup.showAtLocation(btnAddTransaction, Gravity.NO_GRAVITY, x, y);
     }
