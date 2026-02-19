@@ -2,8 +2,11 @@ package com.waray.spendhound.ui.home;
 
 import android.content.Intent;
 import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
@@ -12,6 +15,7 @@ import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -72,6 +76,8 @@ public class HomeFragment extends Fragment {
     private boolean isWeeklyMode = true;
     private Calendar currentWeekStart = Calendar.getInstance();
     private Calendar currentMonth = Calendar.getInstance();
+    private PopupWindow tooltipPopup;
+    private static boolean tooltipDismissedThisSession = false;
 
 
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -127,6 +133,13 @@ public class HomeFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
         callMainActivityMethod();
+
+        // Show tooltip after a small delay to ensure the view is fully laid out
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            if (isAdded() && btnAddTransaction != null) {
+                showAddTransactionTooltip();
+            }
+        }, 500);
     }
 
     @Override
@@ -183,11 +196,66 @@ public class HomeFragment extends Fragment {
         btnAddTransaction.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
+                // Dismiss tooltip and mark as dismissed for this session
+                dismissTooltip();
+                tooltipDismissedThisSession = true;
+
                 // Create an Intent to navigate to NewActivity
                 Intent intent = new Intent(getActivity(), AddTransactionActivity.class);
                 startActivity(intent);
             }
         });
+    }
+
+    private void showAddTransactionTooltip() {
+        if (getContext() == null || btnAddTransaction == null) return;
+
+        // Don't show tooltip if already dismissed this session
+        if (tooltipDismissedThisSession) return;
+
+        // Create tooltip view
+        TextView tooltipText = new TextView(getContext());
+        tooltipText.setText("Tap + to add transaction");
+        tooltipText.setTextColor(Color.WHITE);
+        tooltipText.setTextSize(12);
+        tooltipText.setPadding(32, 20, 32, 20);
+        tooltipText.setBackgroundResource(R.drawable.tooltip_background);
+
+        // Create PopupWindow
+        tooltipPopup = new PopupWindow(
+                tooltipText,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                false
+        );
+        tooltipPopup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        tooltipPopup.setOutsideTouchable(false);
+
+        // Get button location and show tooltip above/to the left of the button
+        int[] location = new int[2];
+        btnAddTransaction.getLocationOnScreen(location);
+
+        tooltipText.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        int tooltipWidth = tooltipText.getMeasuredWidth();
+        int tooltipHeight = tooltipText.getMeasuredHeight();
+
+        int x = location[0] - tooltipWidth - 16;
+        int y = location[1] + (btnAddTransaction.getHeight() / 2) - (tooltipHeight / 2);
+
+        tooltipPopup.showAtLocation(btnAddTransaction, Gravity.NO_GRAVITY, x, y);
+    }
+
+    private void dismissTooltip() {
+        if (tooltipPopup != null && tooltipPopup.isShowing()) {
+            tooltipPopup.dismiss();
+            tooltipPopup = null;
+        }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        dismissTooltip();
     }
 
     public void LogoutButton(){
