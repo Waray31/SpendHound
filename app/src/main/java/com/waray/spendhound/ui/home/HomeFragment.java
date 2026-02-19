@@ -227,24 +227,17 @@ public class HomeFragment extends Fragment {
         tooltipPopup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         tooltipPopup.setOutsideTouchable(false);
 
-        // Get button location and show tooltip at upper left of the button
-        int[] location = new int[2];
-        btnAddTransaction.getLocationOnScreen(location);
-
         tooltipView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
         int tooltipWidth = tooltipView.getMeasuredWidth();
-        int tooltipHeight = tooltipView.getMeasuredHeight();
 
         // Use dp offsets converted to pixels for consistent placement across densities
         final float density = getResources().getDisplayMetrics().density;
-        int offsetX = Math.round(12 * density); // 12dp
-        int offsetY = Math.round(12 * density); // 12dp
+        int offsetX = Math.round(-4 * density); // 12dp - offset to the left
+        int offsetY = Math.round(64 * density); // 12dp - offset upward
 
-        // Position tooltip at upper left: x = button left - tooltip width + offsetX, y = button top - offsetY
-        int x = location[0] - tooltipWidth + offsetX;
-        int y = location[1] - offsetY;
-
-        tooltipPopup.showAtLocation(btnAddTransaction, Gravity.NO_GRAVITY, x, y);
+        // Show tooltip anchored to button, so it moves with scrolling
+        // offsetX is negative to position left of button, offsetY is negative to position above
+        tooltipPopup.showAsDropDown(btnAddTransaction, -tooltipWidth - offsetX, -offsetY);
     }
 
     private void dismissTooltip() {
