@@ -2,18 +2,23 @@ package com.waray.spendhound;
 
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.Log;
+import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.LinearLayout;
+import android.widget.PopupWindow;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -69,6 +74,9 @@ public class AddTransactionActivity extends AppCompatActivity {
     private ArrayList<RecentTransaction> recentTransactionList = new ArrayList<>();
     private PayerGroup selectedGroup = null;
     private View selectedGroupView = null;
+    private PopupWindow payorTooltipPopup;
+    private View firstRow = null;
+    private List<String> groupMemberUsernames = null;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -107,8 +115,18 @@ public class AddTransactionActivity extends AppCompatActivity {
         fetchUsernamesAndSetupInitialRow();
         loadExistingGroups();
 
+        // Initially disable btnAdd and show tooltip since no group is selected
+        btnAdd.setEnabled(false);
+        btnAdd.setAlpha(0.5f);
+        showPayorTooltip();
+
         btnAdd.setOnClickListener(v -> {
-            if (usernames != null && rows.size() < usernames.size() - 1) {
+            if (selectedGroup == null) {
+                // Show tooltip if no group is selected
+                showPayorTooltip();
+                return;
+            }
+            if (groupMemberUsernames != null && rows.size() < groupMemberUsernames.size() - 1) {
                 addRow();
             } else {
                 Toast.makeText(AddTransactionActivity.this, "You can't add more payors.", Toast.LENGTH_SHORT).show();
@@ -141,8 +159,15 @@ public class AddTransactionActivity extends AppCompatActivity {
                         usernames.add(username);
                     }
                 }
-                addRow(); // Add the initial row after fetching usernames
-                btnAdd.setEnabled(true); // Enable the button to add more payors
+                // Add the initial row but hide it (no group selected initially)
+                addRow();
+                if (rows.size() > 0) {
+                    firstRow = rows.get(0);
+                    firstRow.setVisibility(View.GONE);
+                }
+                // Keep btnAdd disabled until a group is selected
+                btnAdd.setEnabled(false);
+                btnAdd.setAlpha(0.5f);
             }
 
             @Override
@@ -158,8 +183,14 @@ public class AddTransactionActivity extends AppCompatActivity {
         View row = inflater.inflate(R.layout.row_layout, container, false);
 
         payorSpinner = row.findViewById(R.id.payor);
-        if (usernames != null && !usernames.isEmpty()) {
-            SpinnerItem adapter = new SpinnerItem(AddTransactionActivity.this, usernames);
+
+        // Use group members if a group is selected, otherwise use all usernames
+        List<String> spinnerUsernames = (groupMemberUsernames != null && !groupMemberUsernames.isEmpty())
+                ? groupMemberUsernames
+                : usernames;
+
+        if (spinnerUsernames != null && !spinnerUsernames.isEmpty()) {
+            SpinnerItem adapter = new SpinnerItem(AddTransactionActivity.this, spinnerUsernames);
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
             payorSpinner.setAdapter(adapter);
         }
@@ -443,10 +474,40 @@ public class AddTransactionActivity extends AppCompatActivity {
         selectedGroupView = groupView;
         groupView.setBackgroundResource(R.drawable.rounded_border_selected_bg);
 
+        // Set group member usernames for the spinner
+        groupMemberUsernames = new ArrayList<>();
+        groupMemberUsernames.add("Select a payor:");
+        groupMemberUsernames.addAll(group.getMembers());
+
+        // Enable btnAdd and hide tooltip when a group is selected
+        btnAdd.setEnabled(true);
+        btnAdd.setAlpha(1.0f);
+        dismissPayorTooltip();
+
+        // Show and update the first row with group members
+        if (firstRow != null) {
+            firstRow.setVisibility(View.VISIBLE);
+            updateRowSpinnerWithGroupMembers(firstRow);
+        }
+
+        // Update existing rows' spinners with group members
+        for (View row : rows) {
+            updateRowSpinnerWithGroupMembers(row);
+        }
+
         // Recalculate individual payment based on selected group members
         calculateAndDisplayIndividualPayment();
 
         Toast.makeText(this, "Selected group: " + group.getGroupName(), Toast.LENGTH_SHORT).show();
+    }
+
+    private void updateRowSpinnerWithGroupMembers(View row) {
+        Spinner spinner = row.findViewById(R.id.payor);
+        if (spinner != null && groupMemberUsernames != null && !groupMemberUsernames.isEmpty()) {
+            SpinnerItem adapter = new SpinnerItem(AddTransactionActivity.this, groupMemberUsernames);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            spinner.setAdapter(adapter);
+        }
     }
 
     private void deselectGroup() {
@@ -455,6 +516,25 @@ public class AddTransactionActivity extends AppCompatActivity {
         }
         selectedGroup = null;
         selectedGroupView = null;
+        groupMemberUsernames = null;
+
+        // Disable btnAdd and show tooltip when no group is selected
+        btnAdd.setEnabled(false);
+        btnAdd.setAlpha(0.5f);
+        showPayorTooltip();
+
+        // Hide the first row when no group is selected
+        if (firstRow != null) {
+            firstRow.setVisibility(View.GONE);
+        }
+
+        // Remove all additional rows (keep only the first hidden row)
+        while (rows.size() > 1) {
+            View row = rows.get(rows.size() - 1);
+            container.removeView(row);
+            rows.remove(row);
+        }
+
         calculateAndDisplayIndividualPayment();
         Toast.makeText(this, "Group deselected", Toast.LENGTH_SHORT).show();
     }
@@ -672,5 +752,55 @@ public class AddTransactionActivity extends AppCompatActivity {
                     Toast.makeText(this, "Failed to remove group", Toast.LENGTH_SHORT).show();
                     Log.e("FirebaseDatabase", "Failed to remove group: " + e.getMessage());
                 });
+    }
+
+    private void showPayorTooltip() {
+        if (btnAdd == null) return;
+
+        // Dismiss existing tooltip if any
+        dismissPayorTooltip();
+
+        // Inflate tooltip view from XML
+        View tooltipView = LayoutInflater.from(this).inflate(R.layout.tooltip_add_payor, null);
+
+        // Create PopupWindow
+        payorTooltipPopup = new PopupWindow(
+                tooltipView,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                false
+        );
+        payorTooltipPopup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        payorTooltipPopup.setOutsideTouchable(false);
+
+        // Measure tooltip to get its dimensions
+        tooltipView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
+        int tooltipHeight = tooltipView.getMeasuredHeight();
+        int tooltipWidth = tooltipView.getMeasuredWidth();
+
+        // Post to ensure the button is laid out before showing tooltip
+        btnAdd.post(() -> {
+            if (payorTooltipPopup != null && btnAdd.isAttachedToWindow()) {
+                // Position tooltip at upper left corner of the button
+                // offsetX = negative tooltip width to position left of the button's left edge
+                // offsetY = negative (button height + tooltip height) to position above the button
+                int offsetX = -tooltipWidth;
+                int offsetY = -(btnAdd.getHeight() + tooltipHeight);
+                payorTooltipPopup.showAsDropDown(btnAdd, offsetX, offsetY, Gravity.START);
+            }
+        });
+    }
+
+    private void dismissPayorTooltip() {
+        if (payorTooltipPopup != null && payorTooltipPopup.isShowing()) {
+            payorTooltipPopup.dismiss();
+            payorTooltipPopup = null;
+        }
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        dismissPayorTooltip();
     }
 }
