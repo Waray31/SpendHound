@@ -60,6 +60,29 @@ public class MainActivity extends AppCompatActivity {
         void onCurrentNicknameReceived(String CurrentNickname);
     }
 
+    /**
+     * Helper method to check if the current user is involved in a transaction.
+     * A user is involved if their username is in the payorsList or they created the transaction.
+     */
+    public boolean isUserInvolved(Transaction transaction, String username) {
+        if (transaction == null || username == null || username.isEmpty()) {
+            return false;
+        }
+
+        // Check if user is the creator of the transaction
+        if (username.equals(transaction.getUsernamePost())) {
+            return true;
+        }
+
+        // Check if user is in the payors list
+        java.util.List<String> payorsList = transaction.getPayorsList();
+        if (payorsList != null && payorsList.contains(username)) {
+            return true;
+        }
+
+        return false;
+    }
+
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -80,7 +103,7 @@ public class MainActivity extends AppCompatActivity {
         getCurrentNickname(new CurrentNicknameCallback() {
             @Override
             public void onCurrentNicknameReceived(String CurrentNickname) {
-
+                // Nickname is now cached in currentNickname field
             }
         });
 
@@ -106,6 +129,20 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void getTotalMonthSpends() {
+        // Ensure we have the current user's nickname before fetching data
+        if (currentNickname == null || currentNickname.isEmpty()) {
+            getCurrentNickname(new CurrentNicknameCallback() {
+                @Override
+                public void onCurrentNicknameReceived(String nickname) {
+                    fetchTotalMonthSpends(nickname);
+                }
+            });
+        } else {
+            fetchTotalMonthSpends(currentNickname);
+        }
+    }
+
+    private void fetchTotalMonthSpends(String username) {
         // Create a reference to the "transactions" node
         DatabaseReference databaseReference = DeclareDatabase.getDBRefTransaction();
 
@@ -126,7 +163,7 @@ public class MainActivity extends AppCompatActivity {
                 for (DataSnapshot daySnapshot : dataSnapshot.getChildren()) {
                     for (DataSnapshot timeSnapshot : daySnapshot.getChildren()) {
                         Transaction transaction = timeSnapshot.getValue(Transaction.class);
-                        if (transaction != null) {
+                        if (transaction != null && isUserInvolved(transaction, username)) {
                             // Retrieve the paymentAmount from the transaction
                             int paymentAmount = transaction.getPaymentAmount();
 
@@ -154,6 +191,21 @@ public class MainActivity extends AppCompatActivity {
 
     @SuppressLint("DefaultLocale")
     public void getEverydaySpends() {
+        // Ensure we have the current user's nickname before fetching data
+        if (currentNickname == null || currentNickname.isEmpty()) {
+            getCurrentNickname(new CurrentNicknameCallback() {
+                @Override
+                public void onCurrentNicknameReceived(String nickname) {
+                    fetchEverydaySpends(nickname);
+                }
+            });
+        } else {
+            fetchEverydaySpends(currentNickname);
+        }
+    }
+
+    @SuppressLint("DefaultLocale")
+    private void fetchEverydaySpends(String username) {
         int[] dailySpends = new int[7];
         Calendar calendar = Calendar.getInstance();
         // Set to beginning of current week (Sunday)
@@ -181,7 +233,7 @@ public class MainActivity extends AppCompatActivity {
                     int dailySpend = 0;
                     for (DataSnapshot timeSnapshot : dataSnapshot.getChildren()) {
                         Transaction transaction = timeSnapshot.getValue(Transaction.class);
-                        if (transaction != null) {
+                        if (transaction != null && isUserInvolved(transaction, username)) {
                             dailySpend += transaction.getPaymentAmount();
                         }
                     }
@@ -203,6 +255,21 @@ public class MainActivity extends AppCompatActivity {
 
     @SuppressLint("DefaultLocale")
     public void getEverydaySpendsForWeek(Calendar weekStart) {
+        // Ensure we have the current user's nickname before fetching data
+        if (currentNickname == null || currentNickname.isEmpty()) {
+            getCurrentNickname(new CurrentNicknameCallback() {
+                @Override
+                public void onCurrentNicknameReceived(String nickname) {
+                    fetchEverydaySpendsForWeek(weekStart, nickname);
+                }
+            });
+        } else {
+            fetchEverydaySpendsForWeek(weekStart, currentNickname);
+        }
+    }
+
+    @SuppressLint("DefaultLocale")
+    private void fetchEverydaySpendsForWeek(Calendar weekStart, String username) {
         int[] dailySpends = new int[7];
         Calendar calendar = (Calendar) weekStart.clone();
         SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
@@ -221,7 +288,7 @@ public class MainActivity extends AppCompatActivity {
                     int dailySpend = 0;
                     for (DataSnapshot timeSnapshot : dataSnapshot.getChildren()) {
                         Transaction transaction = timeSnapshot.getValue(Transaction.class);
-                        if (transaction != null) {
+                        if (transaction != null && isUserInvolved(transaction, username)) {
                             dailySpend += transaction.getPaymentAmount();
                         }
                     }
@@ -310,6 +377,20 @@ public class MainActivity extends AppCompatActivity {
         Log.d("RecentTransaction", "recentTransactionList size before clear: " + recentTransactionList.size());
         Log.d("RecentTransaction", "recentTransactionAdapter is null: " + (recentTransactionAdapter == null));
 
+        // Ensure we have the current user's nickname before fetching data
+        if (currentNickname == null || currentNickname.isEmpty()) {
+            getCurrentNickname(new CurrentNicknameCallback() {
+                @Override
+                public void onCurrentNicknameReceived(String nickname) {
+                    fetchRecentTransactions(nickname);
+                }
+            });
+        } else {
+            fetchRecentTransactions(currentNickname);
+        }
+    }
+
+    private void fetchRecentTransactions(String username) {
         recentTransactionList.clear();
 
         Calendar calendar = Calendar.getInstance();
@@ -338,7 +419,7 @@ public class MainActivity extends AppCompatActivity {
                     Log.d("RecentTransaction", "onDataChange for " + finalCurrentMonthYear + "/" + finalCurrentDay + ", exists: " + dataSnapshot.exists() + ", children count: " + dataSnapshot.getChildrenCount());
                     for (DataSnapshot timeSnapshot : dataSnapshot.getChildren()) {
                         Transaction transaction = timeSnapshot.getValue(Transaction.class);
-                        if (transaction != null) {
+                        if (transaction != null && isUserInvolved(transaction, username)) {
                             String timeKey = timeSnapshot.getKey(); // Time in HH:mm:ss format
                             String[] parts = finalCurrentMonthYear.split("-");
                             String finalCurrentMonth = parts[0];

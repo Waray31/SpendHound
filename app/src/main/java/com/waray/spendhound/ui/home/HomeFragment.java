@@ -426,6 +426,24 @@ public class HomeFragment extends Fragment {
     // ==================== Monthly Line Chart Methods ====================
 
     private void loadMonthlyChartData() {
+        MainActivity mainActivity = (MainActivity) getActivity();
+        if (mainActivity == null) return;
+
+        // Ensure we have the current user's nickname before fetching data
+        String username = mainActivity.currentNickname;
+        if (username == null || username.isEmpty()) {
+            mainActivity.getCurrentNickname(new MainActivity.CurrentNicknameCallback() {
+                @Override
+                public void onCurrentNicknameReceived(String nickname) {
+                    fetchMonthlyChartData(nickname, mainActivity);
+                }
+            });
+        } else {
+            fetchMonthlyChartData(username, mainActivity);
+        }
+    }
+
+    private void fetchMonthlyChartData(String username, MainActivity mainActivity) {
         SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
         String currentMonthYear = monthFormat.format(currentMonth.getTime());
 
@@ -445,7 +463,7 @@ public class HomeFragment extends Fragment {
 
                     for (DataSnapshot timeSnapshot : daySnapshot.getChildren()) {
                         Transaction transaction = timeSnapshot.getValue(Transaction.class);
-                        if (transaction != null) {
+                        if (transaction != null && mainActivity.isUserInvolved(transaction, username)) {
                             dailySpend += transaction.getPaymentAmount();
                         }
                     }
