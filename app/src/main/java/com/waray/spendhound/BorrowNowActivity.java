@@ -149,22 +149,29 @@ public class BorrowNowActivity extends AppCompatActivity {
 
     private void addBorrowTransaction() {
 
-
         // Get the current date and time
         Calendar calendar = Calendar.getInstance();
         SimpleDateFormat dateFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
         SimpleDateFormat dayFormat = new SimpleDateFormat("dd", Locale.getDefault());
-        SimpleDateFormat timeFormat = new SimpleDateFormat("HH:mm:ss", Locale.getDefault());
 
         String currentMonthYear = dateFormat.format(calendar.getTime());
         String currentDay = dayFormat.format(calendar.getTime());
-        String currentTime = timeFormat.format(calendar.getTime());
+        long timestamp = System.currentTimeMillis();
 
+        // New path structure: borrows/{month}/{day}/{borrowId}
         DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
         DatabaseReference monthYearRef = databaseReference.child(currentMonthYear);
         DatabaseReference dayRef = monthYearRef.child(currentDay);
-        DatabaseReference currentUserRef = dayRef.child(currentNickname);
-        DatabaseReference timestampRef = currentUserRef.child(currentTime);
+
+        // Generate unique borrowId using push()
+        String borrowId = dayRef.push().getKey();
+        if (borrowId == null) {
+            Toast.makeText(BorrowNowActivity.this, "Failed to generate borrow ID", Toast.LENGTH_SHORT).show();
+            progressBar.setVisibility(View.GONE);
+            return;
+        }
+
+        DatabaseReference borrowRef = dayRef.child(borrowId);
 
         // Get the current authenticated user
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
@@ -178,18 +185,46 @@ public class BorrowNowActivity extends AppCompatActivity {
                     @Override
                     public void onUserIDRetrieved(String getLenderID) {
                         lenderID = getLenderID;
-                        BorrowNowTransaction borrowNowTransaction = new BorrowNowTransaction(borrowerID, lenderID, currentDate, lender, borrowedAmountSTR, status);
 
-                        timestampRef.setValue(borrowNowTransaction).addOnSuccessListener(new OnSuccessListener<Void>() {
+                        // Create transaction with new structure including borrowId, borrowerName, and timestamp
+                        BorrowNowTransaction borrowNowTransaction = new BorrowNowTransaction(
+                                borrowId,
+                                borrowerID,
+                                lenderID,
+                                currentNickname, // borrowerName for display
+                                currentDate,
+                                lender, // lenderName for display
+                                borrowedAmountSTR,
+                                status,
+                                timestamp
+                        );
+
+                        borrowRef.setValue(borrowNowTransaction).addOnSuccessListener(new OnSuccessListener<Void>() {
                             @Override
                             public void onSuccess(Void unused) {
+                                // Update userBorrows index for borrower
+                                BalanceHelper.addBorrowerEntry(borrowerID, borrowId, null);
+
+                                // Update userBorrows index for lender
+                                BalanceHelper.addLenderEntry(lenderID, borrowId, null);
+
+                                // Update borrower's debt (they owe money)
+                                int amount = Integer.parseInt(borrowedAmountSTR);
+                                BalanceHelper.updateDebt(borrowerID, amount, null);
+                                BalanceHelper.updateTotalBorrowed(borrowerID, amount, null);
+
+                                // Update lender's owed (they are owed money)
+                                BalanceHelper.updateOwed(lenderID, amount, null);
+                                BalanceHelper.updateTotalLent(lenderID, amount, null);
+
                                 Toast.makeText(BorrowNowActivity.this, "Borrowed successfully", Toast.LENGTH_SHORT).show();
-                                Intent intent = new Intent(BorrowNowActivity.this, BorrowFragment.class);
-                                startActivity(intent);
+                                progressBar.setVisibility(View.GONE);
+                                finish();
                             }
                         }).addOnFailureListener(new OnFailureListener() {
                             @Override
                             public void onFailure(@NonNull Exception e) {
+                                progressBar.setVisibility(View.GONE);
                                 Toast.makeText(BorrowNowActivity.this, "Failed to Borrow", Toast.LENGTH_SHORT).show();
                             }
                         });

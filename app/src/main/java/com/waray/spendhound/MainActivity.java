@@ -71,6 +71,12 @@ public class MainActivity extends AppCompatActivity {
         progressBar.setVisibility(View.VISIBLE);
 
         mAuth = DeclareDatabase.getAuth();
+
+        // Migration safety: Ensure existing users have balances and userBorrows nodes
+        String currentUserId = Objects.requireNonNull(mAuth.getCurrentUser()).getUid();
+        BalanceHelper.ensureBalancesExist(currentUserId, null);
+        BalanceHelper.ensureUserBorrowsExist(currentUserId, null);
+
         getCurrentNickname(new CurrentNicknameCallback() {
             @Override
             public void onCurrentNicknameReceived(String CurrentNickname) {
@@ -426,6 +432,8 @@ public class MainActivity extends AppCompatActivity {
     public void getDebtList(String selectedStatus, DebtNumCallback callback) {
         debtList.clear();
 
+        String currentUserId = Objects.requireNonNull(mAuth.getCurrentUser()).getUid();
+
         DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
         databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
 
@@ -434,58 +442,77 @@ public class MainActivity extends AppCompatActivity {
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
                     for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
-                        for (DataSnapshot currentUserRef : daySnapshot.getChildren()) {
-                            String currentUserStr = currentUserRef.getKey();
-                            if (Objects.equals(currentUserStr, currentNickname)) {
-                                for (DataSnapshot timeSnapshot : currentUserRef.getChildren()) {
-                                    BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
-                                    if (borrowTransaction != null) {
-                                        String status = borrowTransaction.getStatus();
-                                        if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
-                                                && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")) {
-                                            if (Objects.equals("All", selectedStatus)) {
-                                                addDebtTransactionToList(borrowTransaction);
-                                            } else if (Objects.equals(status, selectedStatus)) {
-                                                addDebtTransactionToList(borrowTransaction);
+                        for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
+                            // New structure: borrows/{month}/{day}/{borrowId}
+                            BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
+
+                            if (borrowNowTransaction != null && borrowNowTransaction.getBorrowerID() != null) {
+                                // New UID-based structure - check if current user is the borrower
+                                if (Objects.equals(borrowNowTransaction.getBorrowerID(), currentUserId)) {
+                                    String status = borrowNowTransaction.getStatus();
+                                    if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
+                                            && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")) {
+                                        if (Objects.equals("All", selectedStatus) || Objects.equals(status, selectedStatus)) {
+                                            addDebtTransactionFromBorrowNow(borrowNowTransaction);
+                                        }
+                                    }
+                                }
+                            } else {
+                                // Legacy structure: borrows/{month}/{day}/{username}/{time}
+                                String currentUserStr = borrowSnapshot.getKey();
+                                if (Objects.equals(currentUserStr, currentNickname)) {
+                                    for (DataSnapshot timeSnapshot : borrowSnapshot.getChildren()) {
+                                        BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
+                                        if (borrowTransaction != null) {
+                                            String status = borrowTransaction.getStatus();
+                                            if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
+                                                    && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")) {
+                                                if (Objects.equals("All", selectedStatus) || Objects.equals(status, selectedStatus)) {
+                                                    addDebtTransactionToList(borrowTransaction);
+                                                }
                                             }
                                         }
                                     }
-
-                                    // Sort debtList by date in descending order
-                                    Collections.sort(debtList, new Comparator<BorrowTransaction>() {
-                                        SimpleDateFormat format = new SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH);
-
-                                        @Override
-                                        public int compare(BorrowTransaction o1, BorrowTransaction o2) {
-                                            try {
-                                                Date date1 = format.parse(o1.getDate());
-                                                Date date2 = format.parse(o2.getDate());
-                                                return date2.compareTo(date1); // For descending order
-                                            } catch (ParseException e) {
-                                                throw new RuntimeException(e);
-                                            }
-                                        }
-                                    });
-
-                                    // To Show Debt List without Checkbox
-                                    RecyclerView recyclerView = findViewById(R.id.debtRecyclerList);
-                                    RecyclerView.Adapter<DebtTransactionAdapter.ViewHolder> adapter = new DebtTransactionAdapter(debtList);
-                                    recyclerView.setAdapter(adapter);
-                                    adapter.notifyDataSetChanged();
-                                    RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
-                                    recyclerView.setLayoutManager(layoutManager);
-
-                                    // To Show Debt List with Checkbox
-                                    RecyclerView recyclerViewCheckBox = findViewById(R.id.debtCheckboxRecyclerList);
-                                    RecyclerView.Adapter<BorrowTransactionAdapter.ViewHolder> adapterCheckbox = new BorrowTransactionAdapter(debtList);
-                                    recyclerViewCheckBox.setAdapter(adapterCheckbox);
-                                    adapterCheckbox.notifyDataSetChanged();
-                                    RecyclerView.LayoutManager layoutManagerCheckbox = new LinearLayoutManager(MainActivity.this);
-                                    recyclerViewCheckBox.setLayoutManager(layoutManagerCheckbox);
                                 }
                             }
                         }
                     }
+                }
+
+                // Sort debtList by date in descending order
+                Collections.sort(debtList, new Comparator<BorrowTransaction>() {
+                    SimpleDateFormat format = new SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH);
+
+                    @Override
+                    public int compare(BorrowTransaction o1, BorrowTransaction o2) {
+                        try {
+                            Date date1 = format.parse(o1.getDate());
+                            Date date2 = format.parse(o2.getDate());
+                            return date2.compareTo(date1);
+                        } catch (ParseException e) {
+                            return 0;
+                        }
+                    }
+                });
+
+                // To Show Debt List without Checkbox
+                RecyclerView recyclerView = findViewById(R.id.debtRecyclerList);
+                if (recyclerView != null) {
+                    RecyclerView.Adapter<DebtTransactionAdapter.ViewHolder> adapter = new DebtTransactionAdapter(debtList);
+                    recyclerView.setAdapter(adapter);
+                    adapter.notifyDataSetChanged();
+                    RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
+                    recyclerView.setLayoutManager(layoutManager);
+                }
+
+                // To Show Debt List with Checkbox
+                RecyclerView recyclerViewCheckBox = findViewById(R.id.debtCheckboxRecyclerList);
+                if (recyclerViewCheckBox != null) {
+                    RecyclerView.Adapter<BorrowTransactionAdapter.ViewHolder> adapterCheckbox = new BorrowTransactionAdapter(debtList);
+                    recyclerViewCheckBox.setAdapter(adapterCheckbox);
+                    adapterCheckbox.notifyDataSetChanged();
+                    RecyclerView.LayoutManager layoutManagerCheckbox = new LinearLayoutManager(MainActivity.this);
+                    recyclerViewCheckBox.setLayoutManager(layoutManagerCheckbox);
                 }
 
                 debtNum = debtList.size();
@@ -495,12 +522,31 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
                 // Handle error
+                Log.e("FirebaseDatabase", "Database read error: " + databaseError.getMessage());
             }
         });
     }
 
+    private void addDebtTransactionFromBorrowNow(BorrowNowTransaction borrowNowTransaction) {
+        String date = borrowNowTransaction.getDate();
+        String borrowee = borrowNowTransaction.getLender(); // Lender name for display
+        String borrowedAmount = borrowNowTransaction.getBorrowedAmountStr();
+
+        date = changeFormatDate(date);
+
+        BorrowTransaction borrowTrans = new BorrowTransaction(
+                date,
+                borrowee,
+                borrowedAmount,
+                borrowNowTransaction.getStatus()
+        );
+        debtList.add(borrowTrans);
+    }
+
     public void getDebtListMonthly(String selectedMonth, String selectedStatus, DebtNumCallback callback) {
         debtList.clear();
+
+        String currentUserId = Objects.requireNonNull(mAuth.getCurrentUser()).getUid();
 
         DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
 
@@ -512,57 +558,76 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                     for (DataSnapshot daySnapshot : dataSnapshot.getChildren()) {
-                        for (DataSnapshot currentUserRef : daySnapshot.getChildren()) {
-                            String currentUserStr = currentUserRef.getKey();
-                            if (Objects.equals(currentUserStr, currentNickname)) {
-                                for (DataSnapshot timeSnapshot : currentUserRef.getChildren()) {
-                                    BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
-                                    if (borrowTransaction != null) {
-                                        String status = borrowTransaction.getStatus();
-                                        if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
-                                                && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")) {
-                                            if (Objects.equals("All", selectedStatus)) {
-                                                addDebtTransactionToList(borrowTransaction);
-                                            } else if (Objects.equals(status, selectedStatus)) {
-                                                addDebtTransactionToList(borrowTransaction);
-                                            }
+                        for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
+                            // New structure: borrows/{month}/{day}/{borrowId}
+                            BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
+
+                            if (borrowNowTransaction != null && borrowNowTransaction.getBorrowerID() != null) {
+                                // New UID-based structure
+                                if (Objects.equals(borrowNowTransaction.getBorrowerID(), currentUserId)) {
+                                    String status = borrowNowTransaction.getStatus();
+                                    if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
+                                            && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")) {
+                                        if (Objects.equals("All", selectedStatus) || Objects.equals(status, selectedStatus)) {
+                                            addDebtTransactionFromBorrowNow(borrowNowTransaction);
                                         }
-                                    }else {
-                                        showToast("Borrow Transaction has no data");
                                     }
-                                    Collections.sort(debtList, new Comparator<BorrowTransaction>() {
-                                        SimpleDateFormat format = new SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH);
-
-                                        @Override
-                                        public int compare(BorrowTransaction o1, BorrowTransaction o2) {
-                                            try {
-                                                Date date1 = format.parse(o1.getDate());
-                                                Date date2 = format.parse(o2.getDate());
-                                                return date2.compareTo(date1); // For descending order
-                                            } catch (ParseException e) {
-                                                throw new RuntimeException(e);
+                                }
+                            } else {
+                                // Legacy structure: borrows/{month}/{day}/{username}/{time}
+                                String currentUserStr = borrowSnapshot.getKey();
+                                if (Objects.equals(currentUserStr, currentNickname)) {
+                                    for (DataSnapshot timeSnapshot : borrowSnapshot.getChildren()) {
+                                        BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
+                                        if (borrowTransaction != null) {
+                                            String status = borrowTransaction.getStatus();
+                                            if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
+                                                    && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")) {
+                                                if (Objects.equals("All", selectedStatus) || Objects.equals(status, selectedStatus)) {
+                                                    addDebtTransactionToList(borrowTransaction);
+                                                }
                                             }
                                         }
-                                    });
-
-                                    // To Show Debt List without Checkbox
-                                    RecyclerView recyclerView = findViewById(R.id.debtRecyclerList);
-                                    RecyclerView.Adapter<DebtTransactionAdapter.ViewHolder> adapter = new DebtTransactionAdapter(debtList);
-                                    recyclerView.setAdapter(adapter);
-                                    adapter.notifyDataSetChanged();
-                                    RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
-                                    recyclerView.setLayoutManager(layoutManager);
-
-                                    // To Show Debt List with Checkbox
-                                    RecyclerView recyclerViewCheckBox = findViewById(R.id.debtCheckboxRecyclerList);
-                                    RecyclerView.Adapter<BorrowTransactionAdapter.ViewHolder> adapterCheckbox = new BorrowTransactionAdapter(debtList);
-                                    recyclerViewCheckBox.setAdapter(adapterCheckbox);
-                                    adapterCheckbox.notifyDataSetChanged();
-                                    RecyclerView.LayoutManager layoutManagerCheckbox = new LinearLayoutManager(MainActivity.this);
-                                    recyclerViewCheckBox.setLayoutManager(layoutManagerCheckbox);
+                                    }
                                 }
                             }
                         }
+                    }
+
+                    // Sort debtList by date in descending order
+                    Collections.sort(debtList, new Comparator<BorrowTransaction>() {
+                        SimpleDateFormat format = new SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH);
+
+                        @Override
+                        public int compare(BorrowTransaction o1, BorrowTransaction o2) {
+                            try {
+                                Date date1 = format.parse(o1.getDate());
+                                Date date2 = format.parse(o2.getDate());
+                                return date2.compareTo(date1);
+                            } catch (ParseException e) {
+                                return 0;
+                            }
+                        }
+                    });
+
+                    // To Show Debt List without Checkbox
+                    RecyclerView recyclerView = findViewById(R.id.debtRecyclerList);
+                    if (recyclerView != null) {
+                        RecyclerView.Adapter<DebtTransactionAdapter.ViewHolder> adapter = new DebtTransactionAdapter(debtList);
+                        recyclerView.setAdapter(adapter);
+                        adapter.notifyDataSetChanged();
+                        RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
+                        recyclerView.setLayoutManager(layoutManager);
+                    }
+
+                    // To Show Debt List with Checkbox
+                    RecyclerView recyclerViewCheckBox = findViewById(R.id.debtCheckboxRecyclerList);
+                    if (recyclerViewCheckBox != null) {
+                        RecyclerView.Adapter<BorrowTransactionAdapter.ViewHolder> adapterCheckbox = new BorrowTransactionAdapter(debtList);
+                        recyclerViewCheckBox.setAdapter(adapterCheckbox);
+                        adapterCheckbox.notifyDataSetChanged();
+                        RecyclerView.LayoutManager layoutManagerCheckbox = new LinearLayoutManager(MainActivity.this);
+                        recyclerViewCheckBox.setLayoutManager(layoutManagerCheckbox);
                     }
 
                     debtNum = debtList.size();
@@ -600,6 +665,8 @@ public class MainActivity extends AppCompatActivity {
     public void getOwedList(String selectedStatus, OwedNumCallback callback) {
         owedList.clear();
 
+        String currentUserId = Objects.requireNonNull(mAuth.getCurrentUser()).getUid();
+
         DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
         databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
 
@@ -608,56 +675,71 @@ public class MainActivity extends AppCompatActivity {
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
                     for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
-                        for (DataSnapshot currentUserRef : daySnapshot.getChildren()) {
-                            String currentUserStr = currentUserRef.getKey();
-                            if (!Objects.equals(currentUserStr, currentNickname)) {
-                                for (DataSnapshot timeSnapshot : currentUserRef.getChildren()) {
-                                    BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
-                                    if (borrowTransaction != null) {
-                                        String borrower = borrowTransaction.getBorrowee();
-                                        String status = borrowTransaction.getStatus();
-                                        if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
-                                                && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")){
-                                            if (Objects.equals(borrower, currentNickname) && Objects.equals("All", selectedStatus)) {
-                                                addOwedTransactionToList(borrowTransaction, currentUserStr);
-                                            } else if (Objects.equals(borrower, currentNickname) && Objects.equals(status, selectedStatus)) {
-                                                addOwedTransactionToList(borrowTransaction, currentUserStr);
-                                            }
-                                        }
+                        for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
+                            // New structure: borrows/{month}/{day}/{borrowId}
+                            BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
 
-                                    } else {
-                                        showToast("No data");
+                            if (borrowNowTransaction != null && borrowNowTransaction.getLenderID() != null) {
+                                // New UID-based structure - check if current user is the lender
+                                if (Objects.equals(borrowNowTransaction.getLenderID(), currentUserId)) {
+                                    String status = borrowNowTransaction.getStatus();
+                                    if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
+                                            && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")) {
+                                        if (Objects.equals("All", selectedStatus) || Objects.equals(status, selectedStatus)) {
+                                            addOwedTransactionFromBorrowNow(borrowNowTransaction);
+                                        }
                                     }
-
-                                    // Sort owedList by date in descending order
-                                    Collections.sort(owedList, new Comparator<OwedTransaction>() {
-                                        SimpleDateFormat format = new SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH);
-
-                                        @Override
-                                        public int compare(OwedTransaction o1, OwedTransaction o2) {
-                                            try {
-                                                Date date1 = format.parse(o1.getDate());
-                                                Date date2 = format.parse(o2.getDate());
-                                                return date2.compareTo(date1); // For descending order
-                                            } catch (ParseException e) {
-                                                throw new RuntimeException(e);
+                                }
+                            } else {
+                                // Legacy structure: borrows/{month}/{day}/{username}/{time}
+                                String currentUserStr = borrowSnapshot.getKey();
+                                if (!Objects.equals(currentUserStr, currentNickname)) {
+                                    for (DataSnapshot timeSnapshot : borrowSnapshot.getChildren()) {
+                                        BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
+                                        if (borrowTransaction != null) {
+                                            String borrower = borrowTransaction.getBorrowee();
+                                            String status = borrowTransaction.getStatus();
+                                            if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
+                                                    && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")) {
+                                                if (Objects.equals(borrower, currentNickname) && Objects.equals("All", selectedStatus)) {
+                                                    addOwedTransactionToList(borrowTransaction, currentUserStr);
+                                                } else if (Objects.equals(borrower, currentNickname) && Objects.equals(status, selectedStatus)) {
+                                                    addOwedTransactionToList(borrowTransaction, currentUserStr);
+                                                }
                                             }
                                         }
-                                    });
-
-                                    RecyclerView recyclerView = findViewById(R.id.owedRecyclerList);
-                                    RecyclerView.Adapter<OwedTransactionAdapter.ViewHolder> adapter = new OwedTransactionAdapter(owedList);
-                                    recyclerView.setAdapter(adapter);
-                                    adapter.notifyDataSetChanged();
-
-                                    // Set the RecyclerView.LayoutManager
-                                    RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
-                                    recyclerView.setLayoutManager(layoutManager);
+                                    }
                                 }
                             }
                         }
                     }
                 }
+
+                // Sort owedList by date in descending order
+                Collections.sort(owedList, new Comparator<OwedTransaction>() {
+                    SimpleDateFormat format = new SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH);
+
+                    @Override
+                    public int compare(OwedTransaction o1, OwedTransaction o2) {
+                        try {
+                            Date date1 = format.parse(o1.getDate());
+                            Date date2 = format.parse(o2.getDate());
+                            return date2.compareTo(date1);
+                        } catch (ParseException e) {
+                            return 0;
+                        }
+                    }
+                });
+
+                RecyclerView recyclerView = findViewById(R.id.owedRecyclerList);
+                if (recyclerView != null) {
+                    RecyclerView.Adapter<OwedTransactionAdapter.ViewHolder> adapter = new OwedTransactionAdapter(owedList);
+                    recyclerView.setAdapter(adapter);
+                    adapter.notifyDataSetChanged();
+                    RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
+                    recyclerView.setLayoutManager(layoutManager);
+                }
+
                 owedNum = owedList.size();
                 callback.onOwedNumReceived(owedNum);
             }
@@ -671,8 +753,30 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    private void addOwedTransactionFromBorrowNow(BorrowNowTransaction borrowNowTransaction) {
+        String date = borrowNowTransaction.getDate();
+        String borrower = borrowNowTransaction.getBorrowerName(); // Borrower name for display
+        if (borrower == null || borrower.isEmpty()) {
+            // Fallback to lender field for legacy compatibility
+            borrower = "Unknown";
+        }
+        String borrowedAmount = borrowNowTransaction.getBorrowedAmountStr();
+
+        date = changeFormatDate(date);
+
+        OwedTransaction owedTrans = new OwedTransaction(
+                date,
+                borrower,
+                borrowedAmount,
+                borrowNowTransaction.getStatus()
+        );
+        owedList.add(owedTrans);
+    }
+
     public void getOwedListMonthly(String selectedMonth, String selectedStatus, OwedNumCallback callback) {
         owedList.clear();
+
+        String currentUserId = Objects.requireNonNull(mAuth.getCurrentUser()).getUid();
 
         DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
 
@@ -684,54 +788,70 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                     for (DataSnapshot daySnapshot : dataSnapshot.getChildren()) {
-                        for (DataSnapshot currentUserRef : daySnapshot.getChildren()) {
-                            String currentUserStr = currentUserRef.getKey();
-                            if (!Objects.equals(currentUserStr, currentNickname)) {
-                                for (DataSnapshot timeSnapshot : currentUserRef.getChildren()) {
-                                    BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
-                                    if (borrowTransaction != null) {
-                                        String borrower = borrowTransaction.getBorrowee();
-                                        String status = borrowTransaction.getStatus();
-                                        if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
-                                                && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")) {
-                                            if (Objects.equals(borrower, currentNickname) && Objects.equals("All", selectedStatus)) {
-                                                addOwedTransactionToList(borrowTransaction, currentUserStr);
-                                            } else if (Objects.equals(borrower, currentNickname) && Objects.equals(status, selectedStatus)) {
-                                                addOwedTransactionToList(borrowTransaction, currentUserStr);
-                                            }
+                        for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
+                            // New structure: borrows/{month}/{day}/{borrowId}
+                            BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
+
+                            if (borrowNowTransaction != null && borrowNowTransaction.getLenderID() != null) {
+                                // New UID-based structure - check if current user is the lender
+                                if (Objects.equals(borrowNowTransaction.getLenderID(), currentUserId)) {
+                                    String status = borrowNowTransaction.getStatus();
+                                    if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
+                                            && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")) {
+                                        if (Objects.equals("All", selectedStatus) || Objects.equals(status, selectedStatus)) {
+                                            addOwedTransactionFromBorrowNow(borrowNowTransaction);
                                         }
-                                    } else {
-                                        showToast("Borrow Transaction has no data");
                                     }
-
-                                    // Sort owedList by date in descending order
-                                    Collections.sort(owedList, new Comparator<OwedTransaction>() {
-                                        SimpleDateFormat format = new SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH);
-
-                                        @Override
-                                        public int compare(OwedTransaction o1, OwedTransaction o2) {
-                                            try {
-                                                Date date1 = format.parse(o1.getDate());
-                                                Date date2 = format.parse(o2.getDate());
-                                                return date2.compareTo(date1); // For descending order
-                                            } catch (ParseException e) {
-                                                throw new RuntimeException(e);
+                                }
+                            } else {
+                                // Legacy structure: borrows/{month}/{day}/{username}/{time}
+                                String currentUserStr = borrowSnapshot.getKey();
+                                if (!Objects.equals(currentUserStr, currentNickname)) {
+                                    for (DataSnapshot timeSnapshot : borrowSnapshot.getChildren()) {
+                                        BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
+                                        if (borrowTransaction != null) {
+                                            String borrower = borrowTransaction.getBorrowee();
+                                            String status = borrowTransaction.getStatus();
+                                            if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
+                                                    && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")) {
+                                                if (Objects.equals(borrower, currentNickname) && Objects.equals("All", selectedStatus)) {
+                                                    addOwedTransactionToList(borrowTransaction, currentUserStr);
+                                                } else if (Objects.equals(borrower, currentNickname) && Objects.equals(status, selectedStatus)) {
+                                                    addOwedTransactionToList(borrowTransaction, currentUserStr);
+                                                }
                                             }
                                         }
-                                    });
-
-                                    RecyclerView recyclerView = findViewById(R.id.owedRecyclerList);
-                                    RecyclerView.Adapter<OwedTransactionAdapter.ViewHolder> adapter = new OwedTransactionAdapter(owedList);
-                                    recyclerView.setAdapter(adapter);
-                                    adapter.notifyDataSetChanged();
-
-                                    // Set the RecyclerView.LayoutManager
-                                    RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
-                                    recyclerView.setLayoutManager(layoutManager);
+                                    }
                                 }
                             }
                         }
                     }
+
+                    // Sort owedList by date in descending order
+                    Collections.sort(owedList, new Comparator<OwedTransaction>() {
+                        SimpleDateFormat format = new SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH);
+
+                        @Override
+                        public int compare(OwedTransaction o1, OwedTransaction o2) {
+                            try {
+                                Date date1 = format.parse(o1.getDate());
+                                Date date2 = format.parse(o2.getDate());
+                                return date2.compareTo(date1);
+                            } catch (ParseException e) {
+                                return 0;
+                            }
+                        }
+                    });
+
+                    RecyclerView recyclerView = findViewById(R.id.owedRecyclerList);
+                    if (recyclerView != null) {
+                        RecyclerView.Adapter<OwedTransactionAdapter.ViewHolder> adapter = new OwedTransactionAdapter(owedList);
+                        recyclerView.setAdapter(adapter);
+                        adapter.notifyDataSetChanged();
+                        RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
+                        recyclerView.setLayoutManager(layoutManager);
+                    }
+
                     owedNum = owedList.size();
                     callback.onOwedNumReceived(owedNum);
                 }

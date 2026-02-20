@@ -1,0 +1,80 @@
+{
+  "rules": {
+    "users": {
+      "$uid": {
+        // Allow users to read/write their own data
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid",
+
+        // Allow any authenticated user to read username for lookups
+        "username": {
+          ".read": "auth != null"
+        },
+        "profileImageUrl": {
+          ".read": "auth != null"
+        },
+
+        // Balances can only be modified by the user or via atomic transactions
+        "balances": {
+          ".read": "auth != null && auth.uid == $uid",
+          ".write": "auth != null && auth.uid == $uid"
+        }
+      },
+
+      // Allow authenticated users to query users by username
+      ".read": "auth != null",
+      ".indexOn": ["username"]
+    },
+
+    "borrows": {
+      // Allow read for authenticated users
+      ".read": "auth != null",
+
+      "$monthYear": {
+        "$day": {
+          "$borrowId": {
+            // Allow write if user is the borrower creating the request
+            ".write": "auth != null && (
+              !data.exists() ||
+              data.child('borrowerID').val() == auth.uid ||
+              data.child('lenderID').val() == auth.uid
+            )",
+            ".indexOn": ["borrowerID", "lenderID", "status"]
+          }
+        }
+      }
+    },
+
+    "userBorrows": {
+      "$uid": {
+        // Users can only read/write their own borrow index
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null",
+
+        "asBorrower": {
+          "$borrowId": {
+            ".write": "auth != null"
+          }
+        },
+        "asLender": {
+          "$borrowId": {
+            ".write": "auth != null"
+          }
+        }
+      }
+    },
+
+    "transactions": {
+      ".read": "auth != null",
+      ".write": "auth != null"
+    },
+
+    "payerGroups": {
+      "$uid": {
+        ".read": "auth != null && auth.uid == $uid",
+        ".write": "auth != null && auth.uid == $uid"
+      }
+    }
+  }
+}
+

@@ -151,16 +151,45 @@ public class SignUpActivity extends AppCompatActivity {
     private void saveUserToDatabase(String username, String email, String profileImageUrl, String password, int balanced, int unpaid, int owed, int debt) {
         DatabaseReference usersRef = FirebaseDatabase.getInstance().getReference("users");
 
-        User user = new User(username, email, profileImageUrl, password, balanced, unpaid, owed, debt);
+        // Create UserBalance with initial values
+        UserBalance initialBalance = new UserBalance(balanced, unpaid, owed, debt, 0, 0);
+        User user = new User(username, email, profileImageUrl, password, initialBalance);
 
         usersRef.child(userId).setValue(user)
                 .addOnCompleteListener(new OnCompleteListener<Void>() {
                     @Override
                     public void onComplete(@NonNull Task<Void> task) {
-                        progressBar.setVisibility(View.GONE);
                         if (task.isSuccessful()) {
-                            signUpSuccess();
+                            // Initialize balances node explicitly
+                            BalanceHelper.initializeBalancesForNewUser(userId, new BalanceHelper.BalanceCallback() {
+                                @Override
+                                public void onSuccess() {
+                                    // Initialize userBorrows node
+                                    BalanceHelper.initializeUserBorrowsForNewUser(userId, new BalanceHelper.BalanceCallback() {
+                                        @Override
+                                        public void onSuccess() {
+                                            progressBar.setVisibility(View.GONE);
+                                            signUpSuccess();
+                                        }
+
+                                        @Override
+                                        public void onFailure(String error) {
+                                            progressBar.setVisibility(View.GONE);
+                                            // Still allow signup even if userBorrows init fails
+                                            signUpSuccess();
+                                        }
+                                    });
+                                }
+
+                                @Override
+                                public void onFailure(String error) {
+                                    progressBar.setVisibility(View.GONE);
+                                    // Still allow signup even if balances init fails
+                                    signUpSuccess();
+                                }
+                            });
                         } else {
+                            progressBar.setVisibility(View.GONE);
                             Toast.makeText(SignUpActivity.this, "Sign up failed", Toast.LENGTH_SHORT).show();
                         }
                     }

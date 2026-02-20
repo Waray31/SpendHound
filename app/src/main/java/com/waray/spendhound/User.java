@@ -10,16 +10,31 @@ public class User {
     private int unpaid;
     private int owed;
     private int debt;
+    private UserBalance balances;
 
-    public User(String username, String email, String profileImageUrl,  String password, int balanced, int unpaid, int owed, int debt) {
+    public User(String username, String email, String profileImageUrl, String password, int balanced, int unpaid, int owed, int debt) {
         this.username = username;
         this.email = email;
         this.password = password;
-        this.profileImageUrl= profileImageUrl;
+        this.profileImageUrl = profileImageUrl;
         this.balanced = balanced;
         this.unpaid = unpaid;
         this.owed = owed;
-        this.debt= debt;
+        this.debt = debt;
+        this.balances = new UserBalance(balanced, unpaid, owed, debt, 0, 0);
+    }
+
+    public User(String username, String email, String profileImageUrl, String password, UserBalance balances) {
+        this.username = username;
+        this.email = email;
+        this.password = password;
+        this.profileImageUrl = profileImageUrl;
+        this.balances = balances;
+        // Maintain backwards compatibility
+        this.balanced = balances.getCurrentBalance();
+        this.unpaid = balances.getUnpaid();
+        this.owed = balances.getOwed();
+        this.debt = balances.getDebt();
     }
 
     public User() {
@@ -88,6 +103,14 @@ public class User {
 
     public void setDebt(int debt) {
         this.debt = debt;
+    }
+
+    public UserBalance getBalances() {
+        return balances;
+    }
+
+    public void setBalances(UserBalance balances) {
+        this.balances = balances;
     }
 }
 

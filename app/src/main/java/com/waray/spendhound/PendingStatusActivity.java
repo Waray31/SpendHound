@@ -23,6 +23,7 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -151,6 +152,9 @@ public class PendingStatusActivity extends AppCompatActivity implements Borrower
     private void BorrowerList() {
         borrowerListTransactions = new ArrayList<>();
         borrowerListPath = new ArrayList<String[]>();
+
+        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+
         DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
         databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
             MainActivity mainActivity = new MainActivity();
@@ -161,73 +165,79 @@ public class PendingStatusActivity extends AppCompatActivity implements Borrower
                     String month = monthSnapshot.getKey();
                     for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
                         String day = daySnapshot.getKey();
-                        for (DataSnapshot currentUserRef : daySnapshot.getChildren()) {
-                            String currentUserStr = currentUserRef.getKey();
-                            if (!Objects.equals(currentUserStr, currentNickname2)) {
-                                for (DataSnapshot timeSnapshot : currentUserRef.getChildren()) {
-                                    String time = timeSnapshot.getKey();
-                                    BorrowerListTransaction borrowerListTransaction = timeSnapshot.getValue(BorrowerListTransaction.class);
-                                    if (borrowerListTransaction != null) {
-                                        String status = borrowerListTransaction.getStatus();
-                                        String borrowee = borrowerListTransaction.getBorrowee();
-                                        if (Objects.equals(status, "Pending Approval") && Objects.equals(borrowee, currentNickname2)) {
-                                            borrowee = currentUserStr;
-                                            String borrowedAmountStr = borrowerListTransaction.getBorrowedAmountStr();
-                                            borrowedAmountStr = "₱" + borrowedAmountStr;
-                                            String date = borrowerListTransaction.getDate();
+                        for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
+                            // Try to read as new structure first
+                            BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
 
+                            if (borrowNowTransaction != null && borrowNowTransaction.getLenderID() != null && borrowNowTransaction.getBorrowId() != null) {
+                                // New UID-based structure: borrows/{month}/{day}/{borrowId}
+                                // Check if current user is the lender (receiving borrow requests)
+                                if (Objects.equals(borrowNowTransaction.getLenderID(), currentUserId)) {
+                                    String status = borrowNowTransaction.getStatus();
+                                    if (Objects.equals(status, "Pending Approval")) {
+                                        String borrowId = borrowNowTransaction.getBorrowId();
+                                        String borrowerName = borrowNowTransaction.getBorrowerName();
+                                        if (borrowerName == null || borrowerName.isEmpty()) {
+                                            borrowerName = "Unknown";
+                                        }
+                                        String borrowedAmountStr = "₱" + borrowNowTransaction.getBorrowedAmountStr();
 
-                                            String formatPattern = "MMMM-dd-yyyy HH:mm:ss";
-                                            long secondsSinceDate = 0;
+                                        // Calculate time difference using timestamp
+                                        long timestamp = borrowNowTransaction.getTimestamp();
+                                        String timeDifferenceStr = calculateTimeDifference(timestamp);
 
-                                            try {
-                                                // Combine date and time string
-                                                String dateTime = date + " " + time;  // Assuming 'time' is in "HH:mm:ss" format
-                                                DateFormat dateFormat = new SimpleDateFormat(formatPattern, Locale.ENGLISH);
-                                                Date pastDate = dateFormat.parse(dateTime);
+                                        BorrowerListTransaction borrowerTrans = new BorrowerListTransaction(
+                                                timeDifferenceStr,
+                                                borrowerName,
+                                                borrowedAmountStr,
+                                                status
+                                        );
+                                        borrowerListTransactions.add(borrowerTrans);
 
-                                                Date currentDate = new Date();
+                                        // New path format: month, day, borrowId (no username/time)
+                                        borrowerListPath.add(new String[]{month, day, borrowId, ""});
+                                    }
+                                }
+                            } else {
+                                // Legacy structure: borrows/{month}/{day}/{username}/{time}
+                                String currentUserStr = borrowSnapshot.getKey();
+                                if (!Objects.equals(currentUserStr, currentNickname2)) {
+                                    for (DataSnapshot timeSnapshot : borrowSnapshot.getChildren()) {
+                                        String time = timeSnapshot.getKey();
+                                        BorrowerListTransaction borrowerListTransaction = timeSnapshot.getValue(BorrowerListTransaction.class);
+                                        if (borrowerListTransaction != null) {
+                                            String status = borrowerListTransaction.getStatus();
+                                            String borrowee = borrowerListTransaction.getBorrowee();
+                                            if (Objects.equals(status, "Pending Approval") && Objects.equals(borrowee, currentNickname2)) {
+                                                borrowee = currentUserStr;
+                                                String borrowedAmountStr = borrowerListTransaction.getBorrowedAmountStr();
+                                                borrowedAmountStr = "₱" + borrowedAmountStr;
+                                                String date = borrowerListTransaction.getDate();
 
-                                                long timeDifferenceMillis = currentDate.getTime() - pastDate.getTime();
+                                                String formatPattern = "MMMM-dd-yyyy HH:mm:ss";
+                                                String timeDifferenceStr = "0s";
 
-                                                secondsSinceDate = timeDifferenceMillis / 1000;
-
-                                                String timeDifferenceStr;
-                                                // Convert seconds to appropriate units
-                                                if (secondsSinceDate >= 60 * 60 * 24 * 365) { // More than or equal to a year
-                                                    long years = secondsSinceDate / (60 * 60 * 24 * 365);
-                                                    timeDifferenceStr = years + "y";
-                                                } else if (secondsSinceDate >= 60 * 60 * 24 * 30) { // More than or equal to a month
-                                                    long months = secondsSinceDate / (60 * 60 * 24 * 30);
-                                                    timeDifferenceStr = months + "mo";
-                                                } else if (secondsSinceDate >= 60 * 60 * 24) { // More than or equal to a day
-                                                    long days = secondsSinceDate / (60 * 60 * 24);
-                                                    timeDifferenceStr = days + "d";
-                                                } else if (secondsSinceDate >= 60 * 60) { // More than or equal to an hour
-                                                    long hours = secondsSinceDate / (60 * 60);
-                                                    timeDifferenceStr = hours + "h";
-                                                } else if (secondsSinceDate >= 60) { // More than or equal to a minute
-                                                    long minutes = secondsSinceDate / 60;
-                                                    timeDifferenceStr = minutes + "m";
-                                                } else { // Less than a minute
-                                                    timeDifferenceStr = secondsSinceDate + "s";
+                                                try {
+                                                    String dateTime = date + " " + time;
+                                                    DateFormat dateFormat = new SimpleDateFormat(formatPattern, Locale.ENGLISH);
+                                                    Date pastDate = dateFormat.parse(dateTime);
+                                                    Date currentDate = new Date();
+                                                    long timeDifferenceMillis = currentDate.getTime() - pastDate.getTime();
+                                                    long secondsSinceDate = timeDifferenceMillis / 1000;
+                                                    timeDifferenceStr = formatTimeDifference(secondsSinceDate);
+                                                } catch (ParseException e) {
+                                                    e.printStackTrace();
                                                 }
 
-                                                date = timeDifferenceStr;
-                                            } catch (ParseException e) {
-                                                e.printStackTrace();
+                                                BorrowerListTransaction borrowerTrans = new BorrowerListTransaction(
+                                                        timeDifferenceStr,
+                                                        borrowee,
+                                                        borrowedAmountStr,
+                                                        status
+                                                );
+                                                borrowerListTransactions.add(borrowerTrans);
+                                                borrowerListPath.add(new String[]{month, day, currentUserStr, time});
                                             }
-
-                                            BorrowerListTransaction borrowerTrans = new BorrowerListTransaction(
-                                                    date,
-                                                    borrowee,
-                                                    borrowedAmountStr,
-                                                    status
-                                            );
-                                            borrowerListTransactions.add(borrowerTrans);
-
-                                            borrowerListPath.add(new String[]{month, day, currentUserStr, time});
-
                                         }
                                     }
                                 }
@@ -262,9 +272,40 @@ public class PendingStatusActivity extends AppCompatActivity implements Borrower
         });
     }
 
+    private String calculateTimeDifference(long timestamp) {
+        long currentTime = System.currentTimeMillis();
+        long differenceMillis = currentTime - timestamp;
+        long secondsSinceDate = differenceMillis / 1000;
+        return formatTimeDifference(secondsSinceDate);
+    }
+
+    private String formatTimeDifference(long secondsSinceDate) {
+        if (secondsSinceDate >= 60 * 60 * 24 * 365) {
+            long years = secondsSinceDate / (60 * 60 * 24 * 365);
+            return years + "y";
+        } else if (secondsSinceDate >= 60 * 60 * 24 * 30) {
+            long months = secondsSinceDate / (60 * 60 * 24 * 30);
+            return months + "mo";
+        } else if (secondsSinceDate >= 60 * 60 * 24) {
+            long days = secondsSinceDate / (60 * 60 * 24);
+            return days + "d";
+        } else if (secondsSinceDate >= 60 * 60) {
+            long hours = secondsSinceDate / (60 * 60);
+            return hours + "h";
+        } else if (secondsSinceDate >= 60) {
+            long minutes = secondsSinceDate / 60;
+            return minutes + "m";
+        } else {
+            return secondsSinceDate + "s";
+        }
+    }
+
     private void PayerList() {
         payerListTransactions = new ArrayList<>();
         payerListPath = new ArrayList<String[]>();
+
+        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+
         DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
         databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
             MainActivity mainActivity = new MainActivity();
@@ -275,72 +316,79 @@ public class PendingStatusActivity extends AppCompatActivity implements Borrower
                     String month = monthSnapshot.getKey();
                     for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
                         String day = daySnapshot.getKey();
-                        for (DataSnapshot currentUserRef : daySnapshot.getChildren()) {
-                            String currentUserStr = currentUserRef.getKey();
-                            if (!Objects.equals(currentUserStr, currentNickname2)) {
-                                for (DataSnapshot timeSnapshot : currentUserRef.getChildren()) {
-                                    String time = timeSnapshot.getKey();
-                                    BorrowerListTransaction borrowerListTransaction = timeSnapshot.getValue(BorrowerListTransaction.class);
-                                    if (borrowerListTransaction != null) {
-                                        String status = borrowerListTransaction.getStatus();
-                                        String borrowee = borrowerListTransaction.getBorrowee();
-                                        if (Objects.equals(status, "Payment Pending") && Objects.equals(borrowee, currentNickname2)) {
-                                            borrowee = currentUserStr;
-                                            String borrowedAmountStr = borrowerListTransaction.getBorrowedAmountStr();
-                                            borrowedAmountStr = "₱" + borrowedAmountStr;
-                                            String date = borrowerListTransaction.getDate();
+                        for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
+                            // Try to read as new structure first
+                            BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
 
+                            if (borrowNowTransaction != null && borrowNowTransaction.getLenderID() != null && borrowNowTransaction.getBorrowId() != null) {
+                                // New UID-based structure: borrows/{month}/{day}/{borrowId}
+                                // Check if current user is the lender (receiving payment confirmations)
+                                if (Objects.equals(borrowNowTransaction.getLenderID(), currentUserId)) {
+                                    String status = borrowNowTransaction.getStatus();
+                                    if (Objects.equals(status, "Payment Pending")) {
+                                        String borrowId = borrowNowTransaction.getBorrowId();
+                                        String borrowerName = borrowNowTransaction.getBorrowerName();
+                                        if (borrowerName == null || borrowerName.isEmpty()) {
+                                            borrowerName = "Unknown";
+                                        }
+                                        String borrowedAmountStr = "₱" + borrowNowTransaction.getBorrowedAmountStr();
 
-                                            String formatPattern = "MMMM-dd-yyyy HH:mm:ss";
-                                            long secondsSinceDate = 0;
+                                        // Calculate time difference using timestamp
+                                        long timestamp = borrowNowTransaction.getTimestamp();
+                                        String timeDifferenceStr = calculateTimeDifference(timestamp);
 
-                                            try {
-                                                // Combine date and time string
-                                                String dateTime = date + " " + time;  // Assuming 'time' is in "HH:mm:ss" format
-                                                DateFormat dateFormat = new SimpleDateFormat(formatPattern, Locale.ENGLISH);
-                                                Date pastDate = dateFormat.parse(dateTime);
+                                        BorrowerListTransaction payerTrans = new BorrowerListTransaction(
+                                                timeDifferenceStr,
+                                                borrowerName,
+                                                borrowedAmountStr,
+                                                status
+                                        );
+                                        payerListTransactions.add(payerTrans);
 
-                                                Date currentDate = new Date();
+                                        // New path format: month, day, borrowId (no username/time)
+                                        payerListPath.add(new String[]{month, day, borrowId, ""});
+                                    }
+                                }
+                            } else {
+                                // Legacy structure: borrows/{month}/{day}/{username}/{time}
+                                String currentUserStr = borrowSnapshot.getKey();
+                                if (!Objects.equals(currentUserStr, currentNickname2)) {
+                                    for (DataSnapshot timeSnapshot : borrowSnapshot.getChildren()) {
+                                        String time = timeSnapshot.getKey();
+                                        BorrowerListTransaction borrowerListTransaction = timeSnapshot.getValue(BorrowerListTransaction.class);
+                                        if (borrowerListTransaction != null) {
+                                            String status = borrowerListTransaction.getStatus();
+                                            String borrowee = borrowerListTransaction.getBorrowee();
+                                            if (Objects.equals(status, "Payment Pending") && Objects.equals(borrowee, currentNickname2)) {
+                                                borrowee = currentUserStr;
+                                                String borrowedAmountStr = borrowerListTransaction.getBorrowedAmountStr();
+                                                borrowedAmountStr = "₱" + borrowedAmountStr;
+                                                String date = borrowerListTransaction.getDate();
 
-                                                long timeDifferenceMillis = currentDate.getTime() - pastDate.getTime();
+                                                String formatPattern = "MMMM-dd-yyyy HH:mm:ss";
+                                                String timeDifferenceStr = "0s";
 
-                                                secondsSinceDate = timeDifferenceMillis / 1000;
-
-                                                String timeDifferenceStr;
-                                                // Convert seconds to appropriate units
-                                                if (secondsSinceDate >= 60 * 60 * 24 * 365) { // More than or equal to a year
-                                                    long years = secondsSinceDate / (60 * 60 * 24 * 365);
-                                                    timeDifferenceStr = years + "y";
-                                                } else if (secondsSinceDate >= 60 * 60 * 24 * 30) { // More than or equal to a month
-                                                    long months = secondsSinceDate / (60 * 60 * 24 * 30);
-                                                    timeDifferenceStr = months + "mo";
-                                                } else if (secondsSinceDate >= 60 * 60 * 24) { // More than or equal to a day
-                                                    long days = secondsSinceDate / (60 * 60 * 24);
-                                                    timeDifferenceStr = days + "d";
-                                                } else if (secondsSinceDate >= 60 * 60) { // More than or equal to an hour
-                                                    long hours = secondsSinceDate / (60 * 60);
-                                                    timeDifferenceStr = hours + "h";
-                                                } else if (secondsSinceDate >= 60) { // More than or equal to a minute
-                                                    long minutes = secondsSinceDate / 60;
-                                                    timeDifferenceStr = minutes + "m";
-                                                } else { // Less than a minute
-                                                    timeDifferenceStr = secondsSinceDate + "s";
+                                                try {
+                                                    String dateTime = date + " " + time;
+                                                    DateFormat dateFormat = new SimpleDateFormat(formatPattern, Locale.ENGLISH);
+                                                    Date pastDate = dateFormat.parse(dateTime);
+                                                    Date currentDate = new Date();
+                                                    long timeDifferenceMillis = currentDate.getTime() - pastDate.getTime();
+                                                    long secondsSinceDate = timeDifferenceMillis / 1000;
+                                                    timeDifferenceStr = formatTimeDifference(secondsSinceDate);
+                                                } catch (ParseException e) {
+                                                    e.printStackTrace();
                                                 }
 
-                                                date = timeDifferenceStr;
-                                            } catch (ParseException e) {
-                                                e.printStackTrace();
+                                                BorrowerListTransaction borrowerTrans = new BorrowerListTransaction(
+                                                        timeDifferenceStr,
+                                                        borrowee,
+                                                        borrowedAmountStr,
+                                                        status
+                                                );
+                                                payerListTransactions.add(borrowerTrans);
+                                                payerListPath.add(new String[]{month, day, currentUserStr, time});
                                             }
-
-                                            BorrowerListTransaction borrowerTrans = new BorrowerListTransaction(
-                                                    date,
-                                                    borrowee,
-                                                    borrowedAmountStr,
-                                                    status
-                                            );
-                                            payerListTransactions.add(borrowerTrans);
-
-                                            payerListPath.add(new String[]{month, day, currentUserStr, time});
                                         }
                                     }
                                 }
