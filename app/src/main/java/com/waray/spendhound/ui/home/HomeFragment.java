@@ -115,6 +115,9 @@ public class HomeFragment extends Fragment {
         // Update initial date range display
         updateDateRangeDisplay();
 
+        callMainActivityMethod();
+
+
         LogoutButton();
         addTransactionButton();
         setTextViews();
@@ -132,7 +135,6 @@ public class HomeFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
-        callMainActivityMethod();
 
         // Show tooltip after a small delay to ensure the view is fully laid out
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
@@ -140,12 +142,6 @@ public class HomeFragment extends Fragment {
                 showAddTransactionTooltip();
             }
         }, 500);
-    }
-
-    @Override
-    public void onDestroyView() {
-        super.onDestroyView();
-        binding = null;
     }
 
     private void callMainActivityMethod() {

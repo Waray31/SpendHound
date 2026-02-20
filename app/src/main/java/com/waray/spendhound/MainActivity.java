@@ -300,6 +300,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void getRecentTransaction() {
+        Log.d("RecentTransaction", "getRecentTransaction() called");
+        Log.d("RecentTransaction", "recentTransactionList size before clear: " + recentTransactionList.size());
+        Log.d("RecentTransaction", "recentTransactionAdapter is null: " + (recentTransactionAdapter == null));
+
         recentTransactionList.clear();
 
         Calendar calendar = Calendar.getInstance();
@@ -309,9 +313,14 @@ public class MainActivity extends AppCompatActivity {
         int daysToFetch = 7;
         AtomicInteger daysFetched = new AtomicInteger(0);
 
+        Log.d("RecentTransaction", "Starting to fetch " + daysToFetch + " days of transactions");
+
         for (int i = 0; i < daysToFetch; i++) {
+
             String currentMonthYear = monthFormat.format(calendar.getTime());
             String currentDay = dayFormat.format(calendar.getTime());
+
+            Log.d("RecentTransaction", "Fetching day " + i + ": " + currentMonthYear + "/" + currentDay);
 
             DatabaseReference dayRef = DeclareDatabase.getDBRefTransaction().child(currentMonthYear).child(currentDay);
 
@@ -320,6 +329,7 @@ public class MainActivity extends AppCompatActivity {
             dayRef.addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    Log.d("RecentTransaction", "onDataChange for " + finalCurrentMonthYear + "/" + finalCurrentDay + ", exists: " + dataSnapshot.exists() + ", children count: " + dataSnapshot.getChildrenCount());
                     for (DataSnapshot timeSnapshot : dataSnapshot.getChildren()) {
                         Transaction transaction = timeSnapshot.getValue(Transaction.class);
                         if (transaction != null) {
@@ -374,6 +384,8 @@ public class MainActivity extends AppCompatActivity {
                     }
 
                     if (daysFetched.incrementAndGet() == daysToFetch) {
+                        Log.d("RecentTransaction", "All days fetched. Total transactions: " + recentTransactionList.size());
+
                         // Sort transactions in descending order by date and time
                         Collections.sort(recentTransactionList, (t1, t2) -> {
                             String dateTime1 = t1.getSortDateTime();
@@ -384,8 +396,15 @@ public class MainActivity extends AppCompatActivity {
                             return 0;
                         });
 
-                        if (recentTransactionAdapter != null) {
-                            recentTransactionAdapter.notifyDataSetChanged();
+                        // Always re-attach adapter to ensure it's the current one
+                        RecyclerView recyclerView = findViewById(R.id.transactionListRecycler);
+                        if (recyclerView != null) {
+                            recentTransactionAdapter = new RecentTransactionAdapter(recentTransactionList);
+                            recyclerView.setAdapter(recentTransactionAdapter);
+                            recyclerView.setLayoutManager(new LinearLayoutManager(MainActivity.this));
+                            Log.d("RecentTransaction", "Adapter re-attached. List size: " + recentTransactionList.size());
+                        } else {
+                            Log.e("RecentTransaction", "RecyclerView is NULL!");
                         }
                     }
                 }

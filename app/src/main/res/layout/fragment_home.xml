@@ -531,7 +531,6 @@
                 android:textColor="@color/grey"
                 android:textSize="16sp" />
 
-
             <ImageButton
                 android:id="@+id/btn_addTransaction"
                 android:layout_width="56dp"
@@ -549,8 +548,8 @@
             android:id="@+id/transactionListRecycler"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:nestedScrollingEnabled="false"
             android:layout_marginTop="8dp"
+            android:nestedScrollingEnabled="false"
             tools:listitem="@layout/fragment_transaction" />
 
     </LinearLayout>
