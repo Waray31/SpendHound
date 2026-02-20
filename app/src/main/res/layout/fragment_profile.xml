@@ -310,6 +310,17 @@
     </LinearLayout>
 
     <Button
+        android:id="@+id/btnAdminSettings"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:backgroundTint="@color/darkBlue"
+        android:layout_marginBottom="8dp"
+        android:elevation="4dp"
+        android:fontFamily="@font/montserratalternatess_bold"
+        android:text="Admin Settings"
+        android:textColor="@color/whitest" />
+
+    <Button
         android:id="@+id/profileLogout"
         android:layout_width="match_parent"
         android:layout_height="60dp"
@@ -318,6 +329,5 @@
         android:elevation="4dp"
         android:fontFamily="@font/montserratalternatess_bold"
         android:text="@string/logout_button_text"
-        android:textColor="@color/whitest"
-        />
+        android:textColor="@color/whitest" />
 </LinearLayout>

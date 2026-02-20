@@ -2,6 +2,7 @@ package com.waray.spendhound.ui.profile;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
+import android.app.ProgressDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
@@ -46,6 +47,7 @@ import com.google.firebase.storage.UploadTask;
 import com.waray.spendhound.BorrowTransaction;
 import com.waray.spendhound.DeclareDatabase;
 import com.waray.spendhound.LoginActivity;
+import com.waray.spendhound.MigrationHelper;
 import com.waray.spendhound.PendingStatusActivity;
 import com.waray.spendhound.R;
 import com.waray.spendhound.Transaction;
@@ -73,6 +75,7 @@ public class ProfileFragment extends Fragment {
     private View balanceUnpaidLayout, oweDebtLayout;
     private Drawable balanceUnpaidDrawable, oweDebtDrawable, balanceUnpaidDrawableTransparent, oweDebtDrawableTransparent;
     private Button profileLogout;
+    private Button btnAdminSettings;
 
     private static final int REQUEST_IMAGE_CAPTURE = 1;
     private static final int REQUEST_IMAGE_PICK = 2;
@@ -98,6 +101,7 @@ public class ProfileFragment extends Fragment {
         balanceUnpaidLayout = view.findViewById(R.id.balanceUnpaidLayout);
         oweDebtLayout = view.findViewById(R.id.oweDebtLayout);
         profileLogout = view.findViewById(R.id.profileLogout);
+        btnAdminSettings = view.findViewById(R.id.btnAdminSettings);
 
         balanceUnpaidDrawable = ContextCompat.getDrawable(getContext(), R.drawable.round_border_glassy);
         balanceUnpaidDrawableTransparent = ContextCompat.getDrawable(getContext(), R.drawable.transparent_background);
@@ -123,6 +127,7 @@ public class ProfileFragment extends Fragment {
         getOwe();
         profileImageViewButton();
         ProfileLogoutButton();
+        AdminSettingsButton();
 
 
 
@@ -784,6 +789,146 @@ public class ProfileFragment extends Fragment {
                 }
             }
         });
+    }
+
+    private void AdminSettingsButton() {
+        btnAdminSettings.setOnClickListener(v -> showAdminLoginDialog());
+    }
+
+    private void showAdminLoginDialog() {
+        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_admin_login, null);
+        EditText etUsername = dialogView.findViewById(R.id.etAdminUsername);
+        EditText etPassword = dialogView.findViewById(R.id.etAdminPassword);
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Admin Access")
+                .setView(dialogView)
+                .setPositiveButton("Login", (dialog, which) -> {
+                    String username = etUsername.getText().toString().trim();
+                    String password = etPassword.getText().toString().trim();
+
+                    if (username.equals("admin") && password.equals("admin")) {
+                        Toast.makeText(getContext(), "Admin login successful", Toast.LENGTH_SHORT).show();
+                        showAdminPanelDialog();
+                    } else {
+                        Toast.makeText(getContext(), "Invalid credentials", Toast.LENGTH_SHORT).show();
+                    }
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
+    }
+
+    private void showAdminPanelDialog() {
+        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_admin_panel, null);
+        Button btnRunMigration = dialogView.findViewById(R.id.btnRunMigration);
+        Button btnMigrateBalances = dialogView.findViewById(R.id.btnMigrateBalances);
+        Button btnMigrateBorrowIndex = dialogView.findViewById(R.id.btnMigrateBorrowIndex);
+        Button btnMigrateExistingUsers = dialogView.findViewById(R.id.btnMigrateExistingUsers);
+        TextView tvStatus = dialogView.findViewById(R.id.tvMigrationStatus);
+
+        AlertDialog adminDialog = new AlertDialog.Builder(requireContext())
+                .setTitle("Admin Panel")
+                .setView(dialogView)
+                .setNegativeButton("Close", null)
+                .create();
+
+        // Run Full Migration
+        btnRunMigration.setOnClickListener(v -> {
+            ProgressDialog progressDialog = new ProgressDialog(getContext());
+            progressDialog.setMessage("Running full migration...");
+            progressDialog.setCancelable(false);
+            progressDialog.show();
+
+            MigrationHelper.runAllMigrations(new MigrationHelper.MigrationCallback() {
+                @Override
+                public void onComplete(int migratedCount) {
+                    progressDialog.dismiss();
+                    tvStatus.setText("Status: Migration complete! " + migratedCount + " records migrated.");
+                    Toast.makeText(getContext(), "Migration complete: " + migratedCount + " records", Toast.LENGTH_LONG).show();
+                }
+
+                @Override
+                public void onError(String error) {
+                    progressDialog.dismiss();
+                    tvStatus.setText("Status: Error - " + error);
+                    Toast.makeText(getContext(), "Migration failed: " + error, Toast.LENGTH_LONG).show();
+                }
+            });
+        });
+
+        // Migrate User Balances Only
+        btnMigrateBalances.setOnClickListener(v -> {
+            ProgressDialog progressDialog = new ProgressDialog(getContext());
+            progressDialog.setMessage("Migrating user balances...");
+            progressDialog.setCancelable(false);
+            progressDialog.show();
+
+            MigrationHelper.migrateUserBalances(new MigrationHelper.MigrationCallback() {
+                @Override
+                public void onComplete(int migratedCount) {
+                    progressDialog.dismiss();
+                    tvStatus.setText("Status: Balances migrated! " + migratedCount + " users.");
+                    Toast.makeText(getContext(), "Balances migrated: " + migratedCount + " users", Toast.LENGTH_LONG).show();
+                }
+
+                @Override
+                public void onError(String error) {
+                    progressDialog.dismiss();
+                    tvStatus.setText("Status: Error - " + error);
+                    Toast.makeText(getContext(), "Migration failed: " + error, Toast.LENGTH_LONG).show();
+                }
+            });
+        });
+
+        // Migrate Borrow Index Only
+        btnMigrateBorrowIndex.setOnClickListener(v -> {
+            ProgressDialog progressDialog = new ProgressDialog(getContext());
+            progressDialog.setMessage("Migrating borrow index...");
+            progressDialog.setCancelable(false);
+            progressDialog.show();
+
+            MigrationHelper.migrateUserBorrowsIndex(new MigrationHelper.MigrationCallback() {
+                @Override
+                public void onComplete(int migratedCount) {
+                    progressDialog.dismiss();
+                    tvStatus.setText("Status: Borrow index migrated! " + migratedCount + " records.");
+                    Toast.makeText(getContext(), "Borrow index migrated: " + migratedCount + " records", Toast.LENGTH_LONG).show();
+                }
+
+                @Override
+                public void onError(String error) {
+                    progressDialog.dismiss();
+                    tvStatus.setText("Status: Error - " + error);
+                    Toast.makeText(getContext(), "Migration failed: " + error, Toast.LENGTH_LONG).show();
+                }
+            });
+        });
+
+        // Migrate Existing Users (Old Structure)
+        btnMigrateExistingUsers.setOnClickListener(v -> {
+            ProgressDialog progressDialog = new ProgressDialog(getContext());
+            progressDialog.setMessage("Migrating existing users with old structure...\nThis includes:\n- Creating balances node\n- Initializing userBorrows");
+            progressDialog.setCancelable(false);
+            progressDialog.show();
+
+            MigrationHelper.migrateExistingUsers(new MigrationHelper.MigrationCallback() {
+                @Override
+                public void onComplete(int migratedCount) {
+                    progressDialog.dismiss();
+                    tvStatus.setText("Status: Existing users migrated! " + migratedCount + " users updated.");
+                    Toast.makeText(getContext(), "Existing users migrated: " + migratedCount + " users", Toast.LENGTH_LONG).show();
+                }
+
+                @Override
+                public void onError(String error) {
+                    progressDialog.dismiss();
+                    tvStatus.setText("Status: Error - " + error);
+                    Toast.makeText(getContext(), "Migration failed: " + error, Toast.LENGTH_LONG).show();
+                }
+            });
+        });
+
+        adminDialog.show();
     }
 
 }

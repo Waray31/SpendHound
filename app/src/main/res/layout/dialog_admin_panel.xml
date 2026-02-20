@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Admin Panel"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:textColor="@color/darkBlue"
+        android:layout_marginBottom="8dp"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Database Migration Tools"
+        android:textSize="14sp"
+        android:textColor="@color/grey"
+        android:layout_marginBottom="16dp"/>
+
+    <Button
+        android:id="@+id/btnRunMigration"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:backgroundTint="@color/yellow"
+        android:text="Run Full Migration"
+        android:textColor="@color/darkBlue"
+        android:textStyle="bold"
+        android:layout_marginBottom="8dp"/>
+
+    <Button
+        android:id="@+id/btnMigrateBalances"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:backgroundTint="@color/grey"
+        android:text="Migrate User Balances Only"
+        android:textColor="@color/whitest"
+        android:layout_marginBottom="8dp"/>
+
+    <Button
+        android:id="@+id/btnMigrateBorrowIndex"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:backgroundTint="@color/grey"
+        android:text="Migrate Borrow Index Only"
+        android:textColor="@color/whitest"
+        android:layout_marginBottom="8dp"/>
+
+    <Button
+        android:id="@+id/btnMigrateExistingUsers"
+        android:layout_width="match_parent"
+        android:layout_height="50dp"
+        android:backgroundTint="#FF5722"
+        android:text="Migrate Existing Users (Old Structure)"
+        android:textColor="@color/whitest"
+        android:layout_marginBottom="16dp"/>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/grey"
+        android:layout_marginBottom="12dp"/>
+
+    <TextView
+        android:id="@+id/tvMigrationStatus"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Status: Ready"
+        android:textSize="12sp"
+        android:textColor="@color/darkBlue"
+        android:padding="8dp"
+        android:background="@drawable/round_border"/>
+
+</LinearLayout>
+

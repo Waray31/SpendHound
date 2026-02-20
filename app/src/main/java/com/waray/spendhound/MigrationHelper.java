@@ -146,6 +146,143 @@ public class MigrationHelper {
     }
 
     /**
+     * Migrate existing users with old structure to new structure.
+     * This includes:
+     * 1. Creating balances node from flat fields (balanced, unpaid, owed, debt)
+     * 2. Initializing userBorrows node if missing
+     * 3. Adding totalBorrowed and totalLent fields
+     */
+    public static void migrateExistingUsers(MigrationCallback callback) {
+        DatabaseReference usersRef = DeclareDatabase.getDatabaseReference();
+        DatabaseReference userBorrowsRef = DeclareDatabase.getDBRefUserBorrows();
+
+        usersRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                int[] migratedCount = {0};
+                int totalUsers = (int) dataSnapshot.getChildrenCount();
+                int[] processedCount = {0};
+
+                if (totalUsers == 0) {
+                    if (callback != null) {
+                        callback.onComplete(0);
+                    }
+                    return;
+                }
+
+                for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
+                    String uid = userSnapshot.getKey();
+                    if (uid == null) {
+                        processedCount[0]++;
+                        continue;
+                    }
+
+                    boolean needsMigration = false;
+                    Map<String, Object> updates = new HashMap<>();
+
+                    // Check and migrate balances
+                    if (!userSnapshot.hasChild("balances")) {
+                        needsMigration = true;
+
+                        // Get existing flat balance fields
+                        int balanced = 0;
+                        int unpaid = 0;
+                        int owed = 0;
+                        int debt = 0;
+
+                        if (userSnapshot.hasChild("balanced")) {
+                            Integer val = userSnapshot.child("balanced").getValue(Integer.class);
+                            if (val != null) balanced = val;
+                        }
+                        if (userSnapshot.hasChild("unpaid")) {
+                            Integer val = userSnapshot.child("unpaid").getValue(Integer.class);
+                            if (val != null) unpaid = val;
+                        }
+                        if (userSnapshot.hasChild("owed")) {
+                            Integer val = userSnapshot.child("owed").getValue(Integer.class);
+                            if (val != null) owed = val;
+                        }
+                        if (userSnapshot.hasChild("debt")) {
+                            Integer val = userSnapshot.child("debt").getValue(Integer.class);
+                            if (val != null) debt = val;
+                        }
+
+                        // Create balances map
+                        Map<String, Object> balancesMap = new HashMap<>();
+                        balancesMap.put("currentBalance", balanced);
+                        balancesMap.put("unpaid", unpaid);
+                        balancesMap.put("owed", owed);
+                        balancesMap.put("debt", debt);
+                        balancesMap.put("totalBorrowed", 0);
+                        balancesMap.put("totalLent", 0);
+
+                        updates.put("balances", balancesMap);
+                    }
+
+                    // Apply updates to user if needed
+                    if (needsMigration) {
+                        usersRef.child(uid).updateChildren(updates)
+                                .addOnSuccessListener(aVoid -> {
+                                    Log.d(TAG, "Migrated user structure for: " + uid);
+                                })
+                                .addOnFailureListener(e -> {
+                                    Log.e(TAG, "Failed to migrate user: " + uid + ", error: " + e.getMessage());
+                                });
+                        migratedCount[0]++;
+                    }
+
+                    // Check and initialize userBorrows
+                    String finalUid = uid;
+                    userBorrowsRef.child(uid).addListenerForSingleValueEvent(new ValueEventListener() {
+                        @Override
+                        public void onDataChange(@NonNull DataSnapshot borrowsSnapshot) {
+                            if (!borrowsSnapshot.exists()) {
+                                // Initialize userBorrows for this user
+                                Map<String, Object> initialBorrows = new HashMap<>();
+                                initialBorrows.put("asBorrower", new HashMap<String, Boolean>());
+                                initialBorrows.put("asLender", new HashMap<String, Boolean>());
+
+                                userBorrowsRef.child(finalUid).setValue(initialBorrows)
+                                        .addOnSuccessListener(aVoid -> {
+                                            Log.d(TAG, "Initialized userBorrows for: " + finalUid);
+                                        })
+                                        .addOnFailureListener(e -> {
+                                            Log.e(TAG, "Failed to init userBorrows: " + finalUid);
+                                        });
+                            }
+
+                            processedCount[0]++;
+                            // Check if all users processed
+                            if (processedCount[0] >= totalUsers) {
+                                Log.d(TAG, "Existing users migration complete. Migrated " + migratedCount[0] + " users.");
+                                if (callback != null) {
+                                    callback.onComplete(migratedCount[0]);
+                                }
+                            }
+                        }
+
+                        @Override
+                        public void onCancelled(@NonNull DatabaseError error) {
+                            processedCount[0]++;
+                            if (processedCount[0] >= totalUsers && callback != null) {
+                                callback.onComplete(migratedCount[0]);
+                            }
+                        }
+                    });
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e(TAG, "Existing users migration failed: " + error.getMessage());
+                if (callback != null) {
+                    callback.onError(error.getMessage());
+                }
+            }
+        });
+    }
+
+    /**
      * Convert old borrow structure to new structure.
      * Old: borrows/{month}/{day}/{username}/{time}
      * New: borrows/{month}/{day}/{borrowId}
