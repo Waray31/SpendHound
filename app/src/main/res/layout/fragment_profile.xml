@@ -328,7 +328,8 @@
     <Button
         android:id="@+id/btnAdminSettings"
         android:layout_width="match_parent"
-        android:layout_height="50dp"
+        android:layout_height="wrap_content"
+        android:paddingVertical="16dp"
         android:backgroundTint="@color/darkBlue"
         android:layout_marginBottom="8dp"
         android:elevation="4dp"
@@ -339,7 +340,8 @@
     <Button
         android:id="@+id/profileLogout"
         android:layout_width="match_parent"
-        android:layout_height="60dp"
+        android:layout_height="wrap_content"
+        android:paddingVertical="16dp"
         android:backgroundTint="@color/red"
         android:layout_marginBottom="50dp"
         android:elevation="4dp"
