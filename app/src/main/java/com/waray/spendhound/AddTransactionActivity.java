@@ -1,6 +1,7 @@
 package com.waray.spendhound;
 
 import android.app.AlertDialog;
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
@@ -12,8 +13,10 @@ import android.text.TextWatcher;
 import android.util.Log;
 import android.view.Gravity;
 import android.view.LayoutInflater;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -802,5 +805,33 @@ public class AddTransactionActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
         dismissPayorTooltip();
+    }
+
+    @Override
+    public boolean dispatchTouchEvent(MotionEvent event) {
+        if (event.getAction() == MotionEvent.ACTION_DOWN) {
+            View v = getCurrentFocus();
+            if (v instanceof EditText) {
+                int[] location = new int[2];
+                v.getLocationOnScreen(location);
+                float x = event.getRawX();
+                float y = event.getRawY();
+
+                // Check if touch is outside the focused EditText
+                if (x < location[0] || x > location[0] + v.getWidth() ||
+                    y < location[1] || y > location[1] + v.getHeight()) {
+                    hideKeyboard(v);
+                    v.clearFocus();
+                }
+            }
+        }
+        return super.dispatchTouchEvent(event);
+    }
+
+    private void hideKeyboard(View view) {
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        if (imm != null) {
+            imm.hideSoftInputFromWindow(view.getWindowToken(), 0);
+        }
     }
 }
