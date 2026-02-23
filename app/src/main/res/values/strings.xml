@@ -25,8 +25,8 @@
     <string name="card_background_description">Background image for the card</string>
     <string name="balance_label">Balance</string>
     <string name="unpaid_label">Unpaid</string>
-    <string name="owe_label">Owe</string>
-    <string name="debt_label">Debt</string>
+    <string name="owe_label">Lend</string>
+    <string name="debt_label">My Debt</string>
     <string name="recent_notifications_label">Recent Notifications</string>
     <string name="logout_button_text">Log out</string>
     <string name="add_new_transaction_description">Add a new transaction</string>
@@ -89,4 +89,34 @@
         <item>Unpaid</item>
         <item>Paid Partially</item>
     </string-array>
+
+    <!-- Borrow Fragment Labels -->
+    <string name="label_date">Date: </string>
+    <string name="label_lender">Lender: </string>
+    <string name="label_borrower">Borrower: </string>
+    <string name="label_amount">Amount: </string>
+    <string name="label_status">Status: </string>
+    <string name="placeholder_date">January 1, 2024</string>
+    <string name="placeholder_name">Name</string>
+    <string name="placeholder_amount">₱ 0.00</string>
+    <string name="status_unpaid">Unpaid</string>
+    <string name="status_paid">Paid</string>
+    <string name="status_pending">Pending</string>
+    <string name="status_paid_partially">Paid Partially</string>
+
+    <!-- Payment Dialog -->
+    <string name="dialog_confirm_payment_title">Confirm Payment</string>
+    <string name="dialog_payment_subtitle">You are about to pay the following debts:</string>
+    <string name="dialog_payment_info">Payment will be marked as pending until the lender confirms receipt.</string>
+    <string name="dialog_total_amount">Total Amount</string>
+    <string name="btn_confirm_payment">Confirm Payment</string>
+    <string name="btn_processing">Processing…</string>
+    <string name="toast_payment_sent">Payment request sent! Waiting for lender confirmation.</string>
+    <string name="toast_payment_failed">Some payments may have failed. Please try again.</string>
+    <string name="toast_no_debt_selected">No debt is selected</string>
+
+    <!-- Empty States -->
+    <string name="empty_debt_subtitle">You don\'t have any outstanding debts</string>
+    <string name="empty_owed_subtitle">No one owes you money right now</string>
+    <string name="loading_text">Loading…</string>
 </resources>

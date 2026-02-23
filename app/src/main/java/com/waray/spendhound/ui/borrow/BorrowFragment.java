@@ -12,7 +12,6 @@ import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
-import android.widget.CompoundButton;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -41,6 +40,7 @@ import com.waray.spendhound.PendingStatusActivity;
 import com.waray.spendhound.R;
 import com.waray.spendhound.SpinnerItemMonths;
 
+import java.text.DecimalFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -51,16 +51,38 @@ import java.util.Set;
 
 public class BorrowFragment extends Fragment {
 
+    // UI Components - Spinners
     private Spinner monthYearSpinner, statusSpinner;
-    public List<String> debtSortedMonths, owedSortedMonths;
+
+    // UI Components - Buttons
     private Button borrowNowBtn, payNowBtn, pendingStatusBtn, debtSelectBtn, debtCancelPayBtn;
-    public TextView owedTV, debtTV, noOwedTextView, noDebtTextView;
+
+    // UI Components - TextViews
+    public TextView owedTV, debtTV;
+
+    // UI Components - Empty State Views
+    private View noOwedTextView, noDebtTextView;
+
+    // UI Components - Layouts
     private LinearLayout debtButtons, selectAllLayout;
+
+    // UI Components - RecyclerViews
     private RecyclerView debtRecyclerList, debtCheckboxRecyclerList, owedRecyclerList;
+
+    // UI Components - CheckBox
+    private CheckBox payAllCheckBox;
+
+    // UI Components - ProgressBar for loading state
+    private View loadingOverlay;
+
+    // Data
+    public List<String> debtSortedMonths, owedSortedMonths;
     public String selectedMonth, selectedStatus;
     private boolean owedDebtClicked;
     public String currentNickname = "";
-    private CheckBox payAllCheckBox;
+
+    // State tracking for better UX
+    private boolean isLoading = false;
 
     @SuppressLint("MissingInflatedId")
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -84,6 +106,7 @@ public class BorrowFragment extends Fragment {
         pendingStatusBtn = view.findViewById(R.id.pendingStatusBtn);
         debtSelectBtn = view.findViewById(R.id.debtSelectBtn);
         debtCancelPayBtn = view.findViewById(R.id.debtCancelPayBtn);
+        loadingOverlay = view.findViewById(R.id.loadingOverlay);
         owedDebtClicked = true;
 
         getCurrentNickname();
@@ -166,6 +189,8 @@ public class BorrowFragment extends Fragment {
         MainActivity mainActivity = (MainActivity) getActivity();
         if (mainActivity == null) return;
 
+        showLoading();
+
         if (owedDebtClicked) {
             if (Objects.equals(selectedMonth, "All")) {
                 mainActivity.getOwedList(selectedStatus, this::OwedSize);
@@ -245,7 +270,7 @@ public class BorrowFragment extends Fragment {
                 }
                 showCheckedTransactionsDialog(checkedTransactions);
             } else {
-                Toast.makeText(getActivity(), "No debt is selected", Toast.LENGTH_SHORT).show();
+                Toast.makeText(getActivity(), R.string.toast_no_debt_selected, Toast.LENGTH_SHORT).show();
             }
         }
     }
@@ -403,39 +428,166 @@ public class BorrowFragment extends Fragment {
     }
 
     public void OwedSize(int owedNum) {
+        hideLoading();
         noOwedTextView.setVisibility(owedNum == 0 ? View.VISIBLE : View.GONE);
+        owedRecyclerList.setVisibility(owedNum == 0 ? View.GONE : View.VISIBLE);
         noDebtTextView.setVisibility(View.GONE);
     }
 
     public void DebtSize(int debtNum) {
+        hideLoading();
         noDebtTextView.setVisibility(debtNum == 0 ? View.VISIBLE : View.GONE);
+        debtRecyclerList.setVisibility(debtNum == 0 ? View.GONE : View.VISIBLE);
         noOwedTextView.setVisibility(View.GONE);
     }
 
     private void showCheckedTransactionsDialog(ArrayList<BorrowTransaction> checkedTransactions) {
         Dialog dialog = new Dialog(getContext());
         dialog.setContentView(R.layout.dialog_topaychecked_transaction);
+        dialog.setCancelable(false); // Prevent accidental dismissal
 
         RecyclerView recyclerView = dialog.findViewById(R.id.checkedTransactionsRecycler);
         CheckedTransactionsAdapter adapter = new CheckedTransactionsAdapter(checkedTransactions);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         recyclerView.setAdapter(adapter);
 
+        // Calculate total amount with proper formatting
         double totalAmount = 0;
         for (BorrowTransaction transaction : checkedTransactions) {
-            totalAmount += Double.parseDouble(transaction.getBorrowedAmountStr());
+            try {
+                String amountStr = transaction.getBorrowedAmountStr().replace("₱", "").replace(",", "").trim();
+                totalAmount += Double.parseDouble(amountStr);
+            } catch (NumberFormatException e) {
+                Log.e("BorrowFragment", "Error parsing amount: " + transaction.getBorrowedAmountStr());
+            }
         }
 
         TextView totalAmountTextView = dialog.findViewById(R.id.totalAmountTextView);
-        totalAmountTextView.setText("₱ " + totalAmount);
+        DecimalFormat df = new DecimalFormat("#,##0.00");
+        totalAmountTextView.setText("₱ " + df.format(totalAmount));
 
         Button closeButton = dialog.findViewById(R.id.closeButton);
+        Button payNowConfirmBtn = dialog.findViewById(R.id.payNowConfirmBtn);
+
         closeButton.setOnClickListener(v -> dialog.dismiss());
+
+        // Handle Pay Now confirmation
+        payNowConfirmBtn.setOnClickListener(v -> {
+            payNowConfirmBtn.setEnabled(false);
+            closeButton.setEnabled(false);
+            payNowConfirmBtn.setText(R.string.btn_processing);
+
+            processPayments(checkedTransactions, dialog);
+        });
 
         dialog.show();
     }
 
+    /**
+     * Process payments for selected debt transactions
+     * Updates Firebase database to mark debts as "Pending" (awaiting lender confirmation)
+     */
+    private void processPayments(ArrayList<BorrowTransaction> transactions, Dialog dialog) {
+        if (transactions.isEmpty()) {
+            dialog.dismiss();
+            return;
+        }
+
+        DatabaseReference borrowsRef = DeclareDatabase.getDBRefBorrows();
+        final int[] processedCount = {0};
+        final int totalCount = transactions.size();
+
+        for (BorrowTransaction transaction : transactions) {
+            // Find and update the transaction in Firebase
+            borrowsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
+                        for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
+                            for (DataSnapshot userSnapshot : daySnapshot.getChildren()) {
+                                if (Objects.equals(userSnapshot.getKey(), currentNickname)) {
+                                    for (DataSnapshot transSnapshot : userSnapshot.getChildren()) {
+                                        BorrowTransaction dbTransaction = transSnapshot.getValue(BorrowTransaction.class);
+                                        if (dbTransaction != null &&
+                                            Objects.equals(dbTransaction.getDate(), transaction.getDate()) &&
+                                            Objects.equals(dbTransaction.getBorrowee(), transaction.getBorrowee()) &&
+                                            Objects.equals(dbTransaction.getBorrowedAmountStr(), transaction.getBorrowedAmountStr())) {
+
+                                            // Update status to "Pending" (awaiting lender confirmation)
+                                            transSnapshot.getRef().child("status").setValue("Pending");
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    processedCount[0]++;
+                    if (processedCount[0] >= totalCount) {
+                        // All transactions processed
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> {
+                                dialog.dismiss();
+                                showToast(getString(R.string.toast_payment_sent));
+
+                                // Reset the view state
+                                handleCancelPayClick();
+
+                                // Refresh the debt list
+                                applyFilters();
+                            });
+                        }
+                    }
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError databaseError) {
+                    Log.e("BorrowFragment", "Payment processing error: " + databaseError.getMessage());
+                    processedCount[0]++;
+                    if (processedCount[0] >= totalCount) {
+                        if (getActivity() != null) {
+                            getActivity().runOnUiThread(() -> {
+                                dialog.dismiss();
+                                showToast(getString(R.string.toast_payment_failed));
+                            });
+                        }
+                    }
+                }
+            });
+        }
+    }
+
     public void showToast(String message) {
-        Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+        if (getContext() != null) {
+            Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    /**
+     * Show loading overlay while data is being fetched
+     */
+    private void showLoading() {
+        isLoading = true;
+        if (loadingOverlay != null) {
+            loadingOverlay.setVisibility(View.VISIBLE);
+        }
+    }
+
+    /**
+     * Hide loading overlay when data fetch is complete
+     */
+    private void hideLoading() {
+        isLoading = false;
+        if (loadingOverlay != null) {
+            loadingOverlay.setVisibility(View.GONE);
+        }
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        // Refresh data when returning to this fragment
+        applyFilters();
     }
 }
+

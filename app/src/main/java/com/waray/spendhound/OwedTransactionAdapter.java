@@ -6,6 +6,7 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
@@ -33,6 +34,20 @@ public class OwedTransactionAdapter extends RecyclerView.Adapter<OwedTransaction
         holder.owedBorroweeTV.setText(transaction.getBorrower());
         holder.owedAmountBorrowedTV.setText(transaction.getBorrowedAmountStr());
         holder.owedStatusTV.setText(transaction.getStatus());
+
+        // Set status color based on status value
+        String status = transaction.getStatus();
+        int statusColor;
+        if ("Paid".equalsIgnoreCase(status)) {
+            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.green);
+        } else if ("Pending".equalsIgnoreCase(status)) {
+            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.yellow);
+        } else if ("Paid Partially".equalsIgnoreCase(status)) {
+            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.yellow);
+        } else {
+            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.red);
+        }
+        holder.owedStatusTV.setTextColor(statusColor);
     }
 
     @Override

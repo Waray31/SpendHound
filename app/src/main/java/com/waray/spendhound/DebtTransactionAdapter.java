@@ -1,21 +1,16 @@
 package com.waray.spendhound;
 
 import android.annotation.SuppressLint;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.Button;
-import android.widget.CheckBox;
-import android.widget.CompoundButton;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.util.ArrayList;
-import java.util.List;
 
 public class DebtTransactionAdapter extends RecyclerView.Adapter<DebtTransactionAdapter.ViewHolder> {
     private final ArrayList<BorrowTransaction> borrowTransactionList;
@@ -46,6 +41,20 @@ public class DebtTransactionAdapter extends RecyclerView.Adapter<DebtTransaction
         holder.debtBorroweeTV.setText(transaction.getBorrowee());
         holder.debtAmountBorrowedTV.setText(transaction.getBorrowedAmountStr());
         holder.debtStatusTV.setText(transaction.getStatus());
+
+        // Set status color based on status value
+        String status = transaction.getStatus();
+        int statusColor;
+        if ("Paid".equalsIgnoreCase(status)) {
+            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.green);
+        } else if ("Pending".equalsIgnoreCase(status)) {
+            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.yellow);
+        } else if ("Paid Partially".equalsIgnoreCase(status)) {
+            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.yellow);
+        } else {
+            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.red);
+        }
+        holder.debtStatusTV.setTextColor(statusColor);
     }
 
 

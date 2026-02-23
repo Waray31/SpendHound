@@ -1,121 +1,139 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:paddingHorizontal="4dp">
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="end"
-        android:orientation="horizontal">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/montserratalternatess_regular"
-            android:text="Date: "
-            android:textAlignment="textEnd"
-            android:textSize="12dp" />
-
-        <TextView
-            android:id="@+id/owedDateTV"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/montserratalternatess_regular"
-            android:text="October 6, 2023"
-            android:textColor="@color/darkBlue"
-            android:textAlignment="textEnd"
-            android:textSize="12dp" />
-    </LinearLayout>
+    android:layout_marginVertical="4dp"
+    android:layout_marginHorizontal="2dp"
+    app:cardBackgroundColor="@color/whitest"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="2dp"
+    app:strokeWidth="0dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal">
+        android:orientation="vertical"
+        android:padding="12dp">
 
-        <TextView
-            android:layout_width="0dp"
-            android:layout_weight="1"
+        <!-- Date Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:fontFamily="@font/montserratalternatess_regular"
-            android:text="Borrower: "
-            android:textAlignment="textStart"
-            android:textSize="12dp" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-        <TextView
-            android:id="@+id/owedBorroweeTV"
-            android:layout_width="0dp"
-            android:layout_weight="1"
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:text="@string/label_date"
+                android:textColor="@color/grey"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/owedDateTV"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:text="@string/placeholder_date"
+                android:textAlignment="textEnd"
+                android:textColor="@color/darkBlue"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- Borrower Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:fontFamily="@font/montserratalternatess_regular"
-            android:text="Rovic"
-            android:textColor="@color/darkBlue"
-            android:textAlignment="textEnd"
-            android:textSize="12dp" />
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:text="@string/label_borrower"
+                android:textColor="@color/grey"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/owedBorroweeTV"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:text="@string/placeholder_name"
+                android:textAlignment="textEnd"
+                android:textColor="@color/darkBlue"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- Amount Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="6dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:text="@string/label_amount"
+                android:textColor="@color/grey"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/owedAmountBorrowedTV"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:text="@string/placeholder_amount"
+                android:textAlignment="textEnd"
+                android:textColor="@color/green"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="6dp"
+            android:background="@color/lightgrey" />
+
+        <!-- Status Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:text="@string/label_status"
+                android:textColor="@color/grey"
+                android:textSize="11sp" />
+
+            <TextView
+                android:id="@+id/owedStatusTV"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:text="@string/status_unpaid"
+                android:textAlignment="textEnd"
+                android:textColor="@color/red"
+                android:textSize="12sp" />
+        </LinearLayout>
+
     </LinearLayout>
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/montserratalternatess_regular"
-            android:text="Amount: "
-            android:textAlignment="textStart"
-            android:textSize="12dp" />
-
-        <TextView
-            android:id="@+id/owedAmountBorrowedTV"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/montserratalternatess_regular"
-            android:text="₱ 6000.00"
-            android:textColor="@color/darkBlue"
-            android:textAlignment="textEnd"
-            android:textSize="12dp" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="4dp"
-        android:orientation="horizontal">
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/montserratalternatess_regular"
-            android:text="Status: "
-            android:textAlignment="textStart"
-            android:textSize="12dp" />
-
-        <TextView
-            android:id="@+id/owedStatusTV"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/montserratalternatess_regular"
-            android:text="UnPaid"
-            android:textColor="@color/red"
-            android:textAlignment="textEnd"
-            android:textSize="12dp" />
-    </LinearLayout>
-
-    <View
-        android:id="@+id/bottom_border2"
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_margin="4dp"
-        android:textColor="@color/darkBlue"
-        android:background="@drawable/border_line_darkblue"/>
-</LinearLayout>
-
+</com.google.android.material.card.MaterialCardView>

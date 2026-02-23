@@ -1,83 +1,158 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:padding="16dp">
+    android:padding="20dp">
 
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingBottom="12dp">
+
+        <ImageView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@drawable/coin"
+            android:contentDescription="Payment icon"/>
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:layout_marginStart="12dp"
+            android:text="@string/dialog_confirm_payment_title"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:textColor="@color/darkBlue"
+            android:textSize="18sp" />
+
+    </LinearLayout>
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@color/lightgrey"/>
+
+    <!-- Subtitle -->
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Verify debt to Pay"
-        android:fontFamily="@font/montserratalternatess_bold"
-        android:textColor="@color/darkBlue"
-        android:textSize="18sp"
-        android:textStyle="bold"
-        android:paddingBottom="8dp" />
+        android:layout_marginTop="12dp"
+        android:text="@string/dialog_payment_subtitle"
+        android:fontFamily="@font/montserratalternatess_regular"
+        android:textColor="@color/grey"
+        android:textSize="12sp" />
 
+    <!-- Transaction List -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/checkedTransactionsRecycler"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content" />
+        android:layout_height="wrap_content"
+        android:maxHeight="200dp"
+        android:layout_marginTop="12dp"
+        android:nestedScrollingEnabled="true"/>
 
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="12dp"
+        android:background="@color/lightgrey"/>
+
+    <!-- Total Section -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="8dp" >
+        android:paddingVertical="16dp"
+        android:gravity="center_vertical">
 
         <TextView
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:text="Total"
+            android:text="@string/dialog_total_amount"
             android:fontFamily="@font/montserratalternatess_bold"
             android:textColor="@color/darkBlue"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:textSize="16sp" />
 
         <TextView
             android:id="@+id/totalAmountTextView"
-            android:layout_width="0dp"
-            android:layout_weight="1"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="1500"
+            android:text="@string/placeholder_amount"
             android:fontFamily="@font/montserratalternatess_bold"
-            android:textColor="@color/darkBlue"
-            android:textAlignment="textEnd"
-            android:textSize="18sp"
-            android:textStyle="bold" />
+            android:textColor="@color/red"
+            android:textSize="18sp" />
 
     </LinearLayout>
+
+    <!-- Info Note -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="8dp"
-        android:layout_marginTop="16dp" >
+        android:background="@color/white2"
+        android:padding="12dp"
+        android:layout_marginBottom="16dp"
+        android:gravity="center_vertical">
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/waiting"
+            android:contentDescription="@string/empty_state_icon_description"/>
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="@string/dialog_payment_info"
+            android:fontFamily="@font/montserratalternatess_regular"
+            android:textColor="@color/grey"
+            android:textSize="11sp" />
+
+    </LinearLayout>
+
+    <!-- Action Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
 
         <Button
             android:id="@+id/closeButton"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:backgroundTint="@color/red"
+            android:backgroundTint="@color/grey"
             android:elevation="4dp"
-            android:layout_marginRight="8dp"
-            android:padding="12dp"
-            android:text="Cancel"/>
+            android:layout_marginEnd="8dp"
+            android:paddingVertical="12dp"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="@string/cancel_button"
+            android:textColor="@color/whitest"
+            android:textSize="13sp"
+            style="@style/Widget.MaterialComponents.Button"/>
 
         <Button
             android:id="@+id/payNowConfirmBtn"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:backgroundTint="@color/yellow"
-            android:layout_marginLeft="8dp"
+            android:backgroundTint="@color/green"
+            android:layout_marginStart="8dp"
             android:elevation="4dp"
-            android:padding="12dp"
-            android:text="Pay Now"/>
-
+            android:paddingVertical="12dp"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="@string/btn_confirm_payment"
+            android:textColor="@color/whitest"
+            android:textSize="13sp"
+            style="@style/Widget.MaterialComponents.Button"/>
 
     </LinearLayout>
 </LinearLayout>
