@@ -2,6 +2,7 @@
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:background="@drawable/rounded_background10">
 
 <LinearLayout
@@ -89,6 +90,62 @@
 
     </LinearLayout>
 
+    <!-- Created By Section -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="16dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Created by"
+            android:fontFamily="@font/montserratalternatess_regular"
+            android:textColor="@color/grey"
+            android:textSize="14sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:padding="12dp"
+            android:background="@drawable/rounded_background9">
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cardView_profile"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:elevation="4dp"
+                android:shape="ring"
+                android:thicknessRatio="1.9"
+                app:cardCornerRadius="8dp"
+                android:layout_margin="4dp">
+
+            <ImageView
+                android:id="@+id/dialogCreatorProfileImage"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:src="@drawable/placeholder_profile_image"
+                android:scaleType="fitCenter"
+                android:contentDescription="Creator profile" />
+            </androidx.cardview.widget.CardView>
+            <TextView
+                android:id="@+id/dialogCreatedByName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:text="Username"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:textColor="@color/black"
+                android:textSize="14sp" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
     <!-- Payors Section -->
     <LinearLayout
         android:layout_width="match_parent"
@@ -165,5 +222,7 @@
 </LinearLayout>
 
 </ScrollView>
+
+
 
 

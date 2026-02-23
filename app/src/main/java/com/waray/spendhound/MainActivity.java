@@ -507,6 +507,15 @@ public class MainActivity extends AppCompatActivity {
                             }
                             java.util.List<Integer> amountsPaidList = transaction.getAmountsPaidList();
 
+                            // Get creator name - prefer display name, fallback to usernamePost
+                            String createdBy = transaction.getPosterDisplayName();
+                            if (createdBy == null || createdBy.isEmpty()) {
+                                createdBy = transaction.getUsernamePost();
+                            }
+
+                            // Get creator UID for profile image
+                            String createdByUid = transaction.getUsernamePost();
+
                             RecentTransaction recentTrans = new RecentTransaction(
                                     mostRecentDate,
                                     mostRecentTransactionType,
@@ -516,7 +525,9 @@ public class MainActivity extends AppCompatActivity {
                                     sortDateTime,
                                     payorsList,
                                     amountsPaidList,
-                                    fullDateWithYear
+                                    fullDateWithYear,
+                                    createdBy,
+                                    createdByUid
                             );
                             recentTransactionList.add(recentTrans);
                         }
@@ -577,6 +588,8 @@ public class MainActivity extends AppCompatActivity {
         TextView transactionType = dialogView.findViewById(R.id.dialogTransactionType);
         TextView dateTextView = dialogView.findViewById(R.id.dialogDate);
         TextView amountTextView = dialogView.findViewById(R.id.dialogAmount);
+        ImageView creatorProfileImage = dialogView.findViewById(R.id.dialogCreatorProfileImage);
+        TextView createdByNameTV = dialogView.findViewById(R.id.dialogCreatedByName);
         TextView detailsTextView = dialogView.findViewById(R.id.dialogDetails);
         android.widget.LinearLayout payorsContainer = dialogView.findViewById(R.id.payorsContainer);
         Button closeButton = dialogView.findViewById(R.id.dialogCloseButton);
@@ -593,6 +606,33 @@ public class MainActivity extends AppCompatActivity {
         dateTextView.setText(dateToDisplay);
 
         amountTextView.setText(transaction.getMostRecentPaymentAmountStr());
+
+        // Populate Created By section
+        String createdBy = transaction.getCreatedBy();
+        if (createdBy != null && !createdBy.isEmpty()) {
+            createdByNameTV.setText(createdBy);
+        } else {
+            createdByNameTV.setText("Unknown");
+        }
+
+        // Load creator profile image
+        String createdByUid = transaction.getCreatedByUid();
+        if (createdByUid != null && !createdByUid.isEmpty()) {
+            com.google.firebase.storage.StorageReference storageRef =
+                com.google.firebase.storage.FirebaseStorage.getInstance()
+                    .getReference("profile_images").child(createdByUid);
+            storageRef.getDownloadUrl().addOnSuccessListener(uri -> {
+                com.bumptech.glide.Glide.with(this)
+                    .load(uri)
+                    .placeholder(R.drawable.placeholder_profile_image)
+                    .circleCrop()
+                    .into(creatorProfileImage);
+            }).addOnFailureListener(e -> {
+                creatorProfileImage.setImageResource(R.drawable.placeholder_profile_image);
+            });
+        } else {
+            creatorProfileImage.setImageResource(R.drawable.placeholder_profile_image);
+        }
 
         // Populate payors section
         java.util.List<String> payorsList = transaction.getPayorsList();

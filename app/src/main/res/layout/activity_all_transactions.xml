@@ -43,8 +43,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:padding="16dp"
-        android:background="@color/white2"
+        android:padding="20dp"
         android:elevation="2dp">
 
         <TextView
@@ -133,7 +132,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:paddingHorizontal="8dp"
+        android:paddingHorizontal="20dp"
         android:clipToPadding="false"
         tools:listitem="@layout/fragment_transaction" />
 

@@ -12,6 +12,8 @@ public class RecentTransaction {
     private List<String> payorsList;
     private List<Integer> amountsPaidList;
     private String fullDateWithYear; // Full date including year for details dialog
+    private String createdBy; // Name of the person who created the transaction
+    private String createdByUid; // UID of the person who created the transaction (for profile image)
 
     public RecentTransaction(String mostRecentDate, String mostRecentTransactionType, String mostRecentDetails, String mostRecentPaymentAmountStr, int iconResource) {
         this.mostRecentDate = mostRecentDate;
@@ -32,7 +34,8 @@ public class RecentTransaction {
 
     public RecentTransaction(String mostRecentDate, String mostRecentTransactionType, String mostRecentDetails,
                             String mostRecentPaymentAmountStr, int iconResource, String sortDateTime,
-                            List<String> payorsList, List<Integer> amountsPaidList, String fullDateWithYear) {
+                            List<String> payorsList, List<Integer> amountsPaidList, String fullDateWithYear,
+                            String createdBy, String createdByUid) {
         this.mostRecentDate = mostRecentDate;
         this.mostRecentTransactionType = mostRecentTransactionType;
         this.mostRecentDetails = mostRecentDetails;
@@ -42,6 +45,8 @@ public class RecentTransaction {
         this.payorsList = payorsList;
         this.amountsPaidList = amountsPaidList;
         this.fullDateWithYear = fullDateWithYear;
+        this.createdBy = createdBy;
+        this.createdByUid = createdByUid;
     }
 
     public String getSortDateTime() {
@@ -114,5 +119,21 @@ public class RecentTransaction {
 
     public void setFullDateWithYear(String fullDateWithYear) {
         this.fullDateWithYear = fullDateWithYear;
+    }
+
+    public String getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(String createdBy) {
+        this.createdBy = createdBy;
+    }
+
+    public String getCreatedByUid() {
+        return createdByUid;
+    }
+
+    public void setCreatedByUid(String createdByUid) {
+        this.createdByUid = createdByUid;
     }
 }
