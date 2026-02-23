@@ -1,5 +1,7 @@
 package com.waray.spendhound;
 
+import java.util.List;
+
 public class RecentTransaction {
     private String mostRecentDate;
     private String mostRecentTransactionType;
@@ -7,6 +9,9 @@ public class RecentTransaction {
     private String mostRecentPaymentAmountStr;
     private int iconResource;
     private String sortDateTime; // For sorting by date and time (format: "yyyy-MM-dd HH:mm:ss")
+    private List<String> payorsList;
+    private List<Integer> amountsPaidList;
+    private String fullDateWithYear; // Full date including year for details dialog
 
     public RecentTransaction(String mostRecentDate, String mostRecentTransactionType, String mostRecentDetails, String mostRecentPaymentAmountStr, int iconResource) {
         this.mostRecentDate = mostRecentDate;
@@ -23,6 +28,20 @@ public class RecentTransaction {
         this.mostRecentPaymentAmountStr = mostRecentPaymentAmountStr;
         this.iconResource = iconResource;
         this.sortDateTime = sortDateTime;
+    }
+
+    public RecentTransaction(String mostRecentDate, String mostRecentTransactionType, String mostRecentDetails,
+                            String mostRecentPaymentAmountStr, int iconResource, String sortDateTime,
+                            List<String> payorsList, List<Integer> amountsPaidList, String fullDateWithYear) {
+        this.mostRecentDate = mostRecentDate;
+        this.mostRecentTransactionType = mostRecentTransactionType;
+        this.mostRecentDetails = mostRecentDetails;
+        this.mostRecentPaymentAmountStr = mostRecentPaymentAmountStr;
+        this.iconResource = iconResource;
+        this.sortDateTime = sortDateTime;
+        this.payorsList = payorsList;
+        this.amountsPaidList = amountsPaidList;
+        this.fullDateWithYear = fullDateWithYear;
     }
 
     public String getSortDateTime() {
@@ -71,5 +90,29 @@ public class RecentTransaction {
 
     public void setIconResource(int iconResource) {
         this.iconResource = iconResource;
+    }
+
+    public List<String> getPayorsList() {
+        return payorsList;
+    }
+
+    public void setPayorsList(List<String> payorsList) {
+        this.payorsList = payorsList;
+    }
+
+    public List<Integer> getAmountsPaidList() {
+        return amountsPaidList;
+    }
+
+    public void setAmountsPaidList(List<Integer> amountsPaidList) {
+        this.amountsPaidList = amountsPaidList;
+    }
+
+    public String getFullDateWithYear() {
+        return fullDateWithYear;
+    }
+
+    public void setFullDateWithYear(String fullDateWithYear) {
+        this.fullDateWithYear = fullDateWithYear;
     }
 }

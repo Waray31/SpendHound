@@ -1,10 +1,17 @@
 package com.waray.spendhound;
 
 import android.annotation.SuppressLint;
+import android.app.AlertDialog;
+import android.content.Intent;
+import android.graphics.Color;
+import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
+import android.widget.ImageView;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -136,9 +143,16 @@ public class MainActivity extends AppCompatActivity {
         // Setup Recent Transactions RecyclerView
         RecyclerView recyclerView = findViewById(R.id.transactionListRecycler);
         recentTransactionList = new ArrayList<>();
-        recentTransactionAdapter = new RecentTransactionAdapter(recentTransactionList);
+        recentTransactionAdapter = new RecentTransactionAdapter(recentTransactionList, this::showTransactionDetailsDialog);
         recyclerView.setAdapter(recentTransactionAdapter);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
+
+        // Setup viewAllTransaction click listener
+        TextView viewAllTransaction = findViewById(R.id.viewAllTransaction);
+        viewAllTransaction.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, AllTransactionsActivity.class);
+            startActivity(intent);
+        });
 
         // Passing each menu ID as a set of Ids because each
         // menu should be considered as top level destinations.
@@ -450,6 +464,9 @@ public class MainActivity extends AppCompatActivity {
                             String finalCurrentYear = parts[1];
                             String mostRecentDate = finalCurrentMonth + " - " + finalCurrentDay;
 
+                            // Create full date with year for details dialog
+                            String fullDateWithYear = finalCurrentMonth + " " + finalCurrentDay + ", " + finalCurrentYear;
+
                             // Create sortDateTime for proper sorting (format: yyyy-MM-dd HH:mm:ss)
                             String sortDateTime = finalCurrentYear + "-" + finalCurrentMonth + "-" + finalCurrentDay + " " + timeKey;
 
@@ -482,13 +499,24 @@ public class MainActivity extends AppCompatActivity {
                             } else {
                                 iconResource = R.drawable.others;
                             }
+
+                            // Get payors list - prefer display names, fallback to UIDs/usernames
+                            java.util.List<String> payorsList = transaction.getPayorsDisplayNames();
+                            if (payorsList == null || payorsList.isEmpty()) {
+                                payorsList = transaction.getPayorsList();
+                            }
+                            java.util.List<Integer> amountsPaidList = transaction.getAmountsPaidList();
+
                             RecentTransaction recentTrans = new RecentTransaction(
                                     mostRecentDate,
                                     mostRecentTransactionType,
                                     mostRecentDetails,
                                     mostRecentPaymentAmountStr,
                                     iconResource,
-                                    sortDateTime
+                                    sortDateTime,
+                                    payorsList,
+                                    amountsPaidList,
+                                    fullDateWithYear
                             );
                             recentTransactionList.add(recentTrans);
                         }
@@ -510,7 +538,7 @@ public class MainActivity extends AppCompatActivity {
                         // Always re-attach adapter to ensure it's the current one
                         RecyclerView recyclerView = findViewById(R.id.transactionListRecycler);
                         if (recyclerView != null) {
-                            recentTransactionAdapter = new RecentTransactionAdapter(recentTransactionList);
+                            recentTransactionAdapter = new RecentTransactionAdapter(recentTransactionList, MainActivity.this::showTransactionDetailsDialog);
                             recyclerView.setAdapter(recentTransactionAdapter);
                             recyclerView.setLayoutManager(new LinearLayoutManager(MainActivity.this));
                             Log.d("RecentTransaction", "Adapter re-attached. List size: " + recentTransactionList.size());
@@ -532,6 +560,102 @@ public class MainActivity extends AppCompatActivity {
             });
             calendar.add(Calendar.DAY_OF_YEAR, -1);
         }
+    }
+
+    private void showTransactionDetailsDialog(RecentTransaction transaction) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_transaction_details, null);
+        builder.setView(dialogView);
+
+        AlertDialog dialog = builder.create();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
+
+        // Find views in dialog
+        ImageView iconImageView = dialogView.findViewById(R.id.dialogIconImageView);
+        TextView transactionType = dialogView.findViewById(R.id.dialogTransactionType);
+        TextView dateTextView = dialogView.findViewById(R.id.dialogDate);
+        TextView amountTextView = dialogView.findViewById(R.id.dialogAmount);
+        TextView detailsTextView = dialogView.findViewById(R.id.dialogDetails);
+        android.widget.LinearLayout payorsContainer = dialogView.findViewById(R.id.payorsContainer);
+        Button closeButton = dialogView.findViewById(R.id.dialogCloseButton);
+
+        // Populate dialog with transaction data
+        iconImageView.setImageResource(transaction.getIconResource());
+        transactionType.setText(transaction.getMostRecentTransactionType());
+
+        // Use full date with year if available
+        String dateToDisplay = transaction.getFullDateWithYear();
+        if (dateToDisplay == null || dateToDisplay.isEmpty()) {
+            dateToDisplay = transaction.getMostRecentDate();
+        }
+        dateTextView.setText(dateToDisplay);
+
+        amountTextView.setText(transaction.getMostRecentPaymentAmountStr());
+
+        // Populate payors section
+        java.util.List<String> payorsList = transaction.getPayorsList();
+        java.util.List<Integer> amountsPaidList = transaction.getAmountsPaidList();
+
+        if (payorsList != null && !payorsList.isEmpty()) {
+            for (int i = 0; i < payorsList.size(); i++) {
+                String payorName = payorsList.get(i);
+                String amountStr = "₱ 0";
+                if (amountsPaidList != null && i < amountsPaidList.size()) {
+                    amountStr = "₱ " + amountsPaidList.get(i);
+                }
+
+                // Create a row for each payor
+                android.widget.LinearLayout payorRow = new android.widget.LinearLayout(this);
+                payorRow.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+                payorRow.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                ));
+                if (i > 0) {
+                    payorRow.setPadding(0, 8, 0, 0);
+                }
+
+                TextView payorNameTV = new TextView(this);
+                payorNameTV.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+                    0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f
+                ));
+                payorNameTV.setText(payorName);
+                payorNameTV.setTextColor(getResources().getColor(R.color.black, null));
+                payorNameTV.setTextSize(14);
+
+                TextView payorAmountTV = new TextView(this);
+                payorAmountTV.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+                    android.widget.LinearLayout.LayoutParams.WRAP_CONTENT
+                ));
+                payorAmountTV.setText(amountStr);
+                payorAmountTV.setTextColor(getResources().getColor(R.color.darkBlue, null));
+                payorAmountTV.setTextSize(14);
+
+                payorRow.addView(payorNameTV);
+                payorRow.addView(payorAmountTV);
+                payorsContainer.addView(payorRow);
+            }
+        } else {
+            TextView noPayorsTV = new TextView(this);
+            noPayorsTV.setText("No payors information");
+            noPayorsTV.setTextColor(getResources().getColor(R.color.grey, null));
+            noPayorsTV.setTextSize(14);
+            payorsContainer.addView(noPayorsTV);
+        }
+
+        String details = transaction.getMostRecentDetails();
+        if (details != null && !details.isEmpty() && !details.equals("See Details >")) {
+            detailsTextView.setText(details);
+        } else {
+            detailsTextView.setText("No additional details");
+        }
+
+        closeButton.setOnClickListener(v -> dialog.dismiss());
+
+        dialog.show();
     }
 
     public void getDebtList(String selectedStatus, DebtNumCallback callback) {

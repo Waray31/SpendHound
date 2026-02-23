@@ -44,6 +44,7 @@
     <string name="pending_status_button">Pending status</string>
     <string name="tooltip_add_transaction_text">Tap to add transaction</string>
     <string name="recent_transactions">Recent transactions</string>
+    <string name="viewAll_transactions">View all ></string>
     <string name="app_logo_description">App logo</string>
 
     <!-- Breakdown Dialog Strings -->

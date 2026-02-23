@@ -29,7 +29,7 @@
                 android:fontFamily="@font/montserratalternatess_regular"
                 android:text="@string/label_date"
                 android:textColor="@color/grey"
-                android:textSize="11sp" />
+                android:textSize="12sp" />
 
             <TextView
                 android:id="@+id/owedDateTV"
@@ -57,7 +57,7 @@
                 android:fontFamily="@font/montserratalternatess_regular"
                 android:text="@string/label_borrower"
                 android:textColor="@color/grey"
-                android:textSize="11sp" />
+                android:textSize="12sp" />
 
             <TextView
                 android:id="@+id/owedBorroweeTV"
@@ -85,7 +85,7 @@
                 android:fontFamily="@font/montserratalternatess_regular"
                 android:text="@string/label_amount"
                 android:textColor="@color/grey"
-                android:textSize="11sp" />
+                android:textSize="12sp" />
 
             <TextView
                 android:id="@+id/owedAmountBorrowedTV"
@@ -120,7 +120,7 @@
                 android:fontFamily="@font/montserratalternatess_regular"
                 android:text="@string/label_status"
                 android:textColor="@color/grey"
-                android:textSize="11sp" />
+                android:textSize="12sp" />
 
             <TextView
                 android:id="@+id/owedStatusTV"

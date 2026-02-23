@@ -13,9 +13,23 @@ import java.util.ArrayList;
 
 public class RecentTransactionAdapter extends RecyclerView.Adapter<RecentTransactionAdapter.ViewHolder> {
     private ArrayList<RecentTransaction> recentTransactionList;
+    private OnTransactionClickListener clickListener;
+
+    public interface OnTransactionClickListener {
+        void onTransactionClick(RecentTransaction transaction);
+    }
 
     public RecentTransactionAdapter(ArrayList<RecentTransaction> recentTransactionList) {
         this.recentTransactionList = recentTransactionList;
+    }
+
+    public RecentTransactionAdapter(ArrayList<RecentTransaction> recentTransactionList, OnTransactionClickListener clickListener) {
+        this.recentTransactionList = recentTransactionList;
+        this.clickListener = clickListener;
+    }
+
+    public void setOnTransactionClickListener(OnTransactionClickListener listener) {
+        this.clickListener = listener;
     }
 
     @NonNull
@@ -35,6 +49,13 @@ public class RecentTransactionAdapter extends RecyclerView.Adapter<RecentTransac
         holder.detailsTextView.setText(transaction.getMostRecentDetails());
         holder.amountTextView.setText(transaction.getMostRecentPaymentAmountStr());
         holder.iconImageView.setImageResource(transaction.getIconResource());
+
+        // Set click listener
+        holder.itemView.setOnClickListener(v -> {
+            if (clickListener != null) {
+                clickListener.onTransactionClick(transaction);
+            }
+        });
     }
 
     @Override
@@ -59,4 +80,3 @@ public class RecentTransactionAdapter extends RecyclerView.Adapter<RecentTransac
         }
     }
 }
-

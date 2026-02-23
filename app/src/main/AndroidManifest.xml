@@ -68,6 +68,12 @@
             android:exported="true"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
 
+        <activity android:name=".AllTransactionsActivity"
+            android:exported="false"
+            android:parentActivityName=".MainActivity"
+            android:label="All Transactions"
+            android:theme="@style/Theme.AppCompat.Light.NoActionBar" />
+
         <activity android:name=".SplashActivity"
             android:exported="true"
             android:theme="@style/Theme.AppCompat.Light.NoActionBar">
