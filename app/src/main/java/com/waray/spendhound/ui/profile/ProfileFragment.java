@@ -31,6 +31,8 @@ import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.google.android.gms.tasks.OnFailureListener;
@@ -45,6 +47,8 @@ import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
 import com.waray.spendhound.BorrowTransaction;
+import com.waray.spendhound.BreakdownAdapter;
+import com.waray.spendhound.BreakdownItem;
 import com.waray.spendhound.DeclareDatabase;
 import com.waray.spendhound.LoginActivity;
 import com.waray.spendhound.MigrationHelper;
@@ -54,6 +58,7 @@ import com.waray.spendhound.Transaction;
 
 import java.io.ByteArrayOutputStream;
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
@@ -76,6 +81,7 @@ public class ProfileFragment extends Fragment {
     private Drawable balanceUnpaidDrawable, oweDebtDrawable, balanceUnpaidDrawableTransparent, oweDebtDrawableTransparent;
     private Button profileLogout;
     private Button btnAdminSettings;
+    private Button breakdownBtn;
 
     private static final int REQUEST_IMAGE_CAPTURE = 1;
     private static final int REQUEST_IMAGE_PICK = 2;
@@ -102,6 +108,7 @@ public class ProfileFragment extends Fragment {
         oweDebtLayout = view.findViewById(R.id.oweDebtLayout);
         profileLogout = view.findViewById(R.id.profileLogout);
         btnAdminSettings = view.findViewById(R.id.btnAdminSettings);
+        breakdownBtn = view.findViewById(R.id.breakdown_btn);
 
         balanceUnpaidDrawable = ContextCompat.getDrawable(getContext(), R.drawable.round_border_glassy);
         balanceUnpaidDrawableTransparent = ContextCompat.getDrawable(getContext(), R.drawable.transparent_background);
@@ -128,6 +135,7 @@ public class ProfileFragment extends Fragment {
         profileImageViewButton();
         ProfileLogoutButton();
         AdminSettingsButton();
+        BreakdownButton();
 
 
 
@@ -929,6 +937,404 @@ public class ProfileFragment extends Fragment {
         });
 
         adminDialog.show();
+    }
+
+    private void BreakdownButton() {
+        breakdownBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                showBreakdownDialog();
+            }
+        });
+    }
+
+    private void showBreakdownDialog() {
+        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_breakdown, null);
+
+        // Find views
+        ImageView btnClose = dialogView.findViewById(R.id.btnCloseBreakdown);
+        Button tabBalance = dialogView.findViewById(R.id.tabBalance);
+        Button tabUnpaid = dialogView.findViewById(R.id.tabUnpaid);
+        Button tabOwe = dialogView.findViewById(R.id.tabOwe);
+        Button tabDebt = dialogView.findViewById(R.id.tabDebt);
+        TextView categoryTitle = dialogView.findViewById(R.id.breakdownCategoryTitle);
+        TextView totalAmount = dialogView.findViewById(R.id.breakdownTotalAmount);
+        RecyclerView recyclerView = dialogView.findViewById(R.id.breakdownRecyclerView);
+        View emptyStateLayout = dialogView.findViewById(R.id.emptyStateLayout);
+        TextView emptyStateText = dialogView.findViewById(R.id.emptyStateText);
+        View progressBar = dialogView.findViewById(R.id.breakdownProgressBar);
+
+        // Setup RecyclerView
+        BreakdownAdapter adapter = new BreakdownAdapter(requireContext());
+        recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
+        recyclerView.setAdapter(adapter);
+
+        // Create dialog
+        AlertDialog breakdownDialog = new AlertDialog.Builder(requireContext())
+                .setView(dialogView)
+                .create();
+
+        // Close button
+        btnClose.setOnClickListener(v -> breakdownDialog.dismiss());
+
+        // Tab click listeners
+        View.OnClickListener tabClickListener = new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Reset all tabs to default style
+                tabBalance.setBackgroundTintList(ContextCompat.getColorStateList(requireContext(), R.color.grey));
+                tabBalance.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest));
+                tabUnpaid.setBackgroundTintList(ContextCompat.getColorStateList(requireContext(), R.color.grey));
+                tabUnpaid.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest));
+                tabOwe.setBackgroundTintList(ContextCompat.getColorStateList(requireContext(), R.color.grey));
+                tabOwe.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest));
+                tabDebt.setBackgroundTintList(ContextCompat.getColorStateList(requireContext(), R.color.grey));
+                tabDebt.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest));
+
+                // Highlight selected tab
+                Button selectedTab = (Button) v;
+                selectedTab.setBackgroundTintList(ContextCompat.getColorStateList(requireContext(), R.color.yellow));
+                selectedTab.setTextColor(ContextCompat.getColor(requireContext(), R.color.darkBlue));
+
+                // Load data based on selected tab
+                if (v.getId() == R.id.tabBalance) {
+                    loadBreakdownData(BreakdownItem.Category.BALANCE, categoryTitle, totalAmount, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
+                } else if (v.getId() == R.id.tabUnpaid) {
+                    loadBreakdownData(BreakdownItem.Category.UNPAID, categoryTitle, totalAmount, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
+                } else if (v.getId() == R.id.tabOwe) {
+                    loadBreakdownData(BreakdownItem.Category.OWE, categoryTitle, totalAmount, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
+                } else if (v.getId() == R.id.tabDebt) {
+                    loadBreakdownData(BreakdownItem.Category.DEBT, categoryTitle, totalAmount, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
+                }
+            }
+        };
+
+        tabBalance.setOnClickListener(tabClickListener);
+        tabUnpaid.setOnClickListener(tabClickListener);
+        tabOwe.setOnClickListener(tabClickListener);
+        tabDebt.setOnClickListener(tabClickListener);
+
+        // Load Balance data by default
+        loadBreakdownData(BreakdownItem.Category.BALANCE, categoryTitle, totalAmount, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
+
+        breakdownDialog.show();
+    }
+
+    private void loadBreakdownData(BreakdownItem.Category category, TextView categoryTitle, TextView totalAmount,
+                                   BreakdownAdapter adapter, RecyclerView recyclerView, View emptyStateLayout,
+                                   TextView emptyStateText, View progressBar) {
+        // Show loading
+        progressBar.setVisibility(View.VISIBLE);
+        recyclerView.setVisibility(View.GONE);
+        emptyStateLayout.setVisibility(View.GONE);
+
+        ArrayList<BreakdownItem> items = new ArrayList<>();
+
+        switch (category) {
+            case BALANCE:
+                categoryTitle.setText("Total Balance");
+                totalAmount.setText("₱ " + balance + ".00");
+                loadBalanceBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
+                break;
+            case UNPAID:
+                categoryTitle.setText("Total Unpaid");
+                totalAmount.setText("₱ " + unpaid + ".00");
+                loadUnpaidBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
+                break;
+            case OWE:
+                categoryTitle.setText("Total Owed");
+                totalAmount.setText("₱ " + currentOwe + ".00");
+                loadOweBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
+                break;
+            case DEBT:
+                categoryTitle.setText("Total Debt");
+                totalAmount.setText("₱ " + currentDebt + ".00");
+                loadDebtBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
+                break;
+        }
+    }
+
+    private void loadBalanceBreakdown(ArrayList<BreakdownItem> items, BreakdownAdapter adapter,
+                                       RecyclerView recyclerView, View emptyStateLayout,
+                                       TextView emptyStateText, View progressBar) {
+        DatabaseReference transRef = DeclareDatabase.getDBRefTransaction();
+
+        transRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                items.clear();
+                int tempI = 0, tempE = 1, tempO = 0;
+
+                for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
+                    String monthKey = monthSnapshot.getKey(); // e.g., "January-2024"
+                    for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
+                        String dayKey = daySnapshot.getKey(); // e.g., "15"
+                        String dateStr = (dayKey != null && monthKey != null) ? monthKey + " " + dayKey : "Unknown Date";
+
+                        for (DataSnapshot timeSnapshot : daySnapshot.getChildren()) {
+                            Transaction transaction = timeSnapshot.getValue(Transaction.class);
+                            if (transaction != null) {
+                                int individualPayment = transaction.getTotalIndividualPayment();
+                                int userPayment = 0;
+
+                                // Find user's position in payors list
+                                DataSnapshot payorsSnapshot = timeSnapshot.child("payorsList");
+                                int userIndex = -1;
+                                int index = 0;
+                                for (DataSnapshot payorSnapshot : payorsSnapshot.getChildren()) {
+                                    String payorUsername = payorSnapshot.getValue(String.class);
+                                    if (payorUsername != null && payorUsername.equals(currentNickname)) {
+                                        userIndex = index;
+                                        break;
+                                    }
+                                    index++;
+                                }
+
+                                // Get user's payment amount
+                                if (userIndex >= 0) {
+                                    DataSnapshot amountsSnapshot = timeSnapshot.child("amountsPaidList");
+                                    index = 0;
+                                    for (DataSnapshot amountSnapshot : amountsSnapshot.getChildren()) {
+                                        if (index == userIndex) {
+                                            Integer amount = amountSnapshot.getValue(Integer.class);
+                                            if (amount != null) {
+                                                userPayment = amount;
+                                            }
+                                            break;
+                                        }
+                                        index++;
+                                    }
+
+                                    // Calculate balance for this transaction
+                                    int transactionBalance = userPayment - individualPayment;
+                                    if (transactionBalance > 0) {
+                                        String description = transaction.getTransactionType() != null ? transaction.getTransactionType() : "";
+
+                                        BreakdownItem item = new BreakdownItem(
+                                                BreakdownItem.Category.BALANCE,
+                                                dateStr,
+                                                "Transaction",
+                                                transactionBalance,
+                                                "Completed",
+                                                description
+                                        );
+                                        items.add(item);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No balance transactions found");
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                progressBar.setVisibility(View.GONE);
+                emptyStateLayout.setVisibility(View.VISIBLE);
+                emptyStateText.setText("Error loading data");
+            }
+        });
+    }
+
+    private void loadUnpaidBreakdown(ArrayList<BreakdownItem> items, BreakdownAdapter adapter,
+                                      RecyclerView recyclerView, View emptyStateLayout,
+                                      TextView emptyStateText, View progressBar) {
+        DatabaseReference transRef = DeclareDatabase.getDBRefTransaction();
+
+        transRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                items.clear();
+
+                for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
+                    String monthKey = monthSnapshot.getKey(); // e.g., "January-2024"
+                    for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
+                        String dayKey = daySnapshot.getKey(); // e.g., "15"
+                        String dateStr = (dayKey != null && monthKey != null) ? monthKey + " " + dayKey : "Unknown Date";
+
+                        for (DataSnapshot timeSnapshot : daySnapshot.getChildren()) {
+                            Transaction transaction = timeSnapshot.getValue(Transaction.class);
+                            if (transaction != null) {
+                                int individualPayment = transaction.getTotalIndividualPayment();
+
+                                // Find user's position in payors list
+                                DataSnapshot payorsSnapshot = timeSnapshot.child("payorsList");
+                                int userIndex = -1;
+                                int index = 0;
+                                for (DataSnapshot payorSnapshot : payorsSnapshot.getChildren()) {
+                                    String payorUsername = payorSnapshot.getValue(String.class);
+                                    if (payorUsername != null && payorUsername.equals(currentNickname)) {
+                                        userIndex = index;
+                                        break;
+                                    }
+                                    index++;
+                                }
+
+                                // Get user's payment amount
+                                if (userIndex >= 0) {
+                                    DataSnapshot amountsSnapshot = timeSnapshot.child("amountsPaidList");
+                                    index = 0;
+                                    int userPayment = 0;
+                                    for (DataSnapshot amountSnapshot : amountsSnapshot.getChildren()) {
+                                        if (index == userIndex) {
+                                            Integer amount = amountSnapshot.getValue(Integer.class);
+                                            if (amount != null) {
+                                                userPayment = amount;
+                                            }
+                                            break;
+                                        }
+                                        index++;
+                                    }
+
+                                    // Calculate unpaid for this transaction
+                                    int transactionUnpaid = individualPayment - userPayment;
+                                    if (transactionUnpaid > 0) {
+                                        String description = transaction.getTransactionType() != null ? transaction.getTransactionType() : "";
+
+                                        BreakdownItem item = new BreakdownItem(
+                                                BreakdownItem.Category.UNPAID,
+                                                dateStr,
+                                                "Transaction",
+                                                transactionUnpaid,
+                                                "Pending",
+                                                description
+                                        );
+                                        items.add(item);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No unpaid transactions found");
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                progressBar.setVisibility(View.GONE);
+                emptyStateLayout.setVisibility(View.VISIBLE);
+                emptyStateText.setText("Error loading data");
+            }
+        });
+    }
+
+    private void loadOweBreakdown(ArrayList<BreakdownItem> items, BreakdownAdapter adapter,
+                                   RecyclerView recyclerView, View emptyStateLayout,
+                                   TextView emptyStateText, View progressBar) {
+        DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
+
+        databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                items.clear();
+
+                for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
+                    for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
+                        for (DataSnapshot currentUserRef : daySnapshot.getChildren()) {
+                            for (DataSnapshot timeSnapshot : currentUserRef.getChildren()) {
+                                BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
+                                if (borrowTransaction != null) {
+                                    String borrowee = borrowTransaction.getBorrowee();
+                                    if (Objects.equals(currentNickname, borrowee)) {
+                                        int borrowedAmount = Integer.parseInt(borrowTransaction.getBorrowedAmountStr());
+                                        String date = borrowTransaction.getDate() != null ? borrowTransaction.getDate() : "Unknown Date";
+                                        String borrower = currentUserRef.getKey() != null ? currentUserRef.getKey() : "Unknown";
+                                        String status = borrowTransaction.getStatus() != null ? borrowTransaction.getStatus() : "Pending";
+
+                                        BreakdownItem item = new BreakdownItem(
+                                                BreakdownItem.Category.OWE,
+                                                date,
+                                                "From: " + borrower,
+                                                borrowedAmount,
+                                                status
+                                        );
+                                        items.add(item);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No owed amounts found");
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                progressBar.setVisibility(View.GONE);
+                emptyStateLayout.setVisibility(View.VISIBLE);
+                emptyStateText.setText("Error loading data");
+            }
+        });
+    }
+
+    private void loadDebtBreakdown(ArrayList<BreakdownItem> items, BreakdownAdapter adapter,
+                                    RecyclerView recyclerView, View emptyStateLayout,
+                                    TextView emptyStateText, View progressBar) {
+        DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
+
+        databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                items.clear();
+
+                for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
+                    for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
+                        for (DataSnapshot currentUserRef : daySnapshot.getChildren()) {
+                            String currentUserStr = currentUserRef.getKey();
+                            if (Objects.equals(currentUserStr, currentNickname)) {
+                                for (DataSnapshot timeSnapshot : currentUserRef.getChildren()) {
+                                    BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
+                                    if (borrowTransaction != null) {
+                                        int borrowedAmount = Integer.parseInt(borrowTransaction.getBorrowedAmountStr());
+                                        String date = borrowTransaction.getDate() != null ? borrowTransaction.getDate() : "Unknown Date";
+                                        String borrowee = borrowTransaction.getBorrowee() != null ? borrowTransaction.getBorrowee() : "Unknown";
+                                        String status = borrowTransaction.getStatus() != null ? borrowTransaction.getStatus() : "Pending";
+
+                                        BreakdownItem item = new BreakdownItem(
+                                                BreakdownItem.Category.DEBT,
+                                                date,
+                                                "To: " + borrowee,
+                                                borrowedAmount,
+                                                status
+                                        );
+                                        items.add(item);
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No debt found");
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError databaseError) {
+                progressBar.setVisibility(View.GONE);
+                emptyStateLayout.setVisibility(View.VISIBLE);
+                emptyStateText.setText("Error loading data");
+            }
+        });
+    }
+
+    private void updateBreakdownUI(ArrayList<BreakdownItem> items, BreakdownAdapter adapter,
+                                    RecyclerView recyclerView, View emptyStateLayout,
+                                    TextView emptyStateText, View progressBar, String emptyMessage) {
+        progressBar.setVisibility(View.GONE);
+
+        if (items.isEmpty()) {
+            recyclerView.setVisibility(View.GONE);
+            emptyStateLayout.setVisibility(View.VISIBLE);
+            emptyStateText.setText(emptyMessage);
+        } else {
+            recyclerView.setVisibility(View.VISIBLE);
+            emptyStateLayout.setVisibility(View.GONE);
+            adapter.updateData(items);
+        }
     }
 
 }

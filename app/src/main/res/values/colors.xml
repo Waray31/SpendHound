@@ -17,6 +17,7 @@
     <color name="default_color">#FF000000</color>
     <color name="glassy_background">#60FFFFFF</color>
     <color name="red">#d00000</color>
+    <color name="green">#28a745</color>
 </resources>
 
 

@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/breakdown_title"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="@color/darkBlue"
+            android:fontFamily="@font/montserratalternatess_bold"/>
+
+        <ImageView
+            android:id="@+id/btnCloseBreakdown"
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:src="@android:drawable/ic_menu_close_clear_cancel"
+            android:contentDescription="@string/breakdown_close_description"
+            android:padding="4dp"/>
+    </LinearLayout>
+
+    <!-- Tab Buttons -->
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:layout_marginBottom="12dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/tabBalance"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="@string/breakdown_tab_balance"
+                android:textSize="12sp"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:backgroundTint="@color/yellow"
+                android:textColor="@color/darkBlue"
+                android:layout_marginEnd="8dp"
+                android:paddingHorizontal="16dp"
+                style="?attr/materialButtonOutlinedStyle"/>
+
+            <Button
+                android:id="@+id/tabUnpaid"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="@string/breakdown_tab_unpaid"
+                android:textSize="12sp"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:backgroundTint="@color/grey"
+                android:textColor="@color/whitest"
+                android:layout_marginEnd="8dp"
+                android:paddingHorizontal="16dp"
+                style="?attr/materialButtonOutlinedStyle"/>
+
+            <Button
+                android:id="@+id/tabOwe"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="@string/breakdown_tab_owe"
+                android:textSize="12sp"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:backgroundTint="@color/grey"
+                android:textColor="@color/whitest"
+                android:layout_marginEnd="8dp"
+                android:paddingHorizontal="16dp"
+                style="?attr/materialButtonOutlinedStyle"/>
+
+            <Button
+                android:id="@+id/tabDebt"
+                android:layout_width="wrap_content"
+                android:layout_height="40dp"
+                android:text="@string/breakdown_tab_debt"
+                android:textSize="12sp"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:backgroundTint="@color/grey"
+                android:textColor="@color/whitest"
+                android:paddingHorizontal="16dp"
+                style="?attr/materialButtonOutlinedStyle"/>
+        </LinearLayout>
+    </HorizontalScrollView>
+
+    <!-- Total Amount Card -->
+    <androidx.cardview.widget.CardView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        app:cardCornerRadius="12dp"
+        app:cardElevation="2dp"
+        app:cardBackgroundColor="@color/darkBlue">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:id="@+id/breakdownCategoryTitle"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/breakdown_total_balance"
+                android:textSize="14sp"
+                android:textColor="@color/white"
+                android:fontFamily="@font/montserratalternatess_regular"/>
+
+            <TextView
+                android:id="@+id/breakdownTotalAmount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/breakdown_amount_placeholder"
+                android:textSize="28sp"
+                android:textColor="@color/yellow"
+                android:textStyle="bold"
+                android:fontFamily="@font/montserratalternatess_bold"/>
+        </LinearLayout>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Details List Header -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/breakdown_details_label"
+        android:textSize="14sp"
+        android:textColor="@color/grey"
+        android:fontFamily="@font/montserratalternatess_regular"
+        android:layout_marginBottom="8dp"/>
+
+    <!-- RecyclerView for breakdown items -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/breakdownRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:scrollbars="vertical"/>
+
+    <!-- Empty State -->
+    <LinearLayout
+        android:id="@+id/emptyStateLayout"
+        android:layout_width="match_parent"
+        android:layout_height="200dp"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:visibility="gone">
+
+        <ImageView
+            android:layout_width="64dp"
+            android:layout_height="64dp"
+            android:src="@android:drawable/ic_menu_info_details"
+            android:alpha="0.5"
+            android:layout_marginBottom="8dp"
+            android:contentDescription="@string/empty_state_icon_description"/>
+
+        <TextView
+            android:id="@+id/emptyStateText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/breakdown_no_transactions"
+            android:textSize="14sp"
+            android:textColor="@color/grey"
+            android:fontFamily="@font/montserratalternatess_regular"/>
+    </LinearLayout>
+
+    <!-- Loading indicator -->
+    <ProgressBar
+        android:id="@+id/breakdownProgressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone"/>
+
+</LinearLayout>
+
+
+
+
+
+
+

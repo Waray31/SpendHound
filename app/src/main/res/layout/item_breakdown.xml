@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginVertical="4dp"
+    app:cardCornerRadius="8dp"
+    app:cardElevation="2dp"
+    app:cardBackgroundColor="@color/white">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="12dp"
+        android:gravity="center_vertical">
+
+        <!-- Status Indicator -->
+        <View
+            android:id="@+id/statusIndicator"
+            android:layout_width="4dp"
+            android:layout_height="match_parent"
+            android:minHeight="40dp"
+            android:background="@color/yellow"
+            android:layout_marginEnd="12dp"/>
+
+        <!-- Details Section -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                android:id="@+id/breakdownPersonName"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/breakdown_person_placeholder"
+                android:textSize="14sp"
+                android:textColor="@color/darkBlue"
+                android:textStyle="bold"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:ellipsize="end"
+                android:maxLines="1"/>
+
+            <TextView
+                android:id="@+id/breakdownDate"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/breakdown_date_placeholder"
+                android:textSize="12sp"
+                android:textColor="@color/grey"
+                android:fontFamily="@font/montserratalternatess_regular"/>
+
+            <TextView
+                android:id="@+id/breakdownDescription"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/breakdown_description_placeholder"
+                android:textSize="11sp"
+                android:textColor="@color/grey"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:visibility="gone"
+                android:ellipsize="end"
+                android:maxLines="1"/>
+        </LinearLayout>
+
+        <!-- Amount Section -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="end">
+
+            <TextView
+                android:id="@+id/breakdownAmount"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/breakdown_amount_placeholder"
+                android:textSize="16sp"
+                android:textColor="@color/darkBlue"
+                android:textStyle="bold"
+                android:fontFamily="@font/montserratalternatess_bold"/>
+
+            <TextView
+                android:id="@+id/breakdownStatus"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/breakdown_status_pending"
+                android:textSize="11sp"
+                android:textColor="@color/yellow"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:background="@drawable/transparent_background"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="2dp"/>
+        </LinearLayout>
+
+    </LinearLayout>
+</androidx.cardview.widget.CardView>
+
+
+
+

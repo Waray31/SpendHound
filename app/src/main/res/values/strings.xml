@@ -46,6 +46,23 @@
     <string name="recent_transactions">Recent transactions</string>
     <string name="app_logo_description">App logo</string>
 
+    <!-- Breakdown Dialog Strings -->
+    <string name="breakdown_title">Financial Breakdown</string>
+    <string name="breakdown_close_description">Close</string>
+    <string name="breakdown_tab_balance">Balance</string>
+    <string name="breakdown_tab_unpaid">Unpaid</string>
+    <string name="breakdown_tab_owe">Owe</string>
+    <string name="breakdown_tab_debt">Debt</string>
+    <string name="breakdown_total_balance">Total Balance</string>
+    <string name="breakdown_amount_placeholder">₱ 0.00</string>
+    <string name="breakdown_details_label">Details</string>
+    <string name="breakdown_no_transactions">No transactions found</string>
+    <string name="empty_state_icon_description">Empty state icon</string>
+    <string name="breakdown_person_placeholder">Person Name</string>
+    <string name="breakdown_date_placeholder">January 1, 2024</string>
+    <string name="breakdown_description_placeholder">Description</string>
+    <string name="breakdown_status_pending">Pending</string>
+
     <string-array name="transactionTypes_String">
         <item>Select what kind of bill:</item>
         <item>Rent</item>

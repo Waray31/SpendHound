@@ -51,21 +51,22 @@
                     android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/montserratalternatess_regular"
-                    android:text="Lender: "
+                    android:text="Amount: "
                     android:textAlignment="textStart"
                     android:textSize="12dp" />
 
                 <TextView
-                    android:id="@+id/borroweeTextView"
+                    android:id="@+id/amountTextView"
                     android:layout_width="0dp"
                     android:layout_weight="1"
                     android:layout_height="wrap_content"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:text="Rovic"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="₱ 6000.00"
                     android:textColor="@color/darkBlue"
                     android:textAlignment="textEnd"
-                    android:textSize="12dp" />
+                    android:textSize="16dp" />
             </LinearLayout>
+
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -77,17 +78,17 @@
                     android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/montserratalternatess_regular"
-                    android:text="Amount: "
+                    android:text="Lender: "
                     android:textAlignment="textStart"
                     android:textSize="12dp" />
 
                 <TextView
-                    android:id="@+id/amountTextView"
+                    android:id="@+id/borroweeTextView"
                     android:layout_width="0dp"
                     android:layout_weight="1"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/montserratalternatess_regular"
-                    android:text="₱ 6000.00"
+                    android:text="Rovic"
                     android:textColor="@color/darkBlue"
                     android:textAlignment="textEnd"
                     android:textSize="12dp" />
