@@ -5,8 +5,9 @@ import java.util.List;
 public class PayerGroup {
     private String groupId;
     private String groupName;
-    private List<String> members;
+    private List<String> members;           // Now stores UIDs (was usernames)
     private String createdBy;
+    private List<String> memberDisplayNames; // Display names for UI
 
     public PayerGroup() {
         // Default constructor required for Firebase
@@ -17,6 +18,15 @@ public class PayerGroup {
         this.groupName = groupName;
         this.members = members;
         this.createdBy = createdBy;
+    }
+
+    // New constructor with display names
+    public PayerGroup(String groupId, String groupName, List<String> members, String createdBy, List<String> memberDisplayNames) {
+        this.groupId = groupId;
+        this.groupName = groupName;
+        this.members = members;
+        this.createdBy = createdBy;
+        this.memberDisplayNames = memberDisplayNames;
     }
 
     public String getGroupId() {
@@ -49,5 +59,13 @@ public class PayerGroup {
 
     public void setCreatedBy(String createdBy) {
         this.createdBy = createdBy;
+    }
+
+    public List<String> getMemberDisplayNames() {
+        return memberDisplayNames;
+    }
+
+    public void setMemberDisplayNames(List<String> memberDisplayNames) {
+        this.memberDisplayNames = memberDisplayNames;
     }
 }

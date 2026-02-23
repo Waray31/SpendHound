@@ -42,9 +42,11 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 public class AddTransactionActivity extends AppCompatActivity {
 
@@ -64,7 +66,8 @@ public class AddTransactionActivity extends AppCompatActivity {
     private List<View> rows;
     private List<View> groupViews;
     private List<PayerGroup> payerGroups;
-    public List<String> payorsList;
+    public List<String> payorsList;             // Now stores UIDs
+    public List<String> payorsDisplayNames;     // Display names for UI
     public List<Integer> amountsPaidList;
     public Integer totalAmountPaid = 0;
     public Integer paymentAmount;
@@ -72,7 +75,8 @@ public class AddTransactionActivity extends AppCompatActivity {
     private EditText editTextTextMultiLine;
     private TextView individualPayment;
     private int totalIndividualPayment, totalBalanced, totalUnpaid, totalOwed, totalDept;
-    public String usernamePost;
+    public String usernamePost;                 // Now stores UID
+    public String posterDisplayName;            // Display name for UI
     private String currentUserId;
     private ArrayList<RecentTransaction> recentTransactionList = new ArrayList<>();
     private PayerGroup selectedGroup = null;
@@ -80,6 +84,10 @@ public class AddTransactionActivity extends AppCompatActivity {
     private PopupWindow payorTooltipPopup;
     private View firstRow = null;
     private List<String> groupMemberUsernames = null;
+
+    // Maps for UID-username lookups
+    private Map<String, String> usernameToUidMap = new HashMap<>();
+    private Map<String, String> uidToUsernameMap = new HashMap<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -156,10 +164,19 @@ public class AddTransactionActivity extends AppCompatActivity {
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 usernames = new ArrayList<>();
                 usernames.add("Select a payor:");
+                usernameToUidMap.clear();
+                uidToUsernameMap.clear();
+
                 for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
                     String username = userSnapshot.child("username").getValue(String.class);
-                    if (username != null) {
+                    String uid = userSnapshot.getKey();
+                    if (username != null && uid != null) {
                         usernames.add(username);
+                        // Store both mappings for UID lookup
+                        usernameToUidMap.put(username, uid);
+                        uidToUsernameMap.put(uid, username);
+                        // Update the global UserHelper cache as well
+                        UserHelper.updateCache(uid, username);
                     }
                 }
                 // Add the initial row but hide it (no group selected initially)
@@ -228,26 +245,187 @@ public class AddTransactionActivity extends AppCompatActivity {
             paymentAmount = Integer.parseInt(paymentAmountStr);
         }
 
-        payorsList = new ArrayList<>();
+        payorsList = new ArrayList<>();           // Will store UIDs
+        payorsDisplayNames = new ArrayList<>();   // Will store display names
         amountsPaidList = new ArrayList<>();
 
-        if ("Select a transaction:".equals(transactionType) || paymentAmount == 0) {
-            Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show();
+        // Validation: Check transaction type - must not be default option
+        if ("Select what kind of bill:".equals(transactionType) || "Select a transaction:".equals(transactionType)) {
+            Toast.makeText(this, "Please select what kind of bill", Toast.LENGTH_SHORT).show();
             progressBar.setVisibility(View.GONE);
             return;
         }
 
-        // Check if a group is selected
-        if (selectedGroup != null && selectedGroup.getMembers() != null && !selectedGroup.getMembers().isEmpty()) {
-            // Use the selected group's members as payors with equal individual payment
+        // Validation: Check payment amount
+        if (paymentAmount == 0) {
+            Toast.makeText(this, "Please enter a payment amount", Toast.LENGTH_SHORT).show();
+            progressBar.setVisibility(View.GONE);
+            return;
+        }
+
+        // Validation: Check if a group is selected
+        if (selectedGroup == null) {
+            Toast.makeText(this, "Please select a group first", Toast.LENGTH_SHORT).show();
+            progressBar.setVisibility(View.GONE);
+            return;
+        }
+
+        // Validation: Check if group has members
+        if (selectedGroup.getMembers() == null || selectedGroup.getMembers().isEmpty()) {
+            Toast.makeText(this, "Selected group has no members", Toast.LENGTH_SHORT).show();
+            progressBar.setVisibility(View.GONE);
+            return;
+        }
+
+        // Check if manual payor rows are visible and filled (when user wants custom amounts)
+        boolean hasManualPayorRows = false;
+        for (View row : rows) {
+            if (row.getVisibility() == View.VISIBLE) {
+                hasManualPayorRows = true;
+                break;
+            }
+        }
+
+        if (hasManualPayorRows && rows.size() > 0) {
+            // Use manual payor rows with custom amounts
+            HashSet<String> uniquePayors = new HashSet<>();
+            totalAmountPaid = 0;
+
+            for (View row : rows) {
+                if (row.getVisibility() != View.VISIBLE) {
+                    continue;
+                }
+
+                Spinner payorSpinner = row.findViewById(R.id.payor);
+                EditText amountPaidEditText = row.findViewById(R.id.amountPaid);
+
+                String payorDisplayName = payorSpinner.getSelectedItem().toString();
+                String amountPaidStr = amountPaidEditText.getText().toString().trim();
+
+                // Validation: Check if payor is selected (not default option)
+                if ("Select a payor:".equals(payorDisplayName)) {
+                    Toast.makeText(AddTransactionActivity.this, "Please select a payor for all rows", Toast.LENGTH_SHORT).show();
+                    progressBar.setVisibility(View.GONE);
+                    return;
+                }
+
+                // Validation: Check if amount is entered
+                if (TextUtils.isEmpty(amountPaidStr)) {
+                    Toast.makeText(AddTransactionActivity.this, "Please enter amount paid for: " + payorDisplayName, Toast.LENGTH_SHORT).show();
+                    progressBar.setVisibility(View.GONE);
+                    return;
+                }
+
+                // Convert username to UID
+                String payorUid = usernameToUidMap.get(payorDisplayName);
+                if (payorUid == null) {
+                    Toast.makeText(AddTransactionActivity.this, "User not found: " + payorDisplayName, Toast.LENGTH_SHORT).show();
+                    progressBar.setVisibility(View.GONE);
+                    return;
+                }
+
+                // Validation: Check for duplicate payors
+                if (!uniquePayors.add(payorUid)) {
+                    Toast.makeText(AddTransactionActivity.this, "Duplicate payor detected: " + payorDisplayName, Toast.LENGTH_SHORT).show();
+                    progressBar.setVisibility(View.GONE);
+                    return;
+                }
+
+                try {
+                    int amountPaid = Integer.parseInt(amountPaidStr);
+
+                    // Validation: Amount must be greater than 0
+                    if (amountPaid <= 0) {
+                        Toast.makeText(AddTransactionActivity.this, "Amount must be greater than 0 for: " + payorDisplayName, Toast.LENGTH_SHORT).show();
+                        progressBar.setVisibility(View.GONE);
+                        return;
+                    }
+
+                    payorsList.add(payorUid);             // Store UID
+                    payorsDisplayNames.add(payorDisplayName);  // Store display name
+                    amountsPaidList.add(amountPaid);
+                    totalAmountPaid += amountPaid;
+                } catch (NumberFormatException e) {
+                    Toast.makeText(AddTransactionActivity.this, "Invalid amount format for: " + payorDisplayName, Toast.LENGTH_SHORT).show();
+                    progressBar.setVisibility(View.GONE);
+                    return;
+                }
+            }
+
+            // Validation: Ensure at least one payor was added
+            if (payorsList.isEmpty()) {
+                Toast.makeText(this, "Please add at least one payor", Toast.LENGTH_SHORT).show();
+                progressBar.setVisibility(View.GONE);
+                return;
+            }
+
+            // Validation: Total of amountsPaidList must equal payment amount
+            int sumOfAmounts = 0;
+            for (int amount : amountsPaidList) {
+                sumOfAmounts += amount;
+            }
+
+            if (sumOfAmounts != paymentAmount) {
+                Toast.makeText(AddTransactionActivity.this,
+                    "Total of individual amounts (₱" + sumOfAmounts + ") does not match payment amount (₱" + paymentAmount + ")",
+                    Toast.LENGTH_LONG).show();
+                progressBar.setVisibility(View.GONE);
+                return;
+            }
+
+            totalIndividualPayment = paymentAmount / payorsList.size();
+
+        } else {
+            // Use group members with equal split
             List<String> groupMembers = selectedGroup.getMembers();
+            List<String> groupMemberNames = selectedGroup.getMemberDisplayNames();
             int numberOfMembers = groupMembers.size();
+
+            // Validation: Ensure at least one member
+            if (numberOfMembers == 0) {
+                Toast.makeText(this, "Selected group has no members", Toast.LENGTH_SHORT).show();
+                progressBar.setVisibility(View.GONE);
+                return;
+            }
+
             int individualAmount = paymentAmount / numberOfMembers;
             int remainder = paymentAmount % numberOfMembers;
 
             totalAmountPaid = 0;
             for (int i = 0; i < groupMembers.size(); i++) {
-                payorsList.add(groupMembers.get(i));
+                String memberValue = groupMembers.get(i);
+                String memberUid;
+                String memberDisplayName;
+
+                // Check if memberValue is a UID or a username (for backward compatibility)
+                if (uidToUsernameMap.containsKey(memberValue)) {
+                    // It's a UID - get the display name from the map
+                    memberUid = memberValue;
+                    memberDisplayName = uidToUsernameMap.get(memberValue);
+                } else if (usernameToUidMap.containsKey(memberValue)) {
+                    // It's a username (old format) - convert to UID
+                    memberUid = usernameToUidMap.get(memberValue);
+                    memberDisplayName = memberValue;
+                } else {
+                    // Try to get from display names list if available
+                    memberUid = memberValue;
+                    if (groupMemberNames != null && i < groupMemberNames.size()) {
+                        memberDisplayName = groupMemberNames.get(i);
+                    } else {
+                        memberDisplayName = "Unknown User";
+                    }
+                }
+
+                // Validation: Check for invalid/empty payor UID
+                if (memberUid == null || memberUid.isEmpty()) {
+                    Toast.makeText(this, "Invalid payor found in group", Toast.LENGTH_SHORT).show();
+                    progressBar.setVisibility(View.GONE);
+                    return;
+                }
+
+                payorsList.add(memberUid);  // Store UID
+                payorsDisplayNames.add(memberDisplayName != null ? memberDisplayName : "Unknown User");
+
                 // Distribute remainder to first few members to ensure total matches
                 int amount = individualAmount + (i < remainder ? 1 : 0);
                 amountsPaidList.add(amount);
@@ -255,48 +433,40 @@ public class AddTransactionActivity extends AppCompatActivity {
             }
 
             totalIndividualPayment = individualAmount;
-        } else {
-            // Fall back to manual payors from rows if no group is selected
-            HashSet<String> uniquePayors = new HashSet<>();
-            totalAmountPaid = 0;
-
-            for (View row : rows) {
-                Spinner payorSpinner = row.findViewById(R.id.payor);
-                EditText amountPaidEditText = row.findViewById(R.id.amountPaid);
-
-                String payor = payorSpinner.getSelectedItem().toString();
-                String amountPaidStr = amountPaidEditText.getText().toString().trim();
-
-                if ("Select a payor:".equals(payor) || TextUtils.isEmpty(amountPaidStr)) {
-                    Toast.makeText(AddTransactionActivity.this, "Please select a group or fill in all payor fields", Toast.LENGTH_SHORT).show();
-                    progressBar.setVisibility(View.GONE);
-                    return;
-                }
-
-                if (!uniquePayors.add(payor)) {
-                    Toast.makeText(AddTransactionActivity.this, "Duplicate payor detected: " + payor, Toast.LENGTH_SHORT).show();
-                    progressBar.setVisibility(View.GONE);
-                    return;
-                }
-
-                try {
-                    int amountPaid = Integer.parseInt(amountPaidStr);
-                    payorsList.add(payor);
-                    amountsPaidList.add(amountPaid);
-                    totalAmountPaid += amountPaid;
-                } catch (NumberFormatException e) {
-                    Toast.makeText(AddTransactionActivity.this, "Invalid amount format for payor: " + payor, Toast.LENGTH_SHORT).show();
-                    progressBar.setVisibility(View.GONE);
-                    return;
-                }
-            }
-
-            if (!paymentAmount.equals(totalAmountPaid)) {
-                Toast.makeText(AddTransactionActivity.this, "Total amount paid does not match the payment amount.", Toast.LENGTH_SHORT).show();
-                progressBar.setVisibility(View.GONE);
-                return;
-            }
         }
+
+        // Final validation: Total of amountsPaidList must equal payment amount
+        int finalSum = 0;
+        for (int amount : amountsPaidList) {
+            finalSum += amount;
+        }
+
+        if (finalSum != paymentAmount) {
+            Toast.makeText(this,
+                "Total amount paid (₱" + finalSum + ") does not match payment amount (₱" + paymentAmount + ")",
+                Toast.LENGTH_LONG).show();
+            progressBar.setVisibility(View.GONE);
+            return;
+        }
+
+        // Final validation: Ensure payorsList is not empty
+        if (payorsList.isEmpty()) {
+            Toast.makeText(this, "No payors found. Please select a group with members.", Toast.LENGTH_SHORT).show();
+            progressBar.setVisibility(View.GONE);
+            return;
+        }
+
+        // Log all payors and amounts for verification
+        Log.d("AddTransaction", "=== Transaction Summary ===");
+        Log.d("AddTransaction", "Transaction Type: " + transactionType);
+        Log.d("AddTransaction", "Payment Amount: ₱" + paymentAmount);
+        Log.d("AddTransaction", "Number of Payors: " + payorsList.size());
+        for (int i = 0; i < payorsList.size(); i++) {
+            Log.d("AddTransaction", "Payor " + (i + 1) + ": " + payorsDisplayNames.get(i) +
+                    " (UID: " + payorsList.get(i) + ") - Amount: ₱" + amountsPaidList.get(i));
+        }
+        Log.d("AddTransaction", "Total of Individual Amounts: ₱" + finalSum);
+        Log.d("AddTransaction", "===========================");
 
         String currentUserID = FirebaseAuth.getInstance().getCurrentUser().getUid();
         DatabaseReference usersRef = DeclareDatabase.getDatabaseReference().child(currentUserID);
@@ -305,7 +475,8 @@ public class AddTransactionActivity extends AppCompatActivity {
             @Override
             public void onDataChange(DataSnapshot dataSnapshot) {
                 if (dataSnapshot.exists()) {
-                    usernamePost = dataSnapshot.getValue(String.class);
+                    posterDisplayName = dataSnapshot.getValue(String.class);
+                    usernamePost = currentUserID;  // Store UID instead of username
                     saveTransaction();
                 } else {
                     progressBar.setVisibility(View.GONE);
@@ -338,9 +509,16 @@ public class AddTransactionActivity extends AppCompatActivity {
 
         Transaction transaction;
         if (selectedGroup != null) {
-            transaction = new Transaction(transactionType, paymentAmount.intValue(), multilineStr, payorsList, amountsPaidList, usernamePost, totalIndividualPayment, selectedGroup.getGroupId(), selectedGroup.getGroupName());
+            // Use new constructor with display names - payorsList contains UIDs, usernamePost contains UID
+            transaction = new Transaction(transactionType, paymentAmount.intValue(), multilineStr,
+                    payorsList, amountsPaidList, usernamePost, totalIndividualPayment,
+                    selectedGroup.getGroupId(), selectedGroup.getGroupName(),
+                    payorsDisplayNames, posterDisplayName);
         } else {
-            transaction = new Transaction(transactionType, paymentAmount.intValue(), multilineStr, payorsList, amountsPaidList, usernamePost, totalIndividualPayment);
+            // Use new constructor with display names - payorsList contains UIDs, usernamePost contains UID
+            transaction = new Transaction(transactionType, paymentAmount.intValue(), multilineStr,
+                    payorsList, amountsPaidList, usernamePost, totalIndividualPayment,
+                    null, null, payorsDisplayNames, posterDisplayName);
         }
 
         timestampRef.setValue(transaction)
@@ -447,8 +625,27 @@ public class AddTransactionActivity extends AppCompatActivity {
         Button removeBtn = groupView.findViewById(R.id.removeGroupBtn);
 
         groupNameTV.setText(group.getGroupName());
-        String membersText = "Members: " + String.join(", ", group.getMembers());
-        groupMembersTV.setText(membersText);
+
+        // Use display names if available, otherwise resolve UIDs to usernames
+        List<String> displayNames = group.getMemberDisplayNames();
+        if (displayNames != null && !displayNames.isEmpty()) {
+            String membersText = "Members: " + String.join(", ", displayNames);
+            groupMembersTV.setText(membersText);
+        } else if (group.getMembers() != null) {
+            // Legacy data or need to resolve UIDs - try to get display names from cache
+            List<String> resolvedNames = new ArrayList<>();
+            for (String memberIdOrName : group.getMembers()) {
+                String displayName = uidToUsernameMap.get(memberIdOrName);
+                if (displayName != null) {
+                    resolvedNames.add(displayName);
+                } else {
+                    // Could be old format with username directly
+                    resolvedNames.add(memberIdOrName);
+                }
+            }
+            String membersText = "Members: " + String.join(", ", resolvedNames);
+            groupMembersTV.setText(membersText);
+        }
 
         editBtn.setOnClickListener(v -> showEditGroupDialog(group, groupView));
         removeBtn.setOnClickListener(v -> showRemoveGroupConfirmation(group, groupView));
@@ -477,10 +674,25 @@ public class AddTransactionActivity extends AppCompatActivity {
         selectedGroupView = groupView;
         groupView.setBackgroundResource(R.drawable.rounded_border_selected_bg);
 
-        // Set group member usernames for the spinner
+        // Set group member display names for the spinner (not UIDs)
         groupMemberUsernames = new ArrayList<>();
         groupMemberUsernames.add("Select a payor:");
-        groupMemberUsernames.addAll(group.getMembers());
+
+        // Use display names for spinner if available, otherwise resolve from cache
+        if (group.getMemberDisplayNames() != null && !group.getMemberDisplayNames().isEmpty()) {
+            groupMemberUsernames.addAll(group.getMemberDisplayNames());
+        } else if (group.getMembers() != null) {
+            // Resolve UIDs to display names from cache
+            for (String memberIdOrName : group.getMembers()) {
+                String displayName = uidToUsernameMap.get(memberIdOrName);
+                if (displayName != null) {
+                    groupMemberUsernames.add(displayName);
+                } else {
+                    // Could be old format with username directly
+                    groupMemberUsernames.add(memberIdOrName);
+                }
+            }
+        }
 
         // Enable btnAdd and hide tooltip when a group is selected
         btnAdd.setEnabled(true);
@@ -582,34 +794,43 @@ public class AddTransactionActivity extends AppCompatActivity {
                 return;
             }
 
-            List<String> selectedMembers = new ArrayList<>();
+            List<String> selectedMemberUids = new ArrayList<>();
+            List<String> selectedMemberDisplayNames = new ArrayList<>();
             for (CheckBox checkBox : checkBoxes) {
                 if (checkBox.isChecked()) {
-                    selectedMembers.add(checkBox.getText().toString());
+                    String displayName = checkBox.getText().toString();
+                    String uid = usernameToUidMap.get(displayName);
+                    if (uid != null) {
+                        selectedMemberUids.add(uid);
+                        selectedMemberDisplayNames.add(displayName);
+                    }
                 }
             }
 
-            if (selectedMembers.isEmpty()) {
+            if (selectedMemberUids.isEmpty()) {
                 Toast.makeText(this, "Please select at least one member", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            saveGroupToDatabase(groupName, selectedMembers);
+            saveGroupToDatabase(groupName, selectedMemberUids, selectedMemberDisplayNames);
             dialog.dismiss();
         });
 
         dialog.show();
     }
 
-    private void saveGroupToDatabase(String groupName, List<String> members) {
+    private void saveGroupToDatabase(String groupName, List<String> memberUids, List<String> memberDisplayNames) {
         DatabaseReference groupsRef = DeclareDatabase.getDBRefGroups().child(currentUserId);
         String groupId = groupsRef.push().getKey();
 
         if (groupId != null) {
-            PayerGroup newGroup = new PayerGroup(groupId, groupName, members, currentUserId);
+            // Store member UIDs and display names
+            PayerGroup newGroup = new PayerGroup(groupId, groupName, memberUids, currentUserId, memberDisplayNames);
             groupsRef.child(groupId).setValue(newGroup)
                     .addOnSuccessListener(aVoid -> {
                         Toast.makeText(this, "Group created successfully", Toast.LENGTH_SHORT).show();
+                        // Reload groups to show the new group
+                        loadExistingGroups();
                     })
                     .addOnFailureListener(e -> {
                         Toast.makeText(this, "Failed to create group", Toast.LENGTH_SHORT).show();
@@ -648,10 +869,18 @@ public class AddTransactionActivity extends AppCompatActivity {
             checkBox.setTextColor(getResources().getColor(R.color.darkBlue));
             checkBox.setPadding(8, 8, 8, 8);
 
-            // Check if this user is already in the group
-            if (group.getMembers().contains(username)) {
-                checkBox.setChecked(true);
+            // Check if this user is already in the group (by UID or by display name for legacy data)
+            String uid = usernameToUidMap.get(username);
+            boolean isInGroup = false;
+            if (uid != null && group.getMembers() != null && group.getMembers().contains(uid)) {
+                isInGroup = true;
+            } else if (group.getMemberDisplayNames() != null && group.getMemberDisplayNames().contains(username)) {
+                isInGroup = true;
+            } else if (group.getMembers() != null && group.getMembers().contains(username)) {
+                // Legacy: check if username is directly in members (old data format)
+                isInGroup = true;
             }
+            checkBox.setChecked(isInGroup);
 
             checkBoxes.add(checkBox);
             usersCheckboxContainer.addView(checkBox);
@@ -667,31 +896,37 @@ public class AddTransactionActivity extends AppCompatActivity {
                 return;
             }
 
-            List<String> selectedMembers = new ArrayList<>();
+            List<String> selectedMemberUids = new ArrayList<>();
+            List<String> selectedMemberDisplayNames = new ArrayList<>();
             for (CheckBox checkBox : checkBoxes) {
                 if (checkBox.isChecked()) {
-                    selectedMembers.add(checkBox.getText().toString());
+                    String displayName = checkBox.getText().toString();
+                    String uid = usernameToUidMap.get(displayName);
+                    if (uid != null) {
+                        selectedMemberUids.add(uid);
+                        selectedMemberDisplayNames.add(displayName);
+                    }
                 }
             }
 
-            if (selectedMembers.isEmpty()) {
+            if (selectedMemberUids.isEmpty()) {
                 Toast.makeText(this, "Please select at least one member", Toast.LENGTH_SHORT).show();
                 return;
             }
 
-            updateGroupInDatabase(group.getGroupId(), groupName, selectedMembers, groupView);
+            updateGroupInDatabase(group.getGroupId(), groupName, selectedMemberUids, selectedMemberDisplayNames, groupView);
             dialog.dismiss();
         });
 
         dialog.show();
     }
 
-    private void updateGroupInDatabase(String groupId, String groupName, List<String> members, View groupView) {
+    private void updateGroupInDatabase(String groupId, String groupName, List<String> memberUids, List<String> memberDisplayNames, View groupView) {
         DatabaseReference groupRef = DeclareDatabase.getDBRefGroups()
                 .child(currentUserId)
                 .child(groupId);
 
-        PayerGroup updatedGroup = new PayerGroup(groupId, groupName, members, currentUserId);
+        PayerGroup updatedGroup = new PayerGroup(groupId, groupName, memberUids, currentUserId, memberDisplayNames);
         groupRef.setValue(updatedGroup)
                 .addOnSuccessListener(aVoid -> {
                     Toast.makeText(this, "Group updated successfully", Toast.LENGTH_SHORT).show();
@@ -700,13 +935,14 @@ public class AddTransactionActivity extends AppCompatActivity {
                     TextView groupNameTV = groupView.findViewById(R.id.groupName);
                     TextView groupMembersTV = groupView.findViewById(R.id.groupMembers);
                     groupNameTV.setText(groupName);
-                    String membersText = "Members: " + String.join(", ", members);
+                    String membersText = "Members: " + String.join(", ", memberDisplayNames);
                     groupMembersTV.setText(membersText);
 
                     // If this group is currently selected, update the selected group object
                     if (selectedGroup != null && selectedGroup.getGroupId().equals(groupId)) {
                         selectedGroup.setGroupName(groupName);
-                        selectedGroup.setMembers(members);
+                        selectedGroup.setMembers(memberUids);
+                        selectedGroup.setMemberDisplayNames(memberDisplayNames);
                         calculateAndDisplayIndividualPayment();
                     }
                 })
@@ -766,15 +1002,22 @@ public class AddTransactionActivity extends AppCompatActivity {
         // Inflate tooltip view from XML
         View tooltipView = LayoutInflater.from(this).inflate(R.layout.tooltip_add_payor, null);
 
-        // Create PopupWindow
+        // Create PopupWindow - non-focusable so keyboard stays in front
         payorTooltipPopup = new PopupWindow(
                 tooltipView,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT,
-                false
+                false  // Not focusable - allows keyboard to stay on top
         );
         payorTooltipPopup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
         payorTooltipPopup.setOutsideTouchable(false);
+        payorTooltipPopup.setTouchable(false);  // Don't intercept touch events
+        payorTooltipPopup.setInputMethodMode(PopupWindow.INPUT_METHOD_NEEDED);  // Allow input method to appear on top
+        
+        // Set low elevation so keyboard appears above tooltip
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.LOLLIPOP) {
+            payorTooltipPopup.setElevation(0f);
+        }
 
         // Measure tooltip to get its dimensions
         tooltipView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);

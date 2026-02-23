@@ -12,12 +12,16 @@ public class Transaction {
     private String transactionType;
     private int paymentAmount;
     private String multilineStr;
-    private List<String> payorsList;
+    private List<String> payorsList;        // Now stores UIDs (was usernames)
     private List<Integer> amountsPaidList;
-    private String usernamePost;
+    private String usernamePost;            // Now stores UID (was username)
     private int totalIndividualPayment;
     private String groupId;
     private String groupName;
+    
+    // Display name fields (for backward compatibility with old data)
+    private List<String> payorsDisplayNames;
+    private String posterDisplayName;
 
     public Transaction(String transactionType, int paymentAmount,String multilineStr, List<String> payorsList, List<Integer> amountsPaidList, String usernamePost, int totalIndividualPayment) {
         this.transactionType = transactionType;
@@ -39,6 +43,24 @@ public class Transaction {
         this.totalIndividualPayment = totalIndividualPayment;
         this.groupId = groupId;
         this.groupName = groupName;
+    }
+
+    // New constructor with display names for UID-based storage
+    public Transaction(String transactionType, int paymentAmount, String multilineStr, 
+                      List<String> payorsList, List<Integer> amountsPaidList, String usernamePost, 
+                      int totalIndividualPayment, String groupId, String groupName,
+                      List<String> payorsDisplayNames, String posterDisplayName) {
+        this.transactionType = transactionType;
+        this.paymentAmount = paymentAmount;
+        this.multilineStr = multilineStr;
+        this.payorsList = payorsList;
+        this.amountsPaidList = amountsPaidList;
+        this.usernamePost = usernamePost;
+        this.totalIndividualPayment = totalIndividualPayment;
+        this.groupId = groupId;
+        this.groupName = groupName;
+        this.payorsDisplayNames = payorsDisplayNames;
+        this.posterDisplayName = posterDisplayName;
     }
 
     // Add an empty constructor
@@ -119,5 +141,67 @@ public class Transaction {
 
     public void setGroupName(String groupName) {
         this.groupName = groupName;
+    }
+
+    public List<String> getPayorsDisplayNames() {
+        return payorsDisplayNames;
+    }
+
+    public void setPayorsDisplayNames(List<String> payorsDisplayNames) {
+        this.payorsDisplayNames = payorsDisplayNames;
+    }
+
+    public String getPosterDisplayName() {
+        return posterDisplayName;
+    }
+
+    public void setPosterDisplayName(String posterDisplayName) {
+        this.posterDisplayName = posterDisplayName;
+    }
+
+    /**
+     * Check if user is involved in this transaction by UID.
+     * Supports both new UID-based data and legacy username-based data.
+     */
+    public boolean isUserInvolvedByUid(String uid) {
+        if (uid == null || uid.isEmpty()) {
+            return false;
+        }
+
+        // Check if user is the creator (usernamePost now stores UID)
+        if (uid.equals(usernamePost)) {
+            return true;
+        }
+
+        // Check if user is in the payors list (payorsList now stores UIDs)
+        if (payorsList != null && payorsList.contains(uid)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Legacy check for backward compatibility with old username-based data.
+     */
+    public boolean isUserInvolvedByUsername(String username) {
+        if (username == null || username.isEmpty()) {
+            return false;
+        }
+
+        // Check poster display name or usernamePost (old data)
+        if (username.equals(posterDisplayName) || username.equals(usernamePost)) {
+            return true;
+        }
+
+        // Check payors display names or payorsList (old data)
+        if (payorsDisplayNames != null && payorsDisplayNames.contains(username)) {
+            return true;
+        }
+        if (payorsList != null && payorsList.contains(username)) {
+            return true;
+        }
+
+        return false;
     }
 }

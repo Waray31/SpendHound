@@ -62,21 +62,42 @@ public class MainActivity extends AppCompatActivity {
 
     /**
      * Helper method to check if the current user is involved in a transaction.
-     * A user is involved if their username is in the payorsList or they created the transaction.
+     * Supports both new UID-based data and legacy username-based data.
+     * A user is involved if their UID/username is in the payorsList or they created the transaction.
      */
-    public boolean isUserInvolved(Transaction transaction, String username) {
-        if (transaction == null || username == null || username.isEmpty()) {
+    public boolean isUserInvolved(Transaction transaction, String usernameOrUid) {
+        if (transaction == null || usernameOrUid == null || usernameOrUid.isEmpty()) {
             return false;
         }
 
-        // Check if user is the creator of the transaction
-        if (username.equals(transaction.getUsernamePost())) {
+        // Get current user's UID for comparison
+        String currentUid = Objects.requireNonNull(mAuth.getCurrentUser()).getUid();
+
+        // First try UID-based comparison (new data format)
+        if (transaction.isUserInvolvedByUid(currentUid)) {
             return true;
         }
 
-        // Check if user is in the payors list
+        // Fall back to username-based comparison (legacy data format)
+        // Check if user is the creator of the transaction
+        if (usernameOrUid.equals(transaction.getUsernamePost())) {
+            return true;
+        }
+
+        // Check poster display name (new format)
+        if (usernameOrUid.equals(transaction.getPosterDisplayName())) {
+            return true;
+        }
+
+        // Check if user is in the payors list (legacy: could contain usernames)
         java.util.List<String> payorsList = transaction.getPayorsList();
-        if (payorsList != null && payorsList.contains(username)) {
+        if (payorsList != null && payorsList.contains(usernameOrUid)) {
+            return true;
+        }
+
+        // Check payors display names (new format)
+        java.util.List<String> payorsDisplayNames = transaction.getPayorsDisplayNames();
+        if (payorsDisplayNames != null && payorsDisplayNames.contains(usernameOrUid)) {
             return true;
         }
 
@@ -94,6 +115,9 @@ public class MainActivity extends AppCompatActivity {
         progressBar.setVisibility(View.VISIBLE);
 
         mAuth = DeclareDatabase.getAuth();
+
+        // Preload user UID-to-username cache for better performance
+        UserHelper.preloadAllUsers();
 
         // Migration safety: Ensure existing users have balances and userBorrows nodes
         String currentUserId = Objects.requireNonNull(mAuth.getCurrentUser()).getUid();

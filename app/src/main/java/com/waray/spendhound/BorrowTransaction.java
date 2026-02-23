@@ -1,7 +1,11 @@
 package com.waray.spendhound;
 
 public class BorrowTransaction {
-    private String date, borrowee, borrowedAmountStr, status;
+    private String date;
+    private String borrowee;                // Now stores UID (was username/lender name)
+    private String borrowedAmountStr;
+    private String status;
+    private String borroweeDisplayName;     // Display name for UI
 
     public BorrowTransaction() {
         // Default constructor required by Firebase Realtime Database
@@ -12,6 +16,15 @@ public class BorrowTransaction {
         this.borrowee = borrowee;
         this.borrowedAmountStr = borrowedAmountStr;
         this.status = status;
+    }
+
+    // New constructor with display name
+    public BorrowTransaction(String date, String borrowee, String borrowedAmountStr, String status, String borroweeDisplayName) {
+        this.date = String.valueOf(date);
+        this.borrowee = borrowee;
+        this.borrowedAmountStr = borrowedAmountStr;
+        this.status = status;
+        this.borroweeDisplayName = borroweeDisplayName;
     }
 
     public String getDate() {
@@ -43,6 +56,14 @@ public class BorrowTransaction {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public String getBorroweeDisplayName() {
+        return borroweeDisplayName;
+    }
+
+    public void setBorroweeDisplayName(String borroweeDisplayName) {
+        this.borroweeDisplayName = borroweeDisplayName;
     }
 
 }
