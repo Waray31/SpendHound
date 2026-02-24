@@ -103,7 +103,7 @@
                 android:background="@drawable/bottom_round_border"
                 android:elevation="2dp"
                 android:orientation="vertical"
-                android:paddingVertical="16dp">
+                android:paddingTop="8dp">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -117,7 +117,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:layout_marginBottom="12dp"
+                        android:layout_marginBottom="8dp"
                         android:gravity="center_vertical">
 
                         <!-- Month/Year Filter -->
@@ -228,7 +228,6 @@
                             android:layout_height="match_parent"
                             android:layout_marginTop="8dp"
                             android:clipToPadding="false"
-                            android:paddingBottom="8dp"
                             tools:listitem="@layout/owed_row_layout" />
 
                         <!-- Debt RecyclerView -->
@@ -423,7 +422,7 @@
                 android:fontFamily="@font/montserratalternatess_bold"
                 android:paddingVertical="14dp"
                 android:text="@string/borrow_now_button"
-                android:textColor="@color/darkBlue"
+                android:textColor="@color/whitest"
                 android:textSize="12sp"
                 style="@style/Widget.MaterialComponents.Button" />
 
@@ -487,7 +486,7 @@
             android:fontFamily="@font/montserratalternatess_bold"
             android:paddingVertical="14dp"
             android:text="@string/pending_status_button"
-            android:textColor="@color/darkBlue"
+            android:textColor="@color/whitest"
             android:textSize="13sp"
             android:drawableStart="@drawable/waiting"
             android:drawablePadding="8dp"
