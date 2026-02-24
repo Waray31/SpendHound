@@ -40,7 +40,7 @@
                 android:text="@string/placeholder_date"
                 android:textAlignment="textEnd"
                 android:textColor="@color/darkBlue"
-                android:textSize="11sp" />
+                android:textSize="12sp" />
         </LinearLayout>
 
         <!-- Borrower Row -->
@@ -96,7 +96,7 @@
                 android:text="@string/placeholder_amount"
                 android:textAlignment="textEnd"
                 android:textColor="@color/green"
-                android:textSize="13sp" />
+                android:textSize="14sp" />
         </LinearLayout>
 
         <!-- Divider -->

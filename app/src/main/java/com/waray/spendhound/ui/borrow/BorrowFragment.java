@@ -327,6 +327,8 @@ public class BorrowFragment extends Fragment {
     public void DebtMonthlyFilterList() {
         DatabaseReference transRef = DeclareDatabase.getDBRefBorrows();
         Set<String> debtUniqueMonthYear = new HashSet<>();
+        String currentUserId = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
+
         transRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
@@ -334,9 +336,20 @@ public class BorrowFragment extends Fragment {
                 for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
                     String monthYear = monthSnapshot.getKey();
                     for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
-                        for (DataSnapshot currentUserRef : daySnapshot.getChildren()) {
-                            if (Objects.equals(currentUserRef.getKey(), currentNickname)) {
-                                debtUniqueMonthYear.add(monthYear);
+                        for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
+                            // Try new structure first: borrows/{month}/{day}/{borrowId}
+                            BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
+
+                            if (borrowNowTransaction != null && borrowNowTransaction.getBorrowerID() != null) {
+                                // New UID-based structure - check if current user is the borrower
+                                if (Objects.equals(borrowNowTransaction.getBorrowerID(), currentUserId)) {
+                                    debtUniqueMonthYear.add(monthYear);
+                                }
+                            } else {
+                                // Legacy structure: borrows/{month}/{day}/{username}/{time}
+                                if (Objects.equals(borrowSnapshot.getKey(), currentNickname)) {
+                                    debtUniqueMonthYear.add(monthYear);
+                                }
                             }
                         }
                     }
@@ -357,6 +370,8 @@ public class BorrowFragment extends Fragment {
     public void OwedMonthlyFilterList() {
         DatabaseReference transRef = DeclareDatabase.getDBRefBorrows();
         Set<String> owedUniqueMonthYear = new HashSet<>();
+        String currentUserId = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
+
         transRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
@@ -364,12 +379,27 @@ public class BorrowFragment extends Fragment {
                 for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
                     String monthYear = monthSnapshot.getKey();
                     for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
-                        for (DataSnapshot currentUserRef : daySnapshot.getChildren()) {
-                            if (!Objects.equals(currentUserRef.getKey(), currentNickname)) {
-                                for (DataSnapshot timeSnapshot : currentUserRef.getChildren()) {
-                                    BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
-                                    if (borrowTransaction != null && Objects.equals(borrowTransaction.getBorrowee(), currentNickname)) {
-                                        owedUniqueMonthYear.add(monthYear);
+                        for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
+                            // Try new structure first: borrows/{month}/{day}/{borrowId}
+                            BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
+
+                            if (borrowNowTransaction != null && borrowNowTransaction.getLenderID() != null) {
+                                // New UID-based structure - check if current user is the lender
+                                if (Objects.equals(borrowNowTransaction.getLenderID(), currentUserId)) {
+                                    owedUniqueMonthYear.add(monthYear);
+                                }
+                            } else {
+                                // Legacy structure: borrows/{month}/{day}/{username}/{time}
+                                if (!Objects.equals(borrowSnapshot.getKey(), currentNickname)) {
+                                    for (DataSnapshot timeSnapshot : borrowSnapshot.getChildren()) {
+                                        try {
+                                            BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
+                                            if (borrowTransaction != null && Objects.equals(borrowTransaction.getBorrowee(), currentNickname)) {
+                                                owedUniqueMonthYear.add(monthYear);
+                                            }
+                                        } catch (Exception e) {
+                                            Log.e("BorrowFragment", "Error parsing legacy transaction: " + e.getMessage());
+                                        }
                                     }
                                 }
                             }
@@ -793,6 +823,7 @@ public class BorrowFragment extends Fragment {
         final int savedStatusPosition = statusSpinner.getSelectedItemPosition();
 
         DatabaseReference borrowsRef = DeclareDatabase.getDBRefBorrows();
+        String currentUserId = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
         final int[] processedCount = {0};
         final int totalCount = transactions.size();
 
@@ -801,19 +832,53 @@ public class BorrowFragment extends Fragment {
             borrowsRef.addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    boolean found = false;
+
                     for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
+                        if (found) break;
                         for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
-                            for (DataSnapshot userSnapshot : daySnapshot.getChildren()) {
-                                if (Objects.equals(userSnapshot.getKey(), currentNickname)) {
-                                    for (DataSnapshot transSnapshot : userSnapshot.getChildren()) {
-                                        BorrowTransaction dbTransaction = transSnapshot.getValue(BorrowTransaction.class);
-                                        if (dbTransaction != null &&
-                                            Objects.equals(dbTransaction.getDate(), transaction.getDate()) &&
-                                            Objects.equals(dbTransaction.getBorrowee(), transaction.getBorrowee()) &&
-                                            Objects.equals(dbTransaction.getBorrowedAmountStr(), transaction.getBorrowedAmountStr())) {
+                            if (found) break;
+                            for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
+                                if (found) break;
+
+                                // Try new structure first: borrows/{month}/{day}/{borrowId}
+                                BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
+
+                                if (borrowNowTransaction != null && borrowNowTransaction.getBorrowerID() != null) {
+                                    // New UID-based structure
+                                    if (Objects.equals(borrowNowTransaction.getBorrowerID(), currentUserId) &&
+                                        Objects.equals(borrowNowTransaction.getDate(), transaction.getDate()) &&
+                                        Objects.equals(borrowNowTransaction.getBorrowedAmountStr(), transaction.getBorrowedAmountStr())) {
+
+                                        // Check lender matches (by name or display name)
+                                        String transactionBorrowee = transaction.getBorrowee();
+                                        if (Objects.equals(borrowNowTransaction.getLender(), transactionBorrowee) ||
+                                            Objects.equals(borrowNowTransaction.getLenderID(), transactionBorrowee)) {
 
                                             // Update status to "Pending Payment"
-                                            transSnapshot.getRef().child("status").setValue("Pending Payment");
+                                            borrowSnapshot.getRef().child("status").setValue("Pending Payment");
+                                            found = true;
+                                        }
+                                    }
+                                } else {
+                                    // Legacy structure: borrows/{month}/{day}/{username}/{time}
+                                    if (Objects.equals(borrowSnapshot.getKey(), currentNickname)) {
+                                        for (DataSnapshot transSnapshot : borrowSnapshot.getChildren()) {
+                                            try {
+                                                BorrowTransaction dbTransaction = transSnapshot.getValue(BorrowTransaction.class);
+                                                if (dbTransaction != null &&
+                                                    Objects.equals(dbTransaction.getDate(), transaction.getDate()) &&
+                                                    Objects.equals(dbTransaction.getBorrowee(), transaction.getBorrowee()) &&
+                                                    Objects.equals(dbTransaction.getBorrowedAmountStr(), transaction.getBorrowedAmountStr())) {
+
+                                                    // Update status to "Pending Payment"
+                                                    transSnapshot.getRef().child("status").setValue("Pending Payment");
+                                                    found = true;
+                                                    break;
+                                                }
+                                            } catch (Exception e) {
+                                                Log.e("BorrowFragment", "Error parsing legacy transaction: " + e.getMessage());
+                                            }
                                         }
                                     }
                                 }
