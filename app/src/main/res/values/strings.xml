@@ -44,6 +44,7 @@
     <string name="pending_status_button">Pending status</string>
     <string name="tooltip_add_transaction_text">Tap to add transaction</string>
     <string name="recent_transactions">Recent transactions</string>
+    <string name="transactionList">Transaction List</string>
     <string name="viewAll_transactions">View all ></string>
     <string name="app_logo_description">App logo</string>
 
@@ -84,6 +85,8 @@
         <item>Unpaid</item>
         <item>Paid</item>
         <item>Paid Partially</item>
+        <item>Pending Payment</item>
+        <item>For Lender Approval</item>
     </string-array>
 
     <string-array name="checkboxStatus_String">
@@ -104,6 +107,8 @@
     <string name="status_paid">Paid</string>
     <string name="status_pending">Pending</string>
     <string name="status_paid_partially">Paid Partially</string>
+    <string name="status_awaiting_payment_confirmation">Pending Payment</string>
+    <string name="status_pending_lender_confirmation">For Lender Approval</string>
 
     <!-- Payment Dialog -->
     <string name="dialog_confirm_payment_title">Confirm Payment</string>
@@ -115,6 +120,19 @@
     <string name="toast_payment_sent">Payment request sent! Waiting for lender confirmation.</string>
     <string name="toast_payment_failed">Some payments may have failed. Please try again.</string>
     <string name="toast_no_debt_selected">No debt is selected</string>
+
+    <!-- Borrow Now Dialog -->
+    <string name="dialog_borrow_now_title">Borrow Now</string>
+    <string name="dialog_borrow_from_label">Borrow from:</string>
+    <string name="dialog_how_much_label">How much:</string>
+    <string name="dialog_enter_amount_hint">Enter amount</string>
+    <string name="dialog_select_lender">Select a lender:</string>
+    <string name="btn_cancel">Cancel</string>
+    <string name="btn_borrow">Borrow</string>
+    <string name="toast_fill_all_fields">Please fill in all fields</string>
+    <string name="toast_borrow_success">Borrow request submitted successfully!</string>
+    <string name="toast_borrow_failed">Failed to submit borrow request. Please try again.</string>
+    <string name="toast_no_payable_debts">No debts available for payment</string>
 
     <!-- Empty States -->
     <string name="empty_debt_subtitle">You don\'t have any outstanding debts</string>

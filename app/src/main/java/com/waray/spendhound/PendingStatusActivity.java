@@ -2,12 +2,9 @@ package com.waray.spendhound;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.Intent;
 import android.content.res.ColorStateList;
-import android.graphics.Color;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -29,7 +26,6 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-import com.waray.spendhound.ui.borrow.BorrowFragment;
 
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -174,7 +170,7 @@ public class PendingStatusActivity extends AppCompatActivity implements Borrower
                                 // Check if current user is the lender (receiving borrow requests)
                                 if (Objects.equals(borrowNowTransaction.getLenderID(), currentUserId)) {
                                     String status = borrowNowTransaction.getStatus();
-                                    if (Objects.equals(status, "Pending Approval")) {
+                                    if (Objects.equals(status, "For Lender Approval")) {
                                         String borrowId = borrowNowTransaction.getBorrowId();
                                         String borrowerName = borrowNowTransaction.getBorrowerName();
                                         if (borrowerName == null || borrowerName.isEmpty()) {
@@ -208,7 +204,7 @@ public class PendingStatusActivity extends AppCompatActivity implements Borrower
                                         if (borrowerListTransaction != null) {
                                             String status = borrowerListTransaction.getStatus();
                                             String borrowee = borrowerListTransaction.getBorrowee();
-                                            if (Objects.equals(status, "Pending Approval") && Objects.equals(borrowee, currentNickname2)) {
+                                            if (Objects.equals(status, "For Lender Approval") && Objects.equals(borrowee, currentNickname2)) {
                                                 borrowee = currentUserStr;
                                                 String borrowedAmountStr = borrowerListTransaction.getBorrowedAmountStr();
                                                 borrowedAmountStr = "₱" + borrowedAmountStr;
@@ -434,8 +430,7 @@ public class PendingStatusActivity extends AppCompatActivity implements Borrower
 
     @Override
     public void onBackPressed() {
-        Intent intent = new Intent(this, BorrowFragment.class);
-        startActivity(intent);
+        finish();
     }
 
     @Override

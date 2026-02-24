@@ -719,7 +719,7 @@ public class MainActivity extends AppCompatActivity {
                                 // New UID-based structure - check if current user is the borrower
                                 if (Objects.equals(borrowNowTransaction.getBorrowerID(), currentUserId)) {
                                     String status = borrowNowTransaction.getStatus();
-                                    if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
+                                    if (!Objects.equals(status, "For Lender Approval") && !Objects.equals(status, "Declined")
                                             && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")) {
                                         if (Objects.equals("All", selectedStatus) || Objects.equals(status, selectedStatus)) {
                                             addDebtTransactionFromBorrowNow(borrowNowTransaction);
@@ -734,7 +734,7 @@ public class MainActivity extends AppCompatActivity {
                                         BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
                                         if (borrowTransaction != null) {
                                             String status = borrowTransaction.getStatus();
-                                            if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
+                                            if (!Objects.equals(status, "For Lender Approval") && !Objects.equals(status, "Declined")
                                                     && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")) {
                                                 if (Objects.equals("All", selectedStatus) || Objects.equals(status, selectedStatus)) {
                                                     addDebtTransactionToList(borrowTransaction);
@@ -835,7 +835,7 @@ public class MainActivity extends AppCompatActivity {
                                 // New UID-based structure
                                 if (Objects.equals(borrowNowTransaction.getBorrowerID(), currentUserId)) {
                                     String status = borrowNowTransaction.getStatus();
-                                    if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
+                                    if (!Objects.equals(status, "For Lender Approval") && !Objects.equals(status, "Declined")
                                             && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")) {
                                         if (Objects.equals("All", selectedStatus) || Objects.equals(status, selectedStatus)) {
                                             addDebtTransactionFromBorrowNow(borrowNowTransaction);
@@ -850,7 +850,7 @@ public class MainActivity extends AppCompatActivity {
                                         BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
                                         if (borrowTransaction != null) {
                                             String status = borrowTransaction.getStatus();
-                                            if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
+                                            if (!Objects.equals(status, "For Lender Approval") && !Objects.equals(status, "Declined")
                                                     && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")) {
                                                 if (Objects.equals("All", selectedStatus) || Objects.equals(status, selectedStatus)) {
                                                     addDebtTransactionToList(borrowTransaction);
@@ -952,7 +952,7 @@ public class MainActivity extends AppCompatActivity {
                                 // New UID-based structure - check if current user is the lender
                                 if (Objects.equals(borrowNowTransaction.getLenderID(), currentUserId)) {
                                     String status = borrowNowTransaction.getStatus();
-                                    if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
+                                    if (!Objects.equals(status, "For Lender Approval") && !Objects.equals(status, "Declined")
                                             && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")) {
                                         if (Objects.equals("All", selectedStatus) || Objects.equals(status, selectedStatus)) {
                                             addOwedTransactionFromBorrowNow(borrowNowTransaction);
@@ -968,7 +968,7 @@ public class MainActivity extends AppCompatActivity {
                                         if (borrowTransaction != null) {
                                             String borrower = borrowTransaction.getBorrowee();
                                             String status = borrowTransaction.getStatus();
-                                            if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
+                                            if (!Objects.equals(status, "For Lender Approval") && !Objects.equals(status, "Declined")
                                                     && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")) {
                                                 if (Objects.equals(borrower, currentNickname) && Objects.equals("All", selectedStatus)) {
                                                     addOwedTransactionToList(borrowTransaction, currentUserStr);
@@ -1065,7 +1065,7 @@ public class MainActivity extends AppCompatActivity {
                                 // New UID-based structure - check if current user is the lender
                                 if (Objects.equals(borrowNowTransaction.getLenderID(), currentUserId)) {
                                     String status = borrowNowTransaction.getStatus();
-                                    if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
+                                    if (!Objects.equals(status, "For Lender Approval") && !Objects.equals(status, "Declined")
                                             && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")) {
                                         if (Objects.equals("All", selectedStatus) || Objects.equals(status, selectedStatus)) {
                                             addOwedTransactionFromBorrowNow(borrowNowTransaction);
@@ -1081,7 +1081,7 @@ public class MainActivity extends AppCompatActivity {
                                         if (borrowTransaction != null) {
                                             String borrower = borrowTransaction.getBorrowee();
                                             String status = borrowTransaction.getStatus();
-                                            if (!Objects.equals(status, "Pending Approval") && !Objects.equals(status, "Declined")
+                                            if (!Objects.equals(status, "For Lender Approval") && !Objects.equals(status, "Declined")
                                                     && !Objects.equals(status, "Payment Pending") && !Objects.equals(status, "Payment Denied")) {
                                                 if (Objects.equals(borrower, currentNickname) && Objects.equals("All", selectedStatus)) {
                                                     addOwedTransactionToList(borrowTransaction, currentUserStr);

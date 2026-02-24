@@ -5,37 +5,44 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/whitest">
+    android:layout_marginHorizontal="20dp"
+    android:layout_marginTop="20dp"
+    android:background="@color/white">
 
-    <!-- Header -->
+    <!-- Header Section -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:padding="16dp"
-        android:background="@color/darkBlue">
+        android:paddingVertical="8dp"
+        android:gravity="center_vertical">
 
         <ImageButton
             android:id="@+id/backButton"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:background="?attr/selectableItemBackgroundBorderless"
-            android:src="@drawable/ic_arrow_left"
-            android:contentDescription="Back"
-            app:tint="@color/white" />
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:scaleType="fitCenter"
+            android:background="@drawable/transparent_background"
+            android:src="@drawable/left_arrow__darkblue"/>
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="16dp"
-            android:text="All Transactions"
             android:fontFamily="@font/montserratalternatess_bold"
-            android:textColor="@color/white"
-            android:textSize="20sp" />
+            android:text="@string/transactionList"
+            android:textAlignment="center"
+            android:textColor="@color/darkBlue"
+            android:textSize="22sp" />
 
     </LinearLayout>
+
+    <View
+        android:id="@+id/bottom_border1"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:layout_marginVertical="8dp"
+        android:background="@drawable/bottom_border" />
 
     <!-- Month Filter Section -->
     <LinearLayout
@@ -43,7 +50,7 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:gravity="center_vertical"
-        android:padding="20dp"
+        android:paddingVertical="8dp"
         android:elevation="2dp">
 
         <TextView
@@ -70,7 +77,6 @@
         android:id="@+id/currentMonthTextView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingHorizontal="16dp"
         android:paddingTop="16dp"
         android:paddingBottom="8dp"
         android:text="February 2026"
@@ -83,7 +89,6 @@
         android:id="@+id/transactionCountTextView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingHorizontal="16dp"
         android:paddingBottom="8dp"
         android:text="0 transactions"
         android:fontFamily="@font/montserratalternatess_regular"
@@ -132,7 +137,6 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:paddingHorizontal="20dp"
         android:clipToPadding="false"
         tools:listitem="@layout/fragment_transaction" />
 
