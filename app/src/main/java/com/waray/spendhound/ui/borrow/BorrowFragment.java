@@ -792,15 +792,15 @@ public class BorrowFragment extends Fragment {
         totalAmountTextView.setText("₱ " + df.format(totalAmount));
 
         Button closeButton = dialog.findViewById(R.id.closeButton);
-        Button payNowConfirmBtn = dialog.findViewById(R.id.payNowConfirmBtn);
+        Button confirmPaymentBtn = dialog.findViewById(R.id.confirmPayment_btn);
 
         closeButton.setOnClickListener(v -> dialog.dismiss());
 
         // Handle Pay Now confirmation
-        payNowConfirmBtn.setOnClickListener(v -> {
-            payNowConfirmBtn.setEnabled(false);
+        confirmPaymentBtn.setOnClickListener(v -> {
+            confirmPaymentBtn.setEnabled(false);
             closeButton.setEnabled(false);
-            payNowConfirmBtn.setText(R.string.btn_processing);
+            confirmPaymentBtn.setText(R.string.btn_processing);
 
             processPayments(checkedTransactions, dialog);
         });
@@ -810,7 +810,7 @@ public class BorrowFragment extends Fragment {
 
     /**
      * Process payments for selected debt transactions
-     * Updates Firebase database to mark debts as "Pending Payment"
+     * Updates Firebase database to mark debts as "Pendinng Payment"
      */
     private void processPayments(ArrayList<BorrowTransaction> transactions, Dialog dialog) {
         if (transactions.isEmpty()) {
@@ -828,6 +828,9 @@ public class BorrowFragment extends Fragment {
         final int totalCount = transactions.size();
 
         for (BorrowTransaction transaction : transactions) {
+            // Convert display date format (MMM-dd-yyyy) to Firebase format (MMMM-dd-yyyy) for comparison
+            String transactionDateForComparison = convertToFirebaseDateFormat(transaction.getDate());
+
             // Find and update the transaction in Firebase
             borrowsRef.addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
@@ -847,7 +850,7 @@ public class BorrowFragment extends Fragment {
                                 if (borrowNowTransaction != null && borrowNowTransaction.getBorrowerID() != null) {
                                     // New UID-based structure
                                     if (Objects.equals(borrowNowTransaction.getBorrowerID(), currentUserId) &&
-                                        Objects.equals(borrowNowTransaction.getDate(), transaction.getDate()) &&
+                                        Objects.equals(borrowNowTransaction.getDate(), transactionDateForComparison) &&
                                         Objects.equals(borrowNowTransaction.getBorrowedAmountStr(), transaction.getBorrowedAmountStr())) {
 
                                         // Check lender matches (by name or display name)
@@ -855,7 +858,7 @@ public class BorrowFragment extends Fragment {
                                         if (Objects.equals(borrowNowTransaction.getLender(), transactionBorrowee) ||
                                             Objects.equals(borrowNowTransaction.getLenderID(), transactionBorrowee)) {
 
-                                            // Update status to "Pending Payment"
+                                            // Update status to "For Lender Approval"
                                             borrowSnapshot.getRef().child("status").setValue("Pending Payment");
                                             found = true;
                                         }
@@ -867,11 +870,11 @@ public class BorrowFragment extends Fragment {
                                             try {
                                                 BorrowTransaction dbTransaction = transSnapshot.getValue(BorrowTransaction.class);
                                                 if (dbTransaction != null &&
-                                                    Objects.equals(dbTransaction.getDate(), transaction.getDate()) &&
+                                                    Objects.equals(dbTransaction.getDate(), transactionDateForComparison) &&
                                                     Objects.equals(dbTransaction.getBorrowee(), transaction.getBorrowee()) &&
                                                     Objects.equals(dbTransaction.getBorrowedAmountStr(), transaction.getBorrowedAmountStr())) {
 
-                                                    // Update status to "Pending Payment"
+                                                    // Update status to "For Lender Approval"
                                                     transSnapshot.getRef().child("status").setValue("Pending Payment");
                                                     found = true;
                                                     break;
@@ -953,6 +956,25 @@ public class BorrowFragment extends Fragment {
         if (loadingOverlay != null) {
             loadingOverlay.setVisibility(View.GONE);
         }
+    }
+
+    /**
+     * Convert display date format (MMM-dd-yyyy) to Firebase date format (MMMM-dd-yyyy)
+     * @param displayDate Date in MMM-dd-yyyy format (e.g., "Feb-25-2026")
+     * @return Date in MMMM-dd-yyyy format (e.g., "February-25-2026")
+     */
+    private String convertToFirebaseDateFormat(String displayDate) {
+        try {
+            SimpleDateFormat displayFormat = new SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH);
+            SimpleDateFormat firebaseFormat = new SimpleDateFormat("MMMM-dd-yyyy", Locale.ENGLISH);
+            java.util.Date date = displayFormat.parse(displayDate);
+            if (date != null) {
+                return firebaseFormat.format(date);
+            }
+        } catch (Exception e) {
+            Log.e("BorrowFragment", "Error converting date format: " + e.getMessage());
+        }
+        return displayDate; // Return original if conversion fails
     }
 
     @Override

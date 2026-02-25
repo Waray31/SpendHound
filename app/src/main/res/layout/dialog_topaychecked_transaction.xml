@@ -5,7 +5,6 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="20dp"
-    android:layout_margin="20dp"
     android:background="@drawable/transparent_background">
 
     <!-- Header -->
@@ -142,7 +141,7 @@
             style="@style/Widget.MaterialComponents.Button"/>
 
         <Button
-            android:id="@+id/payNowConfirmBtn"
+            android:id="@+id/confirmPayment_btn"
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"

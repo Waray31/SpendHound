@@ -46,6 +46,7 @@ import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 import com.google.firebase.storage.UploadTask;
+import com.waray.spendhound.BorrowNowTransaction;
 import com.waray.spendhound.BorrowTransaction;
 import com.waray.spendhound.BreakdownAdapter;
 import com.waray.spendhound.BreakdownItem;
@@ -483,6 +484,8 @@ public class ProfileFragment extends Fragment {
 
     private void getDebt() {
         DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
+        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+
         databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
 
             @SuppressLint("NotifyDataSetChanged")
@@ -490,14 +493,34 @@ public class ProfileFragment extends Fragment {
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
                     for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
-                        for (DataSnapshot currentUserRef : daySnapshot.getChildren()) {
-                            String currentUserStr = currentUserRef.getKey();
-                            if (Objects.equals(currentUserStr, currentNickname)) {
-                                for (DataSnapshot timeSnapshot : currentUserRef.getChildren()) {
-                                    BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
-                                    if (borrowTransaction != null) {
-                                        int borrowedAmount = Integer.parseInt(borrowTransaction.getBorrowedAmountStr());
+                        for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
+                            // Try new structure first: borrows/{month}/{day}/{borrowId}
+                            BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
+
+                            if (borrowNowTransaction != null && borrowNowTransaction.getBorrowerID() != null) {
+                                // New UID-based structure - check if current user is the borrower
+                                if (Objects.equals(borrowNowTransaction.getBorrowerID(), currentUserId)) {
+                                    try {
+                                        int borrowedAmount = Integer.parseInt(borrowNowTransaction.getBorrowedAmountStr());
                                         currentDebt += borrowedAmount;
+                                    } catch (NumberFormatException e) {
+                                        Log.e("ProfileFragment", "Error parsing amount: " + e.getMessage());
+                                    }
+                                }
+                            } else {
+                                // Legacy structure: borrows/{month}/{day}/{username}/{time}
+                                String currentUserStr = borrowSnapshot.getKey();
+                                if (Objects.equals(currentUserStr, currentNickname)) {
+                                    for (DataSnapshot timeSnapshot : borrowSnapshot.getChildren()) {
+                                        try {
+                                            BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
+                                            if (borrowTransaction != null) {
+                                                int borrowedAmount = Integer.parseInt(borrowTransaction.getBorrowedAmountStr());
+                                                currentDebt += borrowedAmount;
+                                            }
+                                        } catch (Exception e) {
+                                            Log.e("ProfileFragment", "Error parsing legacy transaction: " + e.getMessage());
+                                        }
                                     }
                                 }
                             }
@@ -517,6 +540,8 @@ public class ProfileFragment extends Fragment {
 
     private void getOwe() {
         DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
+        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+
         databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
 
             @SuppressLint("NotifyDataSetChanged")
@@ -524,14 +549,34 @@ public class ProfileFragment extends Fragment {
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
                     for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
-                        for (DataSnapshot currentUserRef : daySnapshot.getChildren()) {
-                            for (DataSnapshot timeSnapshot : currentUserRef.getChildren()) {
-                                BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
-                                if (borrowTransaction != null) {
-                                    String borrowee = borrowTransaction.getBorrowee();
-                                    int borrowedAmount = Integer.parseInt(borrowTransaction.getBorrowedAmountStr());
-                                    if (Objects.equals(currentNickname, borrowee)) {
+                        for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
+                            // Try new structure first: borrows/{month}/{day}/{borrowId}
+                            BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
+
+                            if (borrowNowTransaction != null && borrowNowTransaction.getLenderID() != null) {
+                                // New UID-based structure - check if current user is the lender
+                                if (Objects.equals(borrowNowTransaction.getLenderID(), currentUserId)) {
+                                    try {
+                                        int borrowedAmount = Integer.parseInt(borrowNowTransaction.getBorrowedAmountStr());
                                         currentOwe += borrowedAmount;
+                                    } catch (NumberFormatException e) {
+                                        Log.e("ProfileFragment", "Error parsing amount: " + e.getMessage());
+                                    }
+                                }
+                            } else {
+                                // Legacy structure: borrows/{month}/{day}/{username}/{time}
+                                for (DataSnapshot timeSnapshot : borrowSnapshot.getChildren()) {
+                                    try {
+                                        BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
+                                        if (borrowTransaction != null) {
+                                            String borrowee = borrowTransaction.getBorrowee();
+                                            int borrowedAmount = Integer.parseInt(borrowTransaction.getBorrowedAmountStr());
+                                            if (Objects.equals(currentNickname, borrowee)) {
+                                                currentOwe += borrowedAmount;
+                                            }
+                                        }
+                                    } catch (Exception e) {
+                                        Log.e("ProfileFragment", "Error parsing legacy transaction: " + e.getMessage());
                                     }
 
                                 }
@@ -552,6 +597,8 @@ public class ProfileFragment extends Fragment {
 
     private void getUnpaid() {
         DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
+        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+
         databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
 
             @SuppressLint("NotifyDataSetChanged")
@@ -559,14 +606,34 @@ public class ProfileFragment extends Fragment {
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
                     for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
-                        for (DataSnapshot currentUserRef : daySnapshot.getChildren()) {
-                            String currentUserStr = currentUserRef.getKey();
-                            if (Objects.equals(currentUserStr, currentNickname)) {
-                                for (DataSnapshot timeSnapshot : currentUserRef.getChildren()) {
-                                    BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
-                                    if (borrowTransaction != null) {
-                                        int borrowedAmount = Integer.parseInt(borrowTransaction.getBorrowedAmountStr());
+                        for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
+                            // Try new structure first: borrows/{month}/{day}/{borrowId}
+                            BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
+
+                            if (borrowNowTransaction != null && borrowNowTransaction.getBorrowerID() != null) {
+                                // New UID-based structure - check if current user is the borrower
+                                if (Objects.equals(borrowNowTransaction.getBorrowerID(), currentUserId)) {
+                                    try {
+                                        int borrowedAmount = Integer.parseInt(borrowNowTransaction.getBorrowedAmountStr());
                                         currentUnpaid += borrowedAmount;
+                                    } catch (NumberFormatException e) {
+                                        Log.e("ProfileFragment", "Error parsing amount: " + e.getMessage());
+                                    }
+                                }
+                            } else {
+                                // Legacy structure: borrows/{month}/{day}/{username}/{time}
+                                String currentUserStr = borrowSnapshot.getKey();
+                                if (Objects.equals(currentUserStr, currentNickname)) {
+                                    for (DataSnapshot timeSnapshot : borrowSnapshot.getChildren()) {
+                                        try {
+                                            BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
+                                            if (borrowTransaction != null) {
+                                                int borrowedAmount = Integer.parseInt(borrowTransaction.getBorrowedAmountStr());
+                                                currentUnpaid += borrowedAmount;
+                                            }
+                                        } catch (Exception e) {
+                                            Log.e("ProfileFragment", "Error parsing legacy transaction: " + e.getMessage());
+                                        }
                                     }
                                 }
                             }
@@ -586,6 +653,8 @@ public class ProfileFragment extends Fragment {
 
     private void getBalance() {
         DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
+        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+
         databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
 
             @SuppressLint("NotifyDataSetChanged")
@@ -593,14 +662,34 @@ public class ProfileFragment extends Fragment {
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
                     for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
-                        for (DataSnapshot currentUserRef : daySnapshot.getChildren()) {
-                            String currentUserStr = currentUserRef.getKey();
-                            if (Objects.equals(currentUserStr, currentNickname)) {
-                                for (DataSnapshot timeSnapshot : currentUserRef.getChildren()) {
-                                    BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
-                                    if (borrowTransaction != null) {
-                                        int borrowedAmount = Integer.parseInt(borrowTransaction.getBorrowedAmountStr());
+                        for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
+                            // Try new structure first: borrows/{month}/{day}/{borrowId}
+                            BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
+
+                            if (borrowNowTransaction != null && borrowNowTransaction.getBorrowerID() != null) {
+                                // New UID-based structure - check if current user is the borrower
+                                if (Objects.equals(borrowNowTransaction.getBorrowerID(), currentUserId)) {
+                                    try {
+                                        int borrowedAmount = Integer.parseInt(borrowNowTransaction.getBorrowedAmountStr());
                                         currentBalance += borrowedAmount;
+                                    } catch (NumberFormatException e) {
+                                        Log.e("ProfileFragment", "Error parsing amount: " + e.getMessage());
+                                    }
+                                }
+                            } else {
+                                // Legacy structure: borrows/{month}/{day}/{username}/{time}
+                                String currentUserStr = borrowSnapshot.getKey();
+                                if (Objects.equals(currentUserStr, currentNickname)) {
+                                    for (DataSnapshot timeSnapshot : borrowSnapshot.getChildren()) {
+                                        try {
+                                            BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
+                                            if (borrowTransaction != null) {
+                                                int borrowedAmount = Integer.parseInt(borrowTransaction.getBorrowedAmountStr());
+                                                currentBalance += borrowedAmount;
+                                            }
+                                        } catch (Exception e) {
+                                            Log.e("ProfileFragment", "Error parsing legacy transaction: " + e.getMessage());
+                                        }
                                     }
                                 }
                             }
