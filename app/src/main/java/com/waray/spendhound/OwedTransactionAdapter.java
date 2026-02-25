@@ -56,8 +56,11 @@ public class OwedTransactionAdapter extends RecyclerView.Adapter<OwedTransaction
         int statusColor;
         boolean isPendingStatus = false;
         boolean isPendingPayment = false;
+        boolean isPaid = false;
+        boolean isUnpaid = false;
         if ("Paid".equalsIgnoreCase(status)) {
             statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.green);
+            isPaid = true;
         } else if ("Pending".equalsIgnoreCase(status)) {
             statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.yellow);
         } else if ("Paid Partially".equalsIgnoreCase(status)) {
@@ -68,6 +71,9 @@ public class OwedTransactionAdapter extends RecyclerView.Adapter<OwedTransaction
         } else if ("For Lender Approval".equalsIgnoreCase(status)) {
             statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.blue);
             isPendingStatus = true;
+        } else if ("Unpaid".equalsIgnoreCase(status)) {
+            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.red);
+            isUnpaid = true;
         } else {
             statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.red);
         }
@@ -77,8 +83,14 @@ public class OwedTransactionAdapter extends RecyclerView.Adapter<OwedTransaction
         MaterialCardView cardView = (MaterialCardView) holder.itemView;
         float density = holder.itemView.getContext().getResources().getDisplayMetrics().density;
 
-        // Set background tint and elevation for pending items
-        if (isPendingPayment) {
+        // Set background tint and elevation based on status
+        if (isPaid) {
+            cardView.setCardBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.paid_bg));
+            cardView.setCardElevation(4 * density);
+        } else if (isUnpaid) {
+            cardView.setCardBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.unpaid_bg));
+            cardView.setCardElevation(4 * density);
+        } else if (isPendingPayment) {
             cardView.setCardBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.pending_payment_bg));
             cardView.setCardElevation(4 * density);
         } else if (isPendingStatus) {

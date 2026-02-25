@@ -22,6 +22,8 @@
     <color name="blue">#007bff</color>
     <color name="pending_payment_bg">#FFF9E6</color>
     <color name="pending_approval_bg">#E6F3FF</color>
+    <color name="unpaid_bg">#FFE6E6</color>
+    <color name="paid_bg">#E6FFE6</color>
 </resources>
 
 
