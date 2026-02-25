@@ -113,9 +113,9 @@
     <!-- Payment Dialog -->
     <string name="dialog_confirm_payment_title">Confirm Payment</string>
     <string name="dialog_payment_subtitle">You are about to pay the following debts:</string>
-    <string name="dialog_payment_info">Payment will be marked as pending until the lender confirms receipt.</string>
+    <string name="dialog_payment_info">Payment will be marked as For Lender Approval until the lender confirms receipt.</string>
     <string name="dialog_total_amount">Total Amount</string>
-    <string name="btn_confirm_payment">Confirm Payment</string>
+    <string name="btn_confirm_payment">Confirm</string>
     <string name="btn_processing">Processing…</string>
     <string name="toast_payment_sent">Payment request sent! Waiting for lender confirmation.</string>
     <string name="toast_payment_failed">Some payments may have failed. Please try again.</string>
