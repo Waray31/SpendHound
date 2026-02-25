@@ -10,6 +10,8 @@ import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.card.MaterialCardView;
+
 import java.util.ArrayList;
 
 public class DebtTransactionAdapter extends RecyclerView.Adapter<DebtTransactionAdapter.ViewHolder> {
@@ -61,15 +63,16 @@ public class DebtTransactionAdapter extends RecyclerView.Adapter<DebtTransaction
         String status = transaction.getStatus();
         int statusColor;
         boolean isPendingStatus = false;
+        boolean isPendingPayment = false;
         if ("Paid".equalsIgnoreCase(status)) {
             statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.green);
         } else if ("Pending".equalsIgnoreCase(status)) {
             statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.yellow);
         } else if ("Paid Partially".equalsIgnoreCase(status)) {
             statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.yellow);
-        } else if ("Payment Pending".equalsIgnoreCase(status)) {
-            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.orange);
-            isPendingStatus = true;
+        } else if ("Pending Payment".equalsIgnoreCase(status)) {
+            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.yellow);
+            isPendingPayment = true;
         } else if ("For Lender Approval".equalsIgnoreCase(status)) {
             statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.blue);
             isPendingStatus = true;
@@ -78,9 +81,20 @@ public class DebtTransactionAdapter extends RecyclerView.Adapter<DebtTransaction
         }
         holder.debtStatusTV.setTextColor(statusColor);
 
-        // Set background tint for pending items
-        if (isPendingStatus) {
-            holder.itemView.setBackgroundResource(R.drawable.pending_item_background);
+        // Cast to MaterialCardView for elevation and background
+        MaterialCardView cardView = (MaterialCardView) holder.itemView;
+        float density = holder.itemView.getContext().getResources().getDisplayMetrics().density;
+
+        // Set background tint and elevation for pending items
+        if (isPendingPayment) {
+            cardView.setCardBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.pending_payment_bg));
+            cardView.setCardElevation(4 * density);
+        } else if (isPendingStatus) {
+            cardView.setCardBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.pending_approval_bg));
+            cardView.setCardElevation(4 * density);
+        } else {
+            cardView.setCardBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.whitest));
+            cardView.setCardElevation(4 * density);
         }
 
         // Set click listener for pending items to navigate to PendingStatusActivity
