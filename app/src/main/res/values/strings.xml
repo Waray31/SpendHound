@@ -138,4 +138,46 @@
     <string name="empty_debt_subtitle">You don\'t have any outstanding debts</string>
     <string name="empty_owed_subtitle">No one owes you money right now</string>
     <string name="loading_text">Loading…</string>
+
+    <!-- Status Tabs -->
+    <string name="tab_all">All</string>
+    <string name="tab_paid">Paid</string>
+    <string name="tab_unpaid">Unpaid</string>
+    <string name="tab_pending">Pending</string>
+
+    <!-- Action Buttons -->
+    <string name="btn_not_yet">Not Yet</string>
+    <string name="btn_received">Received</string>
+    <string name="btn_decline">Decline</string>
+    <string name="btn_approved">Approved</string>
+    <string name="btn_pay">Pay</string>
+    <string name="btn_remove">Remove</string>
+    <string name="btn_try_again">Try Again</string>
+
+    <!-- Confirmation Dialog -->
+    <string name="confirm_not_yet_title">Mark as Not Yet Received</string>
+    <string name="confirm_not_yet_message">This will revert the payment status back to Unpaid. Are you sure?</string>
+    <string name="confirm_received_title">Confirm Payment Received</string>
+    <string name="confirm_received_message">This will mark the payment as Paid. Are you sure you received this payment?</string>
+    <string name="confirm_decline_title">Decline Borrow Request</string>
+    <string name="confirm_decline_message">Are you sure you want to decline this borrow request?</string>
+    <string name="confirm_approve_title">Approve Borrow Request</string>
+    <string name="confirm_approve_message">This will approve the borrow request and mark it as Unpaid. Are you sure?</string>
+    <string name="confirm_pay_title">Send Payment</string>
+    <string name="confirm_pay_message">This will send a payment request to the lender for confirmation. Are you sure?</string>
+    <string name="confirm_remove_title">Remove Transaction</string>
+    <string name="confirm_remove_message">This will permanently remove this transaction from your list. Are you sure?</string>
+    <string name="confirm_try_again_title">Resubmit Request</string>
+    <string name="confirm_try_again_message">This will resubmit the borrow request for lender approval. Are you sure?</string>
+
+    <!-- Status Labels -->
+    <string name="status_declined">Declined</string>
+    <string name="status_removed">Removed</string>
+    <string name="status_for_lender_approval">For Lender Approval</string>
+    <string name="status_pending_payment">Pending Payment</string>
+    <string name="label_payment_sent">Sent: </string>
+
+    <!-- Toast Messages -->
+    <string name="toast_status_updated">Status updated successfully</string>
+    <string name="toast_status_update_failed">Failed to update status. Please try again.</string>
 </resources>

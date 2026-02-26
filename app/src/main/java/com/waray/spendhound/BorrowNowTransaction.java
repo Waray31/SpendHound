@@ -10,6 +10,7 @@ public class BorrowNowTransaction {
     private String borrowedAmountStr;
     private String status;
     private long timestamp;
+    private long paymentSentDate;
 
     public BorrowNowTransaction() {
         // Default constructor required by Firebase Realtime Database
@@ -108,5 +109,13 @@ public class BorrowNowTransaction {
 
     public void setTimestamp(long timestamp) {
         this.timestamp = timestamp;
+    }
+
+    public long getPaymentSentDate() {
+        return paymentSentDate;
+    }
+
+    public void setPaymentSentDate(long paymentSentDate) {
+        this.paymentSentDate = paymentSentDate;
     }
 }

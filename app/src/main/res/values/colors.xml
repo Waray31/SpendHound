@@ -8,6 +8,7 @@
     <color name="black">#03071e</color>
     <color name="grey">#6c757d</color>
     <color name="lightgrey">#ced4da</color>
+    <color name="lightest_grey">#7FCED4DA</color>
     <color name="darkBlue">#03071e</color>
     <color name="yellow">#ffba08</color>
     <color name="white">#f8f9fa</color>
@@ -17,10 +18,11 @@
     <color name="default_color">#FF000000</color>
     <color name="glassy_background">#60FFFFFF</color>
     <color name="red">#d00000</color>
-    <color name="green">#28a745</color>
+    <color name="green">#2ecc71</color>
     <color name="orange">#fd7e14</color>
     <color name="blue">#007bff</color>
     <color name="pending_payment_bg">#FFF9E6</color>
+    <color name="light_yellow">#20FFEB3B</color>
     <color name="pending_approval_bg">#E6F3FF</color>
     <color name="unpaid_bg">#FFE6E6</color>
     <color name="paid_bg">#E6FFE6</color>

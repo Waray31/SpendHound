@@ -6,6 +6,10 @@ public class BorrowTransaction {
     private String borrowedAmountStr;
     private String status;
     private String borroweeDisplayName;     // Display name for UI
+    private String paymentSentDate;
+    private String borrowId;
+    private String monthYear;
+    private String day;
 
     public BorrowTransaction() {
         // Default constructor required by Firebase Realtime Database
@@ -64,6 +68,38 @@ public class BorrowTransaction {
 
     public void setBorroweeDisplayName(String borroweeDisplayName) {
         this.borroweeDisplayName = borroweeDisplayName;
+    }
+
+    public String getPaymentSentDate() {
+        return paymentSentDate;
+    }
+
+    public void setPaymentSentDate(String paymentSentDate) {
+        this.paymentSentDate = paymentSentDate;
+    }
+
+    public String getBorrowId() {
+        return borrowId;
+    }
+
+    public void setBorrowId(String borrowId) {
+        this.borrowId = borrowId;
+    }
+
+    public String getMonthYear() {
+        return monthYear;
+    }
+
+    public void setMonthYear(String monthYear) {
+        this.monthYear = monthYear;
+    }
+
+    public String getDay() {
+        return day;
+    }
+
+    public void setDay(String day) {
+        this.day = day;
     }
 
 }

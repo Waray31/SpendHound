@@ -17,7 +17,7 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <!-- Header Section -->
-        <LinearLayout
+        <!--<LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
@@ -34,15 +34,7 @@
                 android:textColor="@color/darkBlue"
                 android:textSize="22sp" />
 
-        </LinearLayout>
-
-        <View
-            android:id="@+id/bottom_border1"
-            android:layout_width="match_parent"
-            android:layout_height="2dp"
-            android:layout_marginTop="4dp"
-            android:layout_marginBottom="12dp"
-            android:background="@drawable/bottom_border" />
+        </LinearLayout>-->
 
         <!-- Main Card Container -->
         <LinearLayout
@@ -103,8 +95,7 @@
                 android:layout_marginBottom="4dp"
                 android:background="@drawable/bottom_round_border"
                 android:elevation="2dp"
-                android:orientation="vertical"
-                android:paddingTop="8dp">
+                android:orientation="vertical">
 
                 <LinearLayout
                     android:layout_width="match_parent"
@@ -124,57 +115,18 @@
 
                         <!-- Month/Year Filter -->
                         <LinearLayout
-                            android:layout_width="0dp"
+                            android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:orientation="vertical"
-                            android:layout_marginEnd="8dp">
-
-                            <TextView
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:fontFamily="@font/montserratalternatess_bold"
-                                android:text="@string/month_year_label"
-                                android:textAlignment="center"
-                                android:textSize="11sp"
-                                android:textColor="@color/grey" />
+                            android:gravity="end"
+                            android:layout_marginTop="4dp"
+                            android:orientation="horizontal">
 
                             <Spinner
                                 android:id="@+id/monthYearSpinner"
-                                android:layout_width="match_parent"
+                                android:layout_width="140dp"
                                 android:layout_height="wrap_content"
-                                android:layout_marginTop="4dp"
                                 android:textAlignment="center"
-                                android:background="@drawable/transparent_background"
-                                android:padding="8dp"/>
-
-                        </LinearLayout>
-
-                        <!-- Status Filter -->
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="2"
-                            android:orientation="vertical"
-                            android:layout_marginStart="8dp">
-
-                            <TextView
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:fontFamily="@font/montserratalternatess_bold"
-                                android:text="@string/status_label"
-                                android:textAlignment="center"
-                                android:textSize="11sp"
-                                android:textColor="@color/grey" />
-
-                            <Spinner
-                                android:id="@+id/statusSpinner"
-                                android:layout_width="match_parent"
-                                android:layout_height="wrap_content"
-                                android:layout_marginTop="4dp"
-                                android:textAlignment="center"
-                                android:background="@drawable/transparent_background"
-                                android:padding="8dp" />
+                                android:background="@drawable/transparent_background" />
 
                         </LinearLayout>
 
@@ -209,6 +161,68 @@
 
                         </LinearLayout>
 
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/statusTabs_layout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:paddingBottom="4dp">
+
+                        <TextView
+                            android:id="@+id/allTabTV"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:textAlignment="center"
+                            android:textColor="@color/darkBlue"
+                            android:fontFamily="@font/montserratalternatess_bold"
+                            android:text="@string/tab_all"
+                            android:textSize="14sp"
+                            android:paddingVertical="8dp"
+                            android:background="@drawable/bg_status_tab_selected"
+                            android:clickable="true"
+                            android:focusable="true" />
+                        <TextView
+                            android:id="@+id/paidTabTV"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:textAlignment="center"
+                            android:textColor="@color/darkBlue"
+                            android:fontFamily="@font/montserratalternatess_bold"
+                            android:text="@string/tab_paid"
+                            android:textSize="14sp"
+                            android:paddingVertical="8dp"
+                            android:clickable="true"
+                            android:focusable="true" />
+                        <TextView
+                            android:id="@+id/unpaidTabTV"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:textAlignment="center"
+                            android:textColor="@color/darkBlue"
+                            android:fontFamily="@font/montserratalternatess_bold"
+                            android:text="@string/tab_unpaid"
+                            android:textSize="14sp"
+                            android:paddingVertical="8dp"
+                            android:clickable="true"
+                            android:focusable="true" />
+                        <TextView
+                            android:id="@+id/pendingTabTV"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:textAlignment="center"
+                            android:textColor="@color/darkBlue"
+                            android:fontFamily="@font/montserratalternatess_bold"
+                            android:text="@string/tab_pending"
+                            android:textSize="14sp"
+                            android:paddingVertical="8dp"
+                            android:clickable="true"
+                            android:focusable="true" />
                     </LinearLayout>
 
                     <View
@@ -404,94 +418,18 @@
 
         </LinearLayout>
 
-        <!-- Debt Action Buttons -->
-        <LinearLayout
-            android:id="@+id/debtButtons"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="24dp"
-            android:orientation="horizontal"
-            android:visibility="gone">
-
-            <Button
-                android:id="@+id/borrowNowBtn"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="6dp"
-                android:layout_weight="1"
-                android:backgroundTint="@color/yellow"
-                android:elevation="6dp"
-                android:fontFamily="@font/montserratalternatess_bold"
-                android:paddingVertical="14dp"
-                android:text="@string/borrow_now_button"
-                android:textColor="@color/whitest"
-                android:textSize="12sp"
-                style="@style/Widget.MaterialComponents.Button" />
-
-            <Button
-                android:id="@+id/payNowBtn"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:layout_weight="1"
-                android:backgroundTint="@color/red"
-                android:elevation="6dp"
-                android:fontFamily="@font/montserratalternatess_bold"
-                android:paddingVertical="14dp"
-                android:text="@string/pay_now_button"
-                android:textColor="@color/whitest"
-                android:textSize="12sp"
-                style="@style/Widget.MaterialComponents.Button" />
-
-            <Button
-                android:id="@+id/debtCancelPayBtn"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginEnd="6dp"
-                android:layout_weight="1"
-                android:backgroundTint="@color/grey"
-                android:elevation="6dp"
-                android:fontFamily="@font/montserratalternatess_bold"
-                android:paddingVertical="14dp"
-                android:text="@string/cancel_button"
-                android:textColor="@color/whitest"
-                android:textSize="12sp"
-                android:visibility="gone"
-                style="@style/Widget.MaterialComponents.Button" />
-
-            <Button
-                android:id="@+id/debtSelectBtn"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="6dp"
-                android:layout_weight="1"
-                android:backgroundTint="@color/green"
-                android:elevation="6dp"
-                android:fontFamily="@font/montserratalternatess_bold"
-                android:paddingVertical="14dp"
-                android:text="@string/select_button"
-                android:textColor="@color/whitest"
-                android:textSize="12sp"
-                android:visibility="gone"
-                style="@style/Widget.MaterialComponents.Button" />
-
-        </LinearLayout>
-
-        <!-- Pending Status Button (for Owed tab) -->
+        <!-- Borrow Now Button (always visible) -->
         <Button
-            android:id="@+id/pendingStatusBtn"
+            android:id="@+id/borrowNowBtn"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
             android:backgroundTint="@color/yellow"
-            android:elevation="3dp"
+            android:elevation="4dp"
             android:fontFamily="@font/montserratalternatess_bold"
             android:paddingVertical="14dp"
-            android:text="@string/pending_status_button"
+            android:text="@string/borrow_now_button"
             android:textColor="@color/whitest"
             android:textSize="12sp"
-            android:drawableStart="@drawable/waiting"
-            android:drawablePadding="8dp"
             style="@style/Widget.MaterialComponents.Button" />
 
     </LinearLayout>

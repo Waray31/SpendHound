@@ -709,19 +709,27 @@ public class MainActivity extends AppCompatActivity {
         dialog.show();
     }
 
+    // Overload for backward compatibility
     public void getDebtList(String selectedStatus, DebtNumCallback callback) {
+        getDebtList(selectedStatus, callback, null);
+    }
+
+    public void getDebtList(String selectedStatus, DebtNumCallback callback, DebtTransactionAdapter.OnBorrowerActionListener actionListener) {
         debtList.clear();
 
         String currentUserId = Objects.requireNonNull(mAuth.getCurrentUser()).getUid();
 
         DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
+        final DebtTransactionAdapter.OnBorrowerActionListener finalActionListener = actionListener;
         databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
 
             @SuppressLint("NotifyDataSetChanged")
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
+                    String monthYear = monthSnapshot.getKey();
                     for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
+                        String day = daySnapshot.getKey();
                         for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
                             // New structure: borrows/{month}/{day}/{borrowId}
                             BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
@@ -730,10 +738,10 @@ public class MainActivity extends AppCompatActivity {
                                 // New UID-based structure - check if current user is the borrower
                                 if (Objects.equals(borrowNowTransaction.getBorrowerID(), currentUserId)) {
                                     String status = borrowNowTransaction.getStatus();
-                                    // Include "For Lender Approval" and "Payment Pending" for borrower's debt view
-                                    if (!Objects.equals(status, "Declined") && !Objects.equals(status, "Payment Denied")) {
-                                        if (Objects.equals("All", selectedStatus) || Objects.equals(status, selectedStatus)) {
-                                            addDebtTransactionFromBorrowNow(borrowNowTransaction);
+                                    // Exclude Removed status from all views
+                                    if (!Objects.equals(status, "Removed") && !Objects.equals(status, "Payment Denied")) {
+                                        if (shouldIncludeForDebtStatus(status, selectedStatus)) {
+                                            addDebtTransactionFromBorrowNow(borrowNowTransaction, monthYear, day, borrowSnapshot.getKey());
                                         }
                                     }
                                 }
@@ -745,9 +753,9 @@ public class MainActivity extends AppCompatActivity {
                                         BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
                                         if (borrowTransaction != null) {
                                             String status = borrowTransaction.getStatus();
-                                            // Include "For Lender Approval" and "Payment Pending" for borrower's debt view
-                                            if (!Objects.equals(status, "Declined") && !Objects.equals(status, "Payment Denied")) {
-                                                if (Objects.equals("All", selectedStatus) || Objects.equals(status, selectedStatus)) {
+                                            // Exclude Removed status from all views
+                                            if (!Objects.equals(status, "Removed") && !Objects.equals(status, "Payment Denied")) {
+                                                if (shouldIncludeForDebtStatus(status, selectedStatus)) {
                                                     addDebtTransactionToList(borrowTransaction);
                                                 }
                                             }
@@ -778,25 +786,24 @@ public class MainActivity extends AppCompatActivity {
                 // To Show Debt List without Checkbox
                 RecyclerView recyclerView = findViewById(R.id.debtRecyclerList);
                 if (recyclerView != null) {
-                    DebtTransactionAdapter adapter = new DebtTransactionAdapter(debtList, (transaction, position) -> {
-                        // Navigate to PendingStatusActivity for pending items
-                        Intent intent = new Intent(MainActivity.this, PendingStatusActivity.class);
-                        startActivity(intent);
-                    });
+                    DebtTransactionAdapter.OnBorrowerActionListener listener = finalActionListener != null ? finalActionListener : new DebtTransactionAdapter.OnBorrowerActionListener() {
+                        @Override
+                        public void onPayClicked(BorrowTransaction transaction, int position) {
+                        }
+
+                        @Override
+                        public void onRemoveClicked(BorrowTransaction transaction, int position) {
+                        }
+
+                        @Override
+                        public void onTryAgainClicked(BorrowTransaction transaction, int position) {
+                        }
+                    };
+                    DebtTransactionAdapter adapter = new DebtTransactionAdapter(debtList, listener);
                     recyclerView.setAdapter(adapter);
                     adapter.notifyDataSetChanged();
                     RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
                     recyclerView.setLayoutManager(layoutManager);
-                }
-
-                // To Show Debt List with Checkbox
-                RecyclerView recyclerViewCheckBox = findViewById(R.id.debtCheckboxRecyclerList);
-                if (recyclerViewCheckBox != null) {
-                    RecyclerView.Adapter<BorrowTransactionAdapter.ViewHolder> adapterCheckbox = new BorrowTransactionAdapter(debtList);
-                    recyclerViewCheckBox.setAdapter(adapterCheckbox);
-                    adapterCheckbox.notifyDataSetChanged();
-                    RecyclerView.LayoutManager layoutManagerCheckbox = new LinearLayoutManager(MainActivity.this);
-                    recyclerViewCheckBox.setLayoutManager(layoutManagerCheckbox);
                 }
 
                 debtNum = debtList.size();
@@ -811,12 +818,19 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void addDebtTransactionFromBorrowNow(BorrowNowTransaction borrowNowTransaction) {
+    private void addDebtTransactionFromBorrowNow(BorrowNowTransaction borrowNowTransaction, String monthYear, String day, String borrowId) {
         String date = borrowNowTransaction.getDate();
         String borrowee = borrowNowTransaction.getLender(); // Lender name for display
         String borrowedAmount = borrowNowTransaction.getBorrowedAmountStr();
 
         date = changeFormatDate(date);
+
+        // Format paymentSentDate if available
+        String paymentSentDateStr = null;
+        if (borrowNowTransaction.getPaymentSentDate() > 0) {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH);
+            paymentSentDateStr = dateFormat.format(new Date(borrowNowTransaction.getPaymentSentDate()));
+        }
 
         BorrowTransaction borrowTrans = new BorrowTransaction(
                 date,
@@ -824,15 +838,25 @@ public class MainActivity extends AppCompatActivity {
                 borrowedAmount,
                 borrowNowTransaction.getStatus()
         );
+        borrowTrans.setPaymentSentDate(paymentSentDateStr);
+        borrowTrans.setBorrowId(borrowId);
+        borrowTrans.setMonthYear(monthYear);
+        borrowTrans.setDay(day);
         debtList.add(borrowTrans);
     }
 
+    // Overload for backward compatibility
     public void getDebtListMonthly(String selectedMonth, String selectedStatus, DebtNumCallback callback) {
+        getDebtListMonthly(selectedMonth, selectedStatus, callback, null);
+    }
+
+    public void getDebtListMonthly(String selectedMonth, String selectedStatus, DebtNumCallback callback, DebtTransactionAdapter.OnBorrowerActionListener actionListener) {
         debtList.clear();
 
         String currentUserId = Objects.requireNonNull(mAuth.getCurrentUser()).getUid();
 
         DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
+        final DebtTransactionAdapter.OnBorrowerActionListener finalActionListener = actionListener;
 
         if (selectedMonth != null && !selectedMonth.equals("All")) {
             DatabaseReference monthRef = databaseReference.child(selectedMonth);
@@ -842,6 +866,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                     for (DataSnapshot daySnapshot : dataSnapshot.getChildren()) {
+                        String day = daySnapshot.getKey();
                         for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
                             // New structure: borrows/{month}/{day}/{borrowId}
                             BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
@@ -850,10 +875,10 @@ public class MainActivity extends AppCompatActivity {
                                 // New UID-based structure
                                 if (Objects.equals(borrowNowTransaction.getBorrowerID(), currentUserId)) {
                                     String status = borrowNowTransaction.getStatus();
-                                    // Include "For Lender Approval" and "Payment Pending" for borrower's debt view
-                                    if (!Objects.equals(status, "Declined") && !Objects.equals(status, "Payment Denied")) {
-                                        if (Objects.equals("All", selectedStatus) || Objects.equals(status, selectedStatus)) {
-                                            addDebtTransactionFromBorrowNow(borrowNowTransaction);
+                                    // Exclude Removed status from all views
+                                    if (!Objects.equals(status, "Removed") && !Objects.equals(status, "Payment Denied")) {
+                                        if (shouldIncludeForDebtStatus(status, selectedStatus)) {
+                                            addDebtTransactionFromBorrowNow(borrowNowTransaction, selectedMonth, day, borrowSnapshot.getKey());
                                         }
                                     }
                                 }
@@ -865,9 +890,9 @@ public class MainActivity extends AppCompatActivity {
                                         BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
                                         if (borrowTransaction != null) {
                                             String status = borrowTransaction.getStatus();
-                                            // Include "For Lender Approval" and "Payment Pending" for borrower's debt view
-                                            if (!Objects.equals(status, "Declined") && !Objects.equals(status, "Payment Denied")) {
-                                                if (Objects.equals("All", selectedStatus) || Objects.equals(status, selectedStatus)) {
+                                            // Exclude Removed status from all views
+                                            if (!Objects.equals(status, "Removed") && !Objects.equals(status, "Payment Denied")) {
+                                                if (shouldIncludeForDebtStatus(status, selectedStatus)) {
                                                     addDebtTransactionToList(borrowTransaction);
                                                 }
                                             }
@@ -894,28 +919,27 @@ public class MainActivity extends AppCompatActivity {
                         }
                     });
 
-                    // To Show Debt List without Checkbox
+                    // To Show Debt List
                     RecyclerView recyclerView = findViewById(R.id.debtRecyclerList);
                     if (recyclerView != null) {
-                        DebtTransactionAdapter adapter = new DebtTransactionAdapter(debtList, (transaction, position) -> {
-                            // Navigate to PendingStatusActivity for pending items
-                            Intent intent = new Intent(MainActivity.this, PendingStatusActivity.class);
-                            startActivity(intent);
-                        });
+                        DebtTransactionAdapter.OnBorrowerActionListener listener = finalActionListener != null ? finalActionListener : new DebtTransactionAdapter.OnBorrowerActionListener() {
+                            @Override
+                            public void onPayClicked(BorrowTransaction transaction, int position) {
+                            }
+
+                            @Override
+                            public void onRemoveClicked(BorrowTransaction transaction, int position) {
+                            }
+
+                            @Override
+                            public void onTryAgainClicked(BorrowTransaction transaction, int position) {
+                            }
+                        };
+                        DebtTransactionAdapter adapter = new DebtTransactionAdapter(debtList, listener);
                         recyclerView.setAdapter(adapter);
                         adapter.notifyDataSetChanged();
                         RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
                         recyclerView.setLayoutManager(layoutManager);
-                    }
-
-                    // To Show Debt List with Checkbox
-                    RecyclerView recyclerViewCheckBox = findViewById(R.id.debtCheckboxRecyclerList);
-                    if (recyclerViewCheckBox != null) {
-                        RecyclerView.Adapter<BorrowTransactionAdapter.ViewHolder> adapterCheckbox = new BorrowTransactionAdapter(debtList);
-                        recyclerViewCheckBox.setAdapter(adapterCheckbox);
-                        adapterCheckbox.notifyDataSetChanged();
-                        RecyclerView.LayoutManager layoutManagerCheckbox = new LinearLayoutManager(MainActivity.this);
-                        recyclerViewCheckBox.setLayoutManager(layoutManagerCheckbox);
                     }
 
                     debtNum = debtList.size();
@@ -950,19 +974,27 @@ public class MainActivity extends AppCompatActivity {
         debtList.add(borrowTrans);
     }
 
+    // Overload for backward compatibility
     public void getOwedList(String selectedStatus, OwedNumCallback callback) {
+        getOwedList(selectedStatus, callback, null);
+    }
+
+    public void getOwedList(String selectedStatus, OwedNumCallback callback, OwedTransactionAdapter.OnLenderActionListener actionListener) {
         owedList.clear();
 
         String currentUserId = Objects.requireNonNull(mAuth.getCurrentUser()).getUid();
 
         DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
+        final OwedTransactionAdapter.OnLenderActionListener finalActionListener = actionListener;
         databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
 
             @SuppressLint("NotifyDataSetChanged")
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
+                    String monthYear = monthSnapshot.getKey();
                     for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
+                        String day = daySnapshot.getKey();
                         for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
                             // New structure: borrows/{month}/{day}/{borrowId}
                             BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
@@ -971,10 +1003,10 @@ public class MainActivity extends AppCompatActivity {
                                 // New UID-based structure - check if current user is the lender
                                 if (Objects.equals(borrowNowTransaction.getLenderID(), currentUserId)) {
                                     String status = borrowNowTransaction.getStatus();
-                                    // Include "For Lender Approval" and "Payment Pending" for lender's owed view
-                                    if (!Objects.equals(status, "Declined") && !Objects.equals(status, "Payment Denied")) {
-                                        if (Objects.equals("All", selectedStatus) || Objects.equals(status, selectedStatus)) {
-                                            addOwedTransactionFromBorrowNow(borrowNowTransaction);
+                                    // Exclude Declined and Removed statuses for lender view
+                                    if (!Objects.equals(status, "Declined") && !Objects.equals(status, "Payment Denied") && !Objects.equals(status, "Removed")) {
+                                        if (shouldIncludeForStatus(status, selectedStatus)) {
+                                            addOwedTransactionFromBorrowNow(borrowNowTransaction, monthYear, day, borrowSnapshot.getKey());
                                         }
                                     }
                                 }
@@ -987,11 +1019,9 @@ public class MainActivity extends AppCompatActivity {
                                         if (borrowTransaction != null) {
                                             String borrower = borrowTransaction.getBorrowee();
                                             String status = borrowTransaction.getStatus();
-                                            // Include "For Lender Approval" and "Payment Pending" for lender's owed view
-                                            if (!Objects.equals(status, "Declined") && !Objects.equals(status, "Payment Denied")) {
-                                                if (Objects.equals(borrower, currentNickname) && Objects.equals("All", selectedStatus)) {
-                                                    addOwedTransactionToList(borrowTransaction, currentUserStr);
-                                                } else if (Objects.equals(borrower, currentNickname) && Objects.equals(status, selectedStatus)) {
+                                            // Exclude Declined and Removed statuses for lender view
+                                            if (!Objects.equals(status, "Declined") && !Objects.equals(status, "Payment Denied") && !Objects.equals(status, "Removed")) {
+                                                if (Objects.equals(borrower, currentNickname) && shouldIncludeForStatus(status, selectedStatus)) {
                                                     addOwedTransactionToList(borrowTransaction, currentUserStr);
                                                 }
                                             }
@@ -1021,11 +1051,24 @@ public class MainActivity extends AppCompatActivity {
 
                 RecyclerView recyclerView = findViewById(R.id.owedRecyclerList);
                 if (recyclerView != null) {
-                    OwedTransactionAdapter adapter = new OwedTransactionAdapter(owedList, (transaction, position) -> {
-                        // Navigate to PendingStatusActivity for pending items
-                        Intent intent = new Intent(MainActivity.this, PendingStatusActivity.class);
-                        startActivity(intent);
-                    });
+                    OwedTransactionAdapter.OnLenderActionListener listener = finalActionListener != null ? finalActionListener : new OwedTransactionAdapter.OnLenderActionListener() {
+                        @Override
+                        public void onNotYetClicked(OwedTransaction transaction, int position) {
+                        }
+
+                        @Override
+                        public void onReceivedClicked(OwedTransaction transaction, int position) {
+                        }
+
+                        @Override
+                        public void onDeclineClicked(OwedTransaction transaction, int position) {
+                        }
+
+                        @Override
+                        public void onApprovedClicked(OwedTransaction transaction, int position) {
+                        }
+                    };
+                    OwedTransactionAdapter adapter = new OwedTransactionAdapter(owedList, listener);
                     recyclerView.setAdapter(adapter);
                     adapter.notifyDataSetChanged();
                     RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);
@@ -1045,32 +1088,77 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void addOwedTransactionFromBorrowNow(BorrowNowTransaction borrowNowTransaction) {
+    /**
+     * Check if a status should be included based on the selected filter
+     */
+    private boolean shouldIncludeForStatus(String status, String selectedStatus) {
+        if (Objects.equals("All", selectedStatus)) {
+            return true;
+        } else if (Objects.equals("Pending", selectedStatus)) {
+            // Pending tab includes both "Pending Payment" and "For Lender Approval"
+            return Objects.equals(status, "Pending Payment") || Objects.equals(status, "For Lender Approval");
+        } else {
+            return Objects.equals(status, selectedStatus);
+        }
+    }
+
+    /**
+     * Check if a status should be included for debt list (My Debt tab)
+     * Includes Declined status in Pending tab
+     */
+    private boolean shouldIncludeForDebtStatus(String status, String selectedStatus) {
+        if (Objects.equals("All", selectedStatus)) {
+            return true;
+        } else if (Objects.equals("Pending", selectedStatus)) {
+            // Pending tab includes "Pending Payment", "For Lender Approval", and "Declined" for My Debt
+            return Objects.equals(status, "Pending Payment") || Objects.equals(status, "For Lender Approval") || Objects.equals(status, "Declined");
+        } else {
+            return Objects.equals(status, selectedStatus);
+        }
+    }
+
+    private void addOwedTransactionFromBorrowNow(BorrowNowTransaction borrowNowTransaction, String monthYear, String day, String borrowId) {
         String date = borrowNowTransaction.getDate();
-        String borrower = borrowNowTransaction.getBorrowerName(); // Borrower name for display
+        String borrower = borrowNowTransaction.getBorrowerName();
         if (borrower == null || borrower.isEmpty()) {
-            // Fallback to lender field for legacy compatibility
             borrower = "Unknown";
         }
         String borrowedAmount = borrowNowTransaction.getBorrowedAmountStr();
 
         date = changeFormatDate(date);
 
+        // Format paymentSentDate if available
+        String paymentSentDateStr = null;
+        if (borrowNowTransaction.getPaymentSentDate() > 0) {
+            SimpleDateFormat dateFormat = new SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH);
+            paymentSentDateStr = dateFormat.format(new Date(borrowNowTransaction.getPaymentSentDate()));
+        }
+
         OwedTransaction owedTrans = new OwedTransaction(
                 date,
                 borrower,
                 borrowedAmount,
-                borrowNowTransaction.getStatus()
+                borrowNowTransaction.getStatus(),
+                paymentSentDateStr,
+                borrowId,
+                monthYear,
+                day
         );
         owedList.add(owedTrans);
     }
 
+    // Overload for backward compatibility
     public void getOwedListMonthly(String selectedMonth, String selectedStatus, OwedNumCallback callback) {
+        getOwedListMonthly(selectedMonth, selectedStatus, callback, null);
+    }
+
+    public void getOwedListMonthly(String selectedMonth, String selectedStatus, OwedNumCallback callback, OwedTransactionAdapter.OnLenderActionListener actionListener) {
         owedList.clear();
 
         String currentUserId = Objects.requireNonNull(mAuth.getCurrentUser()).getUid();
 
         DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
+        final OwedTransactionAdapter.OnLenderActionListener finalActionListener = actionListener;
 
         if (selectedMonth != null && !selectedMonth.equals("All")) {
             DatabaseReference monthRef = databaseReference.child(selectedMonth);
@@ -1080,6 +1168,7 @@ public class MainActivity extends AppCompatActivity {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                     for (DataSnapshot daySnapshot : dataSnapshot.getChildren()) {
+                        String day = daySnapshot.getKey();
                         for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
                             // New structure: borrows/{month}/{day}/{borrowId}
                             BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
@@ -1088,10 +1177,10 @@ public class MainActivity extends AppCompatActivity {
                                 // New UID-based structure - check if current user is the lender
                                 if (Objects.equals(borrowNowTransaction.getLenderID(), currentUserId)) {
                                     String status = borrowNowTransaction.getStatus();
-                                    // Include "For Lender Approval" and "Payment Pending" for lender's owed view
-                                    if (!Objects.equals(status, "Declined") && !Objects.equals(status, "Payment Denied")) {
-                                        if (Objects.equals("All", selectedStatus) || Objects.equals(status, selectedStatus)) {
-                                            addOwedTransactionFromBorrowNow(borrowNowTransaction);
+                                    // Exclude Declined and Removed statuses for lender view
+                                    if (!Objects.equals(status, "Declined") && !Objects.equals(status, "Payment Denied") && !Objects.equals(status, "Removed")) {
+                                        if (shouldIncludeForStatus(status, selectedStatus)) {
+                                            addOwedTransactionFromBorrowNow(borrowNowTransaction, selectedMonth, day, borrowSnapshot.getKey());
                                         }
                                     }
                                 }
@@ -1104,11 +1193,9 @@ public class MainActivity extends AppCompatActivity {
                                         if (borrowTransaction != null) {
                                             String borrower = borrowTransaction.getBorrowee();
                                             String status = borrowTransaction.getStatus();
-                                            // Include "For Lender Approval" and "Payment Pending" for lender's owed view
-                                            if (!Objects.equals(status, "Declined") && !Objects.equals(status, "Payment Denied")) {
-                                                if (Objects.equals(borrower, currentNickname) && Objects.equals("All", selectedStatus)) {
-                                                    addOwedTransactionToList(borrowTransaction, currentUserStr);
-                                                } else if (Objects.equals(borrower, currentNickname) && Objects.equals(status, selectedStatus)) {
+                                            // Exclude Declined and Removed statuses for lender view
+                                            if (!Objects.equals(status, "Declined") && !Objects.equals(status, "Payment Denied") && !Objects.equals(status, "Removed")) {
+                                                if (Objects.equals(borrower, currentNickname) && shouldIncludeForStatus(status, selectedStatus)) {
                                                     addOwedTransactionToList(borrowTransaction, currentUserStr);
                                                 }
                                             }
@@ -1137,11 +1224,24 @@ public class MainActivity extends AppCompatActivity {
 
                     RecyclerView recyclerView = findViewById(R.id.owedRecyclerList);
                     if (recyclerView != null) {
-                        OwedTransactionAdapter adapter = new OwedTransactionAdapter(owedList, (transaction, position) -> {
-                            // Navigate to PendingStatusActivity for pending items
-                            Intent intent = new Intent(MainActivity.this, PendingStatusActivity.class);
-                            startActivity(intent);
-                        });
+                        OwedTransactionAdapter.OnLenderActionListener listener = finalActionListener != null ? finalActionListener : new OwedTransactionAdapter.OnLenderActionListener() {
+                            @Override
+                            public void onNotYetClicked(OwedTransaction transaction, int position) {
+                            }
+
+                            @Override
+                            public void onReceivedClicked(OwedTransaction transaction, int position) {
+                            }
+
+                            @Override
+                            public void onDeclineClicked(OwedTransaction transaction, int position) {
+                            }
+
+                            @Override
+                            public void onApprovedClicked(OwedTransaction transaction, int position) {
+                            }
+                        };
+                        OwedTransactionAdapter adapter = new OwedTransactionAdapter(owedList, listener);
                         recyclerView.setAdapter(adapter);
                         adapter.notifyDataSetChanged();
                         RecyclerView.LayoutManager layoutManager = new LinearLayoutManager(MainActivity.this);

@@ -4,6 +4,7 @@ import android.annotation.SuppressLint;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -18,9 +19,16 @@ public class DebtTransactionAdapter extends RecyclerView.Adapter<DebtTransaction
     private final ArrayList<BorrowTransaction> borrowTransactionList;
     private ArrayList<Integer> checkedPositions;
     private OnItemClickListener clickListener;
+    private OnBorrowerActionListener borrowerActionListener;
 
     public interface OnItemClickListener {
         void onItemClick(BorrowTransaction transaction, int position);
+    }
+
+    public interface OnBorrowerActionListener {
+        void onPayClicked(BorrowTransaction transaction, int position);
+        void onRemoveClicked(BorrowTransaction transaction, int position);
+        void onTryAgainClicked(BorrowTransaction transaction, int position);
     }
 
     public DebtTransactionAdapter(ArrayList<BorrowTransaction> borrowTransactionList) {
@@ -34,9 +42,20 @@ public class DebtTransactionAdapter extends RecyclerView.Adapter<DebtTransaction
         checkedPositions = new ArrayList<>();
     }
 
+    public DebtTransactionAdapter(ArrayList<BorrowTransaction> borrowTransactionList, OnBorrowerActionListener borrowerActionListener) {
+        this.borrowTransactionList = borrowTransactionList;
+        this.borrowerActionListener = borrowerActionListener;
+        checkedPositions = new ArrayList<>();
+    }
+
     public void setOnItemClickListener(OnItemClickListener listener) {
         this.clickListener = listener;
     }
+
+    public void setOnBorrowerActionListener(OnBorrowerActionListener listener) {
+        this.borrowerActionListener = listener;
+    }
+
     // Add this method to retrieve a BorrowTransaction by its position
     public BorrowTransaction getBorrowTransaction(int position) {
         return borrowTransactionList.get(position);
@@ -59,6 +78,11 @@ public class DebtTransactionAdapter extends RecyclerView.Adapter<DebtTransaction
         holder.debtAmountBorrowedTV.setText(transaction.getBorrowedAmountStr());
         holder.debtStatusTV.setText(transaction.getStatus());
 
+        // Hide all action layouts by default
+        holder.unpaidActionsLayout.setVisibility(View.GONE);
+        holder.declinedActionsLayout.setVisibility(View.GONE);
+        holder.paymentSentDateTV.setVisibility(View.GONE);
+
         // Set status color based on status value
         String status = transaction.getStatus();
         int statusColor;
@@ -66,6 +90,7 @@ public class DebtTransactionAdapter extends RecyclerView.Adapter<DebtTransaction
         boolean isPendingPayment = false;
         boolean isPaid = false;
         boolean isUnpaid = false;
+        boolean isDeclined = false;
         if ("Paid".equalsIgnoreCase(status)) {
             statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.green);
             isPaid = true;
@@ -79,6 +104,9 @@ public class DebtTransactionAdapter extends RecyclerView.Adapter<DebtTransaction
         } else if ("For Lender Approval".equalsIgnoreCase(status)) {
             statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.blue);
             isPendingStatus = true;
+        } else if ("Declined".equalsIgnoreCase(status)) {
+            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.red);
+            isDeclined = true;
         } else if ("Unpaid".equalsIgnoreCase(status)) {
             statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.red);
             isUnpaid = true;
@@ -86,6 +114,19 @@ public class DebtTransactionAdapter extends RecyclerView.Adapter<DebtTransaction
             statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.red);
         }
         holder.debtStatusTV.setTextColor(statusColor);
+
+        // Show action buttons based on status
+        if (isUnpaid) {
+            holder.unpaidActionsLayout.setVisibility(View.VISIBLE);
+        } else if (isDeclined) {
+            holder.declinedActionsLayout.setVisibility(View.VISIBLE);
+        }
+
+        // Show payment sent date for Paid status
+        if (isPaid && transaction.getPaymentSentDate() != null && !transaction.getPaymentSentDate().isEmpty()) {
+            holder.paymentSentDateTV.setVisibility(View.VISIBLE);
+            holder.paymentSentDateTV.setText("Sent: " + transaction.getPaymentSentDate());
+        }
 
         // Cast to MaterialCardView for elevation and background
         MaterialCardView cardView = (MaterialCardView) holder.itemView;
@@ -104,10 +145,32 @@ public class DebtTransactionAdapter extends RecyclerView.Adapter<DebtTransaction
         } else if (isPendingStatus) {
             cardView.setCardBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.pending_approval_bg));
             cardView.setCardElevation(4 * density);
+        } else if (isDeclined) {
+            cardView.setCardBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.unpaid_bg));
+            cardView.setCardElevation(4 * density);
         } else {
             cardView.setCardBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.whitest));
             cardView.setCardElevation(4 * density);
         }
+
+        // Set click listeners for action buttons
+        holder.payBtn.setOnClickListener(v -> {
+            if (borrowerActionListener != null) {
+                borrowerActionListener.onPayClicked(transaction, holder.getAdapterPosition());
+            }
+        });
+
+        holder.removeBtn.setOnClickListener(v -> {
+            if (borrowerActionListener != null) {
+                borrowerActionListener.onRemoveClicked(transaction, holder.getAdapterPosition());
+            }
+        });
+
+        holder.tryAgainBtn.setOnClickListener(v -> {
+            if (borrowerActionListener != null) {
+                borrowerActionListener.onTryAgainClicked(transaction, holder.getAdapterPosition());
+            }
+        });
 
         // Set click listener for pending items to navigate to PendingStatusActivity
         final boolean finalIsPendingStatus = isPendingStatus;
@@ -133,6 +196,12 @@ public class DebtTransactionAdapter extends RecyclerView.Adapter<DebtTransaction
         public TextView debtBorroweeTV;
         public TextView debtAmountBorrowedTV;
         public TextView debtStatusTV;
+        public TextView paymentSentDateTV;
+        public LinearLayout unpaidActionsLayout;
+        public LinearLayout declinedActionsLayout;
+        public TextView payBtn;
+        public TextView removeBtn;
+        public TextView tryAgainBtn;
 
         public ViewHolder(View itemView) {
             super(itemView);
@@ -140,6 +209,12 @@ public class DebtTransactionAdapter extends RecyclerView.Adapter<DebtTransaction
             debtBorroweeTV = itemView.findViewById(R.id.debtBorroweeTV);
             debtAmountBorrowedTV = itemView.findViewById(R.id.debtAmountBorrowedTV);
             debtStatusTV = itemView.findViewById(R.id.debtStatusTV);
+            paymentSentDateTV = itemView.findViewById(R.id.debtPaymentSentDateTV);
+            unpaidActionsLayout = itemView.findViewById(R.id.unpaidActionsLayout);
+            declinedActionsLayout = itemView.findViewById(R.id.declinedActionsLayout);
+            payBtn = itemView.findViewById(R.id.payBtn);
+            removeBtn = itemView.findViewById(R.id.removeBtn);
+            tryAgainBtn = itemView.findViewById(R.id.tryAgainBtn);
         }
     }
 }

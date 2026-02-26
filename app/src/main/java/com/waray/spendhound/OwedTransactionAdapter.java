@@ -3,6 +3,7 @@ package com.waray.spendhound;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -16,9 +17,17 @@ import java.util.ArrayList;
 public class OwedTransactionAdapter extends RecyclerView.Adapter<OwedTransactionAdapter.ViewHolder> {
     private final ArrayList<OwedTransaction> owedTransactionList;
     private OnItemClickListener clickListener;
+    private OnLenderActionListener lenderActionListener;
 
     public interface OnItemClickListener {
         void onItemClick(OwedTransaction transaction, int position);
+    }
+
+    public interface OnLenderActionListener {
+        void onNotYetClicked(OwedTransaction transaction, int position);
+        void onReceivedClicked(OwedTransaction transaction, int position);
+        void onDeclineClicked(OwedTransaction transaction, int position);
+        void onApprovedClicked(OwedTransaction transaction, int position);
     }
 
     public OwedTransactionAdapter(ArrayList<OwedTransaction> owedTransactionList) {
@@ -30,8 +39,17 @@ public class OwedTransactionAdapter extends RecyclerView.Adapter<OwedTransaction
         this.clickListener = clickListener;
     }
 
+    public OwedTransactionAdapter(ArrayList<OwedTransaction> owedTransactionList, OnLenderActionListener lenderActionListener) {
+        this.owedTransactionList = owedTransactionList;
+        this.lenderActionListener = lenderActionListener;
+    }
+
     public void setOnItemClickListener(OnItemClickListener listener) {
         this.clickListener = listener;
+    }
+
+    public void setOnLenderActionListener(OnLenderActionListener listener) {
+        this.lenderActionListener = listener;
     }
 
     @NonNull
@@ -50,6 +68,11 @@ public class OwedTransactionAdapter extends RecyclerView.Adapter<OwedTransaction
         holder.owedBorroweeTV.setText(transaction.getBorrower());
         holder.owedAmountBorrowedTV.setText(transaction.getBorrowedAmountStr());
         holder.owedStatusTV.setText(transaction.getStatus());
+
+        // Hide all action layouts by default
+        holder.pendingPaymentActionsLayout.setVisibility(View.GONE);
+        holder.lenderApprovalActionsLayout.setVisibility(View.GONE);
+        holder.paymentSentDateTV.setVisibility(View.GONE);
 
         // Set status color based on status value
         String status = transaction.getStatus();
@@ -79,6 +102,19 @@ public class OwedTransactionAdapter extends RecyclerView.Adapter<OwedTransaction
         }
         holder.owedStatusTV.setTextColor(statusColor);
 
+        // Show action buttons based on status
+        if (isPendingPayment) {
+            holder.pendingPaymentActionsLayout.setVisibility(View.VISIBLE);
+        } else if (isPendingStatus) {
+            holder.lenderApprovalActionsLayout.setVisibility(View.VISIBLE);
+        }
+
+        // Show payment sent date for Paid status
+        if (isPaid && transaction.getPaymentSentDate() != null && !transaction.getPaymentSentDate().isEmpty()) {
+            holder.paymentSentDateTV.setVisibility(View.VISIBLE);
+            holder.paymentSentDateTV.setText("Sent: " + transaction.getPaymentSentDate());
+        }
+
         // Cast to MaterialCardView for elevation and background
         MaterialCardView cardView = (MaterialCardView) holder.itemView;
         float density = holder.itemView.getContext().getResources().getDisplayMetrics().density;
@@ -101,7 +137,32 @@ public class OwedTransactionAdapter extends RecyclerView.Adapter<OwedTransaction
             cardView.setCardElevation(4 * density);
         }
 
-        // Set click listener for pending items to navigate to PendingStatusActivity
+        // Set click listeners for action buttons
+        holder.notYetBtn.setOnClickListener(v -> {
+            if (lenderActionListener != null) {
+                lenderActionListener.onNotYetClicked(transaction, holder.getAdapterPosition());
+            }
+        });
+
+        holder.receivedBtn.setOnClickListener(v -> {
+            if (lenderActionListener != null) {
+                lenderActionListener.onReceivedClicked(transaction, holder.getAdapterPosition());
+            }
+        });
+
+        holder.declineBtn.setOnClickListener(v -> {
+            if (lenderActionListener != null) {
+                lenderActionListener.onDeclineClicked(transaction, holder.getAdapterPosition());
+            }
+        });
+
+        holder.approvedBtn.setOnClickListener(v -> {
+            if (lenderActionListener != null) {
+                lenderActionListener.onApprovedClicked(transaction, holder.getAdapterPosition());
+            }
+        });
+
+        // Set click listener for item
         final boolean finalIsPendingStatus = isPendingStatus;
         holder.itemView.setOnClickListener(v -> {
             if (clickListener != null && finalIsPendingStatus) {
@@ -120,6 +181,13 @@ public class OwedTransactionAdapter extends RecyclerView.Adapter<OwedTransaction
         public TextView owedBorroweeTV;
         public TextView owedAmountBorrowedTV;
         public TextView owedStatusTV;
+        public TextView paymentSentDateTV;
+        public LinearLayout pendingPaymentActionsLayout;
+        public LinearLayout lenderApprovalActionsLayout;
+        public TextView notYetBtn;
+        public TextView receivedBtn;
+        public TextView declineBtn;
+        public TextView approvedBtn;
 
         public ViewHolder(View itemView) {
             super(itemView);
@@ -127,6 +195,13 @@ public class OwedTransactionAdapter extends RecyclerView.Adapter<OwedTransaction
             owedBorroweeTV = itemView.findViewById(R.id.owedBorroweeTV);
             owedAmountBorrowedTV = itemView.findViewById(R.id.owedAmountBorrowedTV);
             owedStatusTV = itemView.findViewById(R.id.owedStatusTV);
+            paymentSentDateTV = itemView.findViewById(R.id.owedPaymentSentDateTV);
+            pendingPaymentActionsLayout = itemView.findViewById(R.id.pendingPaymentActionsLayout);
+            lenderApprovalActionsLayout = itemView.findViewById(R.id.lenderApprovalActionsLayout);
+            notYetBtn = itemView.findViewById(R.id.notYetBtn);
+            receivedBtn = itemView.findViewById(R.id.receivedBtn);
+            declineBtn = itemView.findViewById(R.id.declineBtn);
+            approvedBtn = itemView.findViewById(R.id.approvedBtn);
         }
     }
 }

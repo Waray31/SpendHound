@@ -3,7 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:layout_margin="4dp"
+    android:layout_marginTop="4dp"
+    android:layout_marginBottom="16dp"
     app:cardBackgroundColor="@color/whitest"
     app:cardCornerRadius="8dp"
     app:cardElevation="4dp"
@@ -12,8 +13,14 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="12dp">
+        android:paddingHorizontal="12dp"
+        android:layout_marginTop="12dp">
 
         <!-- Date Row -->
         <LinearLayout
@@ -102,8 +109,7 @@
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:layout_marginTop="8dp"
-            android:layout_marginBottom="6dp"
+            android:layout_marginVertical="6dp"
             android:background="@color/lightgrey" />
 
         <!-- Status Row -->
@@ -111,6 +117,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
+            android:layout_marginBottom="12dp"
             android:gravity="center_vertical">
 
             <TextView
@@ -126,11 +133,96 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
+                android:textAlignment="textEnd"
                 android:fontFamily="@font/montserratalternatess_bold"
                 android:text="@string/status_unpaid"
-                android:textAlignment="textEnd"
                 android:textColor="@color/red"
                 android:textSize="12sp" />
+
+            <!-- Payment Sent Date (visible only for Paid status) -->
+            <TextView
+                android:id="@+id/debtPaymentSentDateTV"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:textAlignment="textStart"
+                android:textColor="@color/grey"
+                android:textSize="10sp"
+                android:visibility="gone" />
+        </LinearLayout>
+
+    </LinearLayout>
+
+        <!-- Action Button for Unpaid (Pay) -->
+        <LinearLayout
+            android:id="@+id/unpaidActionsLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="end"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/payBtn"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:background="@drawable/bg_action_btn_green"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:gravity="center"
+                android:paddingHorizontal="24dp"
+                android:paddingVertical="4dp"
+                android:text="@string/btn_pay"
+                android:textColor="@color/whitest"
+                android:textSize="11sp"
+                android:clickable="true"
+                android:focusable="true" />
+        </LinearLayout>
+
+        <!-- Action Buttons for Declined (Remove / Try Again) -->
+        <LinearLayout
+            android:id="@+id/declinedActionsLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:visibility="gone">
+
+            <TextView
+                android:id="@+id/removeBtn"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/bg_action_btn_grey"
+                android:drawableStart="@drawable/ic_close_24dp"
+                android:drawablePadding="4dp"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:gravity="center"
+                android:paddingHorizontal="24dp"
+                android:paddingVertical="4dp"
+                android:text="@string/btn_remove"
+                android:textColor="@color/darkBlue"
+                android:textSize="12sp"
+                android:clickable="true"
+                android:focusable="true" />
+
+            <TextView
+                android:id="@+id/tryAgainBtn"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/bg_action_btn_green"
+                android:drawableStart="@drawable/ic_check_24dp"
+                android:drawablePadding="4dp"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:gravity="center"
+                android:paddingHorizontal="24dp"
+                android:paddingVertical="4dp"
+                android:text="@string/btn_try_again"
+                android:textColor="@color/whitest"
+                android:textSize="12sp"
+                android:clickable="true"
+                android:focusable="true" />
         </LinearLayout>
 
     </LinearLayout>
