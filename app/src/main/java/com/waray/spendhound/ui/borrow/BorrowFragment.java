@@ -87,6 +87,9 @@ public class BorrowFragment extends Fragment {
     // State tracking for better UX
     private boolean isLoading = false;
 
+    private View globalLoadingOverlay;
+    private ProgressBar globalProgressBar;
+
     @SuppressLint("MissingInflatedId")
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
@@ -120,6 +123,10 @@ public class BorrowFragment extends Fragment {
         if (activity != null && activity.getSupportActionBar() != null) {
             activity.getSupportActionBar().hide();
         }
+
+        globalLoadingOverlay = getActivity().findViewById(R.id.loadingOverlay);
+        globalProgressBar = getActivity().findViewById(R.id.progressBar);
+
         return view;
     }
 
@@ -603,7 +610,7 @@ public class BorrowFragment extends Fragment {
         EditText amountEditText = dialog.findViewById(R.id.dialogBorrowEditText);
         Button cancelBtn = dialog.findViewById(R.id.dialogCancelBtn);
         Button borrowBtn = dialog.findViewById(R.id.dialogBorrowBtn);
-        ProgressBar progressBar = dialog.findViewById(R.id.dialogProgressBar);
+        ProgressBar dialogProgressBar = dialog.findViewById(R.id.dialogProgressBar);
 
         // Set current date
         Calendar calendar = Calendar.getInstance();
@@ -646,10 +653,11 @@ public class BorrowFragment extends Fragment {
             // Disable buttons and show progress
             borrowBtn.setEnabled(false);
             cancelBtn.setEnabled(false);
-            progressBar.setVisibility(View.VISIBLE);
+            dialogProgressBar.setVisibility(View.VISIBLE);
+            showGlobalLoading();
 
             // Process the borrow transaction
-            addBorrowTransaction(selectedLender, String.valueOf(amount), currentDate, dialog, progressBar, borrowBtn, cancelBtn);
+            addBorrowTransaction(selectedLender, String.valueOf(amount), currentDate, dialog, dialogProgressBar, borrowBtn, cancelBtn);
         });
 
         dialog.show();
@@ -690,7 +698,7 @@ public class BorrowFragment extends Fragment {
      * Add a borrow transaction to Firebase
      */
     private void addBorrowTransaction(String lender, String borrowedAmountStr, String currentDate,
-            Dialog dialog, ProgressBar progressBar, Button borrowBtn, Button cancelBtn) {
+            Dialog dialog, ProgressBar dialogProgressBar, Button borrowBtn, Button cancelBtn) {
 
         Calendar calendar = Calendar.getInstance();
         SimpleDateFormat dateFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
@@ -707,9 +715,10 @@ public class BorrowFragment extends Fragment {
         String borrowId = dayRef.push().getKey();
         if (borrowId == null) {
             showToast(getString(R.string.toast_borrow_failed));
-            progressBar.setVisibility(View.GONE);
+            dialogProgressBar.setVisibility(View.GONE);
             borrowBtn.setEnabled(true);
             cancelBtn.setEnabled(true);
+            hideGlobalLoading();
             return;
         }
 
@@ -725,9 +734,10 @@ public class BorrowFragment extends Fragment {
                     if (getActivity() != null) {
                         getActivity().runOnUiThread(() -> {
                             showToast(getString(R.string.toast_borrow_failed));
-                            progressBar.setVisibility(View.GONE);
+                            dialogProgressBar.setVisibility(View.GONE);
                             borrowBtn.setEnabled(true);
                             cancelBtn.setEnabled(true);
+                            hideGlobalLoading();
                         });
                     }
                     return;
@@ -773,9 +783,10 @@ public class BorrowFragment extends Fragment {
                     if (getActivity() != null) {
                         getActivity().runOnUiThread(() -> {
                             showToast(getString(R.string.toast_borrow_failed));
-                            progressBar.setVisibility(View.GONE);
+                            dialogProgressBar.setVisibility(View.GONE);
                             borrowBtn.setEnabled(true);
                             cancelBtn.setEnabled(true);
+                            hideGlobalLoading();
                         });
                     }
                 });
@@ -868,5 +879,18 @@ public class BorrowFragment extends Fragment {
         // Refresh data when returning to this fragment
         applyFilters();
     }
+
+    private void showGlobalLoading() {
+        if (globalLoadingOverlay != null) {
+            globalLoadingOverlay.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void hideGlobalLoading() {
+        if (globalLoadingOverlay != null) {
+            globalLoadingOverlay.setVisibility(View.GONE);
+        }
+    }
 }
+
 

@@ -25,7 +25,7 @@
     <string name="card_background_description">Background image for the card</string>
     <string name="balance_label">Balance</string>
     <string name="unpaid_label">Unpaid</string>
-    <string name="owe_label">Lend</string>
+    <string name="owe_label">Receivable</string>
     <string name="debt_label">My Debt</string>
     <string name="recent_notifications_label">Recent Notifications</string>
     <string name="logout_button_text">Log out</string>

@@ -171,10 +171,10 @@
                 android:fontFamily="@font/montserratalternatess_bold"
                 android:gravity="center"
                 android:paddingHorizontal="24dp"
-                android:paddingVertical="4dp"
+                android:paddingVertical="8dp"
                 android:text="@string/btn_pay"
                 android:textColor="@color/whitest"
-                android:textSize="11sp"
+                android:textSize="12sp"
                 android:clickable="true"
                 android:focusable="true" />
         </LinearLayout>

@@ -349,4 +349,19 @@
         android:fontFamily="@font/montserratalternatess_bold"
         android:text="@string/logout_button_text"
         android:textColor="@color/whitest" />
+
+    <FrameLayout
+        android:id="@+id/loadingOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/glassy_background"
+        android:visibility="gone">
+
+        <ProgressBar
+            android:id="@+id/profileProgressBar"
+            style="@style/CustomProgressBarStyle"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center" />
+    </FrameLayout>
 </LinearLayout>

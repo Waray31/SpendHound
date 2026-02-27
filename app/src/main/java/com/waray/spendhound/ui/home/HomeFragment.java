@@ -16,6 +16,7 @@ import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.PopupWindow;
+import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -79,6 +80,10 @@ public class HomeFragment extends Fragment {
     private PopupWindow tooltipPopup;
     private static boolean tooltipDismissedThisSession = false;
 
+    private View loadingOverlay;
+    private ProgressBar progressBar;
+    private int pendingLoads = 0;
+
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
@@ -128,6 +133,9 @@ public class HomeFragment extends Fragment {
         if (activity != null && activity.getSupportActionBar() != null) {
             activity.getSupportActionBar().hide();
         }
+
+        loadingOverlay = view.findViewById(R.id.loadingOverlay);
+        progressBar = view.findViewById(R.id.progressBar);
 
         return view;
     }
@@ -541,6 +549,20 @@ public class HomeFragment extends Fragment {
 
         monthlyLineChart.animateX(500);
         monthlyLineChart.invalidate();
+    }
+
+    private void showLoading() {
+        pendingLoads++;
+        if (loadingOverlay != null) {
+            loadingOverlay.setVisibility(View.VISIBLE);
+        }
+    }
+
+    private void hideLoading() {
+        pendingLoads = Math.max(0, pendingLoads - 1);
+        if (pendingLoads == 0 && loadingOverlay != null) {
+            loadingOverlay.setVisibility(View.GONE);
+        }
     }
 
 }

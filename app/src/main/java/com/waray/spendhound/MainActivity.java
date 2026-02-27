@@ -42,6 +42,7 @@ import java.util.Comparator;
 import java.util.Date;
 import java.util.Locale;
 import java.util.Objects;
+import java.util.TimeZone;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class MainActivity extends AppCompatActivity {
@@ -1322,6 +1323,10 @@ public class MainActivity extends AppCompatActivity {
         Toast.makeText(MainActivity.this, message, Toast.LENGTH_SHORT).show();
     }
 
-
+    private String getCurrentUTCDate() {
+        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
+        sdf.setTimeZone(TimeZone.getTimeZone("UTC"));
+        return sdf.format(new Date());
+    }
 
 }
