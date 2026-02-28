@@ -1,5 +1,7 @@
 package com.waray.spendhound;
 
+import com.google.firebase.database.Exclude;
+
 public class User {
 
     private String username;
@@ -11,6 +13,7 @@ public class User {
     private int owed;
     private int debt;
     private UserBalance balances;
+    private String uid;
 
     public User(String username, String email, String profileImageUrl, String password, int balanced, int unpaid, int owed, int debt) {
         this.username = username;
@@ -112,5 +115,14 @@ public class User {
     public void setBalances(UserBalance balances) {
         this.balances = balances;
     }
-}
 
+    @Exclude
+    public String getUid() {
+        return uid;
+    }
+
+    @Exclude
+    public void setUid(String uid) {
+        this.uid = uid;
+    }
+}

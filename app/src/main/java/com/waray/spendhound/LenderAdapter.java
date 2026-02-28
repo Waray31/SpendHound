@@ -7,6 +7,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.google.android.material.imageview.ShapeableImageView;
 import java.util.List;
 
@@ -45,7 +46,9 @@ public class LenderAdapter extends RecyclerView.Adapter<LenderAdapter.ViewHolder
             if (lender.getProfileImageUrl() != null && !lender.getProfileImageUrl().isEmpty()) {
                 Glide.with(holder.itemView.getContext())
                         .load(lender.getProfileImageUrl())
+                        .diskCacheStrategy(DiskCacheStrategy.ALL)
                         .placeholder(R.drawable.placeholder_profile_image)
+                        .error(R.drawable.placeholder_profile_image)
                         .circleCrop()
                         .into(holder.profileImage);
             } else {
