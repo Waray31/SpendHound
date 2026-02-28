@@ -179,20 +179,24 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void getTotalMonthSpends() {
+        getTotalMonthSpends(null);
+    }
+
+    public void getTotalMonthSpends(Runnable callback) {
         // Ensure we have the current user's nickname before fetching data
         if (currentNickname == null || currentNickname.isEmpty()) {
             getCurrentNickname(new CurrentNicknameCallback() {
                 @Override
                 public void onCurrentNicknameReceived(String nickname) {
-                    fetchTotalMonthSpends(nickname);
+                    fetchTotalMonthSpends(nickname, callback);
                 }
             });
         } else {
-            fetchTotalMonthSpends(currentNickname);
+            fetchTotalMonthSpends(currentNickname, callback);
         }
     }
 
-    private void fetchTotalMonthSpends(String username) {
+    private void fetchTotalMonthSpends(String username, Runnable callback) {
         // Create a reference to the "transactions" node
         DatabaseReference databaseReference = DeclareDatabase.getDBRefTransaction();
 
@@ -227,7 +231,10 @@ public class MainActivity extends AppCompatActivity {
                 // You can use it as needed, for example, update a TextView with this value
                 String totalMonthSpendsString = String.valueOf(totalMonthSpends);
                 TextView totalMonthSpendsTextView = findViewById(R.id.totalMonthSpends);
-                totalMonthSpendsTextView.setText("₱ " + totalMonthSpendsString + ".00");
+                if (totalMonthSpendsTextView != null) {
+                    totalMonthSpendsTextView.setText("₱ " + totalMonthSpendsString + ".00");
+                }
+                if (callback != null) callback.run();
             }
 
             @Override
@@ -235,27 +242,33 @@ public class MainActivity extends AppCompatActivity {
                 // Handle database read error
                 String errorMessage = "Database read error occurred: " + databaseError.getMessage();
                 Log.e("FirebaseDatabase", errorMessage);
+                if (callback != null) callback.run();
             }
         });
     }
 
     @SuppressLint("DefaultLocale")
     public void getEverydaySpends() {
+        getEverydaySpends(null);
+    }
+
+    @SuppressLint("DefaultLocale")
+    public void getEverydaySpends(Runnable callback) {
         // Ensure we have the current user's nickname before fetching data
         if (currentNickname == null || currentNickname.isEmpty()) {
             getCurrentNickname(new CurrentNicknameCallback() {
                 @Override
                 public void onCurrentNicknameReceived(String nickname) {
-                    fetchEverydaySpends(nickname);
+                    fetchEverydaySpends(nickname, callback);
                 }
             });
         } else {
-            fetchEverydaySpends(currentNickname);
+            fetchEverydaySpends(currentNickname, callback);
         }
     }
 
     @SuppressLint("DefaultLocale")
-    private void fetchEverydaySpends(String username) {
+    private void fetchEverydaySpends(String username, Runnable callback) {
         int[] dailySpends = new int[7];
         Calendar calendar = Calendar.getInstance();
         // Set to beginning of current week (Sunday)
@@ -267,6 +280,8 @@ public class MainActivity extends AppCompatActivity {
 
         SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
         SimpleDateFormat dayFormat = new SimpleDateFormat("dd", Locale.getDefault());
+
+        AtomicInteger daysFetched = new AtomicInteger(0);
 
         // Iterate from Sunday (i=0) to Saturday (i=6)
         for (int i = 0; i < 7; i++) {
@@ -289,6 +304,9 @@ public class MainActivity extends AppCompatActivity {
                     }
                     dailySpends[dayIndex] = dailySpend;
                     setViewHeightForDay(dayIndex, dailySpends[dayIndex]);
+                    if (daysFetched.incrementAndGet() == 7) {
+                        if (callback != null) callback.run();
+                    }
                 }
 
                 @Override
@@ -296,6 +314,9 @@ public class MainActivity extends AppCompatActivity {
                     // Handle database read error
                     String errorMessage = "Database read error occurred: " + databaseError.getMessage();
                     Log.e("FirebaseDatabase", errorMessage);
+                    if (daysFetched.incrementAndGet() == 7) {
+                        if (callback != null) callback.run();
+                    }
                 }
             });
 
@@ -305,25 +326,32 @@ public class MainActivity extends AppCompatActivity {
 
     @SuppressLint("DefaultLocale")
     public void getEverydaySpendsForWeek(Calendar weekStart) {
+        getEverydaySpendsForWeek(weekStart, null);
+    }
+
+    @SuppressLint("DefaultLocale")
+    public void getEverydaySpendsForWeek(Calendar weekStart, Runnable callback) {
         // Ensure we have the current user's nickname before fetching data
         if (currentNickname == null || currentNickname.isEmpty()) {
             getCurrentNickname(new CurrentNicknameCallback() {
                 @Override
                 public void onCurrentNicknameReceived(String nickname) {
-                    fetchEverydaySpendsForWeek(weekStart, nickname);
+                    fetchEverydaySpendsForWeek(weekStart, nickname, callback);
                 }
             });
         } else {
-            fetchEverydaySpendsForWeek(weekStart, currentNickname);
+            fetchEverydaySpendsForWeek(weekStart, currentNickname, callback);
         }
     }
 
     @SuppressLint("DefaultLocale")
-    private void fetchEverydaySpendsForWeek(Calendar weekStart, String username) {
+    private void fetchEverydaySpendsForWeek(Calendar weekStart, String username, Runnable callback) {
         int[] dailySpends = new int[7];
         Calendar calendar = (Calendar) weekStart.clone();
         SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
         SimpleDateFormat dayFormat = new SimpleDateFormat("dd", Locale.getDefault());
+
+        AtomicInteger daysFetched = new AtomicInteger(0);
 
         for (int i = 0; i < 7; i++) {
             String currentMonthYear = monthFormat.format(calendar.getTime());
@@ -344,12 +372,18 @@ public class MainActivity extends AppCompatActivity {
                     }
                     dailySpends[dayIndex] = dailySpend;
                     setViewHeightForDay(dayIndex, dailySpends[dayIndex]);
+                    if (daysFetched.incrementAndGet() == 7) {
+                        if (callback != null) callback.run();
+                    }
                 }
 
                 @Override
                 public void onCancelled(@NonNull DatabaseError databaseError) {
                     String errorMessage = "Database read error occurred: " + databaseError.getMessage();
                     Log.e("FirebaseDatabase", errorMessage);
+                    if (daysFetched.incrementAndGet() == 7) {
+                        if (callback != null) callback.run();
+                    }
                 }
             });
 
@@ -374,31 +408,31 @@ public class MainActivity extends AppCompatActivity {
         // day4=Wednesday(3), day3=Thursday(2), day2=Friday(1), day1=Saturday(0)
         switch (day) {
             case 6: // Sunday
-                day7SpendTextView.setText(dailySpendString);
+                if (day7SpendTextView != null) day7SpendTextView.setText(dailySpendString);
                 viewId = R.id.day7_bar;
                 break;
             case 5: // Monday
-                day6SpendTextView.setText(dailySpendString);
+                if (day6SpendTextView != null) day6SpendTextView.setText(dailySpendString);
                 viewId = R.id.day6_bar;
                 break;
             case 4: // Tuesday
-                day5SpendTextView.setText(dailySpendString);
+                if (day5SpendTextView != null) day5SpendTextView.setText(dailySpendString);
                 viewId = R.id.day5_bar;
                 break;
             case 3: // Wednesday
-                day4SpendTextView.setText(dailySpendString);
+                if (day4SpendTextView != null) day4SpendTextView.setText(dailySpendString);
                 viewId = R.id.day4_bar;
                 break;
             case 2: // Thursday
-                day3SpendTextView.setText(dailySpendString);
+                if (day3SpendTextView != null) day3SpendTextView.setText(dailySpendString);
                 viewId = R.id.day3_bar;
                 break;
             case 1: // Friday
-                day2SpendTextView.setText(dailySpendString);
+                if (day2SpendTextView != null) day2SpendTextView.setText(dailySpendString);
                 viewId = R.id.day2_bar;
                 break;
             case 0: // Saturday
-                day1SpendTextView.setText(dailySpendString);
+                if (day1SpendTextView != null) day1SpendTextView.setText(dailySpendString);
                 viewId = R.id.day1_bar;
                 break;
         }
@@ -414,33 +448,35 @@ public class MainActivity extends AppCompatActivity {
 
         if (viewId != 0) {
             View view = findViewById(viewId);
-            ViewGroup.LayoutParams layoutParams = view.getLayoutParams();
-            layoutParams.height = desiredHeightInPixels;
-            view.setLayoutParams(layoutParams);
-        } else {
-            showToast("No viewID");
+            if (view != null) {
+                ViewGroup.LayoutParams layoutParams = view.getLayoutParams();
+                layoutParams.height = desiredHeightInPixels;
+                view.setLayoutParams(layoutParams);
+            }
         }
     }
 
     public void getRecentTransaction() {
+        getRecentTransaction(null);
+    }
+
+    public void getRecentTransaction(Runnable callback) {
         Log.d("RecentTransaction", "getRecentTransaction() called");
-        Log.d("RecentTransaction", "recentTransactionList size before clear: " + recentTransactionList.size());
-        Log.d("RecentTransaction", "recentTransactionAdapter is null: " + (recentTransactionAdapter == null));
 
         // Ensure we have the current user's nickname before fetching data
         if (currentNickname == null || currentNickname.isEmpty()) {
             getCurrentNickname(new CurrentNicknameCallback() {
                 @Override
                 public void onCurrentNicknameReceived(String nickname) {
-                    fetchRecentTransactions(nickname);
+                    fetchRecentTransactions(nickname, callback);
                 }
             });
         } else {
-            fetchRecentTransactions(currentNickname);
+            fetchRecentTransactions(currentNickname, callback);
         }
     }
 
-    private void fetchRecentTransactions(String username) {
+    private void fetchRecentTransactions(String username, Runnable callback) {
         recentTransactionList.clear();
 
         Calendar calendar = Calendar.getInstance();
@@ -568,6 +604,7 @@ public class MainActivity extends AppCompatActivity {
                         } else {
                             Log.e("RecentTransaction", "RecyclerView is NULL!");
                         }
+                        if (callback != null) callback.run();
                     }
                 }
 
@@ -578,6 +615,7 @@ public class MainActivity extends AppCompatActivity {
                         if (recentTransactionAdapter != null) {
                             recentTransactionAdapter.notifyDataSetChanged();
                         }
+                        if (callback != null) callback.run();
                     }
                 }
             });
@@ -1293,6 +1331,7 @@ public class MainActivity extends AppCompatActivity {
                     Log.d("FirebaseDatabase", "Nickname loaded: " + currentNickname);
                 } else {
                     Log.d("FirebaseDatabase", "Nickname not found in database.");
+                    callback.onCurrentNicknameReceived("");
                 }
             }
 
@@ -1301,6 +1340,7 @@ public class MainActivity extends AppCompatActivity {
                 // Handle database read error
                 String errorMessage = "Database read error occurred: " + databaseError.getMessage();
                 Log.e("FirebaseDatabase", errorMessage);
+                callback.onCurrentNicknameReceived("");
             }
         });
     }

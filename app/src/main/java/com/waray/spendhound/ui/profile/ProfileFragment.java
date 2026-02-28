@@ -87,8 +87,7 @@ public class ProfileFragment extends Fragment {
 
     private static final int REQUEST_IMAGE_CAPTURE = 1;
     private static final int REQUEST_IMAGE_PICK = 2;
-    private View loadingOverlay;
-    private ProgressBar profileProgressBar;
+    private View loadingOverlay_home;
     private int pendingLoads = 0;
 
 
@@ -114,8 +113,6 @@ public class ProfileFragment extends Fragment {
         profileLogout = view.findViewById(R.id.profileLogout);
         btnAdminSettings = view.findViewById(R.id.btnAdminSettings);
         breakdownBtn = view.findViewById(R.id.breakdown_btn);
-        loadingOverlay = view.findViewById(R.id.loadingOverlay);
-        profileProgressBar = view.findViewById(R.id.profileProgressBar);
 
         balanceUnpaidDrawable = ContextCompat.getDrawable(getContext(), R.drawable.round_border_glassy);
         balanceUnpaidDrawableTransparent = ContextCompat.getDrawable(getContext(), R.drawable.transparent_background);
@@ -1434,15 +1431,15 @@ public class ProfileFragment extends Fragment {
 
     private void showLoading() {
         pendingLoads++;
-        if (loadingOverlay != null) {
-            loadingOverlay.setVisibility(View.VISIBLE);
+        if (loadingOverlay_home != null) {
+            loadingOverlay_home.setVisibility(View.VISIBLE);
         }
     }
 
     private void hideLoading() {
         pendingLoads = Math.max(0, pendingLoads - 1);
-        if (pendingLoads == 0 && loadingOverlay != null) {
-            loadingOverlay.setVisibility(View.GONE);
+        if (pendingLoads == 0 && loadingOverlay_home != null) {
+            loadingOverlay_home.setVisibility(View.GONE);
         }
     }
 

@@ -80,8 +80,7 @@ public class HomeFragment extends Fragment {
     private PopupWindow tooltipPopup;
     private static boolean tooltipDismissedThisSession = false;
 
-    private View loadingOverlay;
-    private ProgressBar progressBar;
+    private View loadingOverlay_home;
     private int pendingLoads = 0;
 
 
@@ -89,6 +88,13 @@ public class HomeFragment extends Fragment {
                              ViewGroup container, Bundle savedInstanceState) {
         binding = FragmentHomeBinding.inflate(inflater, container, false);
         View view = binding.getRoot();
+
+        loadingOverlay_home = view.findViewById(R.id.loadingOverlay_home);
+        // Show loading overlay immediately
+        if (loadingOverlay_home != null) {
+            loadingOverlay_home.setVisibility(View.VISIBLE);
+        }
+
         profileImageView = view.findViewById(R.id.profileImageView);
         day7TextView = view.findViewById(R.id.day7);
         day6TextView = view.findViewById(R.id.day6);
@@ -134,9 +140,6 @@ public class HomeFragment extends Fragment {
             activity.getSupportActionBar().hide();
         }
 
-        loadingOverlay = view.findViewById(R.id.loadingOverlay);
-        progressBar = view.findViewById(R.id.progressBar);
-
         return view;
     }
 
@@ -155,9 +158,14 @@ public class HomeFragment extends Fragment {
     private void callMainActivityMethod() {
         MainActivity mainActivity = (MainActivity) getActivity();
         if (mainActivity != null) {
-            mainActivity.getRecentTransaction();
-            mainActivity.getTotalMonthSpends();
-            mainActivity.getEverydaySpends();
+            showLoading();
+            mainActivity.getRecentTransaction(this::hideLoading);
+            
+            showLoading();
+            mainActivity.getTotalMonthSpends(this::hideLoading);
+            
+            showLoading();
+            mainActivity.getEverydaySpends(this::hideLoading);
         }
     }
 
@@ -174,23 +182,26 @@ public class HomeFragment extends Fragment {
     public void setProfileImage(ImageView imageView) {
         // Check if the fragment is attached to an activity
         if (isAdded()) {
+            showLoading();
             String userId = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
             StorageReference storageRef = FirebaseStorage.getInstance().getReference("profile_images").child(userId);
             storageRef.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
                 @Override
                 public void onSuccess(Uri downloadUri) {
                     // Set the retrieved image to the provided ImageView
-                    Glide.with(requireContext()).load(downloadUri).into(imageView);
+                    if (isAdded()) {
+                        Glide.with(requireContext()).load(downloadUri).into(imageView);
+                    }
+                    hideLoading();
                 }
             }).addOnFailureListener(new OnFailureListener() {
                 @Override
                 public void onFailure(@NonNull Exception exception) {
                     // Handle image retrieval failure
                     imageView.setImageResource(R.drawable.placeholder_profile_image);
+                    hideLoading();
                 }
             });
-        } else {
-            // Handle the case when the fragment is not attached to an activity
         }
     }
 
@@ -387,7 +398,8 @@ public class HomeFragment extends Fragment {
     private void refreshWeeklyData() {
         MainActivity mainActivity = (MainActivity) getActivity();
         if (mainActivity != null) {
-            mainActivity.getEverydaySpendsForWeek(currentWeekStart);
+            showLoading();
+            mainActivity.getEverydaySpendsForWeek(currentWeekStart, this::hideLoading);
         }
         setTextViewsForWeek();
     }
@@ -401,15 +413,17 @@ public class HomeFragment extends Fragment {
 
         // Set the text for each TextView (Sunday to Saturday)
         for (int i = 0; i < 7; i++) {
-            dayTextViews[i].setText(getFormattedDay(calendar));
+            if (dayTextViews[i] != null) {
+                dayTextViews[i].setText(getFormattedDay(calendar));
 
-            // Check if this day is today
-            if (isSameDay(calendar, today)) {
-                dayTextViews[i].setTextColor(ContextCompat.getColor(requireContext(), R.color.yellow));
-                dayTextViews[i].setTypeface(null, android.graphics.Typeface.BOLD);
-            } else {
-                dayTextViews[i].setTextColor(Color.WHITE);
-                dayTextViews[i].setTypeface(null, android.graphics.Typeface.NORMAL);
+                // Check if this day is today
+                if (isSameDay(calendar, today)) {
+                    dayTextViews[i].setTextColor(ContextCompat.getColor(requireContext(), R.color.yellow));
+                    dayTextViews[i].setTypeface(null, android.graphics.Typeface.BOLD);
+                } else {
+                    dayTextViews[i].setTextColor(Color.WHITE);
+                    dayTextViews[i].setTypeface(null, android.graphics.Typeface.NORMAL);
+                }
             }
 
             calendar.add(Calendar.DAY_OF_YEAR, 1);
@@ -437,6 +451,7 @@ public class HomeFragment extends Fragment {
         MainActivity mainActivity = (MainActivity) getActivity();
         if (mainActivity == null) return;
 
+        showLoading();
         // Ensure we have the current user's nickname before fetching data
         String username = mainActivity.currentNickname;
         if (username == null || username.isEmpty()) {
@@ -485,15 +500,18 @@ public class HomeFragment extends Fragment {
                     // No data available, show empty chart
                     monthlyLineChart.clear();
                     monthlyLineChart.invalidate();
+                    hideLoading();
                     return;
                 }
 
                 setupLineChart(entries, labels);
+                hideLoading();
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
                 // Handle error
+                hideLoading();
             }
         });
     }
@@ -553,15 +571,15 @@ public class HomeFragment extends Fragment {
 
     private void showLoading() {
         pendingLoads++;
-        if (loadingOverlay != null) {
-            loadingOverlay.setVisibility(View.VISIBLE);
+        if (loadingOverlay_home != null) {
+            loadingOverlay_home.setVisibility(View.VISIBLE);
         }
     }
 
     private void hideLoading() {
         pendingLoads = Math.max(0, pendingLoads - 1);
-        if (pendingLoads == 0 && loadingOverlay != null) {
-            loadingOverlay.setVisibility(View.GONE);
+        if (pendingLoads == 0 && loadingOverlay_home != null) {
+            loadingOverlay_home.setVisibility(View.GONE);
         }
     }
 

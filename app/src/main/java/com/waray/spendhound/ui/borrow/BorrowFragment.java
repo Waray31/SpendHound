@@ -88,7 +88,6 @@ public class BorrowFragment extends Fragment {
     private boolean isLoading = false;
 
     private View globalLoadingOverlay;
-    private ProgressBar globalProgressBar;
 
     @SuppressLint("MissingInflatedId")
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -125,7 +124,6 @@ public class BorrowFragment extends Fragment {
         }
 
         globalLoadingOverlay = getActivity().findViewById(R.id.loadingOverlay);
-        globalProgressBar = getActivity().findViewById(R.id.progressBar);
 
         return view;
     }
@@ -610,7 +608,7 @@ public class BorrowFragment extends Fragment {
         EditText amountEditText = dialog.findViewById(R.id.dialogBorrowEditText);
         Button cancelBtn = dialog.findViewById(R.id.dialogCancelBtn);
         Button borrowBtn = dialog.findViewById(R.id.dialogBorrowBtn);
-        ProgressBar dialogProgressBar = dialog.findViewById(R.id.dialogProgressBar);
+        View dialogProgressBar = dialog.findViewById(R.id.dialogProgressBar);
 
         // Set current date
         Calendar calendar = Calendar.getInstance();
@@ -698,7 +696,7 @@ public class BorrowFragment extends Fragment {
      * Add a borrow transaction to Firebase
      */
     private void addBorrowTransaction(String lender, String borrowedAmountStr, String currentDate,
-            Dialog dialog, ProgressBar dialogProgressBar, Button borrowBtn, Button cancelBtn) {
+            Dialog dialog, View dialogProgressBar, Button borrowBtn, Button cancelBtn) {
 
         Calendar calendar = Calendar.getInstance();
         SimpleDateFormat dateFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());

@@ -125,7 +125,7 @@ public class DebtTransactionAdapter extends RecyclerView.Adapter<DebtTransaction
         // Show payment sent date for Paid status
         if (isPaid && transaction.getPaymentSentDate() != null && !transaction.getPaymentSentDate().isEmpty()) {
             holder.paymentSentDateTV.setVisibility(View.VISIBLE);
-            holder.paymentSentDateTV.setText("Sent: " + transaction.getPaymentSentDate());
+            holder.paymentSentDateTV.setText(": " + transaction.getPaymentSentDate());
         }
 
         // Cast to MaterialCardView for elevation and background

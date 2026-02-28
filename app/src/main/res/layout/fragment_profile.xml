@@ -10,358 +10,383 @@
     android:padding="20dp"
     tools:context=".ui.profile.ProfileFragment">
 
-    <LinearLayout
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="4dp">
-
-
-        <TextView
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_weight="1"
-            android:fontFamily="@font/montserratalternatess_bold"
-            android:text="@string/profile_title"
-            android:textAlignment="center"
-            android:textColor="@color/darkBlue"
-            android:textSize="20sp" />
-
-        <ImageView
-            android:id="@+id/imageView5"
-            android:layout_width="27dp"
-            android:layout_height="27dp"
-            android:layout_gravity="center"
-            android:alpha="0.8"
-            android:contentDescription="@string/settings_icon_description"
-            android:foreground="@drawable/round_border"
-            android:padding="4dp"
-            android:src="@drawable/settings" />
-
-    </LinearLayout>
-
-    <View
-        android:id="@+id/bottom_border1"
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginTop="4dp"
-        android:layout_marginBottom="8dp"
-        android:background="@drawable/bottom_border" />
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:padding="8dp">
-
-        <androidx.cardview.widget.CardView
-            android:id="@+id/cardView_profile"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerHorizontal="true"
-            android:layout_margin="4dp"
-            android:elevation="4dp"
-            android:foreground="@drawable/round_border_profile"
-            android:innerRadius="0dp"
-            android:shape="ring"
-            android:thicknessRatio="1.9"
-            app:cardCornerRadius="15dp">
-
-            <ImageView
-                android:id="@+id/profileImageView"
-                android:layout_width="100dp"
-                android:layout_height="100dp"
-                android:contentDescription="@string/profile_image_description"
-                android:scaleType="centerCrop"
-                android:src="@drawable/placeholder_profile_image" />
-        </androidx.cardview.widget.CardView>
+        android:layout_height="0dp"
+        android:layout_weight="1">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_margin="8dp"
-            android:layout_weight="1"
             android:orientation="vertical">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginLeft="4dp"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="@string/nickname_label"
-                android:textSize="12sp" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:padding="4dp">
+
 
                 <TextView
-                    android:id="@+id/nicknameTextView"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
+                    android:layout_gravity="center"
                     android:layout_weight="1"
                     android:fontFamily="@font/montserratalternatess_bold"
-                    android:padding="4dp"
-                    android:text="@string/nickname_placeholder"
+                    android:text="@string/profile_title"
+                    android:textAlignment="center"
                     android:textColor="@color/darkBlue"
-                    android:textSize="28sp" />
-
-                <EditText
-                    android:id="@+id/nicknameEditText"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="@android:color/transparent"
-                    android:fontFamily="@font/montserratalternatess_bold"
-                    android:padding="4dp"
-                    android:textColor="@color/darkBlue"
-                    android:textSize="28sp"
-                    android:visibility="gone" />
+                    android:textSize="20sp" />
 
                 <ImageView
-                    android:id="@+id/editNickname"
-                    android:layout_width="20dp"
-                    android:layout_height="match_parent"
-                    android:layout_gravity="bottom"
+                    android:id="@+id/imageView5"
+                    android:layout_width="27dp"
+                    android:layout_height="27dp"
+                    android:layout_gravity="center"
                     android:alpha="0.8"
-                    android:contentDescription="@string/edit_nickname_description"
-                    android:src="@drawable/pencil" />
-
-                <ImageView
-                    android:id="@+id/saveNickname"
-                    android:layout_width="20dp"
-                    android:layout_height="match_parent"
-                    android:layout_gravity="bottom"
-                    android:alpha="0.8"
-                    android:contentDescription="@string/save_nickname_description"
-                    android:src="@drawable/check"
-                    android:visibility="gone" />
+                    android:contentDescription="@string/settings_icon_description"
+                    android:foreground="@drawable/round_border"
+                    android:padding="4dp"
+                    android:src="@drawable/settings" />
 
             </LinearLayout>
 
             <View
-                android:id="@+id/bottom_border"
+                android:id="@+id/bottom_border1"
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginTop="4dp"
-                android:background="@drawable/border_line_darkblue" />
-        </LinearLayout>
-
-    </LinearLayout>
-
-    <androidx.cardview.widget.CardView
-        android:id="@+id/cardView_profile2"
-        android:layout_width="wrap_content"
-        android:layout_height="220dp"
-        android:layout_marginTop="12dp"
-        android:background="@drawable/glassy_background2"
-        android:elevation="4dp"
-        android:innerRadius="0dp"
-        android:shape="ring"
-        android:thicknessRatio="1.9"
-        app:cardCornerRadius="20dp">
-
-        <ImageView
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@drawable/background_card2"
-            android:contentDescription="@string/card_background_description"
-            android:orientation="vertical" />
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:layout_marginHorizontal="20dp"
-            android:layout_marginVertical="32dp"
-            android:orientation="vertical">
-
-            <TextView
-                android:id="@+id/totalTextView"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="@string/total_balance_label"
-                android:textColor="@color/white"
-                android:textSize="14sp" />
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/bottom_border" />
 
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:padding="8dp">
 
-                <TextView
-                    android:id="@+id/totalBalancedTextView"
-                    android:layout_width="0dp"
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/cardView_profile"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:layout_weight="4"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:text="@string/total_balance_placeholder"
-                    android:textColor="@color/whitest"
-                    android:textSize="36sp" />
+                    android:layout_centerHorizontal="true"
+                    android:layout_margin="4dp"
+                    android:elevation="4dp"
+                    android:foreground="@drawable/round_border_profile"
+                    android:innerRadius="0dp"
+                    android:shape="ring"
+                    android:thicknessRatio="1.9"
+                    app:cardCornerRadius="15dp">
+
+                    <ImageView
+                        android:id="@+id/profileImageView"
+                        android:layout_width="100dp"
+                        android:layout_height="100dp"
+                        android:contentDescription="@string/profile_image_description"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/placeholder_profile_image" />
+                </androidx.cardview.widget.CardView>
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_margin="8dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginLeft="4dp"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:text="@string/nickname_label"
+                        android:textSize="12sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/nicknameTextView"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:fontFamily="@font/montserratalternatess_bold"
+                            android:padding="4dp"
+                            android:text="@string/nickname_placeholder"
+                            android:textColor="@color/darkBlue"
+                            android:textSize="28sp" />
+
+                        <EditText
+                            android:id="@+id/nicknameEditText"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:background="@android:color/transparent"
+                            android:fontFamily="@font/montserratalternatess_bold"
+                            android:padding="4dp"
+                            android:textColor="@color/darkBlue"
+                            android:textSize="28sp"
+                            android:visibility="gone" />
+
+                        <ImageView
+                            android:id="@+id/editNickname"
+                            android:layout_width="20dp"
+                            android:layout_height="match_parent"
+                            android:layout_gravity="bottom"
+                            android:alpha="0.8"
+                            android:contentDescription="@string/edit_nickname_description"
+                            android:src="@drawable/pencil" />
+
+                        <ImageView
+                            android:id="@+id/saveNickname"
+                            android:layout_width="20dp"
+                            android:layout_height="match_parent"
+                            android:layout_gravity="bottom"
+                            android:alpha="0.8"
+                            android:contentDescription="@string/save_nickname_description"
+                            android:src="@drawable/check"
+                            android:visibility="gone" />
+
+                    </LinearLayout>
+
+                    <View
+                        android:id="@+id/bottom_border"
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:layout_marginTop="4dp"
+                        android:background="@drawable/border_line_darkblue" />
+                </LinearLayout>
+
+            </LinearLayout>
+
+            <androidx.cardview.widget.CardView
+                android:id="@+id/cardView_profile2"
+                android:layout_width="wrap_content"
+                android:layout_height="220dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/glassy_background2"
+                android:elevation="4dp"
+                android:innerRadius="0dp"
+                android:shape="ring"
+                android:thicknessRatio="1.9"
+                app:cardCornerRadius="20dp">
 
                 <ImageView
-                    android:layout_width="0dp"
-                    android:layout_height="48dp"
-                    android:layout_marginEnd="20dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/glassy_background2"
-                    android:contentDescription="@string/chip_icon_description"
-                    android:elevation="4dp"
-                    android:src="@drawable/chip" />
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:background="@drawable/background_card2"
+                    android:contentDescription="@string/card_background_description"
+                    android:orientation="vertical" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:layout_marginHorizontal="20dp"
+                    android:layout_marginVertical="32dp"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/totalTextView"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:text="@string/total_balance_label"
+                        android:textColor="@color/white"
+                        android:textSize="14sp" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <TextView
+                            android:id="@+id/totalBalancedTextView"
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="center"
+                            android:layout_weight="4"
+                            android:fontFamily="@font/montserratalternatess_regular"
+                            android:text="@string/total_balance_placeholder"
+                            android:textColor="@color/whitest"
+                            android:textSize="36sp" />
+
+                        <ImageView
+                            android:layout_width="0dp"
+                            android:layout_height="48dp"
+                            android:layout_marginEnd="20dp"
+                            android:layout_weight="1"
+                            android:background="@drawable/glassy_background2"
+                            android:contentDescription="@string/chip_icon_description"
+                            android:elevation="4dp"
+                            android:src="@drawable/chip" />
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical">
+
+                        <Button
+                            android:id="@+id/breakdown_btn"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:backgroundTint="@color/yellow"
+                            android:elevation="3dp"
+                            android:fontFamily="@font/montserratalternatess_regular"
+                            android:paddingHorizontal="12dp"
+                            android:text="Breakdown"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:orientation="horizontal">
+
+                        <LinearLayout
+                            android:id="@+id/balanceUnpaidLayout"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="bottom"
+
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:id="@+id/balanceTextView"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/transparent_background"
+                                android:fontFamily="@font/montserratalternatess_regular"
+                                android:paddingHorizontal="12dp"
+                                android:paddingVertical="8dp"
+                                android:text="@string/balance_label"
+                                android:textAlignment="center"
+                                android:textColor="@color/whitest"
+                                android:textSize="12sp" />
+
+                            <TextView
+                                android:id="@+id/unpaidTextView"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/transparent_background"
+                                android:fontFamily="@font/montserratalternatess_regular"
+                                android:paddingHorizontal="12dp"
+                                android:paddingVertical="8dp"
+                                android:text="@string/unpaid_label"
+                                android:textAlignment="center"
+                                android:textColor="@color/whitest"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:id="@+id/oweDebtLayout"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_gravity="bottom"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:id="@+id/oweTextView"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/transparent_background"
+                                android:fontFamily="@font/montserratalternatess_regular"
+                                android:paddingHorizontal="12dp"
+                                android:paddingVertical="8dp"
+                                android:text="@string/owe_label"
+                                android:textAlignment="center"
+                                android:textColor="@color/whitest"
+                                android:textSize="12sp" />
+
+                            <TextView
+                                android:id="@+id/debtTextView"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/transparent_background"
+                                android:fontFamily="@font/montserratalternatess_regular"
+                                android:paddingHorizontal="12dp"
+                                android:paddingVertical="8dp"
+                                android:text="@string/debt_label"
+                                android:textAlignment="center"
+                                android:textColor="@color/whitest"
+                                android:textSize="12sp" />
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+            </androidx.cardview.widget.CardView>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_marginTop="12dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="@string/recent_notifications_label"
+                    android:textColor="@color/grey"
+                    android:textSize="16sp" />
 
             </LinearLayout>
-            <LinearLayout
+
+            <Button
+                android:id="@+id/btnAdminSettings"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_vertical">
+                android:layout_marginBottom="8dp"
+                android:backgroundTint="@color/darkBlue"
+                android:elevation="4dp"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:paddingVertical="16dp"
+                android:text="Admin Settings"
+                android:textColor="@color/whitest" />
 
-                <Button
-                    android:id="@+id/breakdown_btn"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Breakdown"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:backgroundTint="@color/yellow"
-                    android:elevation="3dp"
-                    android:paddingHorizontal="12dp"
-                    android:textSize="12sp" />
-            </LinearLayout>
+            <Button
+                android:id="@+id/profileLogout"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="50dp"
+                android:backgroundTint="@color/red"
+                android:elevation="4dp"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:paddingVertical="16dp"
+                android:text="@string/logout_button_text"
+                android:textColor="@color/whitest" />
 
+            <!-- Loading Overlay -->
             <LinearLayout
+                android:id="@+id/loadingOverlay_profile"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:orientation="horizontal">
+                android:background="@color/glassy_background"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:visibility="gone">
 
-                <LinearLayout
-                    android:id="@+id/balanceUnpaidLayout"
+                <ProgressBar
+                    style="@style/CustomProgressBarStyle"
+                    android:layout_width="48dp"
+                    android:layout_height="48dp" />
+
+                <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="bottom"
-
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:id="@+id/balanceTextView"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/transparent_background"
-                        android:fontFamily="@font/montserratalternatess_regular"
-                        android:paddingVertical="8dp"
-                        android:paddingHorizontal="12dp"
-                        android:text="@string/balance_label"
-                        android:textAlignment="center"
-                        android:textColor="@color/whitest"
-                        android:textSize="12sp" />
-
-                    <TextView
-                        android:id="@+id/unpaidTextView"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/transparent_background"
-                        android:fontFamily="@font/montserratalternatess_regular"
-                        android:paddingVertical="8dp"
-                        android:paddingHorizontal="12dp"
-                        android:text="@string/unpaid_label"
-                        android:textAlignment="center"
-                        android:textColor="@color/whitest"
-                        android:textSize="12sp" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:id="@+id/oweDebtLayout"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="bottom"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:id="@+id/oweTextView"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/transparent_background"
-                        android:fontFamily="@font/montserratalternatess_regular"
-                        android:paddingVertical="8dp"
-                        android:paddingHorizontal="12dp"
-                        android:text="@string/owe_label"
-                        android:textAlignment="center"
-                        android:textColor="@color/whitest"
-                        android:textSize="12sp" />
-
-                    <TextView
-                        android:id="@+id/debtTextView"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/transparent_background"
-                        android:fontFamily="@font/montserratalternatess_regular"
-                        android:paddingVertical="8dp"
-                        android:paddingHorizontal="12dp"
-                        android:text="@string/debt_label"
-                        android:textAlignment="center"
-                        android:textColor="@color/whitest"
-                        android:textSize="12sp" />
-                </LinearLayout>
+                    android:layout_marginTop="12dp"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:text="@string/loading_text"
+                    android:textColor="@color/darkBlue"
+                    android:textSize="14sp" />
 
             </LinearLayout>
 
         </LinearLayout>
-    </androidx.cardview.widget.CardView>
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:layout_marginTop="12dp"
-        android:orientation="vertical">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_bold"
-                android:text="@string/recent_notifications_label"
-                android:textColor="@color/grey"
-                android:textSize="16sp" />
-
-    </LinearLayout>
-
-    <Button
-        android:id="@+id/btnAdminSettings"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingVertical="16dp"
-        android:backgroundTint="@color/darkBlue"
-        android:layout_marginBottom="8dp"
-        android:elevation="4dp"
-        android:fontFamily="@font/montserratalternatess_bold"
-        android:text="Admin Settings"
-        android:textColor="@color/whitest" />
-
-    <Button
-        android:id="@+id/profileLogout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingVertical="16dp"
-        android:backgroundTint="@color/red"
-        android:layout_marginBottom="50dp"
-        android:elevation="4dp"
-        android:fontFamily="@font/montserratalternatess_bold"
-        android:text="@string/logout_button_text"
-        android:textColor="@color/whitest" />
-
-    <FrameLayout
-        android:id="@+id/loadingOverlay"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@color/glassy_background"
-        android:visibility="gone">
-
-        <ProgressBar
-            android:id="@+id/profileProgressBar"
-            style="@style/CustomProgressBarStyle"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_gravity="center" />
     </FrameLayout>
 </LinearLayout>

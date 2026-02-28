@@ -9,582 +9,590 @@
     android:paddingHorizontal="20dp"
     android:paddingTop="20dp">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:orientation="horizontal">
-
-        <ImageView
-            android:id="@+id/imageView2"
-            android:layout_width="wrap_content"
-            android:layout_height="36dp"
-            android:layout_weight="1"
-            android:fontFamily="@font/montserratalternatess_regular"
-            android:scaleType="fitStart"
-            app:srcCompat="@drawable/logothree" />
-
-        <androidx.cardview.widget.CardView
-            android:id="@+id/cardView_profile"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:elevation="4dp"
-            android:innerRadius="0dp"
-            android:shape="ring"
-            android:thicknessRatio="1.9"
-            app:cardCornerRadius="10dp">
-
-            <ImageView
-                android:id="@+id/profileImageView"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:scaleType="centerCrop"
-                android:src="@drawable/placeholder_profile_image" />
-        </androidx.cardview.widget.CardView>
-
-    </LinearLayout>
-
-    <View
-        android:id="@+id/title_bottom_border"
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginTop="8dp"
-        android:background="@drawable/bottom_border" />
-
-    <!-- Scrollable Content -->
-    <androidx.core.widget.NestedScrollView
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:fillViewport="true">
+        android:layout_weight="1">
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:orientation="vertical">
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginVertical="20dp"
-        android:gravity="center"
-        android:orientation="vertical">
-
-        <TextView
-            android:id="@+id/textView2"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/montserratalternatess_regular"
-            android:text="This month spends"
-            android:textAlignment="center"
-            android:textColor="#6c757d"
-            android:textSize="15sp" />
-
-        <TextView
-            android:id="@+id/totalMonthSpends"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/montserratalternatess_regular"
-            android:text="₱ 00.00"
-            android:textAlignment="center"
-            android:textColor="@color/darkBlue"
-            android:textSize="48dp"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@+id/textView2" />
-
-    </LinearLayout>
-
-    <!-- Analytics Section - LinearLayout -->
-    <LinearLayout
-        android:id="@+id/analyticsContainer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@drawable/rounded_background8"
-        android:elevation="4dp"
-        android:orientation="vertical"
-        android:padding="16dp">
-
-        <!-- Header Row: Title + Toggle -->
-        <LinearLayout
-            android:id="@+id/topBarText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/textView5"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="Analytics"
-                android:textColor="@color/white"
-                android:textSize="18sp"
-                android:textStyle="bold" />
-
-            <!-- Weekly/Monthly Toggle -->
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:background="@drawable/toggle_background"
-                android:orientation="horizontal"
-                android:padding="3dp">
-
-                <TextView
-                    android:id="@+id/btnWeekly"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/toggle_selected_background"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:paddingHorizontal="14dp"
-                    android:paddingVertical="6dp"
-                    android:text="Weekly"
-                    android:textColor="@color/darkBlue"
-                    android:textSize="12sp" />
-
-                <TextView
-                    android:id="@+id/btnMonthly"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@android:color/transparent"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:paddingHorizontal="14dp"
-                    android:paddingVertical="6dp"
-                    android:text="Monthly"
-                    android:textColor="#adb5bd"
-                    android:textSize="12sp" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <!-- Navigation Row: Prev + Date Range + Next -->
-        <LinearLayout
-            android:id="@+id/navigationBar"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <ImageButton
-                android:id="@+id/btnPrevious"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:background="@android:color/transparent"
-                android:contentDescription="Previous"
-                android:scaleType="centerInside"
-                android:src="@drawable/arrow_left_with_circle" />
-
-            <TextView
-                android:id="@+id/dateRangeText"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:fontFamily="@font/montserratalternatess_regular"
                 android:gravity="center"
-                android:text="Feb 13 - Feb 19, 2026"
-                android:textColor="#adb5bd"
-                android:textSize="14sp" />
+                android:orientation="horizontal">
 
-            <ImageButton
-                android:id="@+id/btnNext"
-                android:layout_width="32dp"
-                android:layout_height="32dp"
-                android:background="@android:color/transparent"
-                android:contentDescription="Next"
-                android:scaleType="centerInside"
-                android:src="@drawable/arrow_right_with_circle" />
-        </LinearLayout>
+                <ImageView
+                    android:id="@+id/imageView2"
+                    android:layout_width="wrap_content"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:scaleType="fitStart"
+                    app:srcCompat="@drawable/logothree" />
 
-        <!-- Weekly Chart Container -->
-        <LinearLayout
-            android:id="@+id/weeklyChartContainer"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:orientation="vertical"
-            android:visibility="visible">
+                <androidx.cardview.widget.CardView
+                    android:id="@+id/cardView_profile"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:elevation="4dp"
+                    android:innerRadius="0dp"
+                    android:shape="ring"
+                    android:thicknessRatio="1.9"
+                    app:cardCornerRadius="10dp">
 
-            <LinearLayout
-                android:id="@+id/linearLayout4"
+                    <ImageView
+                        android:id="@+id/profileImageView"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:scaleType="centerCrop"
+                        android:src="@drawable/placeholder_profile_image" />
+                </androidx.cardview.widget.CardView>
+
+            </LinearLayout>
+
+            <View
+                android:id="@+id/title_bottom_border"
                 android:layout_width="match_parent"
-                android:layout_height="wrap_content"
+                android:layout_height="1dp"
                 android:layout_marginTop="8dp"
-                android:baselineAligned="false"
-                android:orientation="horizontal">
+                android:background="@drawable/bottom_border" />
 
-                <TextView
-                    android:id="@+id/totalday7"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:gravity="center"
-                    android:text="0"
-                    android:textColor="@color/grey"
-                    android:textSize="10sp" />
-
-                <TextView
-                    android:id="@+id/totalday6"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:gravity="center"
-                    android:text="0"
-                    android:textColor="@color/grey"
-                    android:textSize="10sp" />
-
-                <TextView
-                    android:id="@+id/totalday5"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:gravity="center"
-                    android:text="0"
-                    android:textColor="@color/grey"
-                    android:textSize="10sp" />
-
-                <TextView
-                    android:id="@+id/totalday4"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:gravity="center"
-                    android:text="0"
-                    android:textColor="@color/grey"
-                    android:textSize="10sp" />
-
-                <TextView
-                    android:id="@+id/totalday3"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:gravity="center"
-                    android:text="0"
-                    android:textColor="@color/grey"
-                    android:textSize="10sp" />
-
-                <TextView
-                    android:id="@+id/totalday2"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:gravity="center"
-                    android:text="0"
-                    android:textColor="@color/grey"
-                    android:textSize="10sp" />
-
-                <TextView
-                    android:id="@+id/totalday1"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:gravity="center"
-                    android:text="0"
-                    android:textColor="@color/grey"
-                    android:textSize="10sp" />
-            </LinearLayout>
-
-            <!-- Bar Chart Row -->
-            <LinearLayout
-                android:id="@+id/linearLayout_bars"
+            <!-- Scrollable Content -->
+            <androidx.core.widget.NestedScrollView
                 android:layout_width="match_parent"
-                android:layout_height="120dp"
-                android:layout_marginVertical="8dp"
-                android:baselineAligned="false"
-                android:gravity="bottom"
-                android:orientation="horizontal">
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:fillViewport="true">
 
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="bottom|center_horizontal">
+                    android:orientation="vertical">
 
-                    <View
-                        android:id="@+id/day7_bar"
-                        android:layout_width="12dp"
-                        android:layout_height="10dp"
-                        android:background="@drawable/rounded_background" />
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginVertical="20dp"
+                        android:gravity="center"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/textView2"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/montserratalternatess_regular"
+                            android:text="This month spends"
+                            android:textAlignment="center"
+                            android:textColor="#6c757d"
+                            android:textSize="15sp" />
+
+                        <TextView
+                            android:id="@+id/totalMonthSpends"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:fontFamily="@font/montserratalternatess_regular"
+                            android:text="₱ 00.00"
+                            android:textAlignment="center"
+                            android:textColor="@color/darkBlue"
+                            android:textSize="48dp"
+                            app:layout_constraintEnd_toEndOf="parent"
+                            app:layout_constraintStart_toStartOf="parent"
+                            app:layout_constraintTop_toBottomOf="@+id/textView2" />
+
+                    </LinearLayout>
+
+                    <!-- Analytics Section - LinearLayout -->
+                    <LinearLayout
+                        android:id="@+id/analyticsContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/rounded_background8"
+                        android:elevation="4dp"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <!-- Header Row: Title + Toggle -->
+                        <LinearLayout
+                            android:id="@+id/topBarText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <TextView
+                                android:id="@+id/textView5"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:fontFamily="@font/montserratalternatess_regular"
+                                android:text="Analytics"
+                                android:textColor="@color/white"
+                                android:textSize="18sp"
+                                android:textStyle="bold" />
+
+                            <!-- Weekly/Monthly Toggle -->
+                            <LinearLayout
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:background="@drawable/toggle_background"
+                                android:orientation="horizontal"
+                                android:padding="3dp">
+
+                                <TextView
+                                    android:id="@+id/btnWeekly"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:background="@drawable/toggle_selected_background"
+                                    android:fontFamily="@font/montserratalternatess_regular"
+                                    android:paddingHorizontal="14dp"
+                                    android:paddingVertical="6dp"
+                                    android:text="Weekly"
+                                    android:textColor="@color/darkBlue"
+                                    android:textSize="12sp" />
+
+                                <TextView
+                                    android:id="@+id/btnMonthly"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:background="@android:color/transparent"
+                                    android:fontFamily="@font/montserratalternatess_regular"
+                                    android:paddingHorizontal="14dp"
+                                    android:paddingVertical="6dp"
+                                    android:text="Monthly"
+                                    android:textColor="#adb5bd"
+                                    android:textSize="12sp" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- Navigation Row: Prev + Date Range + Next -->
+                        <LinearLayout
+                            android:id="@+id/navigationBar"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <ImageButton
+                                android:id="@+id/btnPrevious"
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:background="@android:color/transparent"
+                                android:contentDescription="Previous"
+                                android:scaleType="centerInside"
+                                android:src="@drawable/arrow_left_with_circle" />
+
+                            <TextView
+                                android:id="@+id/dateRangeText"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:fontFamily="@font/montserratalternatess_regular"
+                                android:gravity="center"
+                                android:text="Feb 13 - Feb 19, 2026"
+                                android:textColor="#adb5bd"
+                                android:textSize="14sp" />
+
+                            <ImageButton
+                                android:id="@+id/btnNext"
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:background="@android:color/transparent"
+                                android:contentDescription="Next"
+                                android:scaleType="centerInside"
+                                android:src="@drawable/arrow_right_with_circle" />
+                        </LinearLayout>
+
+                        <!-- Weekly Chart Container -->
+                        <LinearLayout
+                            android:id="@+id/weeklyChartContainer"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:orientation="vertical"
+                            android:visibility="visible">
+
+                            <LinearLayout
+                                android:id="@+id/linearLayout4"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:baselineAligned="false"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/totalday7"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/montserratalternatess_regular"
+                                    android:gravity="center"
+                                    android:text="0"
+                                    android:textColor="@color/grey"
+                                    android:textSize="10sp" />
+
+                                <TextView
+                                    android:id="@+id/totalday6"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/montserratalternatess_regular"
+                                    android:gravity="center"
+                                    android:text="0"
+                                    android:textColor="@color/grey"
+                                    android:textSize="10sp" />
+
+                                <TextView
+                                    android:id="@+id/totalday5"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/montserratalternatess_regular"
+                                    android:gravity="center"
+                                    android:text="0"
+                                    android:textColor="@color/grey"
+                                    android:textSize="10sp" />
+
+                                <TextView
+                                    android:id="@+id/totalday4"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/montserratalternatess_regular"
+                                    android:gravity="center"
+                                    android:text="0"
+                                    android:textColor="@color/grey"
+                                    android:textSize="10sp" />
+
+                                <TextView
+                                    android:id="@+id/totalday3"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/montserratalternatess_regular"
+                                    android:gravity="center"
+                                    android:text="0"
+                                    android:textColor="@color/grey"
+                                    android:textSize="10sp" />
+
+                                <TextView
+                                    android:id="@+id/totalday2"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/montserratalternatess_regular"
+                                    android:gravity="center"
+                                    android:text="0"
+                                    android:textColor="@color/grey"
+                                    android:textSize="10sp" />
+
+                                <TextView
+                                    android:id="@+id/totalday1"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/montserratalternatess_regular"
+                                    android:gravity="center"
+                                    android:text="0"
+                                    android:textColor="@color/grey"
+                                    android:textSize="10sp" />
+                            </LinearLayout>
+
+                            <!-- Bar Chart Row -->
+                            <LinearLayout
+                                android:id="@+id/linearLayout_bars"
+                                android:layout_width="match_parent"
+                                android:layout_height="120dp"
+                                android:layout_marginVertical="8dp"
+                                android:baselineAligned="false"
+                                android:gravity="bottom"
+                                android:orientation="horizontal">
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="match_parent"
+                                    android:layout_weight="1"
+                                    android:gravity="bottom|center_horizontal">
+
+                                    <View
+                                        android:id="@+id/day7_bar"
+                                        android:layout_width="12dp"
+                                        android:layout_height="10dp"
+                                        android:background="@drawable/rounded_background" />
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="match_parent"
+                                    android:layout_weight="1"
+                                    android:gravity="bottom|center_horizontal">
+
+                                    <View
+                                        android:id="@+id/day6_bar"
+                                        android:layout_width="12dp"
+                                        android:layout_height="10dp"
+                                        android:background="@drawable/rounded_background2" />
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="match_parent"
+                                    android:layout_weight="1"
+                                    android:gravity="bottom|center_horizontal">
+
+                                    <View
+                                        android:id="@+id/day5_bar"
+                                        android:layout_width="12dp"
+                                        android:layout_height="10dp"
+                                        android:background="@drawable/rounded_background3" />
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="match_parent"
+                                    android:layout_weight="1"
+                                    android:gravity="bottom|center_horizontal">
+
+                                    <View
+                                        android:id="@+id/day4_bar"
+                                        android:layout_width="12dp"
+                                        android:layout_height="10dp"
+                                        android:background="@drawable/rounded_background4" />
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="match_parent"
+                                    android:layout_weight="1"
+                                    android:gravity="bottom|center_horizontal">
+
+                                    <View
+                                        android:id="@+id/day3_bar"
+                                        android:layout_width="12dp"
+                                        android:layout_height="10dp"
+                                        android:background="@drawable/rounded_background5" />
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="match_parent"
+                                    android:layout_weight="1"
+                                    android:gravity="bottom|center_horizontal">
+
+                                    <View
+                                        android:id="@+id/day2_bar"
+                                        android:layout_width="12dp"
+                                        android:layout_height="10dp"
+                                        android:background="@drawable/rounded_background6" />
+                                </LinearLayout>
+
+                                <LinearLayout
+                                    android:layout_width="0dp"
+                                    android:layout_height="match_parent"
+                                    android:layout_weight="1"
+                                    android:gravity="bottom|center_horizontal">
+
+                                    <View
+                                        android:id="@+id/day1_bar"
+                                        android:layout_width="12dp"
+                                        android:layout_height="10dp"
+                                        android:background="@drawable/rounded_background7" />
+                                </LinearLayout>
+                            </LinearLayout>
+
+                            <!-- Day Labels Row -->
+                            <LinearLayout
+                                android:id="@+id/linearLayout2"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:baselineAligned="false"
+                                android:orientation="horizontal">
+
+                                <TextView
+                                    android:id="@+id/day7"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/montserratalternatess_regular"
+                                    android:gravity="center"
+                                    android:text="Sun"
+                                    android:textColor="@color/white"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:id="@+id/day6"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/montserratalternatess_regular"
+                                    android:gravity="center"
+                                    android:text="Mon"
+                                    android:textColor="@color/white"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:id="@+id/day5"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/montserratalternatess_regular"
+                                    android:gravity="center"
+                                    android:text="Tue"
+                                    android:textColor="@color/white"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:id="@+id/day4"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/montserratalternatess_regular"
+                                    android:gravity="center"
+                                    android:text="Wed"
+                                    android:textColor="@color/white"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:id="@+id/day3"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/montserratalternatess_regular"
+                                    android:gravity="center"
+                                    android:text="Thu"
+                                    android:textColor="@color/white"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:id="@+id/day2"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/montserratalternatess_regular"
+                                    android:gravity="center"
+                                    android:text="Fri"
+                                    android:textColor="@color/white"
+                                    android:textSize="11sp" />
+
+                                <TextView
+                                    android:id="@+id/day1"
+                                    android:layout_width="0dp"
+                                    android:layout_height="wrap_content"
+                                    android:layout_weight="1"
+                                    android:fontFamily="@font/montserratalternatess_regular"
+                                    android:gravity="center"
+                                    android:text="Sat"
+                                    android:textColor="@color/white"
+                                    android:textSize="11sp" />
+                            </LinearLayout>
+                        </LinearLayout>
+
+                        <!-- Monthly Line Chart Container -->
+                        <com.github.mikephil.charting.charts.LineChart
+                            android:id="@+id/monthlyLineChart"
+                            android:layout_width="match_parent"
+                            android:layout_height="160dp"
+                            android:layout_marginVertical="8dp"
+                            android:visibility="gone" />
+
+                    </LinearLayout>
+
+
+                    <LinearLayout
+                        android:id="@+id/RecentLayout"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginVertical="20dp"
+                        android:orientation="vertical">
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <LinearLayout
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1">
+
+                                <TextView
+                                    android:id="@+id/recentTextView"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:layout_marginRight="12dp"
+                                    android:fontFamily="@font/montserratalternatess_bold"
+                                    android:text="Recent transactions"
+                                    android:textColor="@color/grey"
+                                    android:textSize="16sp" />
+
+                                <TextView
+                                    android:id="@+id/viewAllTransaction"
+                                    android:layout_width="wrap_content"
+                                    android:layout_height="wrap_content"
+                                    android:fontFamily="@font/montserratalternatess_bold"
+                                    android:text="@string/viewAll_transactions"
+                                    android:textColor="@color/darkBlue"
+                                    android:textSize="16sp" />
+
+                            </LinearLayout>
+
+                            <ImageButton
+                                android:id="@+id/btn_addTransaction"
+                                android:layout_width="56dp"
+                                android:layout_height="56dp"
+                                android:background="@drawable/circular_button_background"
+                                android:contentDescription="@string/add_new_transaction_description"
+                                android:elevation="2dp"
+                                android:scaleType="centerInside"
+                                android:src="@drawable/baseline_add_24"
+                                app:tint="@color/white" />
+
+                        </LinearLayout>
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/transactionListRecycler"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="8dp"
+                            android:nestedScrollingEnabled="false"
+                            tools:listitem="@layout/fragment_transaction" />
+
+                    </LinearLayout>
                 </LinearLayout>
 
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="bottom|center_horizontal">
+            </androidx.core.widget.NestedScrollView>
 
-                    <View
-                        android:id="@+id/day6_bar"
-                        android:layout_width="12dp"
-                        android:layout_height="10dp"
-                        android:background="@drawable/rounded_background2" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="bottom|center_horizontal">
-
-                    <View
-                        android:id="@+id/day5_bar"
-                        android:layout_width="12dp"
-                        android:layout_height="10dp"
-                        android:background="@drawable/rounded_background3" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="bottom|center_horizontal">
-
-                    <View
-                        android:id="@+id/day4_bar"
-                        android:layout_width="12dp"
-                        android:layout_height="10dp"
-                        android:background="@drawable/rounded_background4" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="bottom|center_horizontal">
-
-                    <View
-                        android:id="@+id/day3_bar"
-                        android:layout_width="12dp"
-                        android:layout_height="10dp"
-                        android:background="@drawable/rounded_background5" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="bottom|center_horizontal">
-
-                    <View
-                        android:id="@+id/day2_bar"
-                        android:layout_width="12dp"
-                        android:layout_height="10dp"
-                        android:background="@drawable/rounded_background6" />
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="0dp"
-                    android:layout_height="match_parent"
-                    android:layout_weight="1"
-                    android:gravity="bottom|center_horizontal">
-
-                    <View
-                        android:id="@+id/day1_bar"
-                        android:layout_width="12dp"
-                        android:layout_height="10dp"
-                        android:background="@drawable/rounded_background7" />
-                </LinearLayout>
-            </LinearLayout>
-
-            <!-- Day Labels Row -->
-            <LinearLayout
-                android:id="@+id/linearLayout2"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:baselineAligned="false"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:id="@+id/day7"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:gravity="center"
-                    android:text="Sun"
-                    android:textColor="@color/white"
-                    android:textSize="11sp" />
-
-                <TextView
-                    android:id="@+id/day6"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:gravity="center"
-                    android:text="Mon"
-                    android:textColor="@color/white"
-                    android:textSize="11sp" />
-
-                <TextView
-                    android:id="@+id/day5"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:gravity="center"
-                    android:text="Tue"
-                    android:textColor="@color/white"
-                    android:textSize="11sp" />
-
-                <TextView
-                    android:id="@+id/day4"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:gravity="center"
-                    android:text="Wed"
-                    android:textColor="@color/white"
-                    android:textSize="11sp" />
-
-                <TextView
-                    android:id="@+id/day3"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:gravity="center"
-                    android:text="Thu"
-                    android:textColor="@color/white"
-                    android:textSize="11sp" />
-
-                <TextView
-                    android:id="@+id/day2"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:gravity="center"
-                    android:text="Fri"
-                    android:textColor="@color/white"
-                    android:textSize="11sp" />
-
-                <TextView
-                    android:id="@+id/day1"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:gravity="center"
-                    android:text="Sat"
-                    android:textColor="@color/white"
-                    android:textSize="11sp" />
-            </LinearLayout>
         </LinearLayout>
 
-        <!-- Monthly Line Chart Container -->
-        <com.github.mikephil.charting.charts.LineChart
-            android:id="@+id/monthlyLineChart"
+        <!-- Loading Overlay -->
+        <LinearLayout
+            android:id="@+id/loadingOverlay_home"
             android:layout_width="match_parent"
-            android:layout_height="160dp"
-            android:layout_marginVertical="8dp"
-            android:visibility="gone" />
-
-        <!-- Loading Progress -->
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center">
+            android:layout_height="match_parent"
+            android:background="@color/glassy_background"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone">
 
             <ProgressBar
-                android:id="@+id/progressBar"
                 style="@style/CustomProgressBarStyle"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:background="@drawable/glassy_background"
-                android:padding="20dp"
-                android:visibility="gone" />
-        </FrameLayout>
-
-    </LinearLayout>
-
-
-    <LinearLayout
-        android:id="@+id/RecentLayout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginVertical="20dp"
-        android:orientation="vertical">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
-
-            <LinearLayout
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1">
+                android:layout_width="48dp"
+                android:layout_height="48dp" />
 
             <TextView
-                android:id="@+id/recentTextView"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_bold"
-                android:text="Recent transactions"
-                android:textColor="@color/grey"
-                android:textSize="16sp"
-                android:layout_marginRight="12dp"/>
-
-            <TextView
-                android:id="@+id/viewAllTransaction"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_bold"
-                android:text="@string/viewAll_transactions"
+                android:layout_marginTop="12dp"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:text="@string/loading_text"
                 android:textColor="@color/darkBlue"
-                android:textSize="16sp" />
-
-                </LinearLayout>
-
-            <ImageButton
-                android:id="@+id/btn_addTransaction"
-                android:layout_width="56dp"
-                android:layout_height="56dp"
-                android:background="@drawable/circular_button_background"
-                android:contentDescription="@string/add_new_transaction_description"
-                android:elevation="2dp"
-                android:scaleType="centerInside"
-                android:src="@drawable/baseline_add_24"
-                app:tint="@color/white" />
+                android:textSize="14sp" />
 
         </LinearLayout>
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/transactionListRecycler"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:nestedScrollingEnabled="false"
-            tools:listitem="@layout/fragment_transaction" />
-
-    </LinearLayout>
-        </LinearLayout>
-
-    </androidx.core.widget.NestedScrollView>
-
-    <FrameLayout
-        android:id="@+id/loadingOverlay"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="@color/glassy_background"
-        android:visibility="gone">
-
-        <ProgressBar
-            android:id="@+id/progressBar"
-            style="@style/CustomProgressBarStyle"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_gravity="center" />
     </FrameLayout>
 </LinearLayout>
