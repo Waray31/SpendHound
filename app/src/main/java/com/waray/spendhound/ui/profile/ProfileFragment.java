@@ -87,13 +87,18 @@ public class ProfileFragment extends Fragment {
 
     private static final int REQUEST_IMAGE_CAPTURE = 1;
     private static final int REQUEST_IMAGE_PICK = 2;
-    private View loadingOverlay_home;
+    private View loadingOverlay_profile;
     private int pendingLoads = 0;
 
 
     public View onCreateView(@NonNull LayoutInflater inflater,
                              ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_profile, container, false);
+
+        loadingOverlay_profile = view.findViewById(R.id.loadingOverlay_profile);
+        if (loadingOverlay_profile != null) {
+            loadingOverlay_profile.setVisibility(View.VISIBLE);
+        }
 
         profileImageView = view.findViewById(R.id.profileImageView);
         setProfileImage(profileImageView);
@@ -157,22 +162,25 @@ public class ProfileFragment extends Fragment {
     public void setProfileImage(ImageView imageView) {
         // Check if the fragment is attached to an activity
         if (isAdded()) {
+            showLoading();
             String userId = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
             StorageReference storageRef = FirebaseStorage.getInstance().getReference("profile_images").child(userId);
             storageRef.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
                 @Override
                 public void onSuccess(Uri downloadUri) {
                     // Set the retrieved image to the provided ImageView
-                    Glide.with(requireContext()).load(downloadUri).into(imageView);
+                    if (isAdded()) {
+                        Glide.with(requireContext()).load(downloadUri).into(imageView);
+                    }
+                    hideLoading();
                 }
             }).addOnFailureListener(new OnFailureListener() {
                 @Override
                 public void onFailure(@NonNull Exception exception) {
                     // Handle image retrieval failure
+                    hideLoading();
                 }
             });
-        } else {
-            // Handle the case when the fragment is not attached to an activity
         }
     }
     private void EditNickname(){
@@ -210,6 +218,7 @@ public class ProfileFragment extends Fragment {
     }
 
     private void loadNickname() {
+        showLoading();
         String currentUserID = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
         DatabaseReference usersRef = DeclareDatabase.getDatabaseReference().child(currentUserID);
         usersRef.child("username").addListenerForSingleValueEvent(new ValueEventListener() {
@@ -224,12 +233,14 @@ public class ProfileFragment extends Fragment {
                 } else {
                     Log.d("FirebaseDatabase", "Nickname not found in database.");
                 }
+                hideLoading();
             }
             @Override
             public void onCancelled(DatabaseError databaseError) {
                 // Handle database read error
                 String errorMessage = "Database read error occurred: " + databaseError.getMessage();
                 Log.e("FirebaseDatabase", errorMessage);
+                hideLoading();
             }
         });
     }
@@ -273,42 +284,8 @@ public class ProfileFragment extends Fragment {
 
     }
 
-    /*public void MonthlyFilter(){
-        DatabaseReference transRef = DeclareDatabase.getDBRefTransaction();
-        // Initialize an empty set to store unique months
-        Set<String> uniqueMonths = new HashSet<>();
-        transRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
-                for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
-                    // Assuming the month is the key (e.g., "September-2023")
-                    String monthYear = monthSnapshot.getKey();
-                    String[] parts = monthYear.split("-");
-                    String finalCurrentMonth = parts[0];
-                    uniqueMonths.add(finalCurrentMonth);
-                }
-
-                // Convert the Set to a List for sorting (if needed)
-                sortedMonths = new ArrayList<>(uniqueMonths);
-                Collections.sort(sortedMonths);
-
-                monthSpinner.setBackgroundResource(R.drawable.transparent_background);
-
-                SpinnerItemMonths adapter = new SpinnerItemMonths(getActivity(), sortedMonths);
-                monthSpinner.setAdapter(adapter);
-            }
-
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
-                // Handle database read error
-                String errorMessage = "Database read error occurred: " + databaseError.getMessage();
-                Log.e("FirebaseDatabase", errorMessage);
-            }
-        });
-
-    }*/
-
     public void TotalBalanceUnpaid() {
+        showLoading();
         DatabaseReference transRef = DeclareDatabase.getDBRefTransaction();
         String currentYear = new SimpleDateFormat("yyyy", Locale.getDefault()).format(Calendar.getInstance().getTime());
 
@@ -322,6 +299,8 @@ public class ProfileFragment extends Fragment {
                 // Initialize variables to hold total balance and unpaid amounts
                 int totalBalance = 0;
                 int totalUnpaid = 0;
+                totalIndividualPayment = 0;
+                totalPaymentList = 0;
 
                 // Iterate over all months in the database
                 for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
@@ -357,22 +336,25 @@ public class ProfileFragment extends Fragment {
                             o = 0;
                         }
                     }
-                    if (totalPaymentList == totalIndividualPayment ) {
-                        balance = 0;
-                        unpaid = 0;
-                    } else if (totalIndividualPayment > totalPaymentList){
-                        unpaid = totalIndividualPayment - totalPaymentList;
-                    } else if (totalIndividualPayment < totalPaymentList){
-                        balance = totalPaymentList - totalIndividualPayment;
-                    } else {
-                        balance = 0;
-                        unpaid = 0;
-                    }
-
-                    String currentBalanceStr = String.valueOf(balance);
-                    totalBalancedTextView.setText("₱ " + currentBalanceStr + ".00");
-                    totalTextView.setText("Total Balance:");
                 }
+                if (totalPaymentList == totalIndividualPayment ) {
+                    balance = 0;
+                    unpaid = 0;
+                } else if (totalIndividualPayment > totalPaymentList){
+                    unpaid = totalIndividualPayment - totalPaymentList;
+                    balance = 0;
+                } else if (totalIndividualPayment < totalPaymentList){
+                    balance = totalPaymentList - totalIndividualPayment;
+                    unpaid = 0;
+                } else {
+                    balance = 0;
+                    unpaid = 0;
+                }
+
+                String currentBalanceStr = String.valueOf(balance);
+                totalBalancedTextView.setText("₱ " + currentBalanceStr + ".00");
+                totalTextView.setText("Total Balance:");
+                hideLoading();
             }
 
             @Override
@@ -380,6 +362,7 @@ public class ProfileFragment extends Fragment {
                 // Handle database read error
                 String errorMessage = "Database read error occurred: " + databaseError.getMessage();
                 Log.e("FirebaseDatabase", errorMessage);
+                hideLoading();
             }
         });
     }
@@ -486,6 +469,7 @@ public class ProfileFragment extends Fragment {
     }
 
     private void getDebt() {
+        showLoading();
         DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
         String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
 
@@ -494,6 +478,7 @@ public class ProfileFragment extends Fragment {
             @SuppressLint("NotifyDataSetChanged")
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                currentDebt = 0;
                 for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
                     for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
                         for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
@@ -530,6 +515,7 @@ public class ProfileFragment extends Fragment {
                         }
                     }
                 }
+                hideLoading();
             }
 
             @Override
@@ -537,11 +523,13 @@ public class ProfileFragment extends Fragment {
                 // Handle database read error
                 String errorMessage = "Database read error occurred: " + databaseError.getMessage();
                 Log.e("FirebaseDatabase", errorMessage);
+                hideLoading();
             }
         });
     }
 
     private void getOwe() {
+        showLoading();
         DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
         String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
 
@@ -550,6 +538,7 @@ public class ProfileFragment extends Fragment {
             @SuppressLint("NotifyDataSetChanged")
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                currentOwe = 0;
                 for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
                     for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
                         for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
@@ -587,6 +576,7 @@ public class ProfileFragment extends Fragment {
                         }
                     }
                 }
+                hideLoading();
             }
 
             @Override
@@ -594,118 +584,7 @@ public class ProfileFragment extends Fragment {
                 // Handle database read error
                 String errorMessage = "Database read error occurred: " + databaseError.getMessage();
                 Log.e("FirebaseDatabase", errorMessage);
-            }
-        });
-    }
-
-    private void getUnpaid() {
-        DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
-        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
-
-        databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
-
-            @SuppressLint("NotifyDataSetChanged")
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
-                    for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
-                        for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
-                            // Try new structure first: borrows/{month}/{day}/{borrowId}
-                            BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
-
-                            if (borrowNowTransaction != null && borrowNowTransaction.getBorrowerID() != null) {
-                                // New UID-based structure - check if current user is the borrower
-                                if (Objects.equals(borrowNowTransaction.getBorrowerID(), currentUserId)) {
-                                    try {
-                                        int borrowedAmount = Integer.parseInt(borrowNowTransaction.getBorrowedAmountStr());
-                                        currentUnpaid += borrowedAmount;
-                                    } catch (NumberFormatException e) {
-                                        Log.e("ProfileFragment", "Error parsing amount: " + e.getMessage());
-                                    }
-                                }
-                            } else {
-                                // Legacy structure: borrows/{month}/{day}/{username}/{time}
-                                String currentUserStr = borrowSnapshot.getKey();
-                                if (Objects.equals(currentUserStr, currentNickname)) {
-                                    for (DataSnapshot timeSnapshot : borrowSnapshot.getChildren()) {
-                                        try {
-                                            BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
-                                            if (borrowTransaction != null) {
-                                                int borrowedAmount = Integer.parseInt(borrowTransaction.getBorrowedAmountStr());
-                                                currentUnpaid += borrowedAmount;
-                                            }
-                                        } catch (Exception e) {
-                                            Log.e("ProfileFragment", "Error parsing legacy transaction: " + e.getMessage());
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                // Handle database read error
-                String errorMessage = "Database read error occurred: " + databaseError.getMessage();
-                Log.e("FirebaseDatabase", errorMessage);
-            }
-        });
-    }
-
-    private void getBalance() {
-        DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
-        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
-
-        databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
-
-            @SuppressLint("NotifyDataSetChanged")
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
-                    for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
-                        for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
-                            // Try new structure first: borrows/{month}/{day}/{borrowId}
-                            BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
-
-                            if (borrowNowTransaction != null && borrowNowTransaction.getBorrowerID() != null) {
-                                // New UID-based structure - check if current user is the borrower
-                                if (Objects.equals(borrowNowTransaction.getBorrowerID(), currentUserId)) {
-                                    try {
-                                        int borrowedAmount = Integer.parseInt(borrowNowTransaction.getBorrowedAmountStr());
-                                        currentBalance += borrowedAmount;
-                                    } catch (NumberFormatException e) {
-                                        Log.e("ProfileFragment", "Error parsing amount: " + e.getMessage());
-                                    }
-                                }
-                            } else {
-                                // Legacy structure: borrows/{month}/{day}/{username}/{time}
-                                String currentUserStr = borrowSnapshot.getKey();
-                                if (Objects.equals(currentUserStr, currentNickname)) {
-                                    for (DataSnapshot timeSnapshot : borrowSnapshot.getChildren()) {
-                                        try {
-                                            BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
-                                            if (borrowTransaction != null) {
-                                                int borrowedAmount = Integer.parseInt(borrowTransaction.getBorrowedAmountStr());
-                                                currentBalance += borrowedAmount;
-                                            }
-                                        } catch (Exception e) {
-                                            Log.e("ProfileFragment", "Error parsing legacy transaction: " + e.getMessage());
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                // Handle database read error
-                String errorMessage = "Database read error occurred: " + databaseError.getMessage();
-                Log.e("FirebaseDatabase", errorMessage);
+                hideLoading();
             }
         });
     }
@@ -1431,24 +1310,16 @@ public class ProfileFragment extends Fragment {
 
     private void showLoading() {
         pendingLoads++;
-        if (loadingOverlay_home != null) {
-            loadingOverlay_home.setVisibility(View.VISIBLE);
+        if (loadingOverlay_profile != null) {
+            loadingOverlay_profile.setVisibility(View.VISIBLE);
         }
     }
 
     private void hideLoading() {
         pendingLoads = Math.max(0, pendingLoads - 1);
-        if (pendingLoads == 0 && loadingOverlay_home != null) {
-            loadingOverlay_home.setVisibility(View.GONE);
+        if (pendingLoads == 0 && loadingOverlay_profile != null) {
+            loadingOverlay_profile.setVisibility(View.GONE);
         }
-    }
-
-    // Example usage: wrap all data loads
-    private void loadProfileData() {
-        showLoading();
-        // ...async data load...
-        // on data loaded:
-        hideLoading();
     }
 
 }
