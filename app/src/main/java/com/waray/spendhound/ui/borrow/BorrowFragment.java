@@ -13,7 +13,6 @@ import android.view.Window;
 import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -23,7 +22,9 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.LinearSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.SnapHelper;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -37,12 +38,13 @@ import com.waray.spendhound.BorrowNowTransaction;
 import com.waray.spendhound.BorrowTransaction;
 import com.waray.spendhound.DeclareDatabase;
 import com.waray.spendhound.DebtTransactionAdapter;
+import com.waray.spendhound.LenderAdapter;
 import com.waray.spendhound.MainActivity;
 import com.waray.spendhound.OwedTransaction;
 import com.waray.spendhound.OwedTransactionAdapter;
 import com.waray.spendhound.R;
-import com.waray.spendhound.SpinnerItem;
 import com.waray.spendhound.SpinnerItemMonths;
+import com.waray.spendhound.User;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -88,6 +90,8 @@ public class BorrowFragment extends Fragment {
     private boolean isLoading = false;
 
     private View globalLoadingOverlay;
+
+    private String selectedLenderName = "";
 
     @SuppressLint("MissingInflatedId")
     public View onCreateView(@NonNull LayoutInflater inflater,
@@ -604,7 +608,7 @@ public class BorrowFragment extends Fragment {
         // Initialize dialog views
         TextView dateTV = dialog.findViewById(R.id.dialogBorrowDate);
         TextView borrowerTV = dialog.findViewById(R.id.dialogBorrower);
-        Spinner lenderSpinner = dialog.findViewById(R.id.dialogBorroweeSpinner);
+        RecyclerView lenderRecyclerView = dialog.findViewById(R.id.lenderRecyclerView);
         EditText amountEditText = dialog.findViewById(R.id.dialogBorrowEditText);
         Button cancelBtn = dialog.findViewById(R.id.dialogCancelBtn);
         Button borrowBtn = dialog.findViewById(R.id.dialogBorrowBtn);
@@ -619,8 +623,8 @@ public class BorrowFragment extends Fragment {
         // Set borrower name
         borrowerTV.setText(currentNickname);
 
-        // Load users for lender spinner
-        loadUsersForSpinner(lenderSpinner);
+        // Setup Lender RecyclerView
+        setupLenderRecyclerView(lenderRecyclerView);
 
         // Cancel button
         cancelBtn.setOnClickListener(v -> dialog.dismiss());
@@ -628,10 +632,8 @@ public class BorrowFragment extends Fragment {
         // Borrow button
         borrowBtn.setOnClickListener(v -> {
             String amountStr = amountEditText.getText().toString().trim();
-            String selectedLender = lenderSpinner.getSelectedItem() != null ?
-                    lenderSpinner.getSelectedItem().toString() : "";
-
-            if (amountStr.isEmpty() || selectedLender.equals(getString(R.string.dialog_select_lender)) || selectedLender.isEmpty()) {
+            
+            if (amountStr.isEmpty() || selectedLenderName.isEmpty()) {
                 showToast(getString(R.string.toast_fill_all_fields));
                 return;
             }
@@ -655,39 +657,108 @@ public class BorrowFragment extends Fragment {
             showGlobalLoading();
 
             // Process the borrow transaction
-            addBorrowTransaction(selectedLender, String.valueOf(amount), currentDate, dialog, dialogProgressBar, borrowBtn, cancelBtn);
+            addBorrowTransaction(selectedLenderName, String.valueOf(amount), currentDate, dialog, dialogProgressBar, borrowBtn, cancelBtn);
         });
 
         dialog.show();
     }
 
-    /**
-     * Load users for the lender spinner in the dialog
-     */
-    private void loadUsersForSpinner(Spinner spinner) {
+    private void setupLenderRecyclerView(RecyclerView recyclerView) {
+        LinearLayoutManager layoutManager = new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false);
+        recyclerView.setLayoutManager(layoutManager);
+        
+        List<User> lenders = new ArrayList<>();
+        LenderAdapter adapter = new LenderAdapter(lenders);
+        recyclerView.setAdapter(adapter);
+
+        SnapHelper snapHelper = new LinearSnapHelper();
+        snapHelper.attachToRecyclerView(recyclerView);
+
+        recyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+                updateLayoutEffect(recyclerView);
+            }
+
+            @Override
+            public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
+                super.onScrollStateChanged(recyclerView, newState);
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    View centerView = snapHelper.findSnapView(layoutManager);
+                    if (centerView != null) {
+                        int pos = layoutManager.getPosition(centerView);
+                        User selectedLender = adapter.getLenderAt(pos);
+                        if (selectedLender != null) {
+                            selectedLenderName = selectedLender.getUsername();
+                        }
+                    }
+                }
+            }
+        });
+
+        loadLenders(adapter, lenders, recyclerView);
+    }
+
+    private void updateLayoutEffect(RecyclerView recyclerView) {
+        float midpoint = recyclerView.getWidth() / 2f;
+        float d0 = 0f;
+        float d1 = 0.9f * midpoint;
+        float s0 = 1.6f; // Increased scale factor for center from 1.3f to 1.6f
+        float s1 = 1.0f; // Scale factor for side
+        float a0 = 1.0f; // Alpha for center
+        float a1 = 0.5f; // Alpha for side
+
+        for (int i = 0; i < recyclerView.getChildCount(); i++) {
+            View child = recyclerView.getChildAt(i);
+            float childMidpoint = (recyclerView.getLayoutManager().getDecoratedRight(child) + recyclerView.getLayoutManager().getDecoratedLeft(child)) / 2f;
+            float d = Math.min(d1, Math.abs(midpoint - childMidpoint));
+            float scale = s0 + (s1 - s0) * (d - d0) / (d1 - d0);
+            float alpha = a0 + (a1 - a0) * (d - d0) / (d1 - d0);
+            child.setScaleX(scale);
+            child.setScaleY(scale);
+            child.setAlpha(alpha);
+        }
+    }
+
+    private void loadLenders(LenderAdapter adapter, List<User> lenders, RecyclerView recyclerView) {
         DatabaseReference databaseReference = DeclareDatabase.getDatabaseReference();
         databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                List<String> usernames = new ArrayList<>();
-                usernames.add(getString(R.string.dialog_select_lender));
+                lenders.clear();
+                // Add an empty user at start and end for better snapping of edge items
+                lenders.add(new User("", "", "", "", 0, 0, 0, 0));
+                lenders.add(new User("", "", "", "", 0, 0, 0, 0));
+                
                 for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
-                    String username = userSnapshot.child("username").getValue(String.class);
-                    if (username != null && !username.equals(currentNickname)) {
-                        usernames.add(username);
+                    User user = userSnapshot.getValue(User.class);
+                    if (user != null && user.getUsername() != null && !user.getUsername().equals(currentNickname)) {
+                        lenders.add(user);
                     }
                 }
-                if (getActivity() != null) {
-                    SpinnerItem adapter = new SpinnerItem(getActivity(), usernames);
-                    adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                    spinner.setAdapter(adapter);
+
+                lenders.add(new User("", "", "", "", 0, 0, 0, 0));
+                lenders.add(new User("", "", "", "", 0, 0, 0, 0));
+                
+                adapter.notifyDataSetChanged();
+                
+                // Scroll to the first real user and select them
+                if (lenders.size() > 2) {
+                    recyclerView.scrollToPosition(2);
+                    recyclerView.post(() -> {
+                        User firstUser = adapter.getLenderAt(2);
+                        if (firstUser != null) {
+                            selectedLenderName = firstUser.getUsername();
+                        }
+                        updateLayoutEffect(recyclerView);
+                    });
                 }
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
                 Log.e("BorrowFragment", "Database error: " + databaseError.getMessage());
-                showToast(getString(R.string.toast_borrow_failed));
             }
         });
     }
@@ -852,25 +923,6 @@ public class BorrowFragment extends Fragment {
         }
     }
 
-    /**
-     * Convert display date format (MMM-dd-yyyy) to Firebase date format (MMMM-dd-yyyy)
-     * @param displayDate Date in MMM-dd-yyyy format (e.g., "Feb-25-2026")
-     * @return Date in MMMM-dd-yyyy format (e.g., "February-25-2026")
-     */
-    private String convertToFirebaseDateFormat(String displayDate) {
-        try {
-            SimpleDateFormat displayFormat = new SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH);
-            SimpleDateFormat firebaseFormat = new SimpleDateFormat("MMMM-dd-yyyy", Locale.ENGLISH);
-            java.util.Date date = displayFormat.parse(displayDate);
-            if (date != null) {
-                return firebaseFormat.format(date);
-            }
-        } catch (Exception e) {
-            Log.e("BorrowFragment", "Error converting date format: " + e.getMessage());
-        }
-        return displayDate; // Return original if conversion fails
-    }
-
     @Override
     public void onResume() {
         super.onResume();
@@ -890,5 +942,3 @@ public class BorrowFragment extends Fragment {
         }
     }
 }
-
-

@@ -2,7 +2,6 @@ package com.waray.spendhound;
 
 import android.annotation.SuppressLint;
 import android.content.Context;
-import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MenuItem;
@@ -12,13 +11,16 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ProgressBar;
-import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.ActionBar;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.LinearSnapHelper;
+import androidx.recyclerview.widget.RecyclerView;
+import androidx.recyclerview.widget.SnapHelper;
 
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
@@ -29,7 +31,6 @@ import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-import com.waray.spendhound.ui.borrow.BorrowFragment;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -39,14 +40,15 @@ import java.util.Locale;
 import java.util.Objects;
 
 public class BorrowNowActivity extends AppCompatActivity {
-    public List<String> usernames;
-    private Spinner borrowSpinner;
+    private RecyclerView lenderRecyclerView;
     private TextView date, borrower;
     public String currentNickname, lender, currentDate, status, borrowedAmountSTR, borrowerID, lenderID;
     private Integer borrowedAmount = 0;
     private ProgressBar progressBar;
     private Button borrowBtn;
     private DatabaseReference usersRef;
+    private LenderAdapter adapter;
+    private List<User> lenders;
 
 
     @SuppressLint("MissingInflatedId")
@@ -54,15 +56,16 @@ public class BorrowNowActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_borrow_now);
-        borrowSpinner = findViewById(R.id.borrowee);
+        lenderRecyclerView = findViewById(R.id.lenderRecyclerView);
         date = findViewById(R.id.date);
         borrower = findViewById(R.id.borrower);
         progressBar = findViewById(R.id.progressBar);
         borrowBtn = findViewById(R.id.borrowBtn);
         status = "For Lender Approval";
+        usersRef = FirebaseDatabase.getInstance().getReference("users");
 
         setDate();
-        getUsers();
+        setupLenderRecyclerView();
         borrowBtnClicked();
         exitEditText();
         loadNickname();
@@ -73,63 +76,124 @@ public class BorrowNowActivity extends AppCompatActivity {
         }
     }
 
+    private void setupLenderRecyclerView() {
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false);
+        lenderRecyclerView.setLayoutManager(layoutManager);
+        
+        lenders = new ArrayList<>();
+        adapter = new LenderAdapter(lenders);
+        lenderRecyclerView.setAdapter(adapter);
+
+        SnapHelper snapHelper = new LinearSnapHelper();
+        snapHelper.attachToRecyclerView(lenderRecyclerView);
+
+        lenderRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
+            @Override
+            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
+                super.onScrolled(recyclerView, dx, dy);
+                updateLayoutEffect(recyclerView);
+            }
+
+            @Override
+            public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
+                super.onScrollStateChanged(recyclerView, newState);
+                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
+                    View centerView = snapHelper.findSnapView(layoutManager);
+                    if (centerView != null) {
+                        int pos = layoutManager.getPosition(centerView);
+                        User selectedLender = adapter.getLenderAt(pos);
+                        if (selectedLender != null) {
+                            lender = selectedLender.getUsername();
+                        }
+                    }
+                }
+            }
+        });
+
+        getUsers();
+    }
+
+    private void updateLayoutEffect(RecyclerView recyclerView) {
+        float midpoint = recyclerView.getWidth() / 2f;
+        float d0 = 0f;
+        float d1 = 0.9f * midpoint;
+        float s0 = 1.6f; // Increased selected scale from 1.3f to 1.6f
+        float s1 = 1.0f;
+        float a0 = 1.0f;
+        float a1 = 0.5f;
+
+        for (int i = 0; i < recyclerView.getChildCount(); i++) {
+            View child = recyclerView.getChildAt(i);
+            float childMidpoint = (recyclerView.getLayoutManager().getDecoratedRight(child) + recyclerView.getLayoutManager().getDecoratedLeft(child)) / 2f;
+            float d = Math.min(d1, Math.abs(midpoint - childMidpoint));
+            float scale = s0 + (s1 - s0) * (d - d0) / (d1 - d0);
+            float alpha = a0 + (a1 - a0) * (d - d0) / (d1 - d0);
+            child.setScaleX(scale);
+            child.setScaleY(scale);
+            child.setAlpha(alpha);
+        }
+    }
+
     private void loadNickname() {
         String currentUserID = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
         DatabaseReference usersRef = DeclareDatabase.getDatabaseReference().child(currentUserID);
         usersRef.child("username").addListenerForSingleValueEvent(new ValueEventListener() {
             public void onDataChange(DataSnapshot dataSnapshot) {
                 if (dataSnapshot.exists()) {
-                    // Get the username from the dataSnapshot and assign it to usernamePost
                     currentNickname = dataSnapshot.getValue(String.class);
-                    Log.d("FirebaseDatabase", "Nickname loaded: " + currentNickname);
-
-                    // Update the TextView with the loaded nickname
                     borrower.setText(currentNickname);
-                } else {
-                    Log.d("FirebaseDatabase", "Nickname not found in database.");
                 }
             }
             @Override
             public void onCancelled(DatabaseError databaseError) {
-                // Handle database read error
-                String errorMessage = "Database read error occurred: " + databaseError.getMessage();
-                Log.e("FirebaseDatabase", errorMessage);
+                Log.e("FirebaseDatabase", "Database read error: " + databaseError.getMessage());
             }
         });
     }
 
     public void getUsers() {
-        DatabaseReference databaseReference = DeclareDatabase.getDatabaseReference();
-        databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
+        usersRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                usernames = new ArrayList<>();
-                usernames.add("Select a lender:"); // Add the default value
+                lenders.clear();
+                // Padding for snapping (2 items on each side to center the actual users)
+                lenders.add(new User("", "", "", "", 0, 0, 0, 0));
+                lenders.add(new User("", "", "", "", 0, 0, 0, 0));
+                
                 for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
-                    String username = userSnapshot.child("username").getValue(String.class);
-                    if (username != null && !username.equals(currentNickname)) {
-                        usernames.add(username);
+                    User user = userSnapshot.getValue(User.class);
+                    if (user != null && user.getUsername() != null && !user.getUsername().equals(currentNickname)) {
+                        lenders.add(user);
                     }
                 }
-                SpinnerItem adapter = new SpinnerItem(BorrowNowActivity.this, usernames);
-                adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-                borrowSpinner.setAdapter(adapter);
+
+                lenders.add(new User("", "", "", "", 0, 0, 0, 0));
+                lenders.add(new User("", "", "", "", 0, 0, 0, 0));
+                
+                adapter.notifyDataSetChanged();
+                
+                // Initial selection and layout update
+                if (lenders.size() > 2) {
+                    lenderRecyclerView.scrollToPosition(2);
+                    lenderRecyclerView.post(() -> {
+                        User firstUser = adapter.getLenderAt(2);
+                        if (firstUser != null) {
+                            lender = firstUser.getUsername();
+                        }
+                        updateLayoutEffect(lenderRecyclerView);
+                    });
+                }
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
-                // Handle database read error
-                String errorMessage = "Database read error occurred: " + databaseError.getMessage();
-                Log.e("FirebaseDatabase", errorMessage);
-
-                // You can also display a Toast message to inform the user
-                Toast.makeText(getApplicationContext(), errorMessage, Toast.LENGTH_LONG).show();
+                Log.e("FirebaseDatabase", "Database read error: " + databaseError.getMessage());
+                Toast.makeText(getApplicationContext(), "Failed to load users", Toast.LENGTH_LONG).show();
             }
         });
     }
 
     private void setDate() {
-        // Get the current date and time
         Calendar calendar = Calendar.getInstance();
         SimpleDateFormat dateFormat = new SimpleDateFormat("MMMM-dd-yyyy", Locale.getDefault());
         currentDate = dateFormat.format(calendar.getTime());
@@ -137,19 +201,14 @@ public class BorrowNowActivity extends AppCompatActivity {
     }
 
     public boolean onOptionsItemSelected(MenuItem item) {
-        switch (item.getItemId()) {
-            case android.R.id.home:
-                // Handle the "Up" button press (e.g., navigate back to BorrowFragment)
-                finish(); // Finish the activity to return to the previous fragment
-                return true;
-            default:
-                return super.onOptionsItemSelected(item);
+        if (item.getItemId() == android.R.id.home) {
+            finish();
+            return true;
         }
+        return super.onOptionsItemSelected(item);
     }
 
     private void addBorrowTransaction() {
-
-        // Get the current date and time
         Calendar calendar = Calendar.getInstance();
         SimpleDateFormat dateFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
         SimpleDateFormat dayFormat = new SimpleDateFormat("dd", Locale.getDefault());
@@ -158,12 +217,10 @@ public class BorrowNowActivity extends AppCompatActivity {
         String currentDay = dayFormat.format(calendar.getTime());
         long timestamp = System.currentTimeMillis();
 
-        // New path structure: borrows/{month}/{day}/{borrowId}
         DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
         DatabaseReference monthYearRef = databaseReference.child(currentMonthYear);
         DatabaseReference dayRef = monthYearRef.child(currentDay);
 
-        // Generate unique borrowId using push()
         String borrowId = dayRef.push().getKey();
         if (borrowId == null) {
             Toast.makeText(BorrowNowActivity.this, "Failed to generate borrow ID", Toast.LENGTH_SHORT).show();
@@ -173,64 +230,52 @@ public class BorrowNowActivity extends AppCompatActivity {
 
         DatabaseReference borrowRef = dayRef.child(borrowId);
 
-        // Get the current authenticated user
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
-        if (currentUser != null) {
-            if (lender != null) {
-                String getBorrowerID = currentUser.getUid();
-                usersRef = FirebaseDatabase.getInstance().getReference("users");
-                borrowerID = getBorrowerID;
+        if (currentUser != null && lender != null && !lender.isEmpty()) {
+            borrowerID = currentUser.getUid();
 
-                getUserIDByName(lender, new UserIDCallback() {
-                    @Override
-                    public void onUserIDRetrieved(String getLenderID) {
-                        lenderID = getLenderID;
+            getUserIDByName(lender, new UserIDCallback() {
+                @Override
+                public void onUserIDRetrieved(String getLenderID) {
+                    lenderID = getLenderID;
 
-                        // Create transaction with new structure including borrowId, borrowerName, and timestamp
-                        BorrowNowTransaction borrowNowTransaction = new BorrowNowTransaction(
-                                borrowId,
-                                borrowerID,
-                                lenderID,
-                                currentNickname, // borrowerName for display
-                                currentDate,
-                                lender, // lenderName for display
-                                borrowedAmountSTR,
-                                status,
-                                timestamp
-                        );
+                    BorrowNowTransaction borrowNowTransaction = new BorrowNowTransaction(
+                            borrowId,
+                            borrowerID,
+                            lenderID,
+                            currentNickname,
+                            currentDate,
+                            lender,
+                            borrowedAmountSTR,
+                            status,
+                            timestamp
+                    );
 
-                        borrowRef.setValue(borrowNowTransaction).addOnSuccessListener(new OnSuccessListener<Void>() {
-                            @Override
-                            public void onSuccess(Void unused) {
-                                // Update userBorrows index for borrower
-                                BalanceHelper.addBorrowerEntry(borrowerID, borrowId, null);
+                    borrowRef.setValue(borrowNowTransaction).addOnSuccessListener(new OnSuccessListener<Void>() {
+                        @Override
+                        public void onSuccess(Void unused) {
+                            BalanceHelper.addBorrowerEntry(borrowerID, borrowId, null);
+                            BalanceHelper.addLenderEntry(lenderID, borrowId, null);
 
-                                // Update userBorrows index for lender
-                                BalanceHelper.addLenderEntry(lenderID, borrowId, null);
+                            int amount = Integer.parseInt(borrowedAmountSTR);
+                            BalanceHelper.updateDebt(borrowerID, amount, null);
+                            BalanceHelper.updateTotalBorrowed(borrowerID, amount, null);
+                            BalanceHelper.updateOwed(lenderID, amount, null);
+                            BalanceHelper.updateTotalLent(lenderID, amount, null);
 
-                                // Update borrower's debt (they owe money)
-                                int amount = Integer.parseInt(borrowedAmountSTR);
-                                BalanceHelper.updateDebt(borrowerID, amount, null);
-                                BalanceHelper.updateTotalBorrowed(borrowerID, amount, null);
-
-                                // Update lender's owed (they are owed money)
-                                BalanceHelper.updateOwed(lenderID, amount, null);
-                                BalanceHelper.updateTotalLent(lenderID, amount, null);
-
-                                Toast.makeText(BorrowNowActivity.this, "Borrowed successfully", Toast.LENGTH_SHORT).show();
-                                progressBar.setVisibility(View.GONE);
-                                finish();
-                            }
-                        }).addOnFailureListener(new OnFailureListener() {
-                            @Override
-                            public void onFailure(@NonNull Exception e) {
-                                progressBar.setVisibility(View.GONE);
-                                Toast.makeText(BorrowNowActivity.this, "Failed to Borrow", Toast.LENGTH_SHORT).show();
-                            }
-                        });
-                    }
-                });
-            }
+                            Toast.makeText(BorrowNowActivity.this, "Borrowed successfully", Toast.LENGTH_SHORT).show();
+                            progressBar.setVisibility(View.GONE);
+                            finish();
+                        }
+                    }).addOnFailureListener(new OnFailureListener() {
+                        @Override
+                        public void onFailure(@NonNull Exception e) {
+                            progressBar.setVisibility(View.GONE);
+                            Toast.makeText(BorrowNowActivity.this, "Failed to Borrow", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+            });
         }
     }
 
@@ -240,22 +285,19 @@ public class BorrowNowActivity extends AppCompatActivity {
             public void onClick(View v) {
                 EditText borrowEditText = findViewById(R.id.borrowEditText);
                 String borrowedAmountStr = borrowEditText.getText().toString();
-                if (!borrowedAmountStr.isEmpty()) {
+                if (!borrowedAmountStr.isEmpty() && lender != null && !lender.isEmpty()) {
                     borrowedAmount = Integer.parseInt(borrowedAmountStr);
                     borrowedAmountSTR = String.valueOf(borrowedAmount);
-                    progressBar.setVisibility(View.VISIBLE);
-                    lender = borrowSpinner.getSelectedItem().toString();
-
-                    if ("Select a lender:".equals(lender) || borrowedAmount == 0) {
-                        Toast.makeText(BorrowNowActivity.this, "Please fill in all fields", Toast.LENGTH_SHORT).show();
-                        progressBar.setVisibility(View.GONE);
-                    } else {
-                        addBorrowTransaction();
-                        progressBar.setVisibility(View.GONE);
+                    
+                    if (borrowedAmount == 0) {
+                        Toast.makeText(BorrowNowActivity.this, "Please enter a valid amount", Toast.LENGTH_SHORT).show();
+                        return;
                     }
+                    
+                    progressBar.setVisibility(View.VISIBLE);
+                    addBorrowTransaction();
                 } else {
-                    borrowedAmount = 0;
-                    borrowedAmountSTR = String.valueOf(borrowedAmount);
+                    Toast.makeText(BorrowNowActivity.this, "Please select a lender and enter amount", Toast.LENGTH_SHORT).show();
                 }
             }
         });
@@ -267,18 +309,15 @@ public class BorrowNowActivity extends AppCompatActivity {
         borrowEditText.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                // Consume the touch event on the EditText to prevent it from being intercepted
                 v.performClick();
                 return false;
             }
         });
 
-        // Add an OnTouchListener to the root layout (or any other layout that covers the whole screen)
         View rootView = findViewById(android.R.id.content);
         rootView.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {
-                // Hide the keyboard when the user touches outside the EditText
                 hideKeyboard(borrowEditText);
                 return false;
             }
@@ -286,16 +325,14 @@ public class BorrowNowActivity extends AppCompatActivity {
     }
 
     public void getUserIDByName(String name, UserIDCallback callback) {
-
         usersRef.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
                     String userName = userSnapshot.child("username").getValue(String.class);
                     if (name.equals(userName)) {
-                        lenderID = userSnapshot.getKey();
-                        callback.onUserIDRetrieved(lenderID);
-                        break;
+                        callback.onUserIDRetrieved(userSnapshot.getKey());
+                        return;
                     }
                 }
             }
@@ -313,9 +350,8 @@ public class BorrowNowActivity extends AppCompatActivity {
 
     private void hideKeyboard(EditText editText) {
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.hideSoftInputFromWindow(editText.getWindowToken(), 0);
+        if (imm != null) {
+            imm.hideSoftInputFromWindow(editText.getWindowToken(), 0);
+        }
     }
-
 }
-
-
