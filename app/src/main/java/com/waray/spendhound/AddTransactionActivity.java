@@ -373,7 +373,11 @@ public class AddTransactionActivity extends AppCompatActivity {
                 return;
             }
 
-            totalIndividualPayment = paymentAmount / payorsList.size();
+            // Calculate totalIndividualPayment based on total group members, not just payors
+            int groupMemberCount = (selectedGroup != null && selectedGroup.getMembers() != null)
+                ? selectedGroup.getMembers().size()
+                : payorsList.size();
+            totalIndividualPayment = paymentAmount / groupMemberCount;
 
         } else {
             // Use group members with equal split
@@ -523,6 +527,9 @@ public class AddTransactionActivity extends AppCompatActivity {
 
         timestampRef.setValue(transaction)
                 .addOnSuccessListener(aVoid -> {
+                    // Update user balance fields after transaction is saved
+                    updateUserBalancesForTransaction();
+
                     progressBar.setVisibility(View.GONE);
                     Toast.makeText(AddTransactionActivity.this, "Transaction added successfully", Toast.LENGTH_SHORT).show();
                     Intent intent = new Intent(AddTransactionActivity.this, MainActivity.class);
@@ -533,6 +540,29 @@ public class AddTransactionActivity extends AppCompatActivity {
                     progressBar.setVisibility(View.GONE);
                     Toast.makeText(AddTransactionActivity.this, "Failed to add transaction", Toast.LENGTH_SHORT).show();
                 });
+    }
+
+    /**
+     * Update user balance fields after a transaction is saved
+     */
+    private void updateUserBalancesForTransaction() {
+        // Update poster's totalBillSpent
+        if (usernamePost != null && !usernamePost.isEmpty()) {
+            BalanceHelper.updateTotalBillSpent(usernamePost, paymentAmount, null);
+        }
+
+        // Update each payor's totalBillPayment and totalIndividualSpent
+        if (payorsList != null && amountsPaidList != null) {
+            for (int i = 0; i < payorsList.size() && i < amountsPaidList.size(); i++) {
+                String payorUID = payorsList.get(i);
+                int amountPaid = amountsPaidList.get(i);
+
+                if (payorUID != null && !payorUID.isEmpty()) {
+                    BalanceHelper.updateTotalBillPayment(payorUID, amountPaid, null);
+                    BalanceHelper.updateTotalIndividualSpent(payorUID, totalIndividualPayment, null);
+                }
+            }
+        }
     }
 
 

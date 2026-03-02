@@ -45,6 +45,7 @@ import com.waray.spendhound.OwedTransactionAdapter;
 import com.waray.spendhound.R;
 import com.waray.spendhound.SpinnerItemMonths;
 import com.waray.spendhound.User;
+import com.waray.spendhound.UserBalance; // ...added import for UserBalance
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -551,18 +552,67 @@ public class BorrowFragment extends Fragment {
                 .child(day)
                 .child(borrowId);
 
-        borrowRef.child("status").setValue(newStatus)
-                .addOnSuccessListener(unused -> {
-                    if (onSuccess != null) {
-                        onSuccess.run();
+        // If status is being changed to "Paid", we need to decrement the balance fields
+        if ("Paid".equals(newStatus)) {
+            borrowRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    BorrowNowTransaction borrow = dataSnapshot.getValue(BorrowNowTransaction.class);
+                    if (borrow != null && !("Paid".equals(borrow.getStatus()))) {
+                        // Only decrement if it wasn't already paid
+                        try {
+                            int amount = Integer.parseInt(borrow.getBorrowedAmountStr());
+                            String borrowerID = borrow.getBorrowerID();
+                            String lenderID = borrow.getLenderID();
+
+                            // Decrement balances (negative amount to subtract)
+                            if (borrowerID != null) {
+                                BalanceHelper.updateTotaldebt(borrowerID, -amount, null);
+                            }
+                            if (lenderID != null) {
+                                BalanceHelper.updateTotalreceivable(lenderID, -amount, null);
+                            }
+                        } catch (NumberFormatException e) {
+                            Log.e("BorrowFragment", "Error parsing borrow amount: " + e.getMessage());
+                        }
                     }
-                    showToast(getString(R.string.toast_status_updated));
-                    applyFilters();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e("BorrowFragment", "Failed to update status: " + e.getMessage());
+
+                    // Update status in database
+                    borrowRef.child("status").setValue(newStatus)
+                            .addOnSuccessListener(unused -> {
+                                if (onSuccess != null) {
+                                    onSuccess.run();
+                                }
+                                showToast(getString(R.string.toast_status_updated));
+                                applyFilters();
+                            })
+                            .addOnFailureListener(e -> {
+                                Log.e("BorrowFragment", "Failed to update status: " + e.getMessage());
+                                showToast(getString(R.string.toast_status_update_failed));
+                            });
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError error) {
+                    Log.e("BorrowFragment", "Failed to read borrow data: " + error.getMessage());
                     showToast(getString(R.string.toast_status_update_failed));
-                });
+                }
+            });
+        } else {
+            // If not changing to "Paid", just update the status
+            borrowRef.child("status").setValue(newStatus)
+                    .addOnSuccessListener(unused -> {
+                        if (onSuccess != null) {
+                            onSuccess.run();
+                        }
+                        showToast(getString(R.string.toast_status_updated));
+                        applyFilters();
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e("BorrowFragment", "Failed to update status: " + e.getMessage());
+                        showToast(getString(R.string.toast_status_update_failed));
+                    });
+        }
     }
 
     /**
@@ -576,19 +626,69 @@ public class BorrowFragment extends Fragment {
 
         long paymentSentDate = System.currentTimeMillis();
 
-        borrowRef.child("status").setValue(newStatus);
-        borrowRef.child("paymentSentDate").setValue(paymentSentDate)
-                .addOnSuccessListener(unused -> {
-                    if (onSuccess != null) {
-                        onSuccess.run();
+        // If status is being changed to "Paid", we need to decrement the balance fields
+        if ("Paid".equals(newStatus)) {
+            borrowRef.addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+                    BorrowNowTransaction borrow = dataSnapshot.getValue(BorrowNowTransaction.class);
+                    if (borrow != null && !("Paid".equals(borrow.getStatus()))) {
+                        // Only decrement if it wasn't already paid
+                        try {
+                            int amount = Integer.parseInt(borrow.getBorrowedAmountStr());
+                            String borrowerID = borrow.getBorrowerID();
+                            String lenderID = borrow.getLenderID();
+
+                            // Decrement balances (negative amount to subtract)
+                            if (borrowerID != null) {
+                                BalanceHelper.updateTotaldebt(borrowerID, -amount, null);
+                            }
+                            if (lenderID != null) {
+                                BalanceHelper.updateTotalreceivable(lenderID, -amount, null);
+                            }
+                        } catch (NumberFormatException e) {
+                            Log.e("BorrowFragment", "Error parsing borrow amount: " + e.getMessage());
+                        }
                     }
-                    showToast(getString(R.string.toast_status_updated));
-                    applyFilters();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e("BorrowFragment", "Failed to update status: " + e.getMessage());
+
+                    // Update status and payment date in database
+                    borrowRef.child("status").setValue(newStatus);
+                    borrowRef.child("paymentSentDate").setValue(paymentSentDate)
+                            .addOnSuccessListener(unused -> {
+                                if (onSuccess != null) {
+                                    onSuccess.run();
+                                }
+                                showToast(getString(R.string.toast_status_updated));
+                                applyFilters();
+                            })
+                            .addOnFailureListener(e -> {
+                                Log.e("BorrowFragment", "Failed to update status: " + e.getMessage());
+                                showToast(getString(R.string.toast_status_update_failed));
+                            });
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError error) {
+                    Log.e("BorrowFragment", "Failed to read borrow data: " + error.getMessage());
                     showToast(getString(R.string.toast_status_update_failed));
-                });
+                }
+            });
+        } else {
+            // If not changing to "Paid", just update the status and payment date
+            borrowRef.child("status").setValue(newStatus);
+            borrowRef.child("paymentSentDate").setValue(paymentSentDate)
+                    .addOnSuccessListener(unused -> {
+                        if (onSuccess != null) {
+                            onSuccess.run();
+                        }
+                        showToast(getString(R.string.toast_status_updated));
+                        applyFilters();
+                    })
+                    .addOnFailureListener(e -> {
+                        Log.e("BorrowFragment", "Failed to update status: " + e.getMessage());
+                        showToast(getString(R.string.toast_status_update_failed));
+                    });
+        }
     }
 
     /**
@@ -728,9 +828,9 @@ public class BorrowFragment extends Fragment {
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 lenders.clear();
                 // Add an empty user at start and end for better snapping of edge items
-                lenders.add(new User("", "", "", "", 0, 0, 0, 0));
-                lenders.add(new User("", "", "", "", 0, 0, 0, 0));
-                
+                lenders.add(new User("", "", "", "", new UserBalance()));
+                lenders.add(new User("", "", "", "", new UserBalance()));
+
                 for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
                     User user = userSnapshot.getValue(User.class);
                     if (user != null && user.getUsername() != null && !user.getUsername().equals(currentNickname)) {
@@ -738,9 +838,9 @@ public class BorrowFragment extends Fragment {
                     }
                 }
 
-                lenders.add(new User("", "", "", "", 0, 0, 0, 0));
-                lenders.add(new User("", "", "", "", 0, 0, 0, 0));
-                
+                lenders.add(new User("", "", "", "", new UserBalance()));
+                lenders.add(new User("", "", "", "", new UserBalance()));
+
                 adapter.notifyDataSetChanged();
                 
                 // Scroll to the first real user and select them
@@ -832,14 +932,10 @@ public class BorrowFragment extends Fragment {
                     // Update userBorrows index for lender
                     BalanceHelper.addLenderEntry(lenderID, borrowId, null);
 
-                    // Update borrower's debt
+                    // Update borrower's totaldebt and lender's totalreceivable
                     int amount = Integer.parseInt(borrowedAmountStr);
-                    BalanceHelper.updateDebt(borrowerID, amount, null);
-                    BalanceHelper.updateTotalBorrowed(borrowerID, amount, null);
-
-                    // Update lender's owed
-                    BalanceHelper.updateOwed(lenderID, amount, null);
-                    BalanceHelper.updateTotalLent(lenderID, amount, null);
+                    BalanceHelper.updateTotaldebt(borrowerID, amount, null);
+                    BalanceHelper.updateTotalreceivable(lenderID, amount, null);
 
                     if (getActivity() != null) {
                         getActivity().runOnUiThread(() -> {

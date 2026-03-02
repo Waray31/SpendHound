@@ -157,9 +157,9 @@ public class BorrowNowActivity extends AppCompatActivity {
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 lenders.clear();
                 // Padding for snapping (2 items on each side to center the actual users)
-                lenders.add(new User("", "", "", "", 0, 0, 0, 0));
-                lenders.add(new User("", "", "", "", 0, 0, 0, 0));
-                
+                lenders.add(new User("", "", "", "", new UserBalance()));
+                lenders.add(new User("", "", "", "", new UserBalance()));
+
                 for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
                     User user = userSnapshot.getValue(User.class);
                     if (user != null && user.getUsername() != null && !user.getUsername().equals(currentNickname)) {
@@ -167,9 +167,9 @@ public class BorrowNowActivity extends AppCompatActivity {
                     }
                 }
 
-                lenders.add(new User("", "", "", "", 0, 0, 0, 0));
-                lenders.add(new User("", "", "", "", 0, 0, 0, 0));
-                
+                lenders.add(new User("", "", "", "", new UserBalance()));
+                lenders.add(new User("", "", "", "", new UserBalance()));
+
                 adapter.notifyDataSetChanged();
                 
                 // Initial selection and layout update
@@ -258,10 +258,9 @@ public class BorrowNowActivity extends AppCompatActivity {
                             BalanceHelper.addLenderEntry(lenderID, borrowId, null);
 
                             int amount = Integer.parseInt(borrowedAmountSTR);
-                            BalanceHelper.updateDebt(borrowerID, amount, null);
-                            BalanceHelper.updateTotalBorrowed(borrowerID, amount, null);
-                            BalanceHelper.updateOwed(lenderID, amount, null);
-                            BalanceHelper.updateTotalLent(lenderID, amount, null);
+                            // Update with new balance field methods
+                            BalanceHelper.updateTotaldebt(borrowerID, amount, null);
+                            BalanceHelper.updateTotalreceivable(lenderID, amount, null);
 
                             Toast.makeText(BorrowNowActivity.this, "Borrowed successfully", Toast.LENGTH_SHORT).show();
                             progressBar.setVisibility(View.GONE);

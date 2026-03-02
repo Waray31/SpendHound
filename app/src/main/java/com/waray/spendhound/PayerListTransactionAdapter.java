@@ -112,19 +112,66 @@ public class PayerListTransactionAdapter extends RecyclerView.Adapter<PayerListT
 
     @SuppressLint("NotifyDataSetChanged")
     private void updateTransactionStatus(BorrowerListTransaction transaction, String[] path, int position, String status) {
-        DatabaseReference userRef = FirebaseDatabase.getInstance().getReference("borrows")
+        DatabaseReference borrowRef = FirebaseDatabase.getInstance().getReference("borrows")
                 .child(path[0]).child(path[1]).child(path[2]).child(path[3]);
 
-        transaction.setStatus(status);
-        userRef.child("status").setValue(status)
-                .addOnSuccessListener(aVoid -> {
-                    transactionList.set(position, transaction);
-                    notifyDataSetChanged();
-                    if (statusUpdatedListener != null) {
-                        statusUpdatedListener.onTransactionStatusUpdated();
+        // If status is being changed to "Paid", decrement balance fields
+        if ("Paid".equals(status)) {
+            borrowRef.addListenerForSingleValueEvent(new com.google.firebase.database.ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull com.google.firebase.database.DataSnapshot dataSnapshot) {
+                    BorrowNowTransaction borrow = dataSnapshot.getValue(BorrowNowTransaction.class);
+                    if (borrow != null && !("Paid".equals(borrow.getStatus()))) {
+                        // Only decrement if it wasn't already paid
+                        try {
+                            int amount = Integer.parseInt(borrow.getBorrowedAmountStr());
+                            String borrowerID = borrow.getBorrowerID();
+                            String lenderID = borrow.getLenderID();
+
+                            // Decrement balances (negative amount to subtract)
+                            if (borrowerID != null) {
+                                BalanceHelper.updateTotaldebt(borrowerID, -amount, null);
+                            }
+                            if (lenderID != null) {
+                                BalanceHelper.updateTotalreceivable(lenderID, -amount, null);
+                            }
+                        } catch (NumberFormatException e) {
+                            Log.e("PayerListTransactionAdapter", "Error parsing borrow amount: " + e.getMessage());
+                        }
                     }
-                })
-                .addOnFailureListener(e -> Toast.makeText(context, "Failed to update status: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+
+                    // Update status
+                    transaction.setStatus(status);
+                    borrowRef.child("status").setValue(status)
+                            .addOnSuccessListener(aVoid -> {
+                                transactionList.set(position, transaction);
+                                notifyDataSetChanged();
+                                if (statusUpdatedListener != null) {
+                                    statusUpdatedListener.onTransactionStatusUpdated();
+                                }
+                            })
+                            .addOnFailureListener(e -> Toast.makeText(context, "Failed to update status: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                }
+
+                @Override
+                public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) {
+                    Log.e("PayerListTransactionAdapter", "Failed to read borrow data: " + error.getMessage());
+                    Toast.makeText(context, "Failed to update status", Toast.LENGTH_SHORT).show();
+                }
+            });
+        } else {
+            // If not changing to "Paid", just update the status
+            transaction.setStatus(status);
+            borrowRef.child("status").setValue(status)
+                    .addOnSuccessListener(aVoid -> {
+                        transactionList.set(position, transaction);
+                        notifyDataSetChanged();
+                        if (statusUpdatedListener != null) {
+                            statusUpdatedListener.onTransactionStatusUpdated();
+                        }
+                    })
+                    .addOnFailureListener(e -> Toast.makeText(context, "Failed to update status: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+        }
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {

@@ -152,7 +152,7 @@ public class SignUpActivity extends AppCompatActivity {
         DatabaseReference usersRef = FirebaseDatabase.getInstance().getReference("users");
 
         // Create UserBalance with initial values
-        UserBalance initialBalance = new UserBalance(balanced, unpaid, owed, debt, 0, 0);
+        UserBalance initialBalance = new UserBalance(0, 0, 0, 0, 0);
         User user = new User(username, email, profileImageUrl, password, initialBalance);
 
         usersRef.child(userId).setValue(user)

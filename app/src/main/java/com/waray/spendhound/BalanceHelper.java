@@ -35,7 +35,7 @@ public class BalanceHelper {
                 .child(uid)
                 .child("balances");
 
-        UserBalance initialBalance = new UserBalance(0, 0, 0, 0, 0, 0);
+        UserBalance initialBalance = new UserBalance(0, 0, 0, 0, 0);
         userBalanceRef.setValue(initialBalance)
                 .addOnSuccessListener(aVoid -> {
                     Log.d(TAG, "Balances initialized for user: " + uid);
@@ -121,13 +121,119 @@ public class BalanceHelper {
     }
 
     /**
-     * Update user's debt atomically using Firebase transaction
+     * Update user's totalBillSpent atomically using Firebase transaction
+     * totalBillSpent is the sum of paymentAmount in all transactions where user is in payorsList
      */
-    public static void updateDebt(String uid, int amountChange, BalanceCallback callback) {
+    public static void updateTotalBillSpent(String uid, int amountChange, BalanceCallback callback) {
+        DatabaseReference billSpentRef = DeclareDatabase.getDatabaseReference()
+                .child(uid)
+                .child("balances")
+                .child("totalBillSpent");
+
+        billSpentRef.runTransaction(new Transaction.Handler() {
+            @NonNull
+            @Override
+            public Transaction.Result doTransaction(@NonNull MutableData mutableData) {
+                Integer currentValue = mutableData.getValue(Integer.class);
+                if (currentValue == null) {
+                    currentValue = 0;
+                }
+                mutableData.setValue(currentValue + amountChange);
+                return Transaction.success(mutableData);
+            }
+
+            @Override
+            public void onComplete(DatabaseError error, boolean committed, DataSnapshot snapshot) {
+                if (error != null) {
+                    Log.e(TAG, "Failed to update totalBillSpent: " + error.getMessage());
+                    if (callback != null) callback.onFailure(error.getMessage());
+                } else if (committed) {
+                    Log.d(TAG, "TotalBillSpent updated for user: " + uid);
+                    if (callback != null) callback.onSuccess();
+                }
+            }
+        });
+    }
+
+    /**
+     * Update user's totalBillPayment atomically using Firebase transaction
+     * totalBillPayment is the sum of user's individual amounts from amountsPaidList in all transactions
+     */
+    public static void updateTotalBillPayment(String uid, int amountChange, BalanceCallback callback) {
+        DatabaseReference billPaymentRef = DeclareDatabase.getDatabaseReference()
+                .child(uid)
+                .child("balances")
+                .child("totalBillPayment");
+
+        billPaymentRef.runTransaction(new Transaction.Handler() {
+            @NonNull
+            @Override
+            public Transaction.Result doTransaction(@NonNull MutableData mutableData) {
+                Integer currentValue = mutableData.getValue(Integer.class);
+                if (currentValue == null) {
+                    currentValue = 0;
+                }
+                mutableData.setValue(currentValue + amountChange);
+                return Transaction.success(mutableData);
+            }
+
+            @Override
+            public void onComplete(DatabaseError error, boolean committed, DataSnapshot snapshot) {
+                if (error != null) {
+                    Log.e(TAG, "Failed to update totalBillPayment: " + error.getMessage());
+                    if (callback != null) callback.onFailure(error.getMessage());
+                } else if (committed) {
+                    Log.d(TAG, "TotalBillPayment updated for user: " + uid);
+                    if (callback != null) callback.onSuccess();
+                }
+            }
+        });
+    }
+
+    /**
+     * Update user's totalIndividualSpent atomically using Firebase transaction
+     * totalIndividualSpent is the sum of totalIndividualPayment for each transaction user participated in
+     */
+    public static void updateTotalIndividualSpent(String uid, int amountChange, BalanceCallback callback) {
+        DatabaseReference individualSpentRef = DeclareDatabase.getDatabaseReference()
+                .child(uid)
+                .child("balances")
+                .child("totalIndividualSpent");
+
+        individualSpentRef.runTransaction(new Transaction.Handler() {
+            @NonNull
+            @Override
+            public Transaction.Result doTransaction(@NonNull MutableData mutableData) {
+                Integer currentValue = mutableData.getValue(Integer.class);
+                if (currentValue == null) {
+                    currentValue = 0;
+                }
+                mutableData.setValue(currentValue + amountChange);
+                return Transaction.success(mutableData);
+            }
+
+            @Override
+            public void onComplete(DatabaseError error, boolean committed, DataSnapshot snapshot) {
+                if (error != null) {
+                    Log.e(TAG, "Failed to update totalIndividualSpent: " + error.getMessage());
+                    if (callback != null) callback.onFailure(error.getMessage());
+                } else if (committed) {
+                    Log.d(TAG, "TotalIndividualSpent updated for user: " + uid);
+                    if (callback != null) callback.onSuccess();
+                }
+            }
+        });
+    }
+
+    /**
+     * Update user's totaldebt atomically using Firebase transaction
+     * totaldebt is the sum of borrow amounts where user is borrower with status != "Paid"
+     */
+    public static void updateTotaldebt(String uid, int amountChange, BalanceCallback callback) {
         DatabaseReference debtRef = DeclareDatabase.getDatabaseReference()
                 .child(uid)
                 .child("balances")
-                .child("debt");
+                .child("totaldebt");
 
         debtRef.runTransaction(new Transaction.Handler() {
             @NonNull
@@ -144,10 +250,10 @@ public class BalanceHelper {
             @Override
             public void onComplete(DatabaseError error, boolean committed, DataSnapshot snapshot) {
                 if (error != null) {
-                    Log.e(TAG, "Failed to update debt: " + error.getMessage());
+                    Log.e(TAG, "Failed to update totaldebt: " + error.getMessage());
                     if (callback != null) callback.onFailure(error.getMessage());
                 } else if (committed) {
-                    Log.d(TAG, "Debt updated for user: " + uid);
+                    Log.d(TAG, "Totaldebt updated for user: " + uid);
                     if (callback != null) callback.onSuccess();
                 }
             }
@@ -155,15 +261,16 @@ public class BalanceHelper {
     }
 
     /**
-     * Update user's owed amount atomically using Firebase transaction
+     * Update user's totalreceivable atomically using Firebase transaction
+     * totalreceivable is the sum of borrow amounts where user is lender with status != "Paid"
      */
-    public static void updateOwed(String uid, int amountChange, BalanceCallback callback) {
-        DatabaseReference owedRef = DeclareDatabase.getDatabaseReference()
+    public static void updateTotalreceivable(String uid, int amountChange, BalanceCallback callback) {
+        DatabaseReference receivableRef = DeclareDatabase.getDatabaseReference()
                 .child(uid)
                 .child("balances")
-                .child("owed");
+                .child("totalreceivable");
 
-        owedRef.runTransaction(new Transaction.Handler() {
+        receivableRef.runTransaction(new Transaction.Handler() {
             @NonNull
             @Override
             public Transaction.Result doTransaction(@NonNull MutableData mutableData) {
@@ -178,146 +285,10 @@ public class BalanceHelper {
             @Override
             public void onComplete(DatabaseError error, boolean committed, DataSnapshot snapshot) {
                 if (error != null) {
-                    Log.e(TAG, "Failed to update owed: " + error.getMessage());
+                    Log.e(TAG, "Failed to update totalreceivable: " + error.getMessage());
                     if (callback != null) callback.onFailure(error.getMessage());
                 } else if (committed) {
-                    Log.d(TAG, "Owed updated for user: " + uid);
-                    if (callback != null) callback.onSuccess();
-                }
-            }
-        });
-    }
-
-    /**
-     * Update user's totalBorrowed atomically
-     */
-    public static void updateTotalBorrowed(String uid, int amountChange, BalanceCallback callback) {
-        DatabaseReference totalBorrowedRef = DeclareDatabase.getDatabaseReference()
-                .child(uid)
-                .child("balances")
-                .child("totalBorrowed");
-
-        totalBorrowedRef.runTransaction(new Transaction.Handler() {
-            @NonNull
-            @Override
-            public Transaction.Result doTransaction(@NonNull MutableData mutableData) {
-                Integer currentValue = mutableData.getValue(Integer.class);
-                if (currentValue == null) {
-                    currentValue = 0;
-                }
-                mutableData.setValue(currentValue + amountChange);
-                return Transaction.success(mutableData);
-            }
-
-            @Override
-            public void onComplete(DatabaseError error, boolean committed, DataSnapshot snapshot) {
-                if (error != null) {
-                    Log.e(TAG, "Failed to update totalBorrowed: " + error.getMessage());
-                    if (callback != null) callback.onFailure(error.getMessage());
-                } else if (committed) {
-                    Log.d(TAG, "TotalBorrowed updated for user: " + uid);
-                    if (callback != null) callback.onSuccess();
-                }
-            }
-        });
-    }
-
-    /**
-     * Update user's totalLent atomically
-     */
-    public static void updateTotalLent(String uid, int amountChange, BalanceCallback callback) {
-        DatabaseReference totalLentRef = DeclareDatabase.getDatabaseReference()
-                .child(uid)
-                .child("balances")
-                .child("totalLent");
-
-        totalLentRef.runTransaction(new Transaction.Handler() {
-            @NonNull
-            @Override
-            public Transaction.Result doTransaction(@NonNull MutableData mutableData) {
-                Integer currentValue = mutableData.getValue(Integer.class);
-                if (currentValue == null) {
-                    currentValue = 0;
-                }
-                mutableData.setValue(currentValue + amountChange);
-                return Transaction.success(mutableData);
-            }
-
-            @Override
-            public void onComplete(DatabaseError error, boolean committed, DataSnapshot snapshot) {
-                if (error != null) {
-                    Log.e(TAG, "Failed to update totalLent: " + error.getMessage());
-                    if (callback != null) callback.onFailure(error.getMessage());
-                } else if (committed) {
-                    Log.d(TAG, "TotalLent updated for user: " + uid);
-                    if (callback != null) callback.onSuccess();
-                }
-            }
-        });
-    }
-
-    /**
-     * Update user's unpaid amount atomically
-     */
-    public static void updateUnpaid(String uid, int amountChange, BalanceCallback callback) {
-        DatabaseReference unpaidRef = DeclareDatabase.getDatabaseReference()
-                .child(uid)
-                .child("balances")
-                .child("unpaid");
-
-        unpaidRef.runTransaction(new Transaction.Handler() {
-            @NonNull
-            @Override
-            public Transaction.Result doTransaction(@NonNull MutableData mutableData) {
-                Integer currentValue = mutableData.getValue(Integer.class);
-                if (currentValue == null) {
-                    currentValue = 0;
-                }
-                mutableData.setValue(currentValue + amountChange);
-                return Transaction.success(mutableData);
-            }
-
-            @Override
-            public void onComplete(DatabaseError error, boolean committed, DataSnapshot snapshot) {
-                if (error != null) {
-                    Log.e(TAG, "Failed to update unpaid: " + error.getMessage());
-                    if (callback != null) callback.onFailure(error.getMessage());
-                } else if (committed) {
-                    Log.d(TAG, "Unpaid updated for user: " + uid);
-                    if (callback != null) callback.onSuccess();
-                }
-            }
-        });
-    }
-
-    /**
-     * Update user's currentBalance atomically
-     */
-    public static void updateCurrentBalance(String uid, int amountChange, BalanceCallback callback) {
-        DatabaseReference balanceRef = DeclareDatabase.getDatabaseReference()
-                .child(uid)
-                .child("balances")
-                .child("currentBalance");
-
-        balanceRef.runTransaction(new Transaction.Handler() {
-            @NonNull
-            @Override
-            public Transaction.Result doTransaction(@NonNull MutableData mutableData) {
-                Integer currentValue = mutableData.getValue(Integer.class);
-                if (currentValue == null) {
-                    currentValue = 0;
-                }
-                mutableData.setValue(currentValue + amountChange);
-                return Transaction.success(mutableData);
-            }
-
-            @Override
-            public void onComplete(DatabaseError error, boolean committed, DataSnapshot snapshot) {
-                if (error != null) {
-                    Log.e(TAG, "Failed to update currentBalance: " + error.getMessage());
-                    if (callback != null) callback.onFailure(error.getMessage());
-                } else if (committed) {
-                    Log.d(TAG, "CurrentBalance updated for user: " + uid);
+                    Log.d(TAG, "Totalreceivable updated for user: " + uid);
                     if (callback != null) callback.onSuccess();
                 }
             }
