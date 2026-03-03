@@ -9,11 +9,18 @@ public class RecentTransaction {
     private String mostRecentPaymentAmountStr;
     private int iconResource;
     private String sortDateTime; // For sorting by date and time (format: "yyyy-MM-dd HH:mm:ss")
-    private List<String> payorsList;
+    private List<String> payorsList; // Display names
+    private List<String> payorUids;  // UIDs for profile images
     private List<Double> amountsPaidList;
+    private double totalIndividualPayment;
     private String fullDateWithYear; // Full date including year for details dialog
     private String createdBy; // Name of the person who created the transaction
     private String createdByUid; // UID of the person who created the transaction (for profile image)
+    
+    // Database reference keys
+    private String monthYear;
+    private String day;
+    private String timeKey;
 
     public RecentTransaction(String mostRecentDate, String mostRecentTransactionType, String mostRecentDetails, String mostRecentPaymentAmountStr, int iconResource) {
         this.mostRecentDate = mostRecentDate;
@@ -47,6 +54,30 @@ public class RecentTransaction {
         this.fullDateWithYear = fullDateWithYear;
         this.createdBy = createdBy;
         this.createdByUid = createdByUid;
+    }
+
+    public RecentTransaction(String mostRecentDate, String mostRecentTransactionType, String mostRecentDetails,
+                             String mostRecentPaymentAmountStr, int iconResource, String sortDateTime,
+                             List<String> payorsList, List<String> payorUids, List<Double> amountsPaidList,
+                             double totalIndividualPayment, String fullDateWithYear,
+                             String createdBy, String createdByUid,
+                             String monthYear, String day, String timeKey) {
+        this.mostRecentDate = mostRecentDate;
+        this.mostRecentTransactionType = mostRecentTransactionType;
+        this.mostRecentDetails = mostRecentDetails;
+        this.mostRecentPaymentAmountStr = mostRecentPaymentAmountStr;
+        this.iconResource = iconResource;
+        this.sortDateTime = sortDateTime;
+        this.payorsList = payorsList;
+        this.payorUids = payorUids;
+        this.amountsPaidList = amountsPaidList;
+        this.totalIndividualPayment = totalIndividualPayment;
+        this.fullDateWithYear = fullDateWithYear;
+        this.createdBy = createdBy;
+        this.createdByUid = createdByUid;
+        this.monthYear = monthYear;
+        this.day = day;
+        this.timeKey = timeKey;
     }
 
     public String getSortDateTime() {
@@ -135,5 +166,45 @@ public class RecentTransaction {
 
     public void setCreatedByUid(String createdByUid) {
         this.createdByUid = createdByUid;
+    }
+
+    public List<String> getPayorUids() {
+        return payorUids;
+    }
+
+    public void setPayorUids(List<String> payorUids) {
+        this.payorUids = payorUids;
+    }
+
+    public double getTotalIndividualPayment() {
+        return totalIndividualPayment;
+    }
+
+    public void setTotalIndividualPayment(double totalIndividualPayment) {
+        this.totalIndividualPayment = totalIndividualPayment;
+    }
+
+    public String getMonthYear() {
+        return monthYear;
+    }
+
+    public void setMonthYear(String monthYear) {
+        this.monthYear = monthYear;
+    }
+
+    public String getDay() {
+        return day;
+    }
+
+    public void setDay(String day) {
+        this.day = day;
+    }
+
+    public String getTimeKey() {
+        return timeKey;
+    }
+
+    public void setTimeKey(String timeKey) {
+        this.timeKey = timeKey;
     }
 }

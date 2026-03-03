@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingVertical="8dp">
+
+    <!-- Column 1: Profile Picture -->
+    <androidx.cardview.widget.CardView
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        app:cardCornerRadius="16dp"
+        android:elevation="0dp">
+        <ImageView
+            android:id="@+id/payorImage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:src="@drawable/placeholder_profile_image"/>
+    </androidx.cardview.widget.CardView>
+
+    <!-- Column 2: Name -->
+    <TextView
+        android:id="@+id/payorName"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1.5"
+        android:layout_marginStart="8dp"
+        android:text="Name"
+        android:textSize="12sp"
+        android:textColor="@color/black"
+        android:fontFamily="@font/montserratalternatess_regular"
+        android:ellipsize="end"
+        android:maxLines="1"/>
+
+    <!-- Column 3: Amount Paid -->
+    <TextView
+        android:id="@+id/payorPaidAmount"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="₱ 0.00"
+        android:textSize="12sp"
+        android:textColor="@color/darkBlue"
+        android:fontFamily="@font/montserratalternatess_bold"
+        android:gravity="center"/>
+
+    <!-- Column 4: Individual Payment (Due) -->
+    <TextView
+        android:id="@+id/payorDueAmount"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="₱ 0.00"
+        android:textSize="12sp"
+        android:textColor="@color/grey"
+        android:fontFamily="@font/montserratalternatess_regular"
+        android:gravity="center"/>
+
+    <!-- Column 5: Status -->
+    <TextView
+        android:id="@+id/payorStatus"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="Paid"
+        android:textSize="10sp"
+        android:textColor="@color/green"
+        android:fontFamily="@font/montserratalternatess_bold"
+        android:gravity="end"
+        android:visibility="invisible"/>
+
+    <!-- Column 6: Edit Button (Visible to creator) -->
+    <ImageView
+        android:id="@+id/editPayorAmountBtn"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:layout_marginStart="8dp"
+        android:src="@drawable/pencil"
+        android:padding="4dp"
+        android:visibility="gone"
+        android:contentDescription="Edit amount"/>
+
+</LinearLayout>

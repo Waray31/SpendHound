@@ -5,17 +5,20 @@ import android.app.AlertDialog;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
+import android.text.InputType;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.Button;
+import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -246,7 +249,7 @@ public class AllTransactionsActivity extends AppCompatActivity implements Recent
                             String transactionType = transaction.getTransactionType();
                             String details = transaction.getMultilineStr();
                             double paymentAmount = transaction.getPaymentAmount();
-                            String paymentAmountStr = "₱ " + paymentAmount;
+                            String paymentAmountStr = String.format(Locale.getDefault(), "₱ %.2f", paymentAmount);
                             int iconResource = getIconForTransactionType(transactionType);
 
                             // Get payors list - prefer display names, fallback to UIDs/usernames
@@ -254,7 +257,9 @@ public class AllTransactionsActivity extends AppCompatActivity implements Recent
                             if (payorsList == null || payorsList.isEmpty()) {
                                 payorsList = transaction.getPayorsList();
                             }
+                            java.util.List<String> payorUids = transaction.getPayorsList();
                             java.util.List<Double> amountsPaidList = transaction.getAmountsPaidList();
+                            double totalIndividualPayment = transaction.getTotalIndividualPayment();
 
                             // Get creator name - prefer display name, fallback to usernamePost
                             String createdBy = transaction.getPosterDisplayName();
@@ -273,10 +278,15 @@ public class AllTransactionsActivity extends AppCompatActivity implements Recent
                                     iconResource,
                                     sortDateTime,
                                     payorsList,
+                                    payorUids,
                                     amountsPaidList,
+                                    totalIndividualPayment,
                                     fullDateWithYear,
                                     createdBy,
-                                    createdByUid
+                                    createdByUid,
+                                    monthYear,
+                                    day,
+                                    timeKey
                             );
                             transactionList.add(recentTrans);
                         }
@@ -404,6 +414,7 @@ public class AllTransactionsActivity extends AppCompatActivity implements Recent
         TextView detailsTextView = dialogView.findViewById(R.id.dialogDetails);
         LinearLayout payorsContainer = dialogView.findViewById(R.id.payorsContainer);
         Button closeButton = dialogView.findViewById(R.id.dialogCloseButton);
+        View editHeaderSpacer = dialogView.findViewById(R.id.editHeaderSpacer);
 
         // Populate dialog with transaction data
         iconImageView.setImageResource(transaction.getIconResource());
@@ -428,6 +439,13 @@ public class AllTransactionsActivity extends AppCompatActivity implements Recent
 
         // Load creator profile image
         String createdByUid = transaction.getCreatedByUid();
+        String currentUid = mAuth.getCurrentUser().getUid();
+        boolean isCreator = createdByUid != null && createdByUid.equals(currentUid);
+        
+        if (isCreator) {
+            editHeaderSpacer.setVisibility(View.VISIBLE);
+        }
+
         if (createdByUid != null && !createdByUid.isEmpty()) {
             com.google.firebase.storage.StorageReference storageRef =
                 com.google.firebase.storage.FirebaseStorage.getInstance()
@@ -447,47 +465,60 @@ public class AllTransactionsActivity extends AppCompatActivity implements Recent
 
         // Populate payors section
         java.util.List<String> payorsList = transaction.getPayorsList();
+        java.util.List<String> payorUids = transaction.getPayorUids();
         java.util.List<Double> amountsPaidList = transaction.getAmountsPaidList();
+        double individualPayment = transaction.getTotalIndividualPayment();
 
         if (payorsList != null && !payorsList.isEmpty()) {
             for (int i = 0; i < payorsList.size(); i++) {
+                final int index = i;
                 String payorName = payorsList.get(i);
-                String amountStr = "₱ 0";
-                if (amountsPaidList != null && i < amountsPaidList.size()) {
-                    amountStr = "₱ " + amountsPaidList.get(i);
-                }
+                final double amountPaid = (amountsPaidList != null && i < amountsPaidList.size()) ? amountsPaidList.get(i) : 0;
 
-                // Create a row for each payor
-                LinearLayout payorRow = new LinearLayout(this);
-                payorRow.setOrientation(LinearLayout.HORIZONTAL);
-                payorRow.setLayoutParams(new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.MATCH_PARENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ));
-                if (i > 0) {
-                    payorRow.setPadding(0, 8, 0, 0);
-                }
+                View rowView = LayoutInflater.from(this).inflate(R.layout.transaction_payor_table_row, payorsContainer, false);
+                ImageView payorImage = rowView.findViewById(R.id.payorImage);
+                TextView payorNameTV = rowView.findViewById(R.id.payorName);
+                TextView payorPaidAmountTV = rowView.findViewById(R.id.payorPaidAmount);
+                TextView payorDueAmountTV = rowView.findViewById(R.id.payorDueAmount);
+                TextView payorStatusTV = rowView.findViewById(R.id.payorStatus);
+                ImageView editBtn = rowView.findViewById(R.id.editPayorAmountBtn);
 
-                TextView payorNameTV = new TextView(this);
-                payorNameTV.setLayoutParams(new LinearLayout.LayoutParams(
-                    0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f
-                ));
                 payorNameTV.setText(payorName);
-                payorNameTV.setTextColor(getResources().getColor(R.color.black, null));
-                payorNameTV.setTextSize(14);
+                payorPaidAmountTV.setText(String.format(Locale.getDefault(), "₱ %.2f", amountPaid));
+                payorDueAmountTV.setText(String.format(Locale.getDefault(), "₱ %.2f", individualPayment));
 
-                TextView payorAmountTV = new TextView(this);
-                payorAmountTV.setLayoutParams(new LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ));
-                payorAmountTV.setText(amountStr);
-                payorAmountTV.setTextColor(getResources().getColor(R.color.darkBlue, null));
-                payorAmountTV.setTextSize(14);
+                if (Math.abs(amountPaid - individualPayment) < 0.01) {
+                    payorStatusTV.setVisibility(View.VISIBLE);
+                } else {
+                    payorStatusTV.setVisibility(View.INVISIBLE);
+                }
 
-                payorRow.addView(payorNameTV);
-                payorRow.addView(payorAmountTV);
-                payorsContainer.addView(payorRow);
+                if (isCreator) {
+                    editBtn.setVisibility(View.VISIBLE);
+                    editBtn.setOnClickListener(v -> {
+                        showEditAmountDialog(transaction, index, amountPaid);
+                        dialog.dismiss();
+                    });
+                }
+
+                // Load payor image
+                if (payorUids != null && i < payorUids.size()) {
+                    String payorUid = payorUids.get(i);
+                    com.google.firebase.storage.StorageReference pStorageRef =
+                        com.google.firebase.storage.FirebaseStorage.getInstance()
+                            .getReference("profile_images").child(payorUid);
+                    pStorageRef.getDownloadUrl().addOnSuccessListener(uri -> {
+                        com.bumptech.glide.Glide.with(this)
+                            .load(uri)
+                            .placeholder(R.drawable.placeholder_profile_image)
+                            .circleCrop()
+                            .into(payorImage);
+                    }).addOnFailureListener(e -> {
+                        payorImage.setImageResource(R.drawable.placeholder_profile_image);
+                    });
+                }
+
+                payorsContainer.addView(rowView);
             }
         } else {
             TextView noPayorsTV = new TextView(this);
@@ -508,11 +539,50 @@ public class AllTransactionsActivity extends AppCompatActivity implements Recent
 
         dialog.show();
     }
+
+    private void showEditAmountDialog(RecentTransaction transaction, int index, double currentAmount) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("Edit Amount Paid");
+
+        final EditText input = new EditText(this);
+        input.setInputType(InputType.TYPE_CLASS_NUMBER | InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        input.setText(String.valueOf(currentAmount));
+        builder.setView(input);
+
+        builder.setPositiveButton("Save", (dialog, which) -> {
+            String newAmountStr = input.getText().toString();
+            if (!newAmountStr.isEmpty()) {
+                double newAmount = Double.parseDouble(newAmountStr);
+                updatePayerAmountInDatabase(transaction, index, newAmount);
+            }
+        });
+        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
+
+        builder.show();
+    }
+
+    private void updatePayerAmountInDatabase(RecentTransaction transaction, int index, double newAmount) {
+        String monthYear = transaction.getMonthYear();
+        String day = transaction.getDay();
+        String timeKey = transaction.getTimeKey();
+
+        if (monthYear == null || day == null || timeKey == null) {
+            Toast.makeText(this, "Error: Could not find transaction reference", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        DatabaseReference ref = DeclareDatabase.getDBRefTransaction()
+                .child(monthYear)
+                .child(day)
+                .child(timeKey)
+                .child("amountsPaidList")
+                .child(String.valueOf(index));
+
+        ref.setValue(newAmount).addOnSuccessListener(aVoid -> {
+            Toast.makeText(this, "Amount updated successfully", Toast.LENGTH_SHORT).show();
+            fetchTransactionsForMonth(selectedMonth); // Refresh the list
+        }).addOnFailureListener(e -> {
+            Toast.makeText(this, "Failed to update amount", Toast.LENGTH_SHORT).show();
+        });
+    }
 }
-
-
-
-
-
-
-
