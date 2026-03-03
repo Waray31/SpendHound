@@ -49,7 +49,7 @@ public class MainActivity extends AppCompatActivity {
 
     public BottomNavigationView navView;
     public FirebaseAuth mAuth;
-    public int totalMonthSpends;
+    public double totalMonthSpends;
     private ProgressBar progressBar;
     public String currentNickname = "";
     public int dailySpend, owedNum, debtNum;
@@ -219,7 +219,7 @@ public class MainActivity extends AppCompatActivity {
                         Transaction transaction = timeSnapshot.getValue(Transaction.class);
                         if (transaction != null && isUserInvolved(transaction, username)) {
                             // Retrieve the paymentAmount from the transaction
-                            int paymentAmount = transaction.getPaymentAmount();
+                            double paymentAmount = transaction.getPaymentAmount();
 
                             // Add the paymentAmount to totalMonthSpends
                             totalMonthSpends += paymentAmount;
@@ -229,10 +229,10 @@ public class MainActivity extends AppCompatActivity {
 
                 // Now, totalMonthSpends contains the sum of all paymentAmounts in the current month
                 // You can use it as needed, for example, update a TextView with this value
-                String totalMonthSpendsString = String.valueOf(totalMonthSpends);
+                String totalMonthSpendsString = String.format(Locale.getDefault(), "%.2f", totalMonthSpends);
                 TextView totalMonthSpendsTextView = findViewById(R.id.totalMonthSpends);
                 if (totalMonthSpendsTextView != null) {
-                    totalMonthSpendsTextView.setText("₱ " + totalMonthSpendsString + ".00");
+                    totalMonthSpendsTextView.setText("₱ " + totalMonthSpendsString);
                 }
                 if (callback != null) callback.run();
             }
@@ -269,7 +269,7 @@ public class MainActivity extends AppCompatActivity {
 
     @SuppressLint("DefaultLocale")
     private void fetchEverydaySpends(String username, Runnable callback) {
-        int[] dailySpends = new int[7];
+        double[] dailySpends = new double[7];
         Calendar calendar = Calendar.getInstance();
         // Set to beginning of current week (Sunday)
         calendar.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY);
@@ -295,7 +295,7 @@ public class MainActivity extends AppCompatActivity {
             dayRef.addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                    int dailySpend = 0;
+                    double dailySpend = 0;
                     for (DataSnapshot timeSnapshot : dataSnapshot.getChildren()) {
                         Transaction transaction = timeSnapshot.getValue(Transaction.class);
                         if (transaction != null && isUserInvolved(transaction, username)) {
@@ -346,7 +346,7 @@ public class MainActivity extends AppCompatActivity {
 
     @SuppressLint("DefaultLocale")
     private void fetchEverydaySpendsForWeek(Calendar weekStart, String username, Runnable callback) {
-        int[] dailySpends = new int[7];
+        double[] dailySpends = new double[7];
         Calendar calendar = (Calendar) weekStart.clone();
         SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
         SimpleDateFormat dayFormat = new SimpleDateFormat("dd", Locale.getDefault());
@@ -363,7 +363,7 @@ public class MainActivity extends AppCompatActivity {
             dayRef.addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                    int dailySpend = 0;
+                    double dailySpend = 0;
                     for (DataSnapshot timeSnapshot : dataSnapshot.getChildren()) {
                         Transaction transaction = timeSnapshot.getValue(Transaction.class);
                         if (transaction != null && isUserInvolved(transaction, username)) {
@@ -391,10 +391,10 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void setViewHeightForDay(int day, int dailySpends) {
-        int[] dailySpendsArray = new int[7];
+    public void setViewHeightForDay(int day, double dailySpends) {
+        double[] dailySpendsArray = new double[7];
         dailySpendsArray[day] = dailySpends;
-        String dailySpendString = String.valueOf(dailySpendsArray[day]);
+        String dailySpendString = String.format(Locale.getDefault(), "%.2f", dailySpendsArray[day]);
         TextView day1SpendTextView = findViewById(R.id.totalday1);
         TextView day2SpendTextView = findViewById(R.id.totalday2);
         TextView day3SpendTextView = findViewById(R.id.totalday3);
@@ -443,7 +443,7 @@ public class MainActivity extends AppCompatActivity {
         } else if (dailySpends <= 50) {
             desiredHeightInPixels = 17;
         } else {
-            desiredHeightInPixels = dailySpends / 3;
+            desiredHeightInPixels = (int) (dailySpends / 3);
         }
 
         if (viewId != 0) {
@@ -520,8 +520,8 @@ public class MainActivity extends AppCompatActivity {
 
                             String mostRecentTransactionType = transaction.getTransactionType();
                             String mostRecentDetails = transaction.getMultilineStr();
-                            int mostRecentPaymentAmount = transaction.getPaymentAmount();
-                            String mostRecentPaymentAmountStr = "₱ " + mostRecentPaymentAmount;
+                            double mostRecentPaymentAmount = transaction.getPaymentAmount();
+                            String mostRecentPaymentAmountStr = String.format(Locale.getDefault(), "₱ %.2f", mostRecentPaymentAmount);
                             int iconResource;
 
                             if ("Electricity".equals(mostRecentTransactionType)) {
@@ -553,7 +553,7 @@ public class MainActivity extends AppCompatActivity {
                             if (payorsList == null || payorsList.isEmpty()) {
                                 payorsList = transaction.getPayorsList();
                             }
-                            java.util.List<Integer> amountsPaidList = transaction.getAmountsPaidList();
+                            java.util.List<Double> amountsPaidList = transaction.getAmountsPaidList();
 
                             // Get creator name - prefer display name, fallback to usernamePost
                             String createdBy = transaction.getPosterDisplayName();
@@ -686,14 +686,14 @@ public class MainActivity extends AppCompatActivity {
 
         // Populate payors section
         java.util.List<String> payorsList = transaction.getPayorsList();
-        java.util.List<Integer> amountsPaidList = transaction.getAmountsPaidList();
+        java.util.List<Double> amountsPaidList = transaction.getAmountsPaidList();
 
         if (payorsList != null && !payorsList.isEmpty()) {
             for (int i = 0; i < payorsList.size(); i++) {
                 String payorName = payorsList.get(i);
-                String amountStr = "₱ 0";
+                String amountStr = "₱ 0.00";
                 if (amountsPaidList != null && i < amountsPaidList.size()) {
-                    amountStr = "₱ " + amountsPaidList.get(i);
+                    amountStr = String.format(Locale.getDefault(), "₱ %.2f", amountsPaidList.get(i));
                 }
 
                 // Create a row for each payor

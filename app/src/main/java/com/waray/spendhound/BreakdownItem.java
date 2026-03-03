@@ -16,7 +16,7 @@ public class BreakdownItem {
     private Category category;
     private String date;
     private String personName;
-    private int amount;
+    private double amount;
     private String status;
     private String description;
 
@@ -24,7 +24,7 @@ public class BreakdownItem {
         // Default constructor
     }
 
-    public BreakdownItem(Category category, String date, String personName, int amount, String status) {
+    public BreakdownItem(Category category, String date, String personName, double amount, String status) {
         this.category = category;
         this.date = date;
         this.personName = personName;
@@ -32,7 +32,7 @@ public class BreakdownItem {
         this.status = status;
     }
 
-    public BreakdownItem(Category category, String date, String personName, int amount, String status, String description) {
+    public BreakdownItem(Category category, String date, String personName, double amount, String status, String description) {
         this.category = category;
         this.date = date;
         this.personName = personName;
@@ -65,11 +65,11 @@ public class BreakdownItem {
         this.personName = personName;
     }
 
-    public int getAmount() {
+    public double getAmount() {
         return amount;
     }
 
-    public void setAmount(int amount) {
+    public void setAmount(double amount) {
         this.amount = amount;
     }
 
@@ -89,4 +89,3 @@ public class BreakdownItem {
         this.description = description;
     }
 }
-

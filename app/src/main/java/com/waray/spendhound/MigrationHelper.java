@@ -99,7 +99,7 @@ public class MigrationHelper {
                     // Check if balances node exists
                     if (!userSnapshot.hasChild("balances")) {
                         // Create new balances with all fields initialized to 0
-                        UserBalance balance = new UserBalance(0, 0, 0, 0, 0);
+                        UserBalance balance = new UserBalance(0.0, 0.0, 0.0, 0.0, 0.0);
                         usersRef.child(uid).child("balances").setValue(balance);
 
                         migratedCount[0]++;
@@ -191,8 +191,8 @@ public class MigrationHelper {
                         balancesMap.put("unpaid", unpaid);
                         balancesMap.put("owed", owed);
                         balancesMap.put("debt", debt);
-                        balancesMap.put("totalBorrowed", 0);
-                        balancesMap.put("totalLent", 0);
+                        balancesMap.put("totalBorrowed", 0.0);
+                        balancesMap.put("totalLent", 0.0);
 
                         updates.put("balances", balancesMap);
                     }
@@ -526,11 +526,11 @@ public class MigrationHelper {
      */
     private static void processTransactionForBalance(Transaction transaction, Map<String, UserBalance> userBalances) {
         try {
-            int paymentAmount = transaction.getPaymentAmount();
-            int totalIndividualPayment = transaction.getTotalIndividualPayment();
+            double paymentAmount = transaction.getPaymentAmount();
+            double totalIndividualPayment = transaction.getTotalIndividualPayment();
             String posterUID = transaction.getUsernamePost();
             java.util.List<String> payorsList = transaction.getPayorsList();
-            java.util.List<Integer> amountsPaidList = transaction.getAmountsPaidList();
+            java.util.List<Double> amountsPaidList = transaction.getAmountsPaidList();
 
             // Validate required fields
             if (posterUID == null || posterUID.isEmpty()) {
@@ -547,7 +547,7 @@ public class MigrationHelper {
             if (payorsList != null && amountsPaidList != null) {
                 for (int i = 0; i < payorsList.size() && i < amountsPaidList.size(); i++) {
                     String payorUID = payorsList.get(i);
-                    Integer amountPaid = amountsPaidList.get(i);
+                    Double amountPaid = amountsPaidList.get(i);
 
                     if (payorUID != null && !payorUID.isEmpty() && amountPaid != null) {
                         UserBalance payorBalance = userBalances.computeIfAbsent(payorUID, k -> new UserBalance());

@@ -1,21 +1,15 @@
 package com.waray.spendhound;
 
-import com.google.firebase.database.DatabaseReference;
-
-import java.lang.reflect.Array;
-import java.text.SimpleDateFormat;
-import java.util.Calendar;
 import java.util.List;
-import java.util.Locale;
 
 public class Transaction {
     private String transactionType;
-    private int paymentAmount;
+    private double paymentAmount;
     private String multilineStr;
     private List<String> payorsList;        // Now stores UIDs (was usernames)
-    private List<Integer> amountsPaidList;
+    private List<Double> amountsPaidList;
     private String usernamePost;            // Now stores UID (was username)
-    private int totalIndividualPayment;
+    private double totalIndividualPayment;
     private String groupId;
     private String groupName;
     
@@ -23,17 +17,17 @@ public class Transaction {
     private List<String> payorsDisplayNames;
     private String posterDisplayName;
 
-    public Transaction(String transactionType, int paymentAmount,String multilineStr, List<String> payorsList, List<Integer> amountsPaidList, String usernamePost, int totalIndividualPayment) {
+    public Transaction(String transactionType, double paymentAmount, String multilineStr, List<String> payorsList, List<Double> amountsPaidList, String usernamePost, double totalIndividualPayment) {
         this.transactionType = transactionType;
         this.paymentAmount = paymentAmount;
         this.multilineStr = multilineStr;
         this.payorsList = payorsList;
         this.amountsPaidList = amountsPaidList;
-        this.usernamePost= usernamePost;
-        this.totalIndividualPayment= totalIndividualPayment;
+        this.usernamePost = usernamePost;
+        this.totalIndividualPayment = totalIndividualPayment;
     }
 
-    public Transaction(String transactionType, int paymentAmount, String multilineStr, List<String> payorsList, List<Integer> amountsPaidList, String usernamePost, int totalIndividualPayment, String groupId, String groupName) {
+    public Transaction(String transactionType, double paymentAmount, String multilineStr, List<String> payorsList, List<Double> amountsPaidList, String usernamePost, double totalIndividualPayment, String groupId, String groupName) {
         this.transactionType = transactionType;
         this.paymentAmount = paymentAmount;
         this.multilineStr = multilineStr;
@@ -46,9 +40,9 @@ public class Transaction {
     }
 
     // New constructor with display names for UID-based storage
-    public Transaction(String transactionType, int paymentAmount, String multilineStr, 
-                      List<String> payorsList, List<Integer> amountsPaidList, String usernamePost, 
-                      int totalIndividualPayment, String groupId, String groupName,
+    public Transaction(String transactionType, double paymentAmount, String multilineStr, 
+                      List<String> payorsList, List<Double> amountsPaidList, String usernamePost, 
+                      double totalIndividualPayment, String groupId, String groupName,
                       List<String> payorsDisplayNames, String posterDisplayName) {
         this.transactionType = transactionType;
         this.paymentAmount = paymentAmount;
@@ -68,7 +62,7 @@ public class Transaction {
         // Default constructor required for Firebase
     }
 
-    public Transaction(int paymentAmount, List<String> payorsList, List<Integer> amountsPaidList, String usernamePost) {
+    public Transaction(double paymentAmount, List<String> payorsList, List<Double> amountsPaidList, String usernamePost) {
     }
 
     public String getTransactionType() {
@@ -79,11 +73,11 @@ public class Transaction {
         this.transactionType = transactionType;
     }
 
-    public int getPaymentAmount() {
+    public double getPaymentAmount() {
         return paymentAmount;
     }
 
-    public void setPaymentAmount(int paymentAmount) {
+    public void setPaymentAmount(double paymentAmount) {
         this.paymentAmount = paymentAmount;
     }
 
@@ -95,12 +89,12 @@ public class Transaction {
         this.payorsList = payorsList;
     }
 
-    public List<Integer> getAmountsPaidList() {
+    public List<Double> getAmountsPaidList() {
         return amountsPaidList;
     }
 
-    public void setAmountsPaidList(List<Integer> amountsPaidList) {
-        this.amountsPaidList  = amountsPaidList;
+    public void setAmountsPaidList(List<Double> amountsPaidList) {
+        this.amountsPaidList = amountsPaidList;
     }
 
     public String getUsernamePost() {
@@ -119,11 +113,11 @@ public class Transaction {
         this.multilineStr = multilineStr;
     }
 
-    public int getTotalIndividualPayment() {
+    public double getTotalIndividualPayment() {
         return totalIndividualPayment;
     }
 
-    public void setTotalIndividualPayment(int totalIndividualPayment) {
+    public void setTotalIndividualPayment(double totalIndividualPayment) {
         this.totalIndividualPayment = totalIndividualPayment;
     }
 
@@ -159,49 +153,32 @@ public class Transaction {
         this.posterDisplayName = posterDisplayName;
     }
 
-    /**
-     * Check if user is involved in this transaction by UID.
-     * Supports both new UID-based data and legacy username-based data.
-     */
     public boolean isUserInvolvedByUid(String uid) {
         if (uid == null || uid.isEmpty()) {
             return false;
         }
-
-        // Check if user is the creator (usernamePost now stores UID)
         if (uid.equals(usernamePost)) {
             return true;
         }
-
-        // Check if user is in the payors list (payorsList now stores UIDs)
         if (payorsList != null && payorsList.contains(uid)) {
             return true;
         }
-
         return false;
     }
 
-    /**
-     * Legacy check for backward compatibility with old username-based data.
-     */
     public boolean isUserInvolvedByUsername(String username) {
         if (username == null || username.isEmpty()) {
             return false;
         }
-
-        // Check poster display name or usernamePost (old data)
         if (username.equals(posterDisplayName) || username.equals(usernamePost)) {
             return true;
         }
-
-        // Check payors display names or payorsList (old data)
         if (payorsDisplayNames != null && payorsDisplayNames.contains(username)) {
             return true;
         }
         if (payorsList != null && payorsList.contains(username)) {
             return true;
         }
-
         return false;
     }
 }

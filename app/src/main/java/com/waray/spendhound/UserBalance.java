@@ -11,23 +11,23 @@ package com.waray.spendhound;
  * - totalreceivable: Sum of borrow amounts where user is lender with status != "Paid"
  */
 public class UserBalance {
-    private int totalBillSpent;
-    private int totalBillPayment;
-    private int totalIndividualSpent;
-    private int totaldebt;
-    private int totalreceivable;
+    private double totalBillSpent;
+    private double totalBillPayment;
+    private double totalIndividualSpent;
+    private double totaldebt;
+    private double totalreceivable;
 
     // Default constructor required for Firebase
     public UserBalance() {
-        this.totalBillSpent = 0;
-        this.totalBillPayment = 0;
-        this.totalIndividualSpent = 0;
-        this.totaldebt = 0;
-        this.totalreceivable = 0;
+        this.totalBillSpent = 0.0;
+        this.totalBillPayment = 0.0;
+        this.totalIndividualSpent = 0.0;
+        this.totaldebt = 0.0;
+        this.totalreceivable = 0.0;
     }
 
-    public UserBalance(int totalBillSpent, int totalBillPayment, int totalIndividualSpent,
-                      int totaldebt, int totalreceivable) {
+    public UserBalance(double totalBillSpent, double totalBillPayment, double totalIndividualSpent,
+                      double totaldebt, double totalreceivable) {
         this.totalBillSpent = totalBillSpent;
         this.totalBillPayment = totalBillPayment;
         this.totalIndividualSpent = totalIndividualSpent;
@@ -36,44 +36,43 @@ public class UserBalance {
     }
 
     // Getters and Setters
-    public int getTotalBillSpent() {
+    public double getTotalBillSpent() {
         return totalBillSpent;
     }
 
-    public void setTotalBillSpent(int totalBillSpent) {
+    public void setTotalBillSpent(double totalBillSpent) {
         this.totalBillSpent = totalBillSpent;
     }
 
-    public int getTotalBillPayment() {
+    public double getTotalBillPayment() {
         return totalBillPayment;
     }
 
-    public void setTotalBillPayment(int totalBillPayment) {
+    public void setTotalBillPayment(double totalBillPayment) {
         this.totalBillPayment = totalBillPayment;
     }
 
-    public int getTotalIndividualSpent() {
+    public double getTotalIndividualSpent() {
         return totalIndividualSpent;
     }
 
-    public void setTotalIndividualSpent(int totalIndividualSpent) {
+    public void setTotalIndividualSpent(double totalIndividualSpent) {
         this.totalIndividualSpent = totalIndividualSpent;
     }
 
-    public int getTotaldebt() {
+    public double getTotaldebt() {
         return totaldebt;
     }
 
-    public void setTotaldebt(int totaldebt) {
+    public void setTotaldebt(double totaldebt) {
         this.totaldebt = totaldebt;
     }
 
-    public int getTotalreceivable() {
+    public double getTotalreceivable() {
         return totalreceivable;
     }
 
-    public void setTotalreceivable(int totalreceivable) {
+    public void setTotalreceivable(double totalreceivable) {
         this.totalreceivable = totalreceivable;
     }
 }
-

@@ -10,7 +10,7 @@ public class RecentTransaction {
     private int iconResource;
     private String sortDateTime; // For sorting by date and time (format: "yyyy-MM-dd HH:mm:ss")
     private List<String> payorsList;
-    private List<Integer> amountsPaidList;
+    private List<Double> amountsPaidList;
     private String fullDateWithYear; // Full date including year for details dialog
     private String createdBy; // Name of the person who created the transaction
     private String createdByUid; // UID of the person who created the transaction (for profile image)
@@ -34,7 +34,7 @@ public class RecentTransaction {
 
     public RecentTransaction(String mostRecentDate, String mostRecentTransactionType, String mostRecentDetails,
                             String mostRecentPaymentAmountStr, int iconResource, String sortDateTime,
-                            List<String> payorsList, List<Integer> amountsPaidList, String fullDateWithYear,
+                            List<String> payorsList, List<Double> amountsPaidList, String fullDateWithYear,
                             String createdBy, String createdByUid) {
         this.mostRecentDate = mostRecentDate;
         this.mostRecentTransactionType = mostRecentTransactionType;
@@ -105,11 +105,11 @@ public class RecentTransaction {
         this.payorsList = payorsList;
     }
 
-    public List<Integer> getAmountsPaidList() {
+    public List<Double> getAmountsPaidList() {
         return amountsPaidList;
     }
 
-    public void setAmountsPaidList(List<Integer> amountsPaidList) {
+    public void setAmountsPaidList(List<Double> amountsPaidList) {
         this.amountsPaidList = amountsPaidList;
     }
 

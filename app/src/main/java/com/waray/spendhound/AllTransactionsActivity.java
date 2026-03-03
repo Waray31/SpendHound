@@ -245,7 +245,7 @@ public class AllTransactionsActivity extends AppCompatActivity implements Recent
 
                             String transactionType = transaction.getTransactionType();
                             String details = transaction.getMultilineStr();
-                            int paymentAmount = transaction.getPaymentAmount();
+                            double paymentAmount = transaction.getPaymentAmount();
                             String paymentAmountStr = "₱ " + paymentAmount;
                             int iconResource = getIconForTransactionType(transactionType);
 
@@ -254,7 +254,7 @@ public class AllTransactionsActivity extends AppCompatActivity implements Recent
                             if (payorsList == null || payorsList.isEmpty()) {
                                 payorsList = transaction.getPayorsList();
                             }
-                            java.util.List<Integer> amountsPaidList = transaction.getAmountsPaidList();
+                            java.util.List<Double> amountsPaidList = transaction.getAmountsPaidList();
 
                             // Get creator name - prefer display name, fallback to usernamePost
                             String createdBy = transaction.getPosterDisplayName();
@@ -447,7 +447,7 @@ public class AllTransactionsActivity extends AppCompatActivity implements Recent
 
         // Populate payors section
         java.util.List<String> payorsList = transaction.getPayorsList();
-        java.util.List<Integer> amountsPaidList = transaction.getAmountsPaidList();
+        java.util.List<Double> amountsPaidList = transaction.getAmountsPaidList();
 
         if (payorsList != null && !payorsList.isEmpty()) {
             for (int i = 0; i < payorsList.size(); i++) {

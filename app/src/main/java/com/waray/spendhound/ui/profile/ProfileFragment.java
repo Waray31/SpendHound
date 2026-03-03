@@ -308,7 +308,7 @@ public class ProfileFragment extends Fragment {
                         for (DataSnapshot timeSnapshot : daySnapshot.getChildren()) {
                             Transaction transaction = timeSnapshot.getValue(Transaction.class);
                             if (transaction != null) {
-                                int individualPayment = transaction.getTotalIndividualPayment();
+                                double individualPayment = transaction.getTotalIndividualPayment();
                                 totalIndividualPayment += individualPayment;
                             }
                             DataSnapshot payorsSnapshot = timeSnapshot.child("payorsList");
@@ -1045,8 +1045,8 @@ public class ProfileFragment extends Fragment {
                         for (DataSnapshot timeSnapshot : daySnapshot.getChildren()) {
                             Transaction transaction = timeSnapshot.getValue(Transaction.class);
                             if (transaction != null) {
-                                int individualPayment = transaction.getTotalIndividualPayment();
-                                int userPayment = 0;
+                                double individualPayment = transaction.getTotalIndividualPayment();
+                                double userPayment = 0;
 
                                 // Find user's position in payors list
                                 DataSnapshot payorsSnapshot = timeSnapshot.child("payorsList");
@@ -1077,7 +1077,7 @@ public class ProfileFragment extends Fragment {
                                     }
 
                                     // Calculate balance for this transaction
-                                    int transactionBalance = userPayment - individualPayment;
+                                    double transactionBalance = userPayment - individualPayment;
                                     if (transactionBalance > 0) {
                                         String description = transaction.getTransactionType() != null ? transaction.getTransactionType() : "";
 
@@ -1128,7 +1128,7 @@ public class ProfileFragment extends Fragment {
                         for (DataSnapshot timeSnapshot : daySnapshot.getChildren()) {
                             Transaction transaction = timeSnapshot.getValue(Transaction.class);
                             if (transaction != null) {
-                                int individualPayment = transaction.getTotalIndividualPayment();
+                                double individualPayment = transaction.getTotalIndividualPayment();
 
                                 // Find user's position in payors list
                                 DataSnapshot payorsSnapshot = timeSnapshot.child("payorsList");
@@ -1160,7 +1160,7 @@ public class ProfileFragment extends Fragment {
                                     }
 
                                     // Calculate unpaid for this transaction
-                                    int transactionUnpaid = individualPayment - userPayment;
+                                    double transactionUnpaid = individualPayment - userPayment;
                                     if (transactionUnpaid > 0) {
                                         String description = transaction.getTransactionType() != null ? transaction.getTransactionType() : "";
 
@@ -1210,7 +1210,7 @@ public class ProfileFragment extends Fragment {
                                 if (borrowTransaction != null) {
                                     String borrowee = borrowTransaction.getBorrowee();
                                     if (Objects.equals(currentNickname, borrowee)) {
-                                        int borrowedAmount = Integer.parseInt(borrowTransaction.getBorrowedAmountStr());
+                                        double borrowedAmount = Double.parseDouble(borrowTransaction.getBorrowedAmountStr());
                                         String date = borrowTransaction.getDate() != null ? borrowTransaction.getDate() : "Unknown Date";
                                         String borrower = currentUserRef.getKey() != null ? currentUserRef.getKey() : "Unknown";
                                         String status = borrowTransaction.getStatus() != null ? borrowTransaction.getStatus() : "Pending";
@@ -1260,7 +1260,7 @@ public class ProfileFragment extends Fragment {
                                 for (DataSnapshot timeSnapshot : currentUserRef.getChildren()) {
                                     BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
                                     if (borrowTransaction != null) {
-                                        int borrowedAmount = Integer.parseInt(borrowTransaction.getBorrowedAmountStr());
+                                        double borrowedAmount = Double.parseDouble(borrowTransaction.getBorrowedAmountStr());
                                         String date = borrowTransaction.getDate() != null ? borrowTransaction.getDate() : "Unknown Date";
                                         String borrowee = borrowTransaction.getBorrowee() != null ? borrowTransaction.getBorrowee() : "Unknown";
                                         String status = borrowTransaction.getStatus() != null ? borrowTransaction.getStatus() : "Pending";

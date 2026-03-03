@@ -204,7 +204,7 @@
                                 android:elevation="3dp"
                                 android:fontFamily="@font/montserratalternatess_regular"
                                 android:hint="Enter amount"
-                                android:inputType="number"
+                                android:inputType="numberDecimal"
                                 android:paddingVertical="12dp"
                                 android:textAlignment="center"
                                 android:textSize="16sp" />
@@ -233,7 +233,7 @@
                                 android:layout_height="wrap_content"
                                 android:fontFamily="@font/montserratalternatess_regular"
                                 android:paddingVertical="8dp"
-                                android:text="₱ 00.00"
+                                android:text="₱ 0.00"
                                 android:textAlignment="textEnd"
                                 android:textColor="@color/darkBlue"
                                 android:textSize="24sp" />

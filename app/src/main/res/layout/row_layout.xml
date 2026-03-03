@@ -26,7 +26,7 @@
             android:layout_weight="1"
             android:fontFamily="@font/montserratalternatess_regular"
             android:hint="Amount Paid"
-            android:inputType="number"
+            android:inputType="numberDecimal"
             android:textAlignment="center"
             android:textSize="14sp" />
 
@@ -40,4 +40,3 @@
             android:elevation="4dp" />
     </LinearLayout>
 </LinearLayout>
-

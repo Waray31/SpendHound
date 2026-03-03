@@ -68,13 +68,14 @@ public class AddTransactionActivity extends AppCompatActivity {
     private List<PayerGroup> payerGroups;
     public List<String> payorsList;             // Now stores UIDs
     public List<String> payorsDisplayNames;     // Display names for UI
-    public List<Integer> amountsPaidList;
-    public Integer totalAmountPaid = 0;
-    public Integer paymentAmount;
+    public List<Double> amountsPaidList;
+    public Double totalAmountPaid = 0.0;
+    public Double paymentAmount;
     private EditText paymentAmountEditText;
     private EditText editTextTextMultiLine;
     private TextView individualPayment;
-    private int totalIndividualPayment, totalBalanced, totalUnpaid, totalOwed, totalDept;
+    private double totalIndividualPayment;
+    private int totalBalanced, totalUnpaid, totalOwed, totalDept;
     public String usernamePost;                 // Now stores UID
     public String posterDisplayName;            // Display name for UI
     private String currentUserId;
@@ -240,9 +241,9 @@ public class AddTransactionActivity extends AppCompatActivity {
         multilineStr = editTextTextMultiLine.getText().toString();
 
         if (TextUtils.isEmpty(paymentAmountStr)) {
-            paymentAmount = 0;
+            paymentAmount = 0.0;
         } else {
-            paymentAmount = Integer.parseInt(paymentAmountStr);
+            paymentAmount = Double.parseDouble(paymentAmountStr);
         }
 
         payorsList = new ArrayList<>();           // Will store UIDs
@@ -289,7 +290,7 @@ public class AddTransactionActivity extends AppCompatActivity {
         if (hasManualPayorRows && rows.size() > 0) {
             // Use manual payor rows with custom amounts
             HashSet<String> uniquePayors = new HashSet<>();
-            totalAmountPaid = 0;
+            totalAmountPaid = 0.0;
 
             for (View row : rows) {
                 if (row.getVisibility() != View.VISIBLE) {
@@ -332,7 +333,7 @@ public class AddTransactionActivity extends AppCompatActivity {
                 }
 
                 try {
-                    int amountPaid = Integer.parseInt(amountPaidStr);
+                    double amountPaid = Double.parseDouble(amountPaidStr);
 
                     // Validation: Amount must be greater than 0
                     if (amountPaid <= 0) {
@@ -360,14 +361,14 @@ public class AddTransactionActivity extends AppCompatActivity {
             }
 
             // Validation: Total of amountsPaidList must equal payment amount
-            int sumOfAmounts = 0;
-            for (int amount : amountsPaidList) {
+            double sumOfAmounts = 0;
+            for (double amount : amountsPaidList) {
                 sumOfAmounts += amount;
             }
 
-            if (sumOfAmounts != paymentAmount) {
+            if (Math.abs(sumOfAmounts - paymentAmount) > 0.01) {
                 Toast.makeText(AddTransactionActivity.this,
-                    "Total of individual amounts (₱" + sumOfAmounts + ") does not match payment amount (₱" + paymentAmount + ")",
+                    "Total of individual amounts (₱" + String.format(Locale.getDefault(), "%.2f", sumOfAmounts) + ") does not match payment amount (₱" + String.format(Locale.getDefault(), "%.2f", paymentAmount) + ")",
                     Toast.LENGTH_LONG).show();
                 progressBar.setVisibility(View.GONE);
                 return;
@@ -388,10 +389,9 @@ public class AddTransactionActivity extends AppCompatActivity {
                 return;
             }
 
-            int individualAmount = paymentAmount / numberOfMembers;
-            int remainder = paymentAmount % numberOfMembers;
+            double individualAmount = paymentAmount / numberOfMembers;
 
-            totalAmountPaid = 0;
+            totalAmountPaid = 0.0;
             for (int i = 0; i < groupMembers.size(); i++) {
                 String memberValue = groupMembers.get(i);
                 String memberUid;
@@ -426,24 +426,22 @@ public class AddTransactionActivity extends AppCompatActivity {
                 payorsList.add(memberUid);  // Store UID
                 payorsDisplayNames.add(memberDisplayName != null ? memberDisplayName : "Unknown User");
 
-                // Distribute remainder to first few members to ensure total matches
-                int amount = individualAmount + (i < remainder ? 1 : 0);
-                amountsPaidList.add(amount);
-                totalAmountPaid += amount;
+                amountsPaidList.add(individualAmount);
+                totalAmountPaid += individualAmount;
             }
 
             totalIndividualPayment = individualAmount;
         }
 
         // Final validation: Total of amountsPaidList must equal payment amount
-        int finalSum = 0;
-        for (int amount : amountsPaidList) {
+        double finalSum = 0;
+        for (double amount : amountsPaidList) {
             finalSum += amount;
         }
 
-        if (finalSum != paymentAmount) {
+        if (Math.abs(finalSum - paymentAmount) > 0.01) {
             Toast.makeText(this,
-                "Total amount paid (₱" + finalSum + ") does not match payment amount (₱" + paymentAmount + ")",
+                "Total amount paid (₱" + String.format(Locale.getDefault(), "%.2f", finalSum) + ") does not match payment amount (₱" + String.format(Locale.getDefault(), "%.2f", paymentAmount) + ")",
                 Toast.LENGTH_LONG).show();
             progressBar.setVisibility(View.GONE);
             return;
@@ -510,13 +508,13 @@ public class AddTransactionActivity extends AppCompatActivity {
         Transaction transaction;
         if (selectedGroup != null) {
             // Use new constructor with display names - payorsList contains UIDs, usernamePost contains UID
-            transaction = new Transaction(transactionType, paymentAmount.intValue(), multilineStr,
+            transaction = new Transaction(transactionType, paymentAmount, multilineStr,
                     payorsList, amountsPaidList, usernamePost, totalIndividualPayment,
                     selectedGroup.getGroupId(), selectedGroup.getGroupName(),
                     payorsDisplayNames, posterDisplayName);
         } else {
             // Use new constructor with display names - payorsList contains UIDs, usernamePost contains UID
-            transaction = new Transaction(transactionType, paymentAmount.intValue(), multilineStr,
+            transaction = new Transaction(transactionType, paymentAmount, multilineStr,
                     payorsList, amountsPaidList, usernamePost, totalIndividualPayment,
                     null, null, payorsDisplayNames, posterDisplayName);
         }
@@ -557,7 +555,7 @@ public class AddTransactionActivity extends AppCompatActivity {
         String amountStr = paymentAmountEditText.getText().toString();
         if (!TextUtils.isEmpty(amountStr)) {
             try {
-                int amount = Integer.parseInt(amountStr);
+                double amount = Double.parseDouble(amountStr);
                 int numberOfUsers;
 
                 // If a group is selected, use the group's member count
@@ -572,7 +570,7 @@ public class AddTransactionActivity extends AppCompatActivity {
                 }
 
                 totalIndividualPayment = amount / numberOfUsers;
-                individualPayment.setText("₱ " + totalIndividualPayment + ".00");
+                individualPayment.setText(String.format(Locale.getDefault(), "₱ %.2f", totalIndividualPayment));
             } catch (NumberFormatException e) {
                 individualPayment.setText("₱ 0.00");
             }
@@ -1035,7 +1033,6 @@ public class AddTransactionActivity extends AppCompatActivity {
                 false  // Not focusable - allows keyboard to stay on top
         );
         payorTooltipPopup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-        payorTooltipPopup.setOutsideTouchable(false);
         payorTooltipPopup.setOutsideTouchable(false);
         payorTooltipPopup.setTouchable(false);  // Don't intercept touch events
         payorTooltipPopup.setInputMethodMode(PopupWindow.INPUT_METHOD_NEEDED);  // Allow input method to appear on top
