@@ -773,9 +773,16 @@ public class AddTransactionActivity extends AppCompatActivity {
 
         List<CheckBox> checkBoxes = new ArrayList<>();
 
-        // Add checkboxes for each user (skip "Select a payor:")
+        // Add checkboxes for each user (skip "Select a payor:" and current user)
         for (int i = 1; i < usernames.size(); i++) {
             String username = usernames.get(i);
+            String uid = usernameToUidMap.get(username);
+
+            // Skip the current user in the UI
+            if (uid != null && uid.equals(currentUserId)) {
+                continue;
+            }
+
             CheckBox checkBox = new CheckBox(this);
             checkBox.setText(username);
             checkBox.setTextColor(getResources().getColor(R.color.darkBlue));
@@ -796,6 +803,12 @@ public class AddTransactionActivity extends AppCompatActivity {
 
             List<String> selectedMemberUids = new ArrayList<>();
             List<String> selectedMemberDisplayNames = new ArrayList<>();
+
+            // Automatically include current user
+            selectedMemberUids.add(currentUserId);
+            String currentUserDisplayName = uidToUsernameMap.get(currentUserId);
+            selectedMemberDisplayNames.add(currentUserDisplayName != null ? currentUserDisplayName : "Me");
+
             for (CheckBox checkBox : checkBoxes) {
                 if (checkBox.isChecked()) {
                     String displayName = checkBox.getText().toString();
@@ -807,7 +820,7 @@ public class AddTransactionActivity extends AppCompatActivity {
                 }
             }
 
-            if (selectedMemberUids.isEmpty()) {
+            if (selectedMemberUids.size() <= 1) {
                 Toast.makeText(this, "Please select at least one member", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -861,16 +874,22 @@ public class AddTransactionActivity extends AppCompatActivity {
 
         List<CheckBox> checkBoxes = new ArrayList<>();
 
-        // Add checkboxes for each user (skip "Select a payor:")
+        // Add checkboxes for each user (skip "Select a payor:" and current user)
         for (int i = 1; i < usernames.size(); i++) {
             String username = usernames.get(i);
+            String uid = usernameToUidMap.get(username);
+
+            // Skip the current user in the UI
+            if (uid != null && uid.equals(currentUserId)) {
+                continue;
+            }
+
             CheckBox checkBox = new CheckBox(this);
             checkBox.setText(username);
             checkBox.setTextColor(getResources().getColor(R.color.darkBlue));
             checkBox.setPadding(8, 8, 8, 8);
 
             // Check if this user is already in the group (by UID or by display name for legacy data)
-            String uid = usernameToUidMap.get(username);
             boolean isInGroup = false;
             if (uid != null && group.getMembers() != null && group.getMembers().contains(uid)) {
                 isInGroup = true;
@@ -898,6 +917,12 @@ public class AddTransactionActivity extends AppCompatActivity {
 
             List<String> selectedMemberUids = new ArrayList<>();
             List<String> selectedMemberDisplayNames = new ArrayList<>();
+
+            // Automatically include current user
+            selectedMemberUids.add(currentUserId);
+            String currentUserDisplayName = uidToUsernameMap.get(currentUserId);
+            selectedMemberDisplayNames.add(currentUserDisplayName != null ? currentUserDisplayName : "Me");
+
             for (CheckBox checkBox : checkBoxes) {
                 if (checkBox.isChecked()) {
                     String displayName = checkBox.getText().toString();
@@ -909,7 +934,7 @@ public class AddTransactionActivity extends AppCompatActivity {
                 }
             }
 
-            if (selectedMemberUids.isEmpty()) {
+            if (selectedMemberUids.size() <= 1) {
                 Toast.makeText(this, "Please select at least one member", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -1010,6 +1035,7 @@ public class AddTransactionActivity extends AppCompatActivity {
                 false  // Not focusable - allows keyboard to stay on top
         );
         payorTooltipPopup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        payorTooltipPopup.setOutsideTouchable(false);
         payorTooltipPopup.setOutsideTouchable(false);
         payorTooltipPopup.setTouchable(false);  // Don't intercept touch events
         payorTooltipPopup.setInputMethodMode(PopupWindow.INPUT_METHOD_NEEDED);  // Allow input method to appear on top
