@@ -289,13 +289,15 @@ public class AddTransactionActivity extends AppCompatActivity {
 
         if (hasManualPayorRows && rows.size() > 0) {
             // Use manual payor rows with custom amounts
+            // But we must also include all other members of the group as unpaid (0.0)
+            List<String> groupMembers = selectedGroup.getMembers();
+            List<String> groupMemberNames = selectedGroup.getMemberDisplayNames();
+            
+            Map<String, Double> manualPayments = new HashMap<>();
             HashSet<String> uniquePayors = new HashSet<>();
-            totalAmountPaid = 0.0;
 
             for (View row : rows) {
-                if (row.getVisibility() != View.VISIBLE) {
-                    continue;
-                }
+                if (row.getVisibility() != View.VISIBLE) continue;
 
                 Spinner payorSpinner = row.findViewById(R.id.payor);
                 EditText amountPaidEditText = row.findViewById(R.id.amountPaid);
@@ -334,18 +336,13 @@ public class AddTransactionActivity extends AppCompatActivity {
 
                 try {
                     double amountPaid = Double.parseDouble(amountPaidStr);
-
                     // Validation: Amount must be greater than 0
                     if (amountPaid <= 0) {
                         Toast.makeText(AddTransactionActivity.this, "Amount must be greater than 0 for: " + payorDisplayName, Toast.LENGTH_SHORT).show();
                         progressBar.setVisibility(View.GONE);
                         return;
                     }
-
-                    payorsList.add(payorUid);             // Store UID
-                    payorsDisplayNames.add(payorDisplayName);  // Store display name
-                    amountsPaidList.add(amountPaid);
-                    totalAmountPaid += amountPaid;
+                    manualPayments.put(payorUid, amountPaid);
                 } catch (NumberFormatException e) {
                     Toast.makeText(AddTransactionActivity.this, "Invalid amount format for: " + payorDisplayName, Toast.LENGTH_SHORT).show();
                     progressBar.setVisibility(View.GONE);
@@ -354,15 +351,15 @@ public class AddTransactionActivity extends AppCompatActivity {
             }
 
             // Validation: Ensure at least one payor was added
-            if (payorsList.isEmpty()) {
+            if (manualPayments.isEmpty()) {
                 Toast.makeText(this, "Please add at least one payor", Toast.LENGTH_SHORT).show();
                 progressBar.setVisibility(View.GONE);
                 return;
             }
 
-            // Validation: Total of amountsPaidList must equal payment amount
+            // Verify total matches paymentAmount
             double sumOfAmounts = 0;
-            for (double amount : amountsPaidList) {
+            for (double amount : manualPayments.values()) {
                 sumOfAmounts += amount;
             }
 
@@ -374,7 +371,23 @@ public class AddTransactionActivity extends AppCompatActivity {
                 return;
             }
 
-            totalIndividualPayment = paymentAmount / payorsList.size();
+            // Now populate the full list including all group members
+            payorsList.clear();
+            payorsDisplayNames.clear();
+            amountsPaidList.clear();
+            
+            for (int i = 0; i < groupMembers.size(); i++) {
+                String memberUid = groupMembers.get(i);
+                String memberDisplayName = (groupMemberNames != null && i < groupMemberNames.size()) ? groupMemberNames.get(i) : uidToUsernameMap.get(memberUid);
+                
+                payorsList.add(memberUid);
+                payorsDisplayNames.add(memberDisplayName != null ? memberDisplayName : "Unknown User");
+                
+                double paid = manualPayments.containsKey(memberUid) ? manualPayments.get(memberUid) : 0.0;
+                amountsPaidList.add(paid);
+            }
+
+            totalIndividualPayment = paymentAmount / groupMembers.size();
 
         } else {
             // Use group members with equal split

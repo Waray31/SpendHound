@@ -22,6 +22,8 @@ public class RecentTransaction {
     private String day;
     private String timeKey;
 
+    private boolean isExpanded = false;
+
     public RecentTransaction(String mostRecentDate, String mostRecentTransactionType, String mostRecentDetails, String mostRecentPaymentAmountStr, int iconResource) {
         this.mostRecentDate = mostRecentDate;
         this.mostRecentTransactionType = mostRecentTransactionType;
@@ -206,5 +208,13 @@ public class RecentTransaction {
 
     public void setTimeKey(String timeKey) {
         this.timeKey = timeKey;
+    }
+
+    public boolean isExpanded() {
+        return isExpanded;
+    }
+
+    public void setExpanded(boolean expanded) {
+        isExpanded = expanded;
     }
 }
