@@ -27,7 +27,7 @@
 
                 <ImageView
                     android:id="@+id/imageView2"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="36dp"
                     android:layout_weight="1"
                     android:fontFamily="@font/montserratalternatess_regular"
@@ -509,17 +509,6 @@
                         android:layout_marginVertical="20dp"
                         android:orientation="vertical">
 
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1">
-
                                 <TextView
                                     android:id="@+id/recentTextView"
                                     android:layout_width="wrap_content"
@@ -529,30 +518,6 @@
                                     android:text="Recent transactions"
                                     android:textColor="@color/grey"
                                     android:textSize="16sp" />
-
-                                <TextView
-                                    android:id="@+id/viewAllTransaction"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:fontFamily="@font/montserratalternatess_bold"
-                                    android:text="@string/viewAll_transactions"
-                                    android:textColor="@color/darkBlue"
-                                    android:textSize="16sp" />
-
-                            </LinearLayout>
-
-                            <ImageButton
-                                android:id="@+id/btn_addTransaction"
-                                android:layout_width="56dp"
-                                android:layout_height="56dp"
-                                android:background="@drawable/circular_button_background"
-                                android:contentDescription="@string/add_new_transaction_description"
-                                android:elevation="2dp"
-                                android:scaleType="centerInside"
-                                android:src="@drawable/baseline_add_24"
-                                app:tint="@color/white" />
-
-                        </LinearLayout>
 
                         <androidx.recyclerview.widget.RecyclerView
                             android:id="@+id/transactionListRecycler"

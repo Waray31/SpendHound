@@ -22,12 +22,14 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.navigation.NavController;
 import androidx.navigation.Navigation;
+import androidx.navigation.fragment.NavHostFragment;
 import androidx.navigation.ui.AppBarConfiguration;
 import androidx.navigation.ui.NavigationUI;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -147,35 +149,41 @@ public class MainActivity extends AppCompatActivity {
         RecyclerView recyclerView = findViewById(R.id.transactionListRecycler);
         recentTransactionList = new ArrayList<>();
         recentTransactionAdapter = new RecentTransactionAdapter(recentTransactionList, null);
-        recyclerView.setAdapter(recentTransactionAdapter);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        if (recyclerView != null) {
+            recyclerView.setAdapter(recentTransactionAdapter);
+            recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        }
 
         // Setup viewAllTransaction click listener
-        TextView viewAllTransaction = findViewById(R.id.viewAllTransaction);
-        viewAllTransaction.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, AllTransactionsActivity.class);
-            startActivity(intent);
-        });
+        /*TextView viewAllTransaction = findViewById(R.id.viewAllTransaction);
+        if (viewAllTransaction != null) {
+            viewAllTransaction.setOnClickListener(v -> {
+                Intent intent = new Intent(MainActivity.this, AllTransactionsActivity.class);
+                startActivity(intent);
+            });
+        }*/
+
+        // Setup FloatingActionButton for Add Transaction
+        FloatingActionButton btnAddTransaction = findViewById(R.id.btn_addTransaction);
+        if (btnAddTransaction != null) {
+            btnAddTransaction.setOnClickListener(v -> {
+                Intent intent = new Intent(MainActivity.this, AddTransactionActivity.class);
+                startActivity(intent);
+            });
+        }
 
         // Passing each menu ID as a set of Ids because each
         // menu should be considered as top level destinations.
         AppBarConfiguration appBarConfiguration = new AppBarConfiguration.Builder(
-                R.id.navigation_home, R.id.navigation_borrow, R.id.navigation_profile)
+                R.id.navigation_home, R.id.navigation_transactions, R.id.navigation_borrow, R.id.navigation_profile)
                 .build();
-        NavController navController = Navigation.findNavController(this, R.id.nav_host_fragment_activity_main);
-        NavigationUI.setupWithNavController(navView, navController);
-
-        /*Button crashButton = new Button(this);
-        crashButton.setText("Test Crash");
-        crashButton.setOnClickListener(new View.OnClickListener() {
-            public void onClick(View view) {
-                throw new RuntimeException("Test Crash"); // Force a crash
-            }
-        });
-
-        addContentView(crashButton, new ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));*/
+        
+        NavHostFragment navHostFragment = (NavHostFragment) getSupportFragmentManager()
+                .findFragmentById(R.id.nav_host_fragment_activity_main);
+        if (navHostFragment != null) {
+            NavController navController = navHostFragment.getNavController();
+            NavigationUI.setupWithNavController(navView, navController);
+        }
 
         progressBar.setVisibility(View.GONE);
     }

@@ -65,7 +65,6 @@ public class HomeFragment extends Fragment {
     private TextView day7TextView, day6TextView, day5TextView, day4TextView, day3TextView, day2TextView, day1TextView;
     private FragmentHomeBinding binding;
     private ImageView profileImageView;
-    private ImageButton btnAddTransaction;
     private CardView cardViewProfile;
     public FirebaseAuth mAuth;
 
@@ -103,7 +102,6 @@ public class HomeFragment extends Fragment {
         day3TextView = view.findViewById(R.id.day3);
         day2TextView = view.findViewById(R.id.day2);
         day1TextView = view.findViewById(R.id.day1);
-        btnAddTransaction = view.findViewById(R.id.btn_addTransaction);
         cardViewProfile = view.findViewById(R.id.cardView_profile);
         mAuth = DeclareDatabase.getAuth();
 
@@ -130,7 +128,6 @@ public class HomeFragment extends Fragment {
 
 
         LogoutButton();
-        addTransactionButton();
         setTextViews();
         setProfileImage(profileImageView);
 
@@ -149,7 +146,7 @@ public class HomeFragment extends Fragment {
 
         // Show tooltip after a small delay to ensure the view is fully laid out
         new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            if (isAdded() && btnAddTransaction != null) {
+            if (isAdded()) {
                 showAddTransactionTooltip();
             }
         }, 500);
@@ -206,31 +203,18 @@ public class HomeFragment extends Fragment {
     }
 
 
-
-    public void addTransactionButton(){
-        btnAddTransaction.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                // Dismiss tooltip and mark as dismissed for this session
-                dismissTooltip();
-                tooltipDismissedThisSession = true;
-
-                // Create an Intent to navigate to NewActivity
-                Intent intent = new Intent(getActivity(), AddTransactionActivity.class);
-                startActivity(intent);
-            }
-        });
-    }
-
     private void showAddTransactionTooltip() {
-        if (getContext() == null || btnAddTransaction == null) return;
+        if (getContext() == null) return;
 
         // Don't show tooltip if already dismissed this session
         if (tooltipDismissedThisSession) return;
 
+        // Try to find the FAB in the activity
+        View anchor = getActivity() != null ? getActivity().findViewById(R.id.btn_addTransaction) : null;
+        if (anchor == null) return;
+
         // Inflate tooltip view from XML
         View tooltipView = LayoutInflater.from(getContext()).inflate(R.layout.tooltip_add_transaction, null);
-        TextView tooltipText = tooltipView.findViewById(R.id.tooltip_text);
 
         // Create PopupWindow
         tooltipPopup = new PopupWindow(
@@ -240,19 +224,17 @@ public class HomeFragment extends Fragment {
                 false
         );
         tooltipPopup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-        tooltipPopup.setOutsideTouchable(false);
+        tooltipPopup.setOutsideTouchable(true); // Allow dismiss by clicking outside
+        tooltipPopup.setOnDismissListener(() -> tooltipDismissedThisSession = true);
 
         tooltipView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
         int tooltipWidth = tooltipView.getMeasuredWidth();
 
-        // Use dp offsets converted to pixels for consistent placement across densities
         final float density = getResources().getDisplayMetrics().density;
-        int offsetX = Math.round(-4 * density); // 12dp - offset to the left
-        int offsetY = Math.round(64 * density); // 12dp - offset upward
+        int offsetX = Math.round(-4 * density);
+        int offsetY = Math.round(64 * density);
 
-        // Show tooltip anchored to button, so it moves with scrolling
-        // offsetX is negative to position left of button, offsetY is negative to position above
-        tooltipPopup.showAsDropDown(btnAddTransaction, -tooltipWidth - offsetX, -offsetY);
+        tooltipPopup.showAsDropDown(anchor, -tooltipWidth - offsetX, -offsetY);
     }
 
     private void dismissTooltip() {

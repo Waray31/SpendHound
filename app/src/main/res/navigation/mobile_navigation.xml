@@ -12,6 +12,12 @@
         tools:layout="@layout/fragment_home" />
 
     <fragment
+        android:id="@+id/navigation_transactions"
+        android:name="com.waray.spendhound.ui.transactions.TransactionsFragment"
+        android:label="Transactions"
+        tools:layout="@layout/activity_all_transactions" />
+
+    <fragment
         android:id="@+id/navigation_borrow"
         android:name="com.waray.spendhound.ui.borrow.BorrowFragment"
         android:label="@string/title_borrow"
