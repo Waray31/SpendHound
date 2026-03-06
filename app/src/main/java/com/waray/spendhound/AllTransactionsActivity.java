@@ -66,7 +66,6 @@ public class AllTransactionsActivity extends AppCompatActivity {
         availableMonths = new ArrayList<>();
 
         initViews();
-        setupBackButton();
         getCurrentNickname();
     }
 
@@ -81,11 +80,6 @@ public class AllTransactionsActivity extends AppCompatActivity {
         adapter = new RecentTransactionAdapter(transactionList, null);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
-    }
-
-    private void setupBackButton() {
-        ImageButton backButton = findViewById(R.id.backButton);
-        backButton.setOnClickListener(v -> finish());
     }
 
     private void getCurrentNickname() {
