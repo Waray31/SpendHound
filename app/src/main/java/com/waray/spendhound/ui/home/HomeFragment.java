@@ -2,11 +2,8 @@ package com.waray.spendhound.ui.home;
 
 import android.content.Intent;
 import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Bundle;
-import android.os.Handler;
-import android.os.Looper;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.MenuItem;
@@ -15,8 +12,6 @@ import android.view.ViewGroup;
 import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.PopupWindow;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -36,7 +31,6 @@ import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.data.LineData;
 import com.github.mikephil.charting.data.LineDataSet;
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
-import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
@@ -45,7 +39,6 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.ValueEventListener;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
-import com.waray.spendhound.AddTransactionActivity;
 import com.waray.spendhound.DeclareDatabase;
 import com.waray.spendhound.LoginActivity;
 import com.waray.spendhound.MainActivity;
@@ -76,8 +69,6 @@ public class HomeFragment extends Fragment {
     private boolean isWeeklyMode = true;
     private Calendar currentWeekStart = Calendar.getInstance();
     private Calendar currentMonth = Calendar.getInstance();
-    private PopupWindow tooltipPopup;
-    private static boolean tooltipDismissedThisSession = false;
 
     private View loadingOverlay_home;
     private int pendingLoads = 0;
@@ -89,7 +80,6 @@ public class HomeFragment extends Fragment {
         View view = binding.getRoot();
 
         loadingOverlay_home = view.findViewById(R.id.loadingOverlay_home);
-        // Show loading overlay immediately
         if (loadingOverlay_home != null) {
             loadingOverlay_home.setVisibility(View.VISIBLE);
         }
@@ -105,7 +95,6 @@ public class HomeFragment extends Fragment {
         cardViewProfile = view.findViewById(R.id.cardView_profile);
         mAuth = DeclareDatabase.getAuth();
 
-        // Initialize new views for weekly/monthly toggle
         btnWeekly = view.findViewById(R.id.btnWeekly);
         btnMonthly = view.findViewById(R.id.btnMonthly);
         dateRangeText = view.findViewById(R.id.dateRangeText);
@@ -114,24 +103,16 @@ public class HomeFragment extends Fragment {
         weeklyChartContainer = view.findViewById(R.id.weeklyChartContainer);
         monthlyLineChart = view.findViewById(R.id.monthlyLineChart);
 
-        // Initialize current week start
         initializeCurrentWeekStart();
-
-        // Setup toggle and navigation listeners
         setupToggleListeners();
         setupNavigationListeners();
-
-        // Update initial date range display
         updateDateRangeDisplay();
-
         callMainActivityMethod();
-
 
         LogoutButton();
         setTextViews();
         setProfileImage(profileImageView);
 
-        // Get the hosting Activity and remove the ActionBar
         AppCompatActivity activity = (AppCompatActivity) getActivity();
         if (activity != null && activity.getSupportActionBar() != null) {
             activity.getSupportActionBar().hide();
@@ -140,44 +121,27 @@ public class HomeFragment extends Fragment {
         return view;
     }
 
-    @Override
-    public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
-        super.onViewCreated(view, savedInstanceState);
-
-        // Show tooltip after a small delay to ensure the view is fully laid out
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            if (isAdded()) {
-                showAddTransactionTooltip();
-            }
-        }, 500);
-    }
-
     private void callMainActivityMethod() {
         MainActivity mainActivity = (MainActivity) getActivity();
         if (mainActivity != null) {
             showLoading();
             mainActivity.getRecentTransaction(this::hideLoading);
-            
             showLoading();
             mainActivity.getTotalMonthSpends(this::hideLoading);
-            
             showLoading();
             mainActivity.getEverydaySpends(this::hideLoading);
         }
     }
 
     public void setTextViews() {
-        // Use the current week's display which handles Sunday-Saturday order and current day highlighting
         setTextViewsForWeek();
     }
 
     public String getFormattedDay(Calendar calendar) {
-        SimpleDateFormat dateFormat = new SimpleDateFormat("EEE", Locale.getDefault());
-        return dateFormat.format(calendar.getTime());
+        return new SimpleDateFormat("EEE", Locale.getDefault()).format(calendar.getTime());
     }
 
     public void setProfileImage(ImageView imageView) {
-        // Check if the fragment is attached to an activity
         if (isAdded()) {
             showLoading();
             String userId = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
@@ -185,69 +149,16 @@ public class HomeFragment extends Fragment {
             storageRef.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
                 @Override
                 public void onSuccess(Uri downloadUri) {
-                    // Set the retrieved image to the provided ImageView
                     if (isAdded()) {
                         Glide.with(requireContext()).load(downloadUri).into(imageView);
                     }
                     hideLoading();
                 }
-            }).addOnFailureListener(new OnFailureListener() {
-                @Override
-                public void onFailure(@NonNull Exception exception) {
-                    // Handle image retrieval failure
-                    imageView.setImageResource(R.drawable.placeholder_profile_image);
-                    hideLoading();
-                }
+            }).addOnFailureListener(exception -> {
+                imageView.setImageResource(R.drawable.placeholder_profile_image);
+                hideLoading();
             });
         }
-    }
-
-
-    private void showAddTransactionTooltip() {
-        if (getContext() == null) return;
-
-        // Don't show tooltip if already dismissed this session
-        if (tooltipDismissedThisSession) return;
-
-        // Try to find the FAB in the activity
-        View anchor = getActivity() != null ? getActivity().findViewById(R.id.btn_addTransaction) : null;
-        if (anchor == null) return;
-
-        // Inflate tooltip view from XML
-        View tooltipView = LayoutInflater.from(getContext()).inflate(R.layout.tooltip_add_transaction, null);
-
-        // Create PopupWindow
-        tooltipPopup = new PopupWindow(
-                tooltipView,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                false
-        );
-        tooltipPopup.setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-        tooltipPopup.setOutsideTouchable(true); // Allow dismiss by clicking outside
-        tooltipPopup.setOnDismissListener(() -> tooltipDismissedThisSession = true);
-
-        tooltipView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED);
-        int tooltipWidth = tooltipView.getMeasuredWidth();
-
-        final float density = getResources().getDisplayMetrics().density;
-        int offsetX = Math.round(-4 * density);
-        int offsetY = Math.round(64 * density);
-
-        tooltipPopup.showAsDropDown(anchor, -tooltipWidth - offsetX, -offsetY);
-    }
-
-    private void dismissTooltip() {
-        if (tooltipPopup != null && tooltipPopup.isShowing()) {
-            tooltipPopup.dismiss();
-            tooltipPopup = null;
-        }
-    }
-
-    @Override
-    public void onPause() {
-        super.onPause();
-        dismissTooltip();
     }
 
     public void LogoutButton(){
@@ -256,35 +167,26 @@ public class HomeFragment extends Fragment {
             public void onClick(View v) {
                 PopupMenu popupMenu = new PopupMenu(getActivity(), cardViewProfile, Gravity.END, androidx.transition.R.attr.popupMenuStyle, 0);
                 popupMenu.inflate(R.menu.dropdown_menu);
-
-                // Set a click listener for menu items
                 popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
                     @Override
                     public boolean onMenuItemClick(MenuItem item) {
                         if (item.getItemId() == R.id.menu_logout) {
-                            // Handle logout action
                             Toast.makeText(getActivity(), "Logout Successfully", Toast.LENGTH_SHORT).show();
                             mAuth.signOut();
                             Intent intent = new Intent(getActivity(), LoginActivity.class);
                             startActivity(intent);
                             return true;
-                        } else {
-                            // Handle other menu item clicks
-                            return false;
                         }
+                        return false;
                     }
                 });
-
                 popupMenu.show();
             }
         });
     }
 
-    // ==================== Weekly/Monthly Toggle Methods ====================
-
     private void initializeCurrentWeekStart() {
         currentWeekStart = Calendar.getInstance();
-        // Set to beginning of current week (Sunday)
         currentWeekStart.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY);
         currentWeekStart.set(Calendar.HOUR_OF_DAY, 0);
         currentWeekStart.set(Calendar.MINUTE, 0);
@@ -330,52 +232,30 @@ public class HomeFragment extends Fragment {
 
     private void setupNavigationListeners() {
         btnPrevious.setOnClickListener(v -> {
-            if (isWeeklyMode) {
-                currentWeekStart.add(Calendar.WEEK_OF_YEAR, -1);
-            } else {
-                currentMonth.add(Calendar.MONTH, -1);
-            }
-            updateDateRangeDisplay();
-            refreshData();
+            if (isWeeklyMode) { currentWeekStart.add(Calendar.WEEK_OF_YEAR, -1); }
+            else { currentMonth.add(Calendar.MONTH, -1); }
+            updateDateRangeDisplay(); refreshData();
         });
 
         btnNext.setOnClickListener(v -> {
-            if (isWeeklyMode) {
-                currentWeekStart.add(Calendar.WEEK_OF_YEAR, 1);
-            } else {
-                currentMonth.add(Calendar.MONTH, 1);
-            }
-            updateDateRangeDisplay();
-            refreshData();
+            if (isWeeklyMode) { currentWeekStart.add(Calendar.WEEK_OF_YEAR, 1); }
+            else { currentMonth.add(Calendar.MONTH, 1); }
+            updateDateRangeDisplay(); refreshData();
         });
     }
 
     private void updateDateRangeDisplay() {
         if (isWeeklyMode) {
-            Calendar weekEnd = (Calendar) currentWeekStart.clone();
-            weekEnd.add(Calendar.DAY_OF_YEAR, 6);
-
+            Calendar weekEnd = (Calendar) currentWeekStart.clone(); weekEnd.add(Calendar.DAY_OF_YEAR, 6);
             SimpleDateFormat dateFormat = new SimpleDateFormat("MMM dd", Locale.getDefault());
             SimpleDateFormat yearFormat = new SimpleDateFormat("yyyy", Locale.getDefault());
-
-            String startStr = dateFormat.format(currentWeekStart.getTime());
-            String endStr = dateFormat.format(weekEnd.getTime());
-            String year = yearFormat.format(weekEnd.getTime());
-
-            dateRangeText.setText(String.format("%s - %s, %s", startStr, endStr, year));
+            dateRangeText.setText(String.format("%s - %s, %s", dateFormat.format(currentWeekStart.getTime()), dateFormat.format(weekEnd.getTime()), yearFormat.format(weekEnd.getTime())));
         } else {
-            SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM yyyy", Locale.getDefault());
-            dateRangeText.setText(monthFormat.format(currentMonth.getTime()));
+            dateRangeText.setText(new SimpleDateFormat("MMMM yyyy", Locale.getDefault()).format(currentMonth.getTime()));
         }
     }
 
-    private void refreshData() {
-        if (isWeeklyMode) {
-            refreshWeeklyData();
-        } else {
-            loadMonthlyChartData();
-        }
-    }
+    private void refreshData() { if (isWeeklyMode) refreshWeeklyData(); else loadMonthlyChartData(); }
 
     private void refreshWeeklyData() {
         MainActivity mainActivity = (MainActivity) getActivity();
@@ -389,16 +269,10 @@ public class HomeFragment extends Fragment {
     private void setTextViewsForWeek() {
         Calendar calendar = (Calendar) currentWeekStart.clone();
         Calendar today = Calendar.getInstance();
-
-        // Array of TextViews in order: Sun, Mon, Tue, Wed, Thu, Fri, Sat
         TextView[] dayTextViews = {day7TextView, day6TextView, day5TextView, day4TextView, day3TextView, day2TextView, day1TextView};
-
-        // Set the text for each TextView (Sunday to Saturday)
         for (int i = 0; i < 7; i++) {
             if (dayTextViews[i] != null) {
                 dayTextViews[i].setText(getFormattedDay(calendar));
-
-                // Check if this day is today
                 if (isSameDay(calendar, today)) {
                     dayTextViews[i].setTextColor(ContextCompat.getColor(requireContext(), R.color.yellow));
                     dayTextViews[i].setTypeface(null, android.graphics.Typeface.BOLD);
@@ -407,162 +281,64 @@ public class HomeFragment extends Fragment {
                     dayTextViews[i].setTypeface(null, android.graphics.Typeface.NORMAL);
                 }
             }
-
             calendar.add(Calendar.DAY_OF_YEAR, 1);
         }
     }
 
-    private boolean isSameDay(Calendar cal1, Calendar cal2) {
-        return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) &&
-               cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR);
-    }
-
-    private void showWeeklyChart() {
-        weeklyChartContainer.setVisibility(View.VISIBLE);
-        monthlyLineChart.setVisibility(View.GONE);
-    }
-
-    private void showMonthlyChart() {
-        weeklyChartContainer.setVisibility(View.GONE);
-        monthlyLineChart.setVisibility(View.VISIBLE);
-    }
-
-    // ==================== Monthly Line Chart Methods ====================
+    private boolean isSameDay(Calendar cal1, Calendar cal2) { return cal1.get(Calendar.YEAR) == cal2.get(Calendar.YEAR) && cal1.get(Calendar.DAY_OF_YEAR) == cal2.get(Calendar.DAY_OF_YEAR); }
+    private void showWeeklyChart() { weeklyChartContainer.setVisibility(View.VISIBLE); monthlyLineChart.setVisibility(View.GONE); }
+    private void showMonthlyChart() { weeklyChartContainer.setVisibility(View.GONE); monthlyLineChart.setVisibility(View.VISIBLE); }
 
     private void loadMonthlyChartData() {
         MainActivity mainActivity = (MainActivity) getActivity();
         if (mainActivity == null) return;
-
         showLoading();
-        // Ensure we have the current user's nickname before fetching data
         String username = mainActivity.currentNickname;
-        if (username == null || username.isEmpty()) {
-            mainActivity.getCurrentNickname(new MainActivity.CurrentNicknameCallback() {
-                @Override
-                public void onCurrentNicknameReceived(String nickname) {
-                    fetchMonthlyChartData(nickname, mainActivity);
-                }
-            });
-        } else {
-            fetchMonthlyChartData(username, mainActivity);
-        }
+        if (username == null || username.isEmpty()) { mainActivity.getCurrentNickname(nickname -> fetchMonthlyChartData(nickname, mainActivity)); }
+        else { fetchMonthlyChartData(username, mainActivity); }
     }
 
     private void fetchMonthlyChartData(String username, MainActivity mainActivity) {
-        SimpleDateFormat monthFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
-        String currentMonthYear = monthFormat.format(currentMonth.getTime());
-
-        DatabaseReference databaseReference = DeclareDatabase.getDBRefTransaction();
-        DatabaseReference monthRef = databaseReference.child(currentMonthYear);
-
-        monthRef.addListenerForSingleValueEvent(new ValueEventListener() {
+        DeclareDatabase.getDBRefTransaction().child(new SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(currentMonth.getTime())).addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                List<Entry> entries = new ArrayList<>();
-                List<String> labels = new ArrayList<>();
-
+                List<Entry> entries = new ArrayList<>(); List<String> labels = new ArrayList<>();
                 int dayIndex = 0;
                 for (DataSnapshot daySnapshot : dataSnapshot.getChildren()) {
                     int dailySpend = 0;
-                    String day = daySnapshot.getKey();
-
                     for (DataSnapshot timeSnapshot : daySnapshot.getChildren()) {
-                        Transaction transaction = timeSnapshot.getValue(Transaction.class);
-                        if (transaction != null && mainActivity.isUserInvolved(transaction, username)) {
-                            dailySpend += transaction.getPaymentAmount();
-                        }
+                        Transaction t = timeSnapshot.getValue(Transaction.class);
+                        if (t != null && mainActivity.isUserInvolved(t, username)) dailySpend += t.getPaymentAmount();
                     }
-
-                    entries.add(new Entry(dayIndex, dailySpend));
-                    labels.add(day);
-                    dayIndex++;
+                    entries.add(new Entry(dayIndex, dailySpend)); labels.add(daySnapshot.getKey()); dayIndex++;
                 }
-
-                if (entries.isEmpty()) {
-                    // No data available, show empty chart
-                    monthlyLineChart.clear();
-                    monthlyLineChart.invalidate();
-                    hideLoading();
-                    return;
-                }
-
-                setupLineChart(entries, labels);
+                if (entries.isEmpty()) { monthlyLineChart.clear(); monthlyLineChart.invalidate(); }
+                else { setupLineChart(entries, labels); }
                 hideLoading();
             }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                // Handle error
-                hideLoading();
-            }
+            @Override public void onCancelled(@NonNull DatabaseError databaseError) { hideLoading(); }
         });
     }
 
     private void setupLineChart(List<Entry> entries, List<String> labels) {
         LineDataSet dataSet = new LineDataSet(entries, "Daily Spending");
-        dataSet.setColor(Color.parseColor("#FFBA08"));
-        dataSet.setValueTextColor(Color.WHITE);
-        dataSet.setLineWidth(2f);
-        dataSet.setCircleColor(Color.parseColor("#FFBA08"));
-        dataSet.setCircleRadius(4f);
-        dataSet.setDrawCircleHole(false);
-        dataSet.setDrawValues(false);
-        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
-        dataSet.setDrawFilled(true);
-        dataSet.setFillColor(Color.parseColor("#FFBA08"));
-        dataSet.setFillAlpha(50);
-
-        LineData lineData = new LineData(dataSet);
-        monthlyLineChart.setData(lineData);
-
-        // Customize chart appearance
-        monthlyLineChart.getDescription().setEnabled(false);
-        monthlyLineChart.setDrawGridBackground(false);
-        monthlyLineChart.setDrawBorders(false);
-        monthlyLineChart.getLegend().setEnabled(false);
-
-        // Customize X axis
-        XAxis xAxis = monthlyLineChart.getXAxis();
-        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
-        xAxis.setTextColor(Color.WHITE);
-        xAxis.setDrawGridLines(false);
-        xAxis.setDrawAxisLine(false);
-        xAxis.setValueFormatter(new IndexAxisValueFormatter(labels));
-        xAxis.setGranularity(1f);
-        xAxis.setLabelRotationAngle(-45);
-        xAxis.setTextSize(10f);
-
-        // Customize Y axis
-        YAxis leftAxis = monthlyLineChart.getAxisLeft();
-        leftAxis.setTextColor(Color.parseColor("#adb5bd"));
-        leftAxis.setDrawGridLines(true);
-        leftAxis.setGridColor(Color.parseColor("#3A3D4E"));
-        leftAxis.setDrawAxisLine(false);
-        leftAxis.setTextSize(10f);
-
-        monthlyLineChart.getAxisRight().setEnabled(false);
-
-        monthlyLineChart.setTouchEnabled(true);
-        monthlyLineChart.setDragEnabled(true);
-        monthlyLineChart.setScaleEnabled(true);
-        monthlyLineChart.setPinchZoom(true);
-
-        monthlyLineChart.animateX(500);
-        monthlyLineChart.invalidate();
+        dataSet.setColor(Color.parseColor("#FFBA08")); dataSet.setValueTextColor(Color.WHITE); dataSet.setLineWidth(2f);
+        dataSet.setCircleColor(Color.parseColor("#FFBA08")); dataSet.setCircleRadius(4f); dataSet.setDrawCircleHole(false);
+        dataSet.setDrawValues(false); dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER); dataSet.setDrawFilled(true);
+        dataSet.setFillColor(Color.parseColor("#FFBA08")); dataSet.setFillAlpha(50);
+        monthlyLineChart.setData(new LineData(dataSet)); monthlyLineChart.getDescription().setEnabled(false);
+        monthlyLineChart.setDrawGridBackground(false); monthlyLineChart.setDrawBorders(false); monthlyLineChart.getLegend().setEnabled(false);
+        XAxis xAxis = monthlyLineChart.getXAxis(); xAxis.setPosition(XAxis.XAxisPosition.BOTTOM); xAxis.setTextColor(Color.WHITE);
+        xAxis.setDrawGridLines(false); xAxis.setDrawAxisLine(false); xAxis.setValueFormatter(new IndexAxisValueFormatter(labels));
+        xAxis.setGranularity(1f); xAxis.setLabelRotationAngle(-45); xAxis.setTextSize(10f);
+        YAxis leftAxis = monthlyLineChart.getAxisLeft(); leftAxis.setTextColor(Color.parseColor("#adb5bd"));
+        leftAxis.setDrawGridLines(true); leftAxis.setGridColor(Color.parseColor("#3A3D4E"));
+        leftAxis.setDrawAxisLine(false); leftAxis.setTextSize(10f);
+        monthlyLineChart.getAxisRight().setEnabled(false); monthlyLineChart.setTouchEnabled(true);
+        monthlyLineChart.setDragEnabled(true); monthlyLineChart.setScaleEnabled(true); monthlyLineChart.setPinchZoom(true);
+        monthlyLineChart.animateX(500); monthlyLineChart.invalidate();
     }
 
-    private void showLoading() {
-        pendingLoads++;
-        if (loadingOverlay_home != null) {
-            loadingOverlay_home.setVisibility(View.VISIBLE);
-        }
-    }
-
-    private void hideLoading() {
-        pendingLoads = Math.max(0, pendingLoads - 1);
-        if (pendingLoads == 0 && loadingOverlay_home != null) {
-            loadingOverlay_home.setVisibility(View.GONE);
-        }
-    }
-
+    private void showLoading() { pendingLoads++; if (loadingOverlay_home != null) loadingOverlay_home.setVisibility(View.VISIBLE); }
+    private void hideLoading() { pendingLoads = Math.max(0, pendingLoads - 1); if (pendingLoads == 0 && loadingOverlay_home != null) loadingOverlay_home.setVisibility(View.GONE); }
 }

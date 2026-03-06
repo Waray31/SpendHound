@@ -14,6 +14,17 @@
         app:defaultNavHost="true"
         app:navGraph="@navigation/mobile_navigation" />
 
+    <!-- Overlay: Placed behind FABs but above content -->
+    <View
+        android:id="@+id/fab_menu_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="#B3000000"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true"
+        android:elevation="7dp" />
+
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/navView"
         android:layout_width="match_parent"
@@ -21,27 +32,55 @@
         android:layout_gravity="bottom"
         android:background="?android:attr/windowBackground"
         app:layout_behavior="@string/hide_bottom_view_on_scroll_behavior"
-        app:menu="@menu/bottom_nav_menu" />
+        app:menu="@menu/bottom_nav_menu"
+        android:elevation="8dp" />
 
-    <FrameLayout
+    <!-- Mini FABs: Higher elevation than overlay -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_borrow"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_gravity="center">
-
-        <ProgressBar
-            android:id="@+id/progressBar"
-            style="@style/CustomProgressBarStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:background="@drawable/glassy_background"
-            android:padding="20dp"
-            android:visibility="gone" />
-
-    </FrameLayout>
+        android:src="@drawable/coin"
+        app:tint="@color/white"
+        android:backgroundTint="@color/yellow"
+        app:layout_anchor="@id/fab_main"
+        app:layout_anchorGravity="center"
+        android:visibility="gone"
+        app:fabSize="mini"
+        app:elevation="9dp"
+        android:contentDescription="Borrow Money" />
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/btn_addTransaction"
+        android:id="@+id/fab_add_transaction"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/baseline_add_24"
+        app:tint="@color/white"
+        android:backgroundTint="@color/yellow"
+        app:layout_anchor="@id/fab_main"
+        app:layout_anchorGravity="center"
+        android:visibility="gone"
+        app:fabSize="mini"
+        app:elevation="9dp"
+        android:contentDescription="Add Transaction" />
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_add_group"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/profile"
+        app:tint="@color/white"
+        android:backgroundTint="@color/yellow"
+        app:layout_anchor="@id/fab_main"
+        app:layout_anchorGravity="center"
+        android:visibility="gone"
+        app:fabSize="mini"
+        app:elevation="9dp"
+        android:contentDescription="Add Group" />
+
+    <!-- Main FAB: Highest elevation -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fab_main"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:src="@drawable/baseline_add_24"
@@ -52,6 +91,22 @@
         android:layout_marginBottom="28dp"
         app:elevation="8dp"
         app:layout_behavior="@string/hide_bottom_view_on_scroll_behavior"
-        android:contentDescription="Add Transaction" />
+        android:contentDescription="Add" />
+
+    <FrameLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:elevation="20dp">
+        <ProgressBar
+            android:id="@+id/progressBar"
+            style="@style/CustomProgressBarStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:background="@drawable/glassy_background"
+            android:padding="20dp"
+            android:visibility="gone" />
+    </FrameLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

@@ -62,9 +62,6 @@ public class BorrowFragment extends Fragment {
     // UI Components - Spinners
     private Spinner monthYearSpinner;
 
-    // UI Components - Buttons
-    private Button borrowNowBtn;
-
     // UI Components - TextViews
     public TextView owedTV, debtTV;
 
@@ -99,7 +96,6 @@ public class BorrowFragment extends Fragment {
                              ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.fragment_borrow, container, false);
         monthYearSpinner = view.findViewById(R.id.monthYearSpinner);
-        borrowNowBtn = view.findViewById(R.id.borrowNowBtn);
         owedTV = view.findViewById(R.id.owedTV);
         debtTV = view.findViewById(R.id.debtTV);
         owedRecyclerList = view.findViewById(R.id.owedRecyclerList);
@@ -193,8 +189,6 @@ public class BorrowFragment extends Fragment {
     }
 
     private void setupClickListeners() {
-        borrowNowBtn.setOnClickListener(v -> showBorrowNowDialog());
-
         owedTV.setOnClickListener(v -> handleOwedClick());
         debtTV.setOnClickListener(v -> handleDebtClick());
     }
