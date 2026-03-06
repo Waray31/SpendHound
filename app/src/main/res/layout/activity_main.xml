@@ -23,19 +23,6 @@
         app:layout_behavior="@string/hide_bottom_view_on_scroll_behavior"
         app:menu="@menu/bottom_nav_menu" />
 
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/btn_addTransaction"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:src="@drawable/baseline_add_24"
-        app:tint="@color/white"
-        android:backgroundTint="@color/darkBlue"
-        app:layout_anchor="@id/navView"
-        app:layout_anchorGravity="top|center_horizontal"
-        android:layout_marginBottom="28dp"
-        app:layout_behavior="@string/hide_bottom_view_on_scroll_behavior"
-        android:contentDescription="Add Transaction" />
-
     <FrameLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -52,5 +39,19 @@
             android:visibility="gone" />
 
     </FrameLayout>
+
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/btn_addTransaction"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:src="@drawable/baseline_add_24"
+        app:tint="@color/white"
+        android:backgroundTint="@color/yellow"
+        app:layout_anchor="@id/navView"
+        app:layout_anchorGravity="top|center_horizontal"
+        android:layout_marginBottom="28dp"
+        app:elevation="8dp"
+        app:layout_behavior="@string/hide_bottom_view_on_scroll_behavior"
+        android:contentDescription="Add Transaction" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>
