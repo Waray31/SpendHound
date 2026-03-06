@@ -7,22 +7,18 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.bumptech.glide.Glide;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageReference;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 
 public class RecentTransactionAdapter extends RecyclerView.Adapter<RecentTransactionAdapter.ViewHolder> {
     private ArrayList<RecentTransaction> recentTransactionList;
@@ -70,26 +66,10 @@ public class RecentTransactionAdapter extends RecyclerView.Adapter<RecentTransac
         if (isExpanded) {
             // Created By Section
             holder.createdByTextView.setText(transaction.getCreatedBy() != null ? transaction.getCreatedBy() : "Unknown");
-            String createdByUid = transaction.getCreatedByUid();
-            if (createdByUid != null && !createdByUid.isEmpty()) {
-                StorageReference storageRef = FirebaseStorage.getInstance().getReference("profile_images").child(createdByUid);
-                storageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                    Glide.with(holder.itemView.getContext())
-                            .load(uri)
-                            .placeholder(R.drawable.placeholder_profile_image)
-                            .circleCrop()
-                            .into(holder.creatorProfileImage);
-                }).addOnFailureListener(e -> holder.creatorProfileImage.setImageResource(R.drawable.placeholder_profile_image));
-            } else {
-                holder.creatorProfileImage.setImageResource(R.drawable.placeholder_profile_image);
-            }
 
-            // Payors Section - Display all members involved in the transaction
-            holder.payorsContainer.removeAllViews();
-            
-            // Primary source for all users selected during transaction creation
-            List<String> payorsUids = transaction.getPayorUids();  
-            List<String> payorsNames = transaction.getPayorsList(); 
+            // Payors Section
+            List<String> payorsUids = transaction.getPayorUids();
+            List<String> payorsNames = transaction.getPayorsList();
             List<Double> amountsPaid = transaction.getAmountsPaidList();
             double individualPayment = transaction.getTotalIndividualPayment();
 
@@ -97,55 +77,13 @@ public class RecentTransactionAdapter extends RecyclerView.Adapter<RecentTransac
             boolean isCreator = transaction.getCreatedByUid() != null && transaction.getCreatedByUid().equals(currentUid);
 
             if (payorsUids != null) {
-                for (int i = 0; i < payorsUids.size(); i++) {
-                    View payorView = LayoutInflater.from(holder.itemView.getContext()).inflate(R.layout.item_payor_horizontal, holder.payorsContainer, false);
-                    ImageView payorImage = payorView.findViewById(R.id.payorProfileImage);
-                    TextView payorName = payorView.findViewById(R.id.payorNameTextView);
-                    TextView payorPayment = payorView.findViewById(R.id.payorPaymentTextView);
-                    TextView payorStatus = payorView.findViewById(R.id.payorStatusTextView);
-
-                    String uid = payorsUids.get(i);
-                    String name = (payorsNames != null && i < payorsNames.size()) ? payorsNames.get(i) : "User";
-                    payorName.setText(name);
-
-                    double paid = (amountsPaid != null && i < amountsPaid.size()) ? amountsPaid.get(i) : 0.0;
-                    payorPayment.setText(String.format(Locale.getDefault(), "%.2f/%.2f", paid, individualPayment));
-
-                    if (paid <= 0) {
-                        payorStatus.setText("Unpaid");
-                        payorStatus.setTextColor(holder.itemView.getContext().getResources().getColor(android.R.color.holo_red_dark));
-                    } else if (paid < individualPayment) {
-                        payorStatus.setText("Paid Partially");
-                        payorStatus.setTextColor(holder.itemView.getContext().getResources().getColor(android.R.color.holo_orange_dark));
-                    } else {
-                        payorStatus.setText("Paid");
-                        payorStatus.setTextColor(holder.itemView.getContext().getResources().getColor(android.R.color.holo_green_dark));
-                    }
-
-                    // Load Profile Image
-                    StorageReference pStorageRef = FirebaseStorage.getInstance().getReference("profile_images").child(uid);
-                    pStorageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-                        Glide.with(holder.itemView.getContext())
-                                .load(uri)
-                                .placeholder(R.drawable.placeholder_profile_image)
-                                .circleCrop()
-                                .into(payorImage);
-                    }).addOnFailureListener(e -> payorImage.setImageResource(R.drawable.placeholder_profile_image));
-
-                    // Edit payment if creator
+                PayorAdapter payorAdapter = new PayorAdapter(payorsUids, payorsNames, amountsPaid, individualPayment, (index, paid) -> {
                     if (isCreator) {
-                        final int index = i;
-                        final double finalPaid = paid;
-                        payorView.setOnClickListener(v -> showEditAmountDialog(holder.itemView.getContext(), transaction, index, finalPaid, position));
+                        showEditAmountDialog(holder.itemView.getContext(), transaction, index, paid, position);
                     }
-
-                    holder.payorsContainer.addView(payorView);
-                }
-            } else {
-                // Fallback for older data or if payorsUids is null
-                TextView emptyText = new TextView(holder.itemView.getContext());
-                emptyText.setText("No payors info available");
-                holder.payorsContainer.addView(emptyText);
+                });
+                holder.payorsRecyclerView.setLayoutManager(new LinearLayoutManager(holder.itemView.getContext(), LinearLayoutManager.HORIZONTAL, false));
+                holder.payorsRecyclerView.setAdapter(payorAdapter);
             }
 
             // Details Section
@@ -212,7 +150,6 @@ public class RecentTransactionAdapter extends RecyclerView.Adapter<RecentTransac
                 if (index < transaction.getAmountsPaidList().size()) {
                     transaction.getAmountsPaidList().set(index, newAmount);
                 } else {
-                    // Handle case where list might be shorter than indices
                     while (transaction.getAmountsPaidList().size() < index) {
                         transaction.getAmountsPaidList().add(0.0);
                     }
@@ -236,9 +173,8 @@ public class RecentTransactionAdapter extends RecyclerView.Adapter<RecentTransac
         public ImageView iconImageView;
         
         public View expandableLayout;
-        public ImageView creatorProfileImage;
         public TextView createdByTextView;
-        public LinearLayout payorsContainer;
+        public RecyclerView payorsRecyclerView;
         public TextView fullDetailsTextView;
 
         public ViewHolder(View itemView) {
@@ -250,9 +186,8 @@ public class RecentTransactionAdapter extends RecyclerView.Adapter<RecentTransac
             iconImageView = itemView.findViewById(R.id.iconImageView);
             
             expandableLayout = itemView.findViewById(R.id.expandable_layout);
-            creatorProfileImage = itemView.findViewById(R.id.creatorProfileImage);
             createdByTextView = itemView.findViewById(R.id.createdByTextView);
-            payorsContainer = itemView.findViewById(R.id.payorsContainer);
+            payorsRecyclerView = itemView.findViewById(R.id.payorsRecyclerView);
             fullDetailsTextView = itemView.findViewById(R.id.fullDetailsTextView);
         }
     }
