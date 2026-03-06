@@ -71,8 +71,9 @@ public class MainActivity extends AppCompatActivity {
     private RecentTransactionAdapter recentTransactionAdapter;
 
     // FAB Menu fields
-    private FloatingActionButton fabMain, fabBorrow, fabAddTransaction, fabAddGroup;
+    private FloatingActionButton fabMain;
     private View fabMenuOverlay;
+    private LinearLayout containerBorrow, containerAddTransaction, containerAddGroup;
     private boolean isFabMenuOpen = false;
     private String selectedLenderName = "";
 
@@ -125,16 +126,17 @@ public class MainActivity extends AppCompatActivity {
         }
 
         fabMain = findViewById(R.id.fab_main);
-        fabBorrow = findViewById(R.id.fab_borrow);
-        fabAddTransaction = findViewById(R.id.fab_add_transaction);
-        fabAddGroup = findViewById(R.id.fab_add_group);
         fabMenuOverlay = findViewById(R.id.fab_menu_overlay);
+        containerBorrow = findViewById(R.id.container_borrow);
+        containerAddTransaction = findViewById(R.id.container_add_transaction);
+        containerAddGroup = findViewById(R.id.container_add_group);
 
         if (fabMain != null) fabMain.setOnClickListener(v -> toggleFabMenu());
         if (fabMenuOverlay != null) fabMenuOverlay.setOnClickListener(v -> collapseFabMenu());
-        if (fabBorrow != null) fabBorrow.setOnClickListener(v -> { collapseFabMenu(); showBorrowNowDialog(); });
-        if (fabAddTransaction != null) fabAddTransaction.setOnClickListener(v -> { collapseFabMenu(); startActivity(new Intent(MainActivity.this, AddTransactionActivity.class)); });
-        if (fabAddGroup != null) fabAddGroup.setOnClickListener(v -> { collapseFabMenu(); showCreateGroupDialog(); });
+        
+        findViewById(R.id.fab_borrow).setOnClickListener(v -> { collapseFabMenu(); showBorrowNowDialog(); });
+        findViewById(R.id.fab_add_transaction).setOnClickListener(v -> { collapseFabMenu(); startActivity(new Intent(MainActivity.this, AddTransactionActivity.class)); });
+        findViewById(R.id.fab_add_group).setOnClickListener(v -> { collapseFabMenu(); showCreateGroupDialog(); });
 
         NavHostFragment navHostFragment = (NavHostFragment) getSupportFragmentManager().findFragmentById(R.id.nav_host_fragment_activity_main);
         if (navHostFragment != null) {
@@ -164,11 +166,11 @@ public class MainActivity extends AppCompatActivity {
         fabMain.animate().cancel();
         fabMain.animate().rotation(45f).setDuration(300).setListener(null).start();
 
-        float radius = 250f;
+        float radius = 300f; // Increased radius to accommodate labels
         
-        setupExpandAnimation(fabBorrow, (float) (radius * Math.cos(Math.toRadians(210))), (float) (radius * Math.sin(Math.toRadians(210))));
-        setupExpandAnimation(fabAddTransaction, 0f, -radius);
-        setupExpandAnimation(fabAddGroup, (float) (radius * Math.cos(Math.toRadians(-30))), (float) (radius * Math.sin(Math.toRadians(-30))));
+        setupExpandAnimation(containerBorrow, (float) (radius * Math.cos(Math.toRadians(210))), (float) (radius * Math.sin(Math.toRadians(210))));
+        setupExpandAnimation(containerAddTransaction, 0f, -radius);
+        setupExpandAnimation(containerAddGroup, (float) (radius * Math.cos(Math.toRadians(-30))), (float) (radius * Math.sin(Math.toRadians(-30))));
     }
 
     private void setupExpandAnimation(View view, float tx, float ty) {
@@ -198,9 +200,9 @@ public class MainActivity extends AppCompatActivity {
         fabMain.animate().cancel();
         fabMain.animate().rotation(0f).setDuration(300).setListener(null).start();
 
-        setupCollapseAnimation(fabBorrow);
-        setupCollapseAnimation(fabAddTransaction);
-        setupCollapseAnimation(fabAddGroup);
+        setupCollapseAnimation(containerBorrow);
+        setupCollapseAnimation(containerAddTransaction);
+        setupCollapseAnimation(containerAddGroup);
     }
 
     private void setupCollapseAnimation(View view) {

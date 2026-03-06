@@ -12,6 +12,11 @@
         android:title="Transactions" />
 
     <item
+        android:id="@+id/navigation_placeholder"
+        android:title=""
+        android:enabled="false" />
+
+    <item
         android:id="@+id/navigation_borrow"
         android:icon="@drawable/coin"
         android:title="@string/title_borrow" />

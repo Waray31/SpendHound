@@ -180,4 +180,9 @@
     <!-- Toast Messages -->
     <string name="toast_status_updated">Status updated successfully</string>
     <string name="toast_status_update_failed">Failed to update status. Please try again.</string>
+
+    <!-- FAB Labels -->
+    <string name="label_borrow_money">Borrow Money</string>
+    <string name="label_add_transaction">Add Transaction</string>
+    <string name="label_add_group">Add Group</string>
 </resources>
