@@ -82,8 +82,15 @@ public class RecentTransactionAdapter extends RecyclerView.Adapter<RecentTransac
                         showEditAmountDialog(holder.itemView.getContext(), transaction, index, paid, position);
                     }
                 });
+                
+                // Set loading listener
+                holder.loadingOverlay.setVisibility(View.VISIBLE);
+                payorAdapter.setOnLoadingCompleteListener(() -> holder.loadingOverlay.setVisibility(View.GONE));
+
                 holder.payorsRecyclerView.setLayoutManager(new LinearLayoutManager(holder.itemView.getContext(), LinearLayoutManager.HORIZONTAL, false));
                 holder.payorsRecyclerView.setAdapter(payorAdapter);
+            } else {
+                holder.loadingOverlay.setVisibility(View.GONE);
             }
 
             // Details Section
@@ -93,6 +100,8 @@ public class RecentTransactionAdapter extends RecyclerView.Adapter<RecentTransac
             } else {
                 holder.fullDetailsTextView.setText("No additional details");
             }
+        } else {
+            holder.loadingOverlay.setVisibility(View.GONE);
         }
 
         // Set click listener to toggle expansion
@@ -176,6 +185,7 @@ public class RecentTransactionAdapter extends RecyclerView.Adapter<RecentTransac
         public TextView createdByTextView;
         public RecyclerView payorsRecyclerView;
         public TextView fullDetailsTextView;
+        public View loadingOverlay;
 
         public ViewHolder(View itemView) {
             super(itemView);
@@ -189,6 +199,7 @@ public class RecentTransactionAdapter extends RecyclerView.Adapter<RecentTransac
             createdByTextView = itemView.findViewById(R.id.createdByTextView);
             payorsRecyclerView = itemView.findViewById(R.id.payorsRecyclerView);
             fullDetailsTextView = itemView.findViewById(R.id.fullDetailsTextView);
+            loadingOverlay = itemView.findViewById(R.id.loadingOverlay_transaction);
         }
     }
 }

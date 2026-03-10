@@ -81,111 +81,112 @@
 
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1">
+        android:layout_height="wrap_content">
 
-    <LinearLayout
-        android:id="@+id/expandable_layout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingTop="8dp"
-        android:visibility="gone">
-
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginBottom="8dp"
-            android:background="#DDDDDD" />
-
-        <!-- Payors Section -->
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="8dp"
-            android:fontFamily="@font/montserratalternatess_bold"
-            android:text="Payors"
-            android:textSize="12sp" />
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/payorsRecyclerView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal" />
-
-        <!-- Created By Section -->
         <LinearLayout
+            android:id="@+id/expandable_layout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginVertical="8dp"
-            android:gravity="start"
-            android:orientation="horizontal">
+            android:orientation="vertical"
+            android:paddingTop="8dp"
+            android:visibility="gone">
 
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginBottom="8dp"
+                android:background="#DDDDDD" />
+
+            <!-- Payors Section -->
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
                 android:fontFamily="@font/montserratalternatess_bold"
-                android:text="Created By:"
+                android:text="Payors"
                 android:textSize="12sp" />
 
-            <TextView
-                android:id="@+id/createdByTextView"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="John Doe"
-                android:textSize="12sp" />
-        </LinearLayout>
-
-        <!-- Details Section -->
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_bold"
-                android:text="Details:"
-                android:textSize="12sp" />
-
-            <TextView
-                android:id="@+id/fullDetailsTextView"
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/payorsRecyclerView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="No additional details"
-                android:textSize="12sp" />
+                android:orientation="horizontal" />
+
+            <!-- Created By Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginVertical="8dp"
+                android:gravity="start"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Created By:"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/createdByTextView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:text="John Doe"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <!-- Details Section -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Details:"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/fullDetailsTextView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:text="No additional details"
+                    android:textSize="12sp" />
+
+            </LinearLayout>
 
         </LinearLayout>
 
-    </LinearLayout>
-    <!-- Loading Overlay -->
+        <!-- Loading Overlay -->
         <LinearLayout
             android:id="@+id/loadingOverlay_transaction"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:background="@color/glassy_background"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/white"
             android:gravity="center"
             android:orientation="vertical"
-            android:visibility="gone">
+            android:visibility="gone"
+            android:clickable="true"
+            android:focusable="true">
 
             <ProgressBar
                 style="@style/CustomProgressBarStyle"
-                android:layout_width="48dp"
-                android:layout_height="48dp" />
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
+                android:layout_marginTop="4dp"
                 android:fontFamily="@font/montserratalternatess_regular"
-                android:text="@string/loading_text"
-                android:textColor="@color/darkBlue"
-                android:textSize="14sp" />
+                android:text="Loading details..."
+                android:textSize="10sp" />
         </LinearLayout>
     </FrameLayout>
 

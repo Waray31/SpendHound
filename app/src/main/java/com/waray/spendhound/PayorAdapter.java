@@ -1,5 +1,6 @@
 package com.waray.spendhound;
 
+import android.graphics.drawable.Drawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -7,14 +8,21 @@ import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.DataSource;
+import com.bumptech.glide.load.engine.GlideException;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.Target;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public class PayorAdapter extends RecyclerView.Adapter<PayorAdapter.PayorViewHolder> {
 
@@ -23,9 +31,22 @@ public class PayorAdapter extends RecyclerView.Adapter<PayorAdapter.PayorViewHol
     private List<Double> amountsPaid;
     private double individualPayment;
     private OnPayorClickListener onPayorClickListener;
+    private OnLoadingCompleteListener loadingCompleteListener;
+    private Set<Integer> loadedPositions = new HashSet<>();
 
     public interface OnPayorClickListener {
         void onPayorClick(int index, double paid);
+    }
+
+    public interface OnLoadingCompleteListener {
+        void onLoadingComplete();
+    }
+
+    public void setOnLoadingCompleteListener(OnLoadingCompleteListener listener) {
+        this.loadingCompleteListener = listener;
+        if ((payorsUids == null || payorsUids.isEmpty()) && loadingCompleteListener != null) {
+            loadingCompleteListener.onLoadingComplete();
+        }
     }
 
     public PayorAdapter(List<String> payorsUids, List<String> payorsNames, List<Double> amountsPaid, double individualPayment, OnPayorClickListener onPayorClickListener) {
@@ -69,11 +90,36 @@ public class PayorAdapter extends RecyclerView.Adapter<PayorAdapter.PayorViewHol
                     .load(uri)
                     .placeholder(R.drawable.placeholder_profile_image)
                     .circleCrop()
+                    .listener(new RequestListener<Drawable>() {
+                        @Override
+                        public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+                            checkLoadingComplete(position);
+                            return false;
+                        }
+
+                        @Override
+                        public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+                            checkLoadingComplete(position);
+                            return false;
+                        }
+                    })
                     .into(holder.payorImage);
-        }).addOnFailureListener(e -> holder.payorImage.setImageResource(R.drawable.placeholder_profile_image));
+        }).addOnFailureListener(e -> {
+            holder.payorImage.setImageResource(R.drawable.placeholder_profile_image);
+            checkLoadingComplete(position);
+        });
 
         if (onPayorClickListener != null) {
             holder.itemView.setOnClickListener(v -> onPayorClickListener.onPayorClick(position, paid));
+        }
+    }
+
+    private synchronized void checkLoadingComplete(int position) {
+        loadedPositions.add(position);
+        // We consider it complete when all items have been attempted to load.
+        // For horizontal lists, typically all items are bound immediately or quickly.
+        if (loadedPositions.size() >= getItemCount() && loadingCompleteListener != null) {
+            loadingCompleteListener.onLoadingComplete();
         }
     }
 
