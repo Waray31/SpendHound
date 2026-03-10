@@ -25,6 +25,7 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.navigation.NavController;
 import androidx.navigation.fragment.NavHostFragment;
 import androidx.navigation.ui.NavigationUI;
@@ -33,6 +34,7 @@ import androidx.recyclerview.widget.LinearSnapHelper;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.recyclerview.widget.SnapHelper;
 
+import com.google.android.material.behavior.HideBottomViewOnScrollBehavior;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.auth.FirebaseAuth;
@@ -146,8 +148,42 @@ public class MainActivity extends AppCompatActivity {
                 if (isFabMenuOpen) collapseFabMenu();
                 return NavigationUI.onNavDestinationSelected(item, navController);
             });
+
+            navController.addOnDestinationChangedListener((controller, destination, arguments) -> {
+                int id = destination.getId();
+                boolean hideOnScroll = (id != R.id.navigation_borrow && id != R.id.navigation_profile);
+                updateBottomViewBehavior(hideOnScroll);
+            });
         }
         progressBar.setVisibility(View.GONE);
+    }
+
+    private void updateBottomViewBehavior(boolean hideOnScroll) {
+        View fabMainLayout = findViewById(R.id.fab_main_layout);
+        updateViewBehavior(navView, hideOnScroll);
+        updateViewBehavior(fabMain, hideOnScroll);
+        updateViewBehavior(fabMainLayout, hideOnScroll);
+    }
+
+    private void updateViewBehavior(View view, boolean hideOnScroll) {
+        if (view == null) return;
+        ViewGroup.LayoutParams layoutParams = view.getLayoutParams();
+        if (layoutParams instanceof CoordinatorLayout.LayoutParams) {
+            CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) layoutParams;
+            if (hideOnScroll) {
+                if (!(params.getBehavior() instanceof HideBottomViewOnScrollBehavior)) {
+                    params.setBehavior(new HideBottomViewOnScrollBehavior<>());
+                    view.setTranslationY(0f);
+                    view.setLayoutParams(params);
+                }
+            } else {
+                if (params.getBehavior() != null) {
+                    params.setBehavior(null);
+                    view.setTranslationY(0f);
+                    view.setLayoutParams(params);
+                }
+            }
+        }
     }
 
     private void toggleFabMenu() {

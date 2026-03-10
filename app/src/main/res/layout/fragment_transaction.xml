@@ -79,13 +79,18 @@
         </LinearLayout>
     </LinearLayout>
 
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
     <LinearLayout
         android:id="@+id/expandable_layout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
         android:paddingTop="8dp"
-        android:visibility="visible">
+        android:visibility="gone">
 
         <View
             android:layout_width="match_parent"
@@ -158,5 +163,30 @@
         </LinearLayout>
 
     </LinearLayout>
+    <!-- Loading Overlay -->
+        <LinearLayout
+            android:id="@+id/loadingOverlay_transaction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:background="@color/glassy_background"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <ProgressBar
+                style="@style/CustomProgressBarStyle"
+                android:layout_width="48dp"
+                android:layout_height="48dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:text="@string/loading_text"
+                android:textColor="@color/darkBlue"
+                android:textSize="14sp" />
+        </LinearLayout>
+    </FrameLayout>
 
 </LinearLayout>
