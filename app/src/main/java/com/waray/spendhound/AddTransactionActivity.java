@@ -365,7 +365,7 @@ public class AddTransactionActivity extends AppCompatActivity {
 
             if (Math.abs(sumOfAmounts - paymentAmount) > 0.01) {
                 Toast.makeText(AddTransactionActivity.this,
-                    "Total of individual amounts (₱" + String.format(Locale.getDefault(), "%.2f", sumOfAmounts) + ") does not match payment amount (₱" + String.format(Locale.getDefault(), "%.2f", paymentAmount) + ")",
+                    "Total of individual amounts (" + CurrencyUtils.formatAmountWithCurrency(sumOfAmounts) + ") does not match payment amount (" + CurrencyUtils.formatAmountWithCurrency(paymentAmount) + ")",
                     Toast.LENGTH_LONG).show();
                 progressBar.setVisibility(View.GONE);
                 return;
@@ -454,7 +454,7 @@ public class AddTransactionActivity extends AppCompatActivity {
 
         if (Math.abs(finalSum - paymentAmount) > 0.01) {
             Toast.makeText(this,
-                "Total amount paid (₱" + String.format(Locale.getDefault(), "%.2f", finalSum) + ") does not match payment amount (₱" + String.format(Locale.getDefault(), "%.2f", paymentAmount) + ")",
+                "Total amount paid (" + CurrencyUtils.formatAmountWithCurrency(finalSum) + ") does not match payment amount (" + CurrencyUtils.formatAmountWithCurrency(paymentAmount) + ")",
                 Toast.LENGTH_LONG).show();
             progressBar.setVisibility(View.GONE);
             return;
@@ -578,17 +578,17 @@ public class AddTransactionActivity extends AppCompatActivity {
                     // Fall back to all users if no group is selected
                     numberOfUsers = usernames.size() - 1; // Exclude "Select a payor:"
                 } else {
-                    individualPayment.setText("₱ 0.00");
+                    individualPayment.setText("₱ 0");
                     return;
                 }
 
                 totalIndividualPayment = amount / numberOfUsers;
-                individualPayment.setText(String.format(Locale.getDefault(), "₱ %.2f", totalIndividualPayment));
+                individualPayment.setText(CurrencyUtils.formatAmountWithCurrency(totalIndividualPayment));
             } catch (NumberFormatException e) {
-                individualPayment.setText("₱ 0.00");
+                individualPayment.setText("₱ 0");
             }
         } else {
-            individualPayment.setText("₱ 0.00");
+            individualPayment.setText("₱ 0");
         }
     }
 

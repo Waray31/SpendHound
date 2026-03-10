@@ -63,7 +63,7 @@ public class BorrowerListTransactionAdapter extends RecyclerView.Adapter<Borrowe
         BorrowerListTransaction transaction = transactionList.get(position);
         holder.hoursAgoTV.setText(transaction.getDate());
         holder.borrowerNameTV.setText(transaction.getBorrowee());
-        holder.amountBorrowedTV.setText(transaction.getBorrowedAmountStr());
+        holder.amountBorrowedTV.setText(CurrencyUtils.formatAmountWithCurrency(transaction.getBorrowedAmountStr()));
 
         // Set a placeholder image and a tag for the ImageView
         holder.borrowerImg.setImageResource(R.drawable.placeholder_profile_image);

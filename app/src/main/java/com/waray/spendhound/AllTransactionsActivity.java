@@ -243,7 +243,7 @@ public class AllTransactionsActivity extends AppCompatActivity {
                             String transactionType = transaction.getTransactionType();
                             String details = transaction.getMultilineStr();
                             double paymentAmount = transaction.getPaymentAmount();
-                            String paymentAmountStr = String.format(Locale.getDefault(), "₱ %.2f", paymentAmount);
+                            String paymentAmountStr = CurrencyUtils.formatAmountWithCurrency(paymentAmount);
                             int iconResource = getIconForTransactionType(transactionType);
 
                             // Get payors list - prefer display names, fallback to UIDs/usernames

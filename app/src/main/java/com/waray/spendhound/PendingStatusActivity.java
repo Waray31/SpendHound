@@ -176,7 +176,7 @@ public class PendingStatusActivity extends AppCompatActivity implements Borrower
                                         if (borrowerName == null || borrowerName.isEmpty()) {
                                             borrowerName = "Unknown";
                                         }
-                                        String borrowedAmountStr = "₱" + borrowNowTransaction.getBorrowedAmountStr();
+                                        String borrowedAmountStr = CurrencyUtils.formatAmountWithCurrency(borrowNowTransaction.getBorrowedAmountStr());
 
                                         // Calculate time difference using timestamp
                                         long timestamp = borrowNowTransaction.getTimestamp();
@@ -206,8 +206,7 @@ public class PendingStatusActivity extends AppCompatActivity implements Borrower
                                             String borrowee = borrowerListTransaction.getBorrowee();
                                             if (Objects.equals(status, "For Lender Approval") && Objects.equals(borrowee, currentNickname2)) {
                                                 borrowee = currentUserStr;
-                                                String borrowedAmountStr = borrowerListTransaction.getBorrowedAmountStr();
-                                                borrowedAmountStr = "₱" + borrowedAmountStr;
+                                                String borrowedAmountStr = CurrencyUtils.formatAmountWithCurrency(borrowerListTransaction.getBorrowedAmountStr());
                                                 String date = borrowerListTransaction.getDate();
 
                                                 String formatPattern = "MMMM-dd-yyyy HH:mm:ss";
@@ -327,7 +326,7 @@ public class PendingStatusActivity extends AppCompatActivity implements Borrower
                                         if (borrowerName == null || borrowerName.isEmpty()) {
                                             borrowerName = "Unknown";
                                         }
-                                        String borrowedAmountStr = "₱" + borrowNowTransaction.getBorrowedAmountStr();
+                                        String borrowedAmountStr = CurrencyUtils.formatAmountWithCurrency(borrowNowTransaction.getBorrowedAmountStr());
 
                                         // Calculate time difference using timestamp
                                         long timestamp = borrowNowTransaction.getTimestamp();
@@ -357,8 +356,7 @@ public class PendingStatusActivity extends AppCompatActivity implements Borrower
                                             String borrowee = borrowerListTransaction.getBorrowee();
                                             if (Objects.equals(status, "Payment Pending") && Objects.equals(borrowee, currentNickname2)) {
                                                 borrowee = currentUserStr;
-                                                String borrowedAmountStr = borrowerListTransaction.getBorrowedAmountStr();
-                                                borrowedAmountStr = "₱" + borrowedAmountStr;
+                                                String borrowedAmountStr = CurrencyUtils.formatAmountWithCurrency(borrowerListTransaction.getBorrowedAmountStr());
                                                 String date = borrowerListTransaction.getDate();
 
                                                 String formatPattern = "MMMM-dd-yyyy HH:mm:ss";

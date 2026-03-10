@@ -41,7 +41,7 @@ public class BorrowTransactionAdapter extends RecyclerView.Adapter<BorrowTransac
         // Bind data to the ViewHolder's views
         holder.cbDebtDateTV.setText(transaction.getDate());
         holder.cbDebtBorroweeTV.setText(transaction.getBorrowee());
-        holder.cbDebtAmountBorrowedTV.setText(transaction.getBorrowedAmountStr());
+        holder.cbDebtAmountBorrowedTV.setText(CurrencyUtils.formatAmountWithCurrency(transaction.getBorrowedAmountStr()));
         holder.cbDebtStatusTV.setText(transaction.getStatus());
 
         // Set status color based on status value

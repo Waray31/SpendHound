@@ -75,7 +75,7 @@ public class DebtTransactionAdapter extends RecyclerView.Adapter<DebtTransaction
         // Bind data to the ViewHolder's views
         holder.debtDateTV.setText(transaction.getDate());
         holder.debtBorroweeTV.setText(transaction.getBorrowee());
-        holder.debtAmountBorrowedTV.setText(transaction.getBorrowedAmountStr());
+        holder.debtAmountBorrowedTV.setText(CurrencyUtils.formatAmountWithCurrency(transaction.getBorrowedAmountStr()));
         holder.debtStatusTV.setText(transaction.getStatus());
 
         // Hide all action layouts by default

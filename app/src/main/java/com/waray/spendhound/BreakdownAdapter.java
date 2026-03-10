@@ -50,7 +50,7 @@ public class BreakdownAdapter extends RecyclerView.Adapter<BreakdownAdapter.Brea
         holder.date.setText(item.getDate());
 
         // Set amount with peso sign
-        holder.amount.setText("₱ " + item.getAmount() + ".00");
+        holder.amount.setText(CurrencyUtils.formatAmountWithCurrency(item.getAmount()));
 
         // Set status
         String status = item.getStatus();
@@ -156,4 +156,3 @@ public class BreakdownAdapter extends RecyclerView.Adapter<BreakdownAdapter.Brea
         }
     }
 }
-

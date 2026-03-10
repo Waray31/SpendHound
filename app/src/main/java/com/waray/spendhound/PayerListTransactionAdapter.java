@@ -63,7 +63,7 @@ public class PayerListTransactionAdapter extends RecyclerView.Adapter<PayerListT
         BorrowerListTransaction transaction = transactionList.get(position);
         holder.hoursAgoTV.setText(transaction.getDate());
         holder.payerNameTV.setText(transaction.getBorrowee());
-        holder.amountPaidTV.setText(transaction.getBorrowedAmountStr());
+        holder.amountPaidTV.setText(CurrencyUtils.formatAmountWithCurrency(transaction.getBorrowedAmountStr()));
 
         // Set a placeholder image and a tag for the ImageView
         holder.payerImg.setImageResource(R.drawable.placeholder_profile_image);

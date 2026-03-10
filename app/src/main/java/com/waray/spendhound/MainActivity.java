@@ -447,7 +447,7 @@ public class MainActivity extends AppCompatActivity {
                     if (transaction != null && isUserInvolved(transaction, username)) totalMonthSpends += transaction.getPaymentAmount();
                 } }
                 TextView tv = findViewById(R.id.totalMonthSpends);
-                if (tv != null) tv.setText("₱ " + String.format(Locale.getDefault(), "%.2f", totalMonthSpends));
+                if (tv != null) tv.setText(CurrencyUtils.formatAmountWithCurrency(totalMonthSpends));
                 if (callback != null) callback.run();
             }
             @Override public void onCancelled(@NonNull DatabaseError databaseError) { if (callback != null) callback.run(); }
@@ -504,7 +504,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public void setViewHeightForDay(int day, double dailySpends) {
-        String dsString = String.format(Locale.getDefault(), "%.2f", dailySpends);
+        String dsString = CurrencyUtils.formatAmount(dailySpends);
         int[] ids = {R.id.totalday1, R.id.totalday2, R.id.totalday3, R.id.totalday4, R.id.totalday5, R.id.totalday6, R.id.totalday7};
         int[] barIds = {R.id.day1_bar, R.id.day2_bar, R.id.day3_bar, R.id.day4_bar, R.id.day5_bar, R.id.day6_bar, R.id.day7_bar};
         int index = 6 - day;
@@ -532,7 +532,7 @@ public class MainActivity extends AppCompatActivity {
                         Transaction t = ts.getValue(Transaction.class);
                         if (t != null && isUserInvolved(t, username)) {
                             String tk = ts.getKey(); String[] p = fmy.split("-");
-                            recentTransactionList.add(new RecentTransaction(p[0] + " - " + fd, t.getTransactionType(), t.getMultilineStr(), String.format(Locale.getDefault(), "₱ %.2f", t.getPaymentAmount()), getTransactionIcon(t.getTransactionType()), p[1] + "-" + p[0] + "-" + fd + " " + tk, t.getPayorsDisplayNames() != null ? t.getPayorsDisplayNames() : t.getPayorsList(), t.getPayorsList(), t.getAmountsPaidList(), t.getTotalIndividualPayment(), null, t.getPosterDisplayName() != null ? t.getPosterDisplayName() : t.getUsernamePost(), t.getUsernamePost(), fmy, fd, tk));
+                            recentTransactionList.add(new RecentTransaction(p[0] + " - " + fd, t.getTransactionType(), t.getMultilineStr(), CurrencyUtils.formatAmountWithCurrency(t.getPaymentAmount()), getTransactionIcon(t.getTransactionType()), p[1] + "-" + p[0] + "-" + fd + " " + tk, t.getPayorsDisplayNames() != null ? t.getPayorsDisplayNames() : t.getPayorsList(), t.getPayorsList(), t.getAmountsPaidList(), t.getTotalIndividualPayment(), null, t.getPosterDisplayName() != null ? t.getPosterDisplayName() : t.getUsernamePost(), t.getUsernamePost(), fmy, fd, tk));
                         }
                     }
                     if (daysFetched.incrementAndGet() == 7) {
@@ -612,7 +612,7 @@ public class MainActivity extends AppCompatActivity {
                 RecyclerView rv = findViewById(R.id.owedRecyclerList); if (rv != null) { rv.setAdapter(new OwedTransactionAdapter(owedList, actionListener != null ? actionListener : new OwedTransactionAdapter.OnLenderActionListener() { @Override public void onNotYetClicked(OwedTransaction t, int p) {} @Override public void onReceivedClicked(OwedTransaction t, int p) {} @Override public void onDeclineClicked(OwedTransaction t, int p) {} @Override public void onApprovedClicked(OwedTransaction t, int p) {} })); rv.setLayoutManager(new LinearLayoutManager(MainActivity.this)); }
                 owedNum = owedList.size(); callback.onOwedNumReceived(owedNum);
             }
-            @Override public void onCancelled(@NonNull DatabaseError e) {}
+            @Override public void onCancelled(@NonNull DatabaseError e) { }
         });
     }
 

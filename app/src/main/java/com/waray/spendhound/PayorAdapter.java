@@ -71,7 +71,7 @@ public class PayorAdapter extends RecyclerView.Adapter<PayorAdapter.PayorViewHol
         double paid = (amountsPaid != null && position < amountsPaid.size()) ? amountsPaid.get(position) : 0.0;
 
         holder.payorName.setText(name);
-        holder.payorPayment.setText(String.format(Locale.getDefault(), "%.2f/%.2f", paid, individualPayment));
+        holder.payorPayment.setText(CurrencyUtils.formatAmount(paid) + "/" + CurrencyUtils.formatAmount(individualPayment));
 
         if (paid <= 0) {
             holder.payorStatus.setText("Unpaid");

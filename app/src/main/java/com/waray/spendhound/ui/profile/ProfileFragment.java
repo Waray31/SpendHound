@@ -51,6 +51,7 @@ import com.waray.spendhound.BorrowNowTransaction;
 import com.waray.spendhound.BorrowTransaction;
 import com.waray.spendhound.BreakdownAdapter;
 import com.waray.spendhound.BreakdownItem;
+import com.waray.spendhound.CurrencyUtils;
 import com.waray.spendhound.DeclareDatabase;
 import com.waray.spendhound.LoginActivity;
 import com.waray.spendhound.MigrationHelper;
@@ -351,8 +352,7 @@ public class ProfileFragment extends Fragment {
                     unpaid = 0;
                 }
 
-                String currentBalanceStr = String.valueOf(balance);
-                totalBalancedTextView.setText("₱ " + currentBalanceStr + ".00");
+                totalBalancedTextView.setText(CurrencyUtils.formatAmountWithCurrency(balance));
                 totalTextView.setText("Total Balance:");
                 hideLoading();
             }
@@ -385,8 +385,7 @@ public class ProfileFragment extends Fragment {
                 debtTextView.setBackgroundResource(R.drawable.button_background_invisible);
                 debtTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest));
 
-                String currentBalanceStr = String.valueOf(balance);
-                totalBalancedTextView.setText("₱ " + currentBalanceStr + ".00");
+                totalBalancedTextView.setText(CurrencyUtils.formatAmountWithCurrency(balance));
                 totalTextView.setText("Total Balance:");
             }
         });
@@ -410,8 +409,7 @@ public class ProfileFragment extends Fragment {
                 debtTextView.setBackgroundResource(R.drawable.button_background_invisible);
                 debtTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest));
 
-                String currentUnpaidStr = String.valueOf(unpaid);
-                totalBalancedTextView.setText("₱ " + currentUnpaidStr + ".00");
+                totalBalancedTextView.setText(CurrencyUtils.formatAmountWithCurrency(unpaid));
                 totalTextView.setText("Total Unpaid Balance:");
             }
         });
@@ -435,8 +433,7 @@ public class ProfileFragment extends Fragment {
                 debtTextView.setBackgroundResource(R.drawable.button_background_invisible);
                 debtTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest));
 
-                String currentOweStr = String.valueOf(currentOwe);
-                totalBalancedTextView.setText("₱ " + currentOweStr + ".00");
+                totalBalancedTextView.setText(CurrencyUtils.formatAmountWithCurrency(currentOwe));
                 totalTextView.setText("Total Owed Balance:");
             }
         });
@@ -460,8 +457,7 @@ public class ProfileFragment extends Fragment {
                 debtTextView.setBackgroundResource(R.drawable.button_background_visible);
                 debtTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.yellow));
 
-                String currentDebtStr = String.valueOf(currentDebt);
-                totalBalancedTextView.setText("₱ " + currentDebtStr + ".00");
+                totalBalancedTextView.setText(CurrencyUtils.formatAmountWithCurrency(currentDebt));
                 totalTextView.setText("Total Debt:");
             }
         });
@@ -1004,22 +1000,22 @@ public class ProfileFragment extends Fragment {
         switch (category) {
             case BALANCE:
                 categoryTitle.setText("Total Balance");
-                totalAmount.setText("₱ " + balance + ".00");
+                totalAmount.setText(CurrencyUtils.formatAmountWithCurrency(balance));
                 loadBalanceBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
                 break;
             case UNPAID:
                 categoryTitle.setText("Total Unpaid");
-                totalAmount.setText("₱ " + unpaid + ".00");
+                totalAmount.setText(CurrencyUtils.formatAmountWithCurrency(unpaid));
                 loadUnpaidBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
                 break;
             case OWE:
                 categoryTitle.setText("Total Owed");
-                totalAmount.setText("₱ " + currentOwe + ".00");
+                totalAmount.setText(CurrencyUtils.formatAmountWithCurrency(currentOwe));
                 loadOweBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
                 break;
             case DEBT:
                 categoryTitle.setText("Total Debt");
-                totalAmount.setText("₱ " + currentDebt + ".00");
+                totalAmount.setText(CurrencyUtils.formatAmountWithCurrency(currentDebt));
                 loadDebtBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
                 break;
         }

@@ -66,7 +66,7 @@ public class OwedTransactionAdapter extends RecyclerView.Adapter<OwedTransaction
         // Bind data to the ViewHolder's views
         holder.owedDateTV.setText(transaction.getDate());
         holder.owedBorroweeTV.setText(transaction.getBorrower());
-        holder.owedAmountBorrowedTV.setText(transaction.getBorrowedAmountStr());
+        holder.owedAmountBorrowedTV.setText(CurrencyUtils.formatAmountWithCurrency(transaction.getBorrowedAmountStr()));
         holder.owedStatusTV.setText(transaction.getStatus());
 
         // Hide all action layouts by default
@@ -205,4 +205,3 @@ public class OwedTransactionAdapter extends RecyclerView.Adapter<OwedTransaction
         }
     }
 }
-

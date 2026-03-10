@@ -23,6 +23,7 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.ValueEventListener;
+import com.waray.spendhound.CurrencyUtils;
 import com.waray.spendhound.DeclareDatabase;
 import com.waray.spendhound.R;
 import com.waray.spendhound.RecentTransaction;
@@ -234,7 +235,7 @@ public class TransactionsFragment extends Fragment {
                             String transactionType = transaction.getTransactionType();
                             String details = transaction.getMultilineStr();
                             double paymentAmount = transaction.getPaymentAmount();
-                            String paymentAmountStr = String.format(Locale.getDefault(), "₱ %.2f", paymentAmount);
+                            String paymentAmountStr = CurrencyUtils.formatAmountWithCurrency(paymentAmount);
                             int iconResource = getIconForTransactionType(transactionType);
 
                             java.util.List<String> payorsList = transaction.getPayorsDisplayNames();
