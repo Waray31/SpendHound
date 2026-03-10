@@ -22,138 +22,161 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="#B3000000"
-        android:visibility="gone"
         android:clickable="true"
+        android:elevation="7dp"
         android:focusable="true"
-        android:elevation="7dp" />
+        android:visibility="gone" />
 
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/navView"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:background="?android:attr/windowBackground"
-        app:layout_behavior="@string/hide_bottom_view_on_scroll_behavior"
-        app:menu="@menu/bottom_nav_menu"
+        android:backgroundTint="@color/whitest"
+        android:elevation="8dp"
         app:itemTextAppearanceActive="@style/BottomNavTextStyle"
         app:itemTextAppearanceInactive="@style/BottomNavTextStyle"
         app:labelVisibilityMode="selected"
-        android:elevation="8dp" />
+        app:layout_behavior="@string/hide_bottom_view_on_scroll_behavior"
+        app:menu="@menu/bottom_nav_menu" />
 
-    <!-- Mini FAB Containers: Higher elevation than overlay -->
+    <!-- Mini FAB Containers -->
     <LinearLayout
         android:id="@+id/container_borrow"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:elevation="10dp"
         android:gravity="center"
+        android:orientation="vertical"
         android:visibility="gone"
         app:layout_anchor="@id/fab_main"
-        app:layout_anchorGravity="center"
-        android:elevation="9dp">
+        app:layout_anchorGravity="center">
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fab_borrow"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            app:backgroundTint="@color/yellow"
+            android:contentDescription="@string/label_borrow_money"
             android:src="@drawable/coin"
-            app:tint="@color/white"
-            android:backgroundTint="@color/yellow"
             app:fabSize="mini"
-            android:contentDescription="@string/label_borrow_money" />
+            app:tint="@color/white" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="@font/montserratalternatess_bold"
             android:text="@string/label_borrow_money"
             android:textColor="@color/white"
-            android:textSize="10sp"
-            android:layout_marginTop="4dp"
-            android:fontFamily="@font/montserratalternatess_bold" />
+            android:textSize="10sp" />
     </LinearLayout>
 
     <LinearLayout
         android:id="@+id/container_add_transaction"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:elevation="10dp"
         android:gravity="center"
+        android:orientation="vertical"
         android:visibility="gone"
         app:layout_anchor="@id/fab_main"
-        app:layout_anchorGravity="center"
-        android:elevation="9dp">
+        app:layout_anchorGravity="center">
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fab_add_transaction"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            app:backgroundTint="@color/yellow"
+            android:contentDescription="@string/label_add_transaction"
             android:src="@drawable/baseline_add_24"
-            app:tint="@color/white"
-            android:backgroundTint="@color/yellow"
             app:fabSize="mini"
-            android:contentDescription="@string/label_add_transaction" />
+            app:tint="@color/white" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="@font/montserratalternatess_bold"
             android:text="@string/label_add_transaction"
             android:textColor="@color/white"
-            android:textSize="10sp"
-            android:layout_marginTop="4dp"
-            android:fontFamily="@font/montserratalternatess_bold" />
+            android:textSize="10sp" />
     </LinearLayout>
 
     <LinearLayout
         android:id="@+id/container_add_group"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
+        android:elevation="10dp"
         android:gravity="center"
+        android:orientation="vertical"
         android:visibility="gone"
         app:layout_anchor="@id/fab_main"
-        app:layout_anchorGravity="center"
-        android:elevation="9dp">
+        app:layout_anchorGravity="center">
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fab_add_group"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            app:backgroundTint="@color/yellow"
+            android:contentDescription="@string/label_add_group"
             android:src="@drawable/profile"
-            app:tint="@color/white"
-            android:backgroundTint="@color/yellow"
             app:fabSize="mini"
-            android:contentDescription="@string/label_add_group" />
+            app:tint="@color/white" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="@font/montserratalternatess_bold"
             android:text="@string/label_add_group"
             android:textColor="@color/white"
-            android:textSize="10sp"
-            android:layout_marginTop="4dp"
-            android:fontFamily="@font/montserratalternatess_bold" />
+            android:textSize="10sp" />
     </LinearLayout>
 
-    <!-- Main FAB: Highest elevation -->
+    <FrameLayout
+        android:id="@+id/fab_main_layout"
+        android:layout_width="wrap_content"
+        android:layout_height="36dp"
+        app:layout_anchor="@id/navView"
+        android:elevation="9dp"
+        android:outlineProvider="none"
+        app:layout_anchorGravity="top|center_horizontal"
+        app:layout_behavior="@string/hide_bottom_view_on_scroll_behavior">
+
+        <View
+            android:layout_width="74dp"
+            android:layout_height="36dp"
+            android:layout_gravity="center"
+            android:background="@drawable/fab_background"
+            android:backgroundTint="@color/white"
+            android:translationY="16dp" />
+    </FrameLayout>
+
+    <!-- Main FAB: Should be at the end to be drawn last -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_main"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginBottom="28dp"
+        app:backgroundTint="@color/yellow"
+        android:contentDescription="Add"
         android:src="@drawable/baseline_add_24"
-        app:tint="@color/white"
-        android:backgroundTint="@color/yellow"
+        app:elevation="16dp"
+        android:outlineProvider="none"
+        app:borderWidth="4dp"
+        app:strokeColor="@color/whitest"
         app:layout_anchor="@id/navView"
         app:layout_anchorGravity="top|center_horizontal"
-        android:layout_marginBottom="28dp"
-        app:elevation="10dp"
         app:layout_behavior="@string/hide_bottom_view_on_scroll_behavior"
-        android:contentDescription="Add" />
+        app:tint="@color/white" />
 
     <FrameLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:elevation="20dp">
+
         <ProgressBar
             android:id="@+id/progressBar"
             style="@style/CustomProgressBarStyle"
