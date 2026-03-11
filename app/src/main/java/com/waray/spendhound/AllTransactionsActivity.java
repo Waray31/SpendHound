@@ -9,6 +9,7 @@ import android.text.InputType;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.view.ViewGroup;
 import android.widget.AdapterView;
 import android.widget.Button;
 import android.widget.EditText;
@@ -22,9 +23,12 @@ import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.behavior.HideBottomViewOnScrollBehavior;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -77,9 +81,20 @@ public class AllTransactionsActivity extends AppCompatActivity {
         loadingProgressBar = findViewById(R.id.loadingProgressBar);
         emptyStateLayout = findViewById(R.id.emptyStateLayout);
 
-        adapter = new RecentTransactionAdapter(transactionList, null);
+        adapter = new RecentTransactionAdapter(transactionList, this::onTransactionTap);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
+    }
+
+    private void onTransactionTap(RecentTransaction transaction) {
+        if (!transaction.isExpanded()) {
+            unhideNavigation();
+        }
+    }
+
+    private void unhideNavigation() {
+        // Since AllTransactionsActivity is a separate activity, it doesn't have the BottomNavigationView
+        // from MainActivity. If this activity had a navigation bar, we would unhide it here.
     }
 
     private void getCurrentNickname() {

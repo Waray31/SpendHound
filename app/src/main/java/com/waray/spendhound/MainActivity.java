@@ -121,7 +121,7 @@ public class MainActivity extends AppCompatActivity {
         navView = findViewById(R.id.navView);
         RecyclerView recyclerView = findViewById(R.id.transactionListRecycler);
         recentTransactionList = new ArrayList<>();
-        recentTransactionAdapter = new RecentTransactionAdapter(recentTransactionList, null);
+        recentTransactionAdapter = new RecentTransactionAdapter(recentTransactionList, this::onTransactionTap);
         if (recyclerView != null) {
             recyclerView.setAdapter(recentTransactionAdapter);
             recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -156,6 +156,48 @@ public class MainActivity extends AppCompatActivity {
             });
         }
         progressBar.setVisibility(View.GONE);
+    }
+
+    public void onTransactionTap(RecentTransaction transaction) {
+        if (!transaction.isExpanded()) {
+            unhideNavigation();
+        }
+    }
+
+    public void unhideNavigation() {
+        if (navView != null) {
+            ViewGroup.LayoutParams layoutParams = navView.getLayoutParams();
+            if (layoutParams instanceof CoordinatorLayout.LayoutParams) {
+                CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) layoutParams;
+                if (params.getBehavior() instanceof HideBottomViewOnScrollBehavior) {
+                    HideBottomViewOnScrollBehavior<BottomNavigationView> behavior = (HideBottomViewOnScrollBehavior<BottomNavigationView>) params.getBehavior();
+                    behavior.slideUp(navView);
+                }
+            }
+        }
+        
+        View fabMainLayout = findViewById(R.id.fab_main_layout);
+        if (fabMainLayout != null) {
+            ViewGroup.LayoutParams layoutParams = fabMainLayout.getLayoutParams();
+            if (layoutParams instanceof CoordinatorLayout.LayoutParams) {
+                CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) layoutParams;
+                if (params.getBehavior() instanceof HideBottomViewOnScrollBehavior) {
+                    HideBottomViewOnScrollBehavior<View> behavior = (HideBottomViewOnScrollBehavior<View>) params.getBehavior();
+                    behavior.slideUp(fabMainLayout);
+                }
+            }
+        }
+        
+        if (fabMain != null) {
+            ViewGroup.LayoutParams layoutParams = fabMain.getLayoutParams();
+            if (layoutParams instanceof CoordinatorLayout.LayoutParams) {
+                CoordinatorLayout.LayoutParams params = (CoordinatorLayout.LayoutParams) layoutParams;
+                if (params.getBehavior() instanceof HideBottomViewOnScrollBehavior) {
+                    HideBottomViewOnScrollBehavior<FloatingActionButton> behavior = (HideBottomViewOnScrollBehavior<FloatingActionButton>) params.getBehavior();
+                    behavior.slideUp(fabMain);
+                }
+            }
+        }
     }
 
     private void updateBottomViewBehavior(boolean hideOnScroll) {
@@ -537,7 +579,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                     if (daysFetched.incrementAndGet() == 7) {
                         recentTransactionList.sort((t1, t2) -> (t1.getSortDateTime() != null && t2.getSortDateTime() != null) ? t2.getSortDateTime().compareTo(t1.getSortDateTime()) : 0);
-                        RecyclerView rv = findViewById(R.id.transactionListRecycler); if (rv != null) { recentTransactionAdapter = new RecentTransactionAdapter(recentTransactionList, null); rv.setAdapter(recentTransactionAdapter); rv.setLayoutManager(new LinearLayoutManager(MainActivity.this)); }
+                        RecyclerView rv = findViewById(R.id.transactionListRecycler); if (rv != null) { recentTransactionAdapter = new RecentTransactionAdapter(recentTransactionList, MainActivity.this::onTransactionTap); rv.setAdapter(recentTransactionAdapter); rv.setLayoutManager(new LinearLayoutManager(MainActivity.this)); }
                         if (callback != null) callback.run();
                     }
                 }

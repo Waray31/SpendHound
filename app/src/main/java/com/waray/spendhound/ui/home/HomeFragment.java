@@ -44,6 +44,7 @@ import com.waray.spendhound.DeclareDatabase;
 import com.waray.spendhound.LoginActivity;
 import com.waray.spendhound.MainActivity;
 import com.waray.spendhound.R;
+import com.waray.spendhound.RecentTransaction;
 import com.waray.spendhound.Transaction;
 import com.waray.spendhound.databinding.FragmentHomeBinding;
 

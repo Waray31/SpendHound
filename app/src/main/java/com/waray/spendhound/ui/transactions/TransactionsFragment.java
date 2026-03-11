@@ -25,6 +25,7 @@ import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.ValueEventListener;
 import com.waray.spendhound.CurrencyUtils;
 import com.waray.spendhound.DeclareDatabase;
+import com.waray.spendhound.MainActivity;
 import com.waray.spendhound.R;
 import com.waray.spendhound.RecentTransaction;
 import com.waray.spendhound.RecentTransactionAdapter;
@@ -80,7 +81,14 @@ public class TransactionsFragment extends Fragment {
         loadingProgressBar = root.findViewById(R.id.loadingProgressBar);
         emptyStateLayout = root.findViewById(R.id.emptyStateLayout);
 
-        adapter = new RecentTransactionAdapter(transactionList, null);
+        adapter = new RecentTransactionAdapter(transactionList, transaction -> {
+            if (!transaction.isExpanded()) {
+                MainActivity mainActivity = (MainActivity) getActivity();
+                if (mainActivity != null) {
+                    mainActivity.unhideNavigation();
+                }
+            }
+        });
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         recyclerView.setAdapter(adapter);
     }
