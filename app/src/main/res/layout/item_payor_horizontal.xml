@@ -39,4 +39,43 @@
         android:textSize="12sp"
         android:text="Unpaid"/>
 
+    <LinearLayout
+        android:id="@+id/editButtonsLayout"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="4dp"
+        android:visibility="gone">
+
+        <Button
+            android:id="@+id/unpaid_btn"
+            android:layout_width="80dp"
+            android:layout_height="32dp"
+            android:text="Unpaid"
+            android:textSize="10sp"
+            android:backgroundTint="@color/red"
+            android:padding="0dp"
+            android:layout_marginBottom="2dp"/>
+
+        <Button
+            android:id="@+id/paid_btn"
+            android:layout_width="80dp"
+            android:layout_height="32dp"
+            android:text="Paid"
+            android:textSize="10sp"
+            android:backgroundTint="@color/green"
+            android:padding="0dp"
+            android:layout_marginBottom="2dp"/>
+
+        <Button
+            android:id="@+id/partial_btn"
+            android:layout_width="80dp"
+            android:layout_height="32dp"
+            android:text="Partial"
+            android:textSize="10sp"
+            android:backgroundTint="@color/yellow"
+            android:padding="0dp"/>
+
+    </LinearLayout>
+
 </LinearLayout>
