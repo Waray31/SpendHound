@@ -1,34 +1,21 @@
 package com.waray.spendhound;
 
 import android.annotation.SuppressLint;
-import android.app.AlertDialog;
-import android.graphics.Color;
-import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
-import android.text.InputType;
 import android.util.Log;
-import android.view.LayoutInflater;
 import android.view.View;
-import android.view.ViewGroup;
 import android.widget.AdapterView;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.Spinner;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.google.android.material.behavior.HideBottomViewOnScrollBehavior;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -60,6 +47,10 @@ public class AllTransactionsActivity extends AppCompatActivity {
     private List<String> availableMonths;
     private String selectedMonth;
 
+    // Status Tabs
+    private TextView allTabTV, paidTabTV, unpaidTabTV, pendingTabTV;
+    private String selectedStatusTab = "All";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -81,20 +72,66 @@ public class AllTransactionsActivity extends AppCompatActivity {
         loadingProgressBar = findViewById(R.id.loadingProgressBar);
         emptyStateLayout = findViewById(R.id.emptyStateLayout);
 
+        // Status Tabs
+        allTabTV = findViewById(R.id.allTabTV);
+        paidTabTV = findViewById(R.id.paidTabTV);
+        unpaidTabTV = findViewById(R.id.unpaidTabTV);
+        pendingTabTV = findViewById(R.id.pendingTabTV);
+
+        setupStatusTabs();
+
         adapter = new RecentTransactionAdapter(transactionList, this::onTransactionTap);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
     }
 
-    private void onTransactionTap(RecentTransaction transaction) {
-        if (!transaction.isExpanded()) {
-            unhideNavigation();
+    private void setupStatusTabs() {
+        setStatusTabSelected(allTabTV);
+
+        allTabTV.setOnClickListener(v -> {
+            selectedStatusTab = "All";
+            setStatusTabSelected(allTabTV);
+            refreshTransactions();
+        });
+
+        paidTabTV.setOnClickListener(v -> {
+            selectedStatusTab = "Paid";
+            setStatusTabSelected(paidTabTV);
+            refreshTransactions();
+        });
+
+        unpaidTabTV.setOnClickListener(v -> {
+            selectedStatusTab = "Unpaid";
+            setStatusTabSelected(unpaidTabTV);
+            refreshTransactions();
+        });
+
+        pendingTabTV.setOnClickListener(v -> {
+            selectedStatusTab = "Pending";
+            setStatusTabSelected(pendingTabTV);
+            refreshTransactions();
+        });
+    }
+
+    private void setStatusTabSelected(TextView selectedTab) {
+        // Reset all tabs
+        allTabTV.setBackgroundResource(0);
+        paidTabTV.setBackgroundResource(0);
+        unpaidTabTV.setBackgroundResource(0);
+        pendingTabTV.setBackgroundResource(0);
+
+        // Set selected tab background
+        selectedTab.setBackgroundResource(R.drawable.bg_status_tab_selected);
+    }
+
+    private void refreshTransactions() {
+        if (selectedMonth != null) {
+            fetchTransactionsForMonth(selectedMonth);
         }
     }
 
-    private void unhideNavigation() {
-        // Since AllTransactionsActivity is a separate activity, it doesn't have the BottomNavigationView
-        // from MainActivity. If this activity had a navigation bar, we would unhide it here.
+    private void onTransactionTap(RecentTransaction transaction) {
+        // Handle tap if needed
     }
 
     private void getCurrentNickname() {
@@ -133,7 +170,6 @@ public class AllTransactionsActivity extends AppCompatActivity {
                 for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
                     String monthYear = monthSnapshot.getKey();
                     if (monthYear != null && !monthYear.isEmpty()) {
-                        // Check if there are transactions for this month
                         for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
                             for (DataSnapshot timeSnapshot : daySnapshot.getChildren()) {
                                 Transaction transaction = timeSnapshot.getValue(Transaction.class);
@@ -148,7 +184,6 @@ public class AllTransactionsActivity extends AppCompatActivity {
                 }
 
                 availableMonths = new ArrayList<>(uniqueMonths);
-                // Sort months in descending order (most recent first)
                 Collections.sort(availableMonths, (m1, m2) -> {
                     try {
                         SimpleDateFormat sdf = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
@@ -172,7 +207,6 @@ public class AllTransactionsActivity extends AppCompatActivity {
 
     private void setupMonthSpinner() {
         if (availableMonths.isEmpty()) {
-            // Add current month if no months available
             Calendar calendar = Calendar.getInstance();
             SimpleDateFormat dateFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
             availableMonths.add(dateFormat.format(calendar.getTime()));
@@ -181,7 +215,6 @@ public class AllTransactionsActivity extends AppCompatActivity {
         SpinnerItemMonths spinnerAdapter = new SpinnerItemMonths(this, availableMonths);
         monthSpinner.setAdapter(spinnerAdapter);
 
-        // Find current month in the list or default to first
         Calendar calendar = Calendar.getInstance();
         SimpleDateFormat dateFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
         String currentMonth = dateFormat.format(calendar.getTime());
@@ -211,14 +244,11 @@ public class AllTransactionsActivity extends AppCompatActivity {
             }
 
             @Override
-            public void onNothingSelected(AdapterView<?> parent) {
-                // Do nothing
-            }
+            public void onNothingSelected(AdapterView<?> parent) {}
         });
     }
 
     private void updateMonthDisplay(String monthYear) {
-        // Convert "February-2026" to "February 2026"
         String displayMonth = monthYear.replace("-", " ");
         currentMonthTextView.setText(displayMonth);
     }
@@ -244,15 +274,17 @@ public class AllTransactionsActivity extends AppCompatActivity {
                         String timeKey = timeSnapshot.getKey();
 
                         if (transaction != null && isUserInvolved(transaction, currentNickname)) {
+                            
+                            // Apply Status Filter
+                            if (!matchesStatusFilter(transaction, selectedStatusTab)) {
+                                continue;
+                            }
+
                             String[] parts = monthYear.split("-");
                             String month = parts[0];
                             String year = parts.length > 1 ? parts[1] : "";
                             String displayDate = month + " - " + day;
-
-                            // Create full date with year for details dialog
                             String fullDateWithYear = month + " " + day + ", " + year;
-
-                            // Create sortDateTime for proper sorting
                             String sortDateTime = year + "-" + month + "-" + day + " " + timeKey;
 
                             String transactionType = transaction.getTransactionType();
@@ -261,7 +293,6 @@ public class AllTransactionsActivity extends AppCompatActivity {
                             String paymentAmountStr = CurrencyUtils.formatAmountWithCurrency(paymentAmount);
                             int iconResource = getIconForTransactionType(transactionType);
 
-                            // Get payors list - prefer display names, fallback to UIDs/usernames
                             java.util.List<String> payorsList = transaction.getPayorsDisplayNames();
                             if (payorsList == null || payorsList.isEmpty()) {
                                 payorsList = transaction.getPayorsList();
@@ -270,39 +301,23 @@ public class AllTransactionsActivity extends AppCompatActivity {
                             java.util.List<Double> amountsPaidList = transaction.getAmountsPaidList();
                             double totalIndividualPayment = transaction.getTotalIndividualPayment();
 
-                            // Get creator name - prefer display name, fallback to usernamePost
                             String createdBy = transaction.getPosterDisplayName();
                             if (createdBy == null || createdBy.isEmpty()) {
                                 createdBy = transaction.getUsernamePost();
                             }
-
-                            // Get creator UID for profile image
                             String createdByUid = transaction.getUsernamePost();
 
                             RecentTransaction recentTrans = new RecentTransaction(
-                                    displayDate,
-                                    transactionType,
-                                    details,
-                                    paymentAmountStr,
-                                    iconResource,
-                                    sortDateTime,
-                                    payorsList,
-                                    payorUids,
-                                    amountsPaidList,
-                                    totalIndividualPayment,
-                                    fullDateWithYear,
-                                    createdBy,
-                                    createdByUid,
-                                    monthYear,
-                                    day,
-                                    timeKey
+                                    displayDate, transactionType, details, paymentAmountStr,
+                                    iconResource, sortDateTime, payorsList, payorUids,
+                                    amountsPaidList, totalIndividualPayment, fullDateWithYear,
+                                    createdBy, createdByUid, monthYear, day, timeKey
                             );
                             transactionList.add(recentTrans);
                         }
                     }
                 }
 
-                // Sort transactions in descending order by date and time
                 Collections.sort(transactionList, (t1, t2) -> {
                     String dateTime1 = t1.getSortDateTime();
                     String dateTime2 = t2.getSortDateTime();
@@ -315,11 +330,9 @@ public class AllTransactionsActivity extends AppCompatActivity {
                 adapter.notifyDataSetChanged();
                 loadingProgressBar.setVisibility(View.GONE);
 
-                // Update transaction count
                 int count = transactionList.size();
                 transactionCountTextView.setText(count + (count == 1 ? " transaction" : " transactions"));
 
-                // Show empty state if no transactions
                 if (transactionList.isEmpty()) {
                     emptyStateLayout.setVisibility(View.VISIBLE);
                     recyclerView.setVisibility(View.GONE);
@@ -337,64 +350,64 @@ public class AllTransactionsActivity extends AppCompatActivity {
         });
     }
 
-    private int getIconForTransactionType(String transactionType) {
-        if ("Electricity".equals(transactionType)) {
-            return R.drawable.lightning_bolt;
-        } else if ("Water".equals(transactionType)) {
-            return R.drawable.faucet;
-        } else if ("Rent".equals(transactionType)) {
-            return R.drawable.house;
-        } else if ("Internet".equals(transactionType)) {
-            return R.drawable.internet;
-        } else if ("Online Shopping".equals(transactionType)) {
-            return R.drawable.online_shopping;
-        } else if ("Travel".equals(transactionType)) {
-            return R.drawable.travel;
-        } else if ("Groceries".equals(transactionType)) {
-            return R.drawable.groceries;
-        } else if ("Foods".equals(transactionType)) {
-            return R.drawable.hamburger;
-        } else if ("House Necessity".equals(transactionType)) {
-            return R.drawable.necessities;
-        } else if ("Transportation".equals(transactionType)) {
-            return R.drawable.vehicles;
-        } else {
-            return R.drawable.others;
+    private boolean matchesStatusFilter(Transaction transaction, String statusFilter) {
+        if ("All".equalsIgnoreCase(statusFilter)) return true;
+
+        List<Double> paidAmounts = transaction.getAmountsPaidList();
+        double totalToPay = transaction.getTotalIndividualPayment();
+
+        if (paidAmounts == null || paidAmounts.isEmpty()) {
+            return "Unpaid".equalsIgnoreCase(statusFilter);
         }
+
+        boolean allPaid = true;
+        boolean allUnpaid = true;
+
+        for (Double paid : paidAmounts) {
+            if (paid < totalToPay) {
+                allPaid = false;
+            }
+            if (paid > 0) {
+                allUnpaid = false;
+            }
+        }
+
+        String status;
+        if (allPaid) {
+            status = "Paid";
+        } else if (allUnpaid) {
+            status = "Unpaid";
+        } else {
+            status = "Pending";
+        }
+
+        return status.equalsIgnoreCase(statusFilter);
+    }
+
+    private int getIconForTransactionType(String transactionType) {
+        if ("Electricity".equals(transactionType)) return R.drawable.lightning_bolt;
+        if ("Water".equals(transactionType)) return R.drawable.faucet;
+        if ("Rent".equals(transactionType)) return R.drawable.house;
+        if ("Internet".equals(transactionType)) return R.drawable.internet;
+        if ("Online Shopping".equals(transactionType)) return R.drawable.online_shopping;
+        if ("Travel".equals(transactionType)) return R.drawable.travel;
+        if ("Groceries".equals(transactionType)) return R.drawable.groceries;
+        if ("Foods".equals(transactionType)) return R.drawable.hamburger;
+        if ("House Necessity".equals(transactionType)) return R.drawable.necessities;
+        if ("Transportation".equals(transactionType)) return R.drawable.vehicles;
+        return R.drawable.others;
     }
 
     private boolean isUserInvolved(Transaction transaction, String usernameOrUid) {
-        if (transaction == null || usernameOrUid == null || usernameOrUid.isEmpty()) {
-            return false;
-        }
-
-        // Get current user's UID for comparison
+        if (transaction == null || usernameOrUid == null || usernameOrUid.isEmpty()) return false;
         String currentUid = Objects.requireNonNull(mAuth.getCurrentUser()).getUid();
-
-        // First try UID-based comparison (new data format)
-        if (transaction.isUserInvolvedByUid(currentUid)) {
-            return true;
-        }
-
-        // Fall back to username-based comparison (legacy data format)
-        if (usernameOrUid.equals(transaction.getUsernamePost())) {
-            return true;
-        }
-
-        if (usernameOrUid.equals(transaction.getPosterDisplayName())) {
-            return true;
-        }
-
+        if (transaction.isUserInvolvedByUid(currentUid)) return true;
+        if (usernameOrUid.equals(transaction.getUsernamePost())) return true;
+        if (usernameOrUid.equals(transaction.getPosterDisplayName())) return true;
         java.util.List<String> payorsList = transaction.getPayorsList();
-        if (payorsList != null && payorsList.contains(usernameOrUid)) {
-            return true;
-        }
-
+        if (payorsList != null && payorsList.contains(usernameOrUid)) return true;
         java.util.List<String> payorsDisplayNames = transaction.getPayorsDisplayNames();
-        if (payorsDisplayNames != null && payorsDisplayNames.contains(usernameOrUid)) {
-            return true;
-        }
-
+        if (payorsDisplayNames != null && payorsDisplayNames.contains(usernameOrUid)) return true;
         return false;
     }
 }

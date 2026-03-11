@@ -57,6 +57,10 @@ public class TransactionsFragment extends Fragment {
     private List<String> availableMonths;
     private String selectedMonth;
 
+    // Status Tabs
+    private TextView allTabTV, paidTabTV, unpaidTabTV, pendingTabTV;
+    private String selectedStatusTab = "All";
+
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
@@ -67,7 +71,6 @@ public class TransactionsFragment extends Fragment {
         availableMonths = new ArrayList<>();
 
         initViews(root);
-        
         getCurrentNickname();
 
         return root;
@@ -81,6 +84,14 @@ public class TransactionsFragment extends Fragment {
         loadingProgressBar = root.findViewById(R.id.loadingProgressBar);
         emptyStateLayout = root.findViewById(R.id.emptyStateLayout);
 
+        // Status Tabs
+        allTabTV = root.findViewById(R.id.allTabTV);
+        paidTabTV = root.findViewById(R.id.paidTabTV);
+        unpaidTabTV = root.findViewById(R.id.unpaidTabTV);
+        pendingTabTV = root.findViewById(R.id.pendingTabTV);
+
+        setupStatusTabs();
+
         adapter = new RecentTransactionAdapter(transactionList, transaction -> {
             if (!transaction.isExpanded()) {
                 MainActivity mainActivity = (MainActivity) getActivity();
@@ -91,6 +102,53 @@ public class TransactionsFragment extends Fragment {
         });
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
         recyclerView.setAdapter(adapter);
+    }
+
+    private void setupStatusTabs() {
+        setStatusTabSelected(allTabTV);
+
+        allTabTV.setOnClickListener(v -> {
+            selectedStatusTab = "All";
+            setStatusTabSelected(allTabTV);
+            refreshTransactions();
+        });
+
+        paidTabTV.setOnClickListener(v -> {
+            selectedStatusTab = "Paid";
+            setStatusTabSelected(paidTabTV);
+            refreshTransactions();
+        });
+
+        unpaidTabTV.setOnClickListener(v -> {
+            selectedStatusTab = "Unpaid";
+            setStatusTabSelected(unpaidTabTV);
+            refreshTransactions();
+        });
+
+        pendingTabTV.setOnClickListener(v -> {
+            selectedStatusTab = "Pending";
+            setStatusTabSelected(pendingTabTV);
+            refreshTransactions();
+        });
+    }
+
+    private void setStatusTabSelected(TextView selectedTab) {
+        if (allTabTV == null) return;
+
+        // Reset all tabs
+        allTabTV.setBackgroundResource(0);
+        paidTabTV.setBackgroundResource(0);
+        unpaidTabTV.setBackgroundResource(0);
+        pendingTabTV.setBackgroundResource(0);
+
+        // Set selected tab background
+        selectedTab.setBackgroundResource(R.drawable.bg_status_tab_selected);
+    }
+
+    private void refreshTransactions() {
+        if (selectedMonth != null) {
+            fetchTransactionsForMonth(selectedMonth);
+        }
     }
 
     private void getCurrentNickname() {
@@ -233,6 +291,12 @@ public class TransactionsFragment extends Fragment {
                         String timeKey = timeSnapshot.getKey();
 
                         if (transaction != null && isUserInvolved(transaction, currentNickname)) {
+                            
+                            // Apply Status Filter
+                            if (!matchesStatusFilter(transaction, selectedStatusTab)) {
+                                continue;
+                            }
+
                             String[] parts = monthYear.split("-");
                             String month = parts[0];
                             String year = parts.length > 1 ? parts[1] : "";
@@ -300,6 +364,40 @@ public class TransactionsFragment extends Fragment {
                 if (loadingProgressBar != null) loadingProgressBar.setVisibility(View.GONE);
             }
         });
+    }
+
+    private boolean matchesStatusFilter(Transaction transaction, String statusFilter) {
+        if ("All".equalsIgnoreCase(statusFilter)) return true;
+
+        List<Double> paidAmounts = transaction.getAmountsPaidList();
+        double totalToPay = transaction.getTotalIndividualPayment();
+
+        if (paidAmounts == null || paidAmounts.isEmpty()) {
+            return "Unpaid".equalsIgnoreCase(statusFilter);
+        }
+
+        boolean allPaid = true;
+        boolean allUnpaid = true;
+
+        for (Double paid : paidAmounts) {
+            if (paid < totalToPay) {
+                allPaid = false;
+            }
+            if (paid > 0) {
+                allUnpaid = false;
+            }
+        }
+
+        String status;
+        if (allPaid) {
+            status = "Paid";
+        } else if (allUnpaid) {
+            status = "Unpaid";
+        } else {
+            status = "Pending";
+        }
+
+        return status.equalsIgnoreCase(statusFilter);
     }
 
     private int getIconForTransactionType(String transactionType) {
