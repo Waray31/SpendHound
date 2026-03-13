@@ -26,6 +26,7 @@ import com.google.firebase.database.ValueEventListener;
 import com.waray.spendhound.CurrencyUtils;
 import com.waray.spendhound.DeclareDatabase;
 import com.waray.spendhound.MainActivity;
+import com.waray.spendhound.PayerGroup;
 import com.waray.spendhound.R;
 import com.waray.spendhound.RecentTransaction;
 import com.waray.spendhound.RecentTransactionAdapter;
@@ -47,7 +48,7 @@ public class TransactionsFragment extends Fragment {
     private RecyclerView recyclerView;
     private RecentTransactionAdapter adapter;
     private ArrayList<RecentTransaction> transactionList;
-    private Spinner monthSpinner;
+    private Spinner monthSpinner, groupSpinner;
     private TextView currentMonthTextView;
     private TextView transactionCountTextView;
     private ProgressBar loadingProgressBar;
@@ -56,6 +57,11 @@ public class TransactionsFragment extends Fragment {
     private String currentNickname = "";
     private List<String> availableMonths;
     private String selectedMonth;
+    
+    private List<String> groupNames;
+    private List<String> groupIds;
+    private String selectedGroupId = "All";
+    private SpinnerItemMonths groupAdapter;
 
     // Status Tabs
     private TextView allTabTV, paidTabTV, unpaidTabTV, pendingTabTV;
@@ -64,14 +70,23 @@ public class TransactionsFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
-        View root = inflater.inflate(R.layout.activity_all_transactions, container, false);
+        View root = inflater.inflate(R.layout.fragment_transactions, container, false);
 
         mAuth = DeclareDatabase.getAuth();
         transactionList = new ArrayList<>();
         availableMonths = new ArrayList<>();
+        groupNames = new ArrayList<>();
+        groupIds = new ArrayList<>();
 
         initViews(root);
+        
+        // Initialize with default option immediately
+        groupNames.add("All group");
+        groupIds.add("All");
+        setupGroupSpinner();
+
         getCurrentNickname();
+        loadUserGroups();
 
         return root;
     }
@@ -79,6 +94,7 @@ public class TransactionsFragment extends Fragment {
     private void initViews(View root) {
         recyclerView = root.findViewById(R.id.allTransactionsRecyclerView);
         monthSpinner = root.findViewById(R.id.monthSpinner);
+        groupSpinner = root.findViewById(R.id.groupSpinner);
         currentMonthTextView = root.findViewById(R.id.currentMonthTextView);
         transactionCountTextView = root.findViewById(R.id.transactionCountTextView);
         loadingProgressBar = root.findViewById(R.id.loadingProgressBar);
@@ -174,6 +190,60 @@ public class TransactionsFragment extends Fragment {
         });
     }
 
+    private void loadUserGroups() {
+        String currentUid = Objects.requireNonNull(mAuth.getCurrentUser()).getUid();
+        DatabaseReference groupsRef = DeclareDatabase.getDBRefGroups();
+
+        groupsRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @SuppressLint("NotifyDataSetChanged")
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                groupNames.clear();
+                groupIds.clear();
+
+                groupNames.add("All group");
+                groupIds.add("All");
+
+                for (DataSnapshot userSnapshot : snapshot.getChildren()) {
+                    for (DataSnapshot groupSnapshot : userSnapshot.getChildren()) {
+                        PayerGroup group = groupSnapshot.getValue(PayerGroup.class);
+                        if (group != null && group.getMembers() != null && group.getMembers().contains(currentUid)) {
+                            groupNames.add(group.getGroupName());
+                            groupIds.add(group.getGroupId());
+                        }
+                    }
+                }
+
+                if (groupAdapter != null) {
+                    groupAdapter.notifyDataSetChanged();
+                }
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e("TransactionsFragment", "Error loading groups", error.toException());
+            }
+        });
+    }
+
+    private void setupGroupSpinner() {
+        if (getContext() == null || groupSpinner == null) return;
+        
+        groupAdapter = new SpinnerItemMonths(getContext(), groupNames);
+        groupSpinner.setAdapter(groupAdapter);
+        
+        groupSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override
+            public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                selectedGroupId = groupIds.get(position);
+                refreshTransactions();
+            }
+
+            @Override
+            public void onNothingSelected(AdapterView<?> parent) {}
+        });
+    }
+
     private void loadAvailableMonths() {
         if (loadingProgressBar != null) loadingProgressBar.setVisibility(View.VISIBLE);
 
@@ -221,7 +291,7 @@ public class TransactionsFragment extends Fragment {
     }
 
     private void setupMonthSpinner() {
-        if (getContext() == null) return;
+        if (getContext() == null || monthSpinner == null) return;
 
         if (availableMonths.isEmpty()) {
             Calendar calendar = Calendar.getInstance();
@@ -292,6 +362,13 @@ public class TransactionsFragment extends Fragment {
 
                         if (transaction != null && isUserInvolved(transaction, currentNickname)) {
                             
+                            // Apply Group Filter
+                            if (!"All".equals(selectedGroupId)) {
+                                if (transaction.getGroupId() == null || !transaction.getGroupId().equals(selectedGroupId)) {
+                                    continue;
+                                }
+                            }
+
                             // Apply Status Filter
                             if (!matchesStatusFilter(transaction, selectedStatusTab)) {
                                 continue;
