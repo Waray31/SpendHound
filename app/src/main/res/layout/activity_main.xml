@@ -33,7 +33,7 @@
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
         android:backgroundTint="@color/whitest"
-        android:elevation="8dp"
+        android:elevation="6dp"
         app:itemTextAppearanceActive="@style/BottomNavTextStyle"
         app:itemTextAppearanceInactive="@style/BottomNavTextStyle"
         app:labelVisibilityMode="selected"
@@ -57,9 +57,9 @@
             android:layout_height="wrap_content"
             app:backgroundTint="@color/yellow"
             android:contentDescription="@string/label_borrow_money"
-            android:src="@drawable/coin"
+            android:src="@drawable/borrow_money"
             app:fabSize="mini"
-            app:tint="@color/white" />
+            app:tint="@null" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -88,9 +88,9 @@
             android:layout_height="wrap_content"
             app:backgroundTint="@color/yellow"
             android:contentDescription="@string/label_add_transaction"
-            android:src="@drawable/baseline_add_24"
+            android:src="@drawable/add_transaction"
             app:fabSize="mini"
-            app:tint="@color/white" />
+            app:tint="@null" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -119,9 +119,9 @@
             android:layout_height="wrap_content"
             app:backgroundTint="@color/yellow"
             android:contentDescription="@string/label_add_group"
-            android:src="@drawable/profile"
+            android:src="@drawable/add_group"
             app:fabSize="mini"
-            app:tint="@color/white" />
+            app:tint="@null" />
 
         <TextView
             android:layout_width="wrap_content"
