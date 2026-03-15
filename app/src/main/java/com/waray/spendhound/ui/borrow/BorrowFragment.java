@@ -787,6 +787,7 @@ public class BorrowFragment extends Fragment {
                 for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
                     User user = userSnapshot.getValue(User.class);
                     if (user != null && user.getUsername() != null && !user.getUsername().equals(currentNickname)) {
+                        user.setUid(userSnapshot.getKey());
                         lenders.add(user);
                     }
                 }

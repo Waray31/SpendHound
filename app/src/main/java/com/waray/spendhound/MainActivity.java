@@ -381,7 +381,10 @@ public class MainActivity extends AppCompatActivity {
                 lenders.clear(); lenders.add(new User("", "", "", "", new UserBalance())); lenders.add(new User("", "", "", "", new UserBalance()));
                 for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
                     User user = userSnapshot.getValue(User.class);
-                    if (user != null && user.getUsername() != null && !user.getUsername().equals(currentNickname)) lenders.add(user);
+                    if (user != null && user.getUsername() != null && !user.getUsername().equals(currentNickname)) {
+                        user.setUid(userSnapshot.getKey());
+                        lenders.add(user);
+                    }
                 }
                 lenders.add(new User("", "", "", "", new UserBalance())); lenders.add(new User("", "", "", "", new UserBalance()));
                 adapter.notifyDataSetChanged();

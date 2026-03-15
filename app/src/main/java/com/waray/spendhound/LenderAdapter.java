@@ -16,6 +16,7 @@ import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
 import com.google.android.material.imageview.ShapeableImageView;
+import com.google.firebase.storage.FirebaseStorage;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -52,18 +53,36 @@ public class LenderAdapter extends RecyclerView.Adapter<LenderAdapter.ViewHolder
             holder.usernameText.setVisibility(View.VISIBLE);
             holder.usernameText.setText(lender.getUsername());
             
-            if (lender.getProfileImageUrl() != null && !lender.getProfileImageUrl().isEmpty()) {
-                Glide.with(holder.itemView.getContext())
-                        .load(lender.getProfileImageUrl())
-                        .diskCacheStrategy(DiskCacheStrategy.ALL)
-                        .placeholder(R.drawable.placeholder_profile_image)
-                        .error(R.drawable.placeholder_profile_image)
-                        .circleCrop()
-                        .into(holder.profileImage);
+            String uid = lender.getUid();
+            String cachedUrl = PayorAdapter.sDownloadUrlCache.get(uid != null ? uid : "");
+            
+            if (cachedUrl != null) {
+                loadGlideImage(holder, cachedUrl);
+            } else if (lender.getProfileImageUrl() != null && !lender.getProfileImageUrl().isEmpty()) {
+                loadGlideImage(holder, lender.getProfileImageUrl());
+            } else if (uid != null) {
+                FirebaseStorage.getInstance().getReference("profile_images").child(uid)
+                        .getDownloadUrl().addOnSuccessListener(uri -> {
+                            String url = uri.toString();
+                            PayorAdapter.sDownloadUrlCache.put(uid, url);
+                            loadGlideImage(holder, url);
+                        }).addOnFailureListener(e -> {
+                            holder.profileImage.setImageResource(R.drawable.placeholder_profile_image);
+                        });
             } else {
                 holder.profileImage.setImageResource(R.drawable.placeholder_profile_image);
             }
         }
+    }
+
+    private void loadGlideImage(ViewHolder holder, String url) {
+        Glide.with(holder.itemView.getContext())
+                .load(url)
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .placeholder(R.drawable.placeholder_profile_image)
+                .error(R.drawable.placeholder_profile_image)
+                .circleCrop()
+                .into(holder.profileImage);
     }
 
     @Override
@@ -82,46 +101,72 @@ public class LenderAdapter extends RecyclerView.Adapter<LenderAdapter.ViewHolder
     }
 
     public void preloadAllImages(Context context, Runnable onComplete) {
-        List<String> urls = new ArrayList<>();
+        List<User> usersToFetch = new ArrayList<>();
         for (User lender : lenders) {
-            if (lender.getProfileImageUrl() != null && !lender.getProfileImageUrl().isEmpty()) {
-                urls.add(lender.getProfileImageUrl());
+            if (lender.getUsername() != null && !lender.getUsername().isEmpty()) {
+                usersToFetch.add(lender);
             }
         }
 
-        if (urls.isEmpty()) {
+        if (usersToFetch.isEmpty()) {
             if (onComplete != null) onComplete.run();
             return;
         }
 
         AtomicInteger loadedCount = new AtomicInteger(0);
-        int total = urls.size();
+        int total = usersToFetch.size();
 
-        for (String url : urls) {
-            Glide.with(context)
-                    .load(url)
-                    .diskCacheStrategy(DiskCacheStrategy.ALL)
-                    .listener(new RequestListener<Drawable>() {
-                        @Override
-                        public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
-                            checkComplete();
-                            return false;
+        for (User lender : usersToFetch) {
+            String uid = lender.getUid();
+            String cachedUrl = PayorAdapter.sDownloadUrlCache.get(uid != null ? uid : "");
+            
+            if (cachedUrl != null) {
+                preloadUrl(context, cachedUrl, loadedCount, total, onComplete);
+            } else if (lender.getProfileImageUrl() != null && !lender.getProfileImageUrl().isEmpty()) {
+                preloadUrl(context, lender.getProfileImageUrl(), loadedCount, total, onComplete);
+            } else if (uid != null) {
+                FirebaseStorage.getInstance().getReference("profile_images").child(uid)
+                    .getDownloadUrl().addOnSuccessListener(uri -> {
+                        String url = uri.toString();
+                        PayorAdapter.sDownloadUrlCache.put(uid, url);
+                        preloadUrl(context, url, loadedCount, total, onComplete);
+                    }).addOnFailureListener(e -> {
+                        if (loadedCount.incrementAndGet() >= total) {
+                            if (onComplete != null) onComplete.run();
                         }
-
-                        @Override
-                        public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
-                            checkComplete();
-                            return false;
-                        }
-
-                        private void checkComplete() {
-                            if (loadedCount.incrementAndGet() >= total) {
-                                if (onComplete != null) onComplete.run();
-                            }
-                        }
-                    })
-                    .preload();
+                    });
+            } else {
+                if (loadedCount.incrementAndGet() >= total) {
+                    if (onComplete != null) onComplete.run();
+                }
+            }
         }
+    }
+
+    private void preloadUrl(Context context, String url, AtomicInteger loadedCount, int total, Runnable onComplete) {
+        Glide.with(context)
+                .load(url)
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .listener(new RequestListener<Drawable>() {
+                    @Override
+                    public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+                        checkComplete();
+                        return false;
+                    }
+
+                    @Override
+                    public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+                        checkComplete();
+                        return false;
+                    }
+
+                    private void checkComplete() {
+                        if (loadedCount.incrementAndGet() >= total) {
+                            if (onComplete != null) onComplete.run();
+                        }
+                    }
+                })
+                .preload();
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
