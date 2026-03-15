@@ -579,7 +579,13 @@ public class MainActivity extends AppCompatActivity {
                     }
                     if (daysFetched.incrementAndGet() == 7) {
                         recentTransactionList.sort((t1, t2) -> (t1.getSortDateTime() != null && t2.getSortDateTime() != null) ? t2.getSortDateTime().compareTo(t1.getSortDateTime()) : 0);
-                        RecyclerView rv = findViewById(R.id.transactionListRecycler); if (rv != null) { recentTransactionAdapter = new RecentTransactionAdapter(recentTransactionList, MainActivity.this::onTransactionTap); rv.setAdapter(recentTransactionAdapter); rv.setLayoutManager(new LinearLayoutManager(MainActivity.this)); }
+                        RecyclerView rv = findViewById(R.id.transactionListRecycler); if (rv != null) { 
+                            recentTransactionAdapter = new RecentTransactionAdapter(recentTransactionList, MainActivity.this::onTransactionTap); 
+                            rv.setAdapter(recentTransactionAdapter); 
+                            rv.setLayoutManager(new LinearLayoutManager(MainActivity.this)); 
+                            // Preload images for all transactions in the list
+                            recentTransactionAdapter.preloadAllImages(MainActivity.this);
+                        }
                         if (callback != null) callback.run();
                     }
                 }

@@ -422,6 +422,11 @@ public class TransactionsFragment extends Fragment {
                 });
 
                 adapter.notifyDataSetChanged();
+                // Preload images for the loaded transactions
+                if (getContext() != null) {
+                    adapter.preloadAllImages(getContext());
+                }
+
                 if (loadingProgressBar != null) loadingProgressBar.setVisibility(View.GONE);
 
                 int count = transactionList.size();

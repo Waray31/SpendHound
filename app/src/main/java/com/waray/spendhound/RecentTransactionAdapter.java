@@ -1,6 +1,7 @@
 package com.waray.spendhound;
 
 import android.app.AlertDialog;
+import android.content.Context;
 import android.text.InputType;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -40,6 +41,20 @@ public class RecentTransactionAdapter extends RecyclerView.Adapter<RecentTransac
 
     public void setOnTransactionClickListener(OnTransactionClickListener listener) {
         this.clickListener = listener;
+    }
+
+    /**
+     * Proactively pre-caches all payor profile images for the entire transaction list.
+     * This helps reduce loading time when a transaction is expanded.
+     */
+    public void preloadAllImages(Context context) {
+        if (recentTransactionList == null || context == null) return;
+        for (RecentTransaction transaction : recentTransactionList) {
+            List<String> uids = transaction.getPayorUids();
+            if (uids != null && !uids.isEmpty()) {
+                PayorAdapter.preCacheUids(context, uids);
+            }
+        }
     }
 
     @NonNull
@@ -105,6 +120,9 @@ public class RecentTransactionAdapter extends RecyclerView.Adapter<RecentTransac
 
                 holder.payorsRecyclerView.setLayoutManager(new LinearLayoutManager(holder.itemView.getContext(), LinearLayoutManager.HORIZONTAL, false));
                 holder.payorsRecyclerView.setAdapter(payorAdapter);
+
+                // Proactively load all images to ensure progress bar doesn't stop too early
+                payorAdapter.startLoadingAllImages(holder.itemView.getContext());
 
                 // Setup Edit/Save/Cancel buttons
                 if (isCreator) {

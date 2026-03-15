@@ -1,5 +1,6 @@
 package com.waray.spendhound;
 
+import android.content.Context;
 import android.graphics.drawable.Drawable;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -41,8 +42,7 @@ public class PayorAdapter extends RecyclerView.Adapter<PayorAdapter.PayorViewHol
     private OnPayorClickListener onPayorClickListener;
     private OnLoadingCompleteListener loadingCompleteListener;
     private OnDataChangedListener dataChangedListener;
-    private Set<Integer> loadedPositions = new HashSet<>();
-    private Set<Integer> failedPositions = new HashSet<>();
+    private final Set<Integer> loadedPositions = new HashSet<>();
     private boolean isEditMode = false;
 
     public interface OnPayorClickListener {
@@ -78,14 +78,92 @@ public class PayorAdapter extends RecyclerView.Adapter<PayorAdapter.PayorViewHol
         this.onPayorClickListener = onPayorClickListener;
     }
 
+    /**
+     * Pre-caches profile images for a list of UIDs.
+     * This can be called before the adapter is even created or expanded to reduce wait time.
+     */
+    public static void preCacheUids(Context context, List<String> uids) {
+        if (uids == null || context == null) return;
+        for (String uid : uids) {
+            if (uid == null) continue;
+            String cachedUrl = sDownloadUrlCache.get(uid);
+            if (cachedUrl != null) {
+                preloadOnly(context, cachedUrl);
+            } else {
+                FirebaseStorage.getInstance().getReference("profile_images").child(uid)
+                        .getDownloadUrl().addOnSuccessListener(uri -> {
+                            String url = uri.toString();
+                            sDownloadUrlCache.put(uid, url);
+                            preloadOnly(context, url);
+                        });
+            }
+        }
+    }
+
+    private static void preloadOnly(Context context, String url) {
+        Glide.with(context)
+                .load(url)
+                .circleCrop()
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .preload();
+    }
+
+    /**
+     * Proactively starts loading all images for this transaction.
+     * Ensures the loading overlay stays visible until all images are ready.
+     */
+    public void startLoadingAllImages(Context context) {
+        if (payorsUids == null || payorsUids.isEmpty()) {
+            if (loadingCompleteListener != null) loadingCompleteListener.onLoadingComplete();
+            return;
+        }
+
+        // We don't clear loadedPositions here because onBindViewHolder might have already started/finished some loads
+        for (int i = 0; i < payorsUids.size(); i++) {
+            final int pos = i;
+            String uid = payorsUids.get(pos);
+            String cachedUrl = sDownloadUrlCache.get(uid);
+
+            if (cachedUrl != null) {
+                preloadProfileImage(context, cachedUrl, pos);
+            } else {
+                StorageReference pStorageRef = FirebaseStorage.getInstance().getReference("profile_images").child(uid);
+                pStorageRef.getDownloadUrl().addOnSuccessListener(uri -> {
+                    String url = uri.toString();
+                    sDownloadUrlCache.put(uid, url);
+                    preloadProfileImage(context, url, pos);
+                }).addOnFailureListener(e -> checkLoadingComplete(pos));
+            }
+        }
+    }
+
+    private void preloadProfileImage(Context context, String url, int position) {
+        Glide.with(context)
+                .load(url)
+                .circleCrop() // Consistent with onBindViewHolder for cache sharing
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .listener(new RequestListener<Drawable>() {
+                    @Override
+                    public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+                        checkLoadingComplete(position);
+                        return false;
+                    }
+
+                    @Override
+                    public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+                        checkLoadingComplete(position);
+                        return false;
+                    }
+                })
+                .preload();
+    }
+
     public void setEditMode(boolean editMode) {
         this.isEditMode = editMode;
         if (!editMode) {
-            // Revert changes if cancel or finishing edit
             this.amountsPaid = new ArrayList<>(originalAmountsPaid);
         }
-        loadedPositions.clear();
-        failedPositions.clear();
+        loadedPositions.clear(); // Reset loading state if re-binding everything
         notifyDataSetChanged();
         notifyDataChanged();
     }
@@ -94,7 +172,6 @@ public class PayorAdapter extends RecyclerView.Adapter<PayorAdapter.PayorViewHol
         this.originalAmountsPaid = new ArrayList<>(amountsPaid);
         this.isEditMode = false;
         loadedPositions.clear();
-        failedPositions.clear();
         notifyDataSetChanged();
         notifyDataChanged();
     }
@@ -140,7 +217,6 @@ public class PayorAdapter extends RecyclerView.Adapter<PayorAdapter.PayorViewHol
         if (isEditMode) {
             holder.editButtonsLayout.setVisibility(View.VISIBLE);
             
-            // Logic to hide buttons based on status
             if (paid <= 0) {
                 holder.unpaidBtn.setVisibility(View.GONE);
                 holder.paidBtn.setVisibility(View.VISIBLE);
@@ -176,7 +252,6 @@ public class PayorAdapter extends RecyclerView.Adapter<PayorAdapter.PayorViewHol
             holder.editButtonsLayout.setVisibility(View.GONE);
         }
 
-        // Use cached download URL if available
         String cachedUrl = sDownloadUrlCache.get(uid);
         if (cachedUrl != null) {
             loadGlideImage(holder, cachedUrl, position);
@@ -203,8 +278,8 @@ public class PayorAdapter extends RecyclerView.Adapter<PayorAdapter.PayorViewHol
         Glide.with(holder.itemView.getContext())
                 .load(url)
                 .placeholder(R.drawable.placeholder_profile_image)
-                .diskCacheStrategy(DiskCacheStrategy.ALL) // Enable full disk caching
-                .circleCrop() // Circle display for payors
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .circleCrop()
                 .listener(new RequestListener<Drawable>() {
                     @Override
                     public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
@@ -244,7 +319,6 @@ public class PayorAdapter extends RecyclerView.Adapter<PayorAdapter.PayorViewHol
 
     private synchronized void checkLoadingComplete(int position) {
         loadedPositions.add(position);
-        // We consider it complete if all items have at least attempted to load
         if (loadedPositions.size() >= getItemCount() && loadingCompleteListener != null) {
             loadingCompleteListener.onLoadingComplete();
         }

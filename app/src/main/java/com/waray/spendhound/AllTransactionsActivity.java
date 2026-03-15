@@ -328,6 +328,9 @@ public class AllTransactionsActivity extends AppCompatActivity {
                 });
 
                 adapter.notifyDataSetChanged();
+                // Preload images for all transactions
+                adapter.preloadAllImages(AllTransactionsActivity.this);
+
                 loadingProgressBar.setVisibility(View.GONE);
 
                 int count = transactionList.size();
