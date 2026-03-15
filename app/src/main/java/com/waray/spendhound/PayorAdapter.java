@@ -30,8 +30,8 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class PayorAdapter extends RecyclerView.Adapter<PayorAdapter.PayorViewHolder> {
 
-    // Static cache for download URLs to reduce Firebase Storage calls
-    private static final Map<String, String> sDownloadUrlCache = new ConcurrentHashMap<>();
+    // Publicly accessible cache for download URLs to reduce Firebase Storage calls
+    public static final Map<String, String> sDownloadUrlCache = new ConcurrentHashMap<>();
 
     private List<String> payorsUids;
     private List<String> payorsNames;
@@ -204,7 +204,7 @@ public class PayorAdapter extends RecyclerView.Adapter<PayorAdapter.PayorViewHol
                 .load(url)
                 .placeholder(R.drawable.placeholder_profile_image)
                 .diskCacheStrategy(DiskCacheStrategy.ALL) // Enable full disk caching
-                .circleCrop()
+                .circleCrop() // Circle display for payors
                 .listener(new RequestListener<Drawable>() {
                     @Override
                     public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {

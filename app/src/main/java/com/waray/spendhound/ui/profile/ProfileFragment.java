@@ -36,6 +36,11 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.DataSource;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.bumptech.glide.load.engine.GlideException;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.Target;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.auth.FirebaseAuth;
@@ -55,6 +60,7 @@ import com.waray.spendhound.CurrencyUtils;
 import com.waray.spendhound.DeclareDatabase;
 import com.waray.spendhound.LoginActivity;
 import com.waray.spendhound.MigrationHelper;
+import com.waray.spendhound.PayorAdapter;
 import com.waray.spendhound.PendingStatusActivity;
 import com.waray.spendhound.R;
 import com.waray.spendhound.Transaction;
@@ -161,29 +167,61 @@ public class ProfileFragment extends Fragment {
     }
 
     public void setProfileImage(ImageView imageView) {
-        // Check if the fragment is attached to an activity
-        if (isAdded()) {
-            showLoading();
-            String userId = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
+        if (!isAdded()) return;
+
+        showLoading();
+        String userId = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
+        
+        // Use the same static cache from PayorAdapter
+        String cachedUrl = PayorAdapter.sDownloadUrlCache.get(userId);
+        
+        if (cachedUrl != null) {
+            loadGlideProfileImage(imageView, cachedUrl);
+        } else {
             StorageReference storageRef = FirebaseStorage.getInstance().getReference("profile_images").child(userId);
-            storageRef.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
-                @Override
-                public void onSuccess(Uri downloadUri) {
-                    // Set the retrieved image to the provided ImageView
-                    if (isAdded()) {
-                        Glide.with(requireContext()).load(downloadUri).into(imageView);
-                    }
+            storageRef.getDownloadUrl().addOnSuccessListener(uri -> {
+                if (isAdded()) {
+                    String url = uri.toString();
+                    PayorAdapter.sDownloadUrlCache.put(userId, url);
+                    loadGlideProfileImage(imageView, url);
+                } else {
                     hideLoading();
                 }
-            }).addOnFailureListener(new OnFailureListener() {
-                @Override
-                public void onFailure(@NonNull Exception exception) {
-                    // Handle image retrieval failure
-                    hideLoading();
+            }).addOnFailureListener(e -> {
+                if (isAdded()) {
+                    imageView.setImageResource(R.drawable.placeholder_profile_image);
                 }
+                hideLoading();
             });
         }
     }
+
+    private void loadGlideProfileImage(ImageView imageView, String url) {
+        if (!isAdded()) {
+            hideLoading();
+            return;
+        }
+
+        Glide.with(requireContext())
+                .load(url)
+                .placeholder(R.drawable.placeholder_profile_image)
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .listener(new RequestListener<Drawable>() {
+                    @Override
+                    public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+                        hideLoading();
+                        return false;
+                    }
+
+                    @Override
+                    public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+                        hideLoading();
+                        return false;
+                    }
+                })
+                .into(imageView);
+    }
+
     private void EditNickname(){
         editNickname.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -704,13 +742,28 @@ public class ProfileFragment extends Fragment {
     }
 
     private void updateProfilePhoto(Uri imageUri) {
+        showLoading();
         // Display the selected image in the ImageView
-        Glide.with(requireContext()).load(imageUri).into(profileImageView);
+        Glide.with(requireContext())
+                .load(imageUri)
+                .diskCacheStrategy(DiskCacheStrategy.ALL)
+                .listener(new RequestListener<Drawable>() {
+                    @Override
+                    public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+                        hideLoading();
+                        return false;
+                    }
+
+                    @Override
+                    public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+                        hideLoading();
+                        return false;
+                    }
+                })
+                .into(profileImageView);
 
         // Upload the new profile photo to Firebase Storage
         uploadProfilePhoto(imageUri);
-
-        Toast.makeText(getActivity(), "Profile Photo Changed Successfully", Toast.LENGTH_SHORT).show();
     }
 
     private void uploadProfilePhoto(Uri imageUri) {
@@ -722,29 +775,34 @@ public class ProfileFragment extends Fragment {
         uploadTask.addOnSuccessListener(taskSnapshot -> {
             // Image upload successful, get the download URL
             storageRef.getDownloadUrl().addOnSuccessListener(downloadUri -> {
+                String newUrl = downloadUri.toString();
+                // Update cache with new URL
+                PayorAdapter.sDownloadUrlCache.put(userId, newUrl);
                 // Update the user's profile with the new photo URL
-                updateProfileWithPhotoUrl(downloadUri.toString());
+                updateProfileWithPhotoUrl(newUrl);
             }).addOnFailureListener(e -> {
-                // Handle error retrieving the download URL
+                hideLoading();
+                Toast.makeText(getActivity(), "Failed to get download URL", Toast.LENGTH_SHORT).show();
             });
         }).addOnFailureListener(e -> {
-            // Handle image upload failure
+            hideLoading();
+            Toast.makeText(getActivity(), "Upload failed", Toast.LENGTH_SHORT).show();
         });
     }
 
     private void updateProfileWithPhotoUrl(String photoUrl) {
         // Update the user's profile with the new photo URL
-        // For example, if you are using Firebase Authentication, you can update the user's profile like this:
         UserProfileChangeRequest profileUpdates = new UserProfileChangeRequest.Builder()
                 .setPhotoUri(Uri.parse(photoUrl))
                 .build();
 
         FirebaseAuth.getInstance().getCurrentUser().updateProfile(profileUpdates)
                 .addOnCompleteListener(task -> {
+                    hideLoading();
                     if (task.isSuccessful()) {
-                        // Profile updated successfully
+                        Toast.makeText(getActivity(), "Profile Photo Changed Successfully", Toast.LENGTH_SHORT).show();
                     } else {
-                        // Profile update failed
+                        Toast.makeText(getActivity(), "Profile Update Failed", Toast.LENGTH_SHORT).show();
                     }
                 });
     }
