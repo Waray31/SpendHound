@@ -137,6 +137,8 @@
             android:orientation="vertical">
 
             <!-- Current Month Display -->
+
+            <!-- Transaction Count -->
             <TextView
                 android:id="@+id/currentMonthTextView"
                 android:layout_width="match_parent"
@@ -148,7 +150,6 @@
                 android:textColor="@color/darkBlue"
                 android:textSize="18sp" />
 
-            <!-- Transaction Count -->
             <TextView
                 android:id="@+id/transactionCountTextView"
                 android:layout_width="match_parent"

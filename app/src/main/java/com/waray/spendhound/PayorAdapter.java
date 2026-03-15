@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.DataSource;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
 import com.bumptech.glide.load.engine.GlideException;
 import com.bumptech.glide.request.RequestListener;
 import com.bumptech.glide.request.target.Target;
@@ -23,9 +24,14 @@ import com.google.firebase.storage.StorageReference;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class PayorAdapter extends RecyclerView.Adapter<PayorAdapter.PayorViewHolder> {
+
+    // Static cache for download URLs to reduce Firebase Storage calls
+    private static final Map<String, String> sDownloadUrlCache = new ConcurrentHashMap<>();
 
     private List<String> payorsUids;
     private List<String> payorsNames;
@@ -36,6 +42,7 @@ public class PayorAdapter extends RecyclerView.Adapter<PayorAdapter.PayorViewHol
     private OnLoadingCompleteListener loadingCompleteListener;
     private OnDataChangedListener dataChangedListener;
     private Set<Integer> loadedPositions = new HashSet<>();
+    private Set<Integer> failedPositions = new HashSet<>();
     private boolean isEditMode = false;
 
     public interface OnPayorClickListener {
@@ -77,7 +84,8 @@ public class PayorAdapter extends RecyclerView.Adapter<PayorAdapter.PayorViewHol
             // Revert changes if cancel or finishing edit
             this.amountsPaid = new ArrayList<>(originalAmountsPaid);
         }
-        loadedPositions.clear(); // Reset loading state to trigger overlay hide again
+        loadedPositions.clear();
+        failedPositions.clear();
         notifyDataSetChanged();
         notifyDataChanged();
     }
@@ -86,6 +94,7 @@ public class PayorAdapter extends RecyclerView.Adapter<PayorAdapter.PayorViewHol
         this.originalAmountsPaid = new ArrayList<>(amountsPaid);
         this.isEditMode = false;
         loadedPositions.clear();
+        failedPositions.clear();
         notifyDataSetChanged();
         notifyDataChanged();
     }
@@ -167,36 +176,49 @@ public class PayorAdapter extends RecyclerView.Adapter<PayorAdapter.PayorViewHol
             holder.editButtonsLayout.setVisibility(View.GONE);
         }
 
-        StorageReference pStorageRef = FirebaseStorage.getInstance().getReference("profile_images").child(uid);
-        pStorageRef.getDownloadUrl().addOnSuccessListener(uri -> {
-            Glide.with(holder.itemView.getContext())
-                    .load(uri)
-                    .placeholder(R.drawable.placeholder_profile_image)
-                    .circleCrop()
-                    .listener(new RequestListener<Drawable>() {
-                        @Override
-                        public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
-                            checkLoadingComplete(position);
-                            return false;
-                        }
-
-                        @Override
-                        public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
-                            checkLoadingComplete(position);
-                            return false;
-                        }
-                    })
-                    .into(holder.payorImage);
-        }).addOnFailureListener(e -> {
-            holder.payorImage.setImageResource(R.drawable.placeholder_profile_image);
-            checkLoadingComplete(position);
-        });
+        // Use cached download URL if available
+        String cachedUrl = sDownloadUrlCache.get(uid);
+        if (cachedUrl != null) {
+            loadGlideImage(holder, cachedUrl, position);
+        } else {
+            StorageReference pStorageRef = FirebaseStorage.getInstance().getReference("profile_images").child(uid);
+            pStorageRef.getDownloadUrl().addOnSuccessListener(uri -> {
+                String url = uri.toString();
+                sDownloadUrlCache.put(uid, url);
+                loadGlideImage(holder, url, position);
+            }).addOnFailureListener(e -> {
+                holder.payorImage.setImageResource(R.drawable.placeholder_profile_image);
+                checkLoadingComplete(position);
+            });
+        }
 
         if (!isEditMode && onPayorClickListener != null) {
             holder.itemView.setOnClickListener(v -> onPayorClickListener.onPayorClick(position, paid));
         } else {
             holder.itemView.setOnClickListener(null);
         }
+    }
+
+    private void loadGlideImage(PayorViewHolder holder, String url, int position) {
+        Glide.with(holder.itemView.getContext())
+                .load(url)
+                .placeholder(R.drawable.placeholder_profile_image)
+                .diskCacheStrategy(DiskCacheStrategy.ALL) // Enable full disk caching
+                .circleCrop()
+                .listener(new RequestListener<Drawable>() {
+                    @Override
+                    public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+                        checkLoadingComplete(position);
+                        return false;
+                    }
+
+                    @Override
+                    public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+                        checkLoadingComplete(position);
+                        return false;
+                    }
+                })
+                .into(holder.payorImage);
     }
 
     private void updateStatusUI(PayorViewHolder holder, double paid) {
@@ -222,6 +244,7 @@ public class PayorAdapter extends RecyclerView.Adapter<PayorAdapter.PayorViewHol
 
     private synchronized void checkLoadingComplete(int position) {
         loadedPositions.add(position);
+        // We consider it complete if all items have at least attempted to load
         if (loadedPositions.size() >= getItemCount() && loadingCompleteListener != null) {
             loadingCompleteListener.onLoadingComplete();
         }
