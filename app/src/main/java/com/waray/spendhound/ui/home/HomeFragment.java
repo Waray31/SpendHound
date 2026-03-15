@@ -59,7 +59,6 @@ public class HomeFragment extends Fragment {
 
     private TextView day7TextView, day6TextView, day5TextView, day4TextView, day3TextView, day2TextView, day1TextView;
     private FragmentHomeBinding binding;
-    private ImageView profileImageView;
     private CardView cardViewProfile;
     public FirebaseAuth mAuth;
 
@@ -86,7 +85,6 @@ public class HomeFragment extends Fragment {
             loadingOverlay_home.setVisibility(View.VISIBLE);
         }
 
-        profileImageView = view.findViewById(R.id.profileImageView);
         day7TextView = view.findViewById(R.id.day7);
         day6TextView = view.findViewById(R.id.day6);
         day5TextView = view.findViewById(R.id.day5);
@@ -111,10 +109,7 @@ public class HomeFragment extends Fragment {
         updateDateRangeDisplay();
         callMainActivityMethod();
 
-        LogoutButton();
         setTextViews();
-        setProfileImage(profileImageView);
-
         AppCompatActivity activity = (AppCompatActivity) getActivity();
         if (activity != null && activity.getSupportActionBar() != null) {
             activity.getSupportActionBar().hide();
@@ -143,49 +138,6 @@ public class HomeFragment extends Fragment {
         return new SimpleDateFormat("EEE", Locale.getDefault()).format(calendar.getTime());
     }
 
-    public void setProfileImage(ImageView imageView) {
-        if (isAdded()) {
-            showLoading();
-            String userId = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
-            StorageReference storageRef = FirebaseStorage.getInstance().getReference("profile_images").child(userId);
-            storageRef.getDownloadUrl().addOnSuccessListener(new OnSuccessListener<Uri>() {
-                @Override
-                public void onSuccess(Uri downloadUri) {
-                    if (isAdded()) {
-                        Glide.with(requireContext()).load(downloadUri).into(imageView);
-                    }
-                    hideLoading();
-                }
-            }).addOnFailureListener(exception -> {
-                imageView.setImageResource(R.drawable.placeholder_profile_image);
-                hideLoading();
-            });
-        }
-    }
-
-    public void LogoutButton(){
-        cardViewProfile.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                PopupMenu popupMenu = new PopupMenu(getActivity(), cardViewProfile, Gravity.END, androidx.transition.R.attr.popupMenuStyle, 0);
-                popupMenu.inflate(R.menu.dropdown_menu);
-                popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
-                    @Override
-                    public boolean onMenuItemClick(MenuItem item) {
-                        if (item.getItemId() == R.id.menu_logout) {
-                            Toast.makeText(getActivity(), "Logout Successfully", Toast.LENGTH_SHORT).show();
-                            mAuth.signOut();
-                            Intent intent = new Intent(getActivity(), LoginActivity.class);
-                            startActivity(intent);
-                            return true;
-                        }
-                        return false;
-                    }
-                });
-                popupMenu.show();
-            }
-        });
-    }
 
     private void initializeCurrentWeekStart() {
         currentWeekStart = Calendar.getInstance();

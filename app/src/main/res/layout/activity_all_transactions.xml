@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:layout_marginHorizontal="20dp"
     android:layout_marginTop="20dp"
-    android:background="@color/whitest"
+    android:backgroundTint="@color/white"
     android:orientation="vertical">
 
     <!-- Header Section -->

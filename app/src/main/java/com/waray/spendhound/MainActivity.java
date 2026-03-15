@@ -510,7 +510,7 @@ public class MainActivity extends AppCompatActivity {
         for (int i = 0; i < 7; i++) {
             String currentMonthYear = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(calendar.getTime());
             String currentDay = new SimpleDateFormat("dd", Locale.getDefault()).format(calendar.getTime());
-            final int dayIndex = 6 - i;
+            final int dayIndex = i;
             DeclareDatabase.getDBRefTransaction().child(currentMonthYear).child(currentDay).addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                     double ds = 0; for (DataSnapshot ts : dataSnapshot.getChildren()) { Transaction t = ts.getValue(Transaction.class); if (t != null && isUserInvolved(t, username)) ds += t.getPaymentAmount(); }
@@ -533,7 +533,7 @@ public class MainActivity extends AppCompatActivity {
         for (int i = 0; i < 7; i++) {
             String cmy = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(calendar.getTime());
             String cd = new SimpleDateFormat("dd", Locale.getDefault()).format(calendar.getTime());
-            final int dayIndex = 6 - i;
+            final int dayIndex = i;
             DeclareDatabase.getDBRefTransaction().child(cmy).child(cd).addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                     double ds = 0; for (DataSnapshot ts : dataSnapshot.getChildren()) { Transaction t = ts.getValue(Transaction.class); if (t != null && isUserInvolved(t, username)) ds += t.getPaymentAmount(); }
@@ -547,12 +547,12 @@ public class MainActivity extends AppCompatActivity {
 
     public void setViewHeightForDay(int day, double dailySpends) {
         String dsString = CurrencyUtils.formatAmount(dailySpends);
-        int[] ids = {R.id.totalday1, R.id.totalday2, R.id.totalday3, R.id.totalday4, R.id.totalday5, R.id.totalday6, R.id.totalday7};
-        int[] barIds = {R.id.day1_bar, R.id.day2_bar, R.id.day3_bar, R.id.day4_bar, R.id.day5_bar, R.id.day6_bar, R.id.day7_bar};
-        int index = 6 - day;
-        TextView tv = findViewById(ids[index]); if (tv != null) tv.setText(dsString);
+        int[] ids = {R.id.totalday7, R.id.totalday6, R.id.totalday5, R.id.totalday4, R.id.totalday3, R.id.totalday2, R.id.totalday1};
+        int[] barIds = {R.id.day7_bar, R.id.day6_bar, R.id.day5_bar, R.id.day4_bar, R.id.day3_bar, R.id.day2_bar, R.id.day1_bar};
+        
+        TextView tv = findViewById(ids[day]); if (tv != null) tv.setText(dsString);
         int h = (dailySpends >= 1000) ? 300 : (dailySpends <= 50) ? 17 : (int) (dailySpends / 3);
-        View v = findViewById(barIds[index]); if (v != null) { ViewGroup.LayoutParams lp = v.getLayoutParams(); lp.height = h; v.setLayoutParams(lp); }
+        View v = findViewById(barIds[day]); if (v != null) { ViewGroup.LayoutParams lp = v.getLayoutParams(); lp.height = h; v.setLayoutParams(lp); }
     }
 
     public void getRecentTransaction(Runnable callback) {

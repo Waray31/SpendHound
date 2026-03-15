@@ -42,7 +42,6 @@ public class SignUpActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     private FirebaseAuth mAuth;
     private Uri profileImageUri;
-    private ImageView profileImageView;
     private static final int PICK_IMAGE_REQUEST = 1;
     private String userId;
     private int balanced = 0;
@@ -61,7 +60,6 @@ public class SignUpActivity extends AppCompatActivity {
         confirmPasswordEditText = findViewById(R.id.confirmPasswordSignup);
         signUpButton = findViewById(R.id.signUpButton);
         progressBar = findViewById(R.id.progressBar);
-        profileImageView = findViewById(R.id.profileImageView);
 
         mAuth = FirebaseAuth.getInstance();
 
@@ -202,14 +200,6 @@ public class SignUpActivity extends AppCompatActivity {
         finish();
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null && data.getData() != null) {
-            profileImageUri = data.getData();
-            profileImageView.setImageURI(profileImageUri);
-        }
-    }
     @SuppressLint("ClickableViewAccessibility")
     public void exitEditText(){
         final EditText usernameSignUp = findViewById(R.id.usernameSignUp);
