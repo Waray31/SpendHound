@@ -55,12 +55,12 @@ public class BorrowNowActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_borrow_now);
+        setContentView(R.layout.dialog_borrow_now);
         lenderRecyclerView = findViewById(R.id.lenderRecyclerView);
-        date = findViewById(R.id.date);
-        borrower = findViewById(R.id.borrower);
+        date = findViewById(R.id.dialogBorrowDate);
+        borrower = findViewById(R.id.dialogBorrower);
         progressBar = findViewById(R.id.progressBar);
-        borrowBtn = findViewById(R.id.borrowBtn);
+        borrowBtn = findViewById(R.id.dialogBorrowBtn);
         status = "For Lender Approval";
         usersRef = FirebaseDatabase.getInstance().getReference("users");
 
@@ -282,7 +282,7 @@ public class BorrowNowActivity extends AppCompatActivity {
         borrowBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                EditText borrowEditText = findViewById(R.id.borrowEditText);
+                EditText borrowEditText = findViewById(R.id.dialogBorrowEditText);
                 String borrowedAmountStr = borrowEditText.getText().toString();
                 if (!borrowedAmountStr.isEmpty() && lender != null && !lender.isEmpty()) {
                     borrowedAmount = Integer.parseInt(borrowedAmountStr);
@@ -304,7 +304,7 @@ public class BorrowNowActivity extends AppCompatActivity {
 
     @SuppressLint("ClickableViewAccessibility")
     public void exitEditText(){
-        final EditText borrowEditText = findViewById(R.id.borrowEditText);
+        final EditText borrowEditText = findViewById(R.id.dialogBorrowEditText);
         borrowEditText.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View v, MotionEvent event) {

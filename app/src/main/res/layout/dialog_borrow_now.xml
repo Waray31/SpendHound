@@ -2,6 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:background="@drawable/rounded_background10"
     android:orientation="vertical"
     android:paddingVertical="20dp">
 
@@ -18,10 +19,10 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
                 android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:layout_marginBottom="12dp"
-                android:layout_marginHorizontal="20dp">
+                android:paddingHorizontal="20dp"
+                android:orientation="horizontal">
 
                 <ImageView
                     android:layout_width="28dp"
@@ -30,10 +31,9 @@
                     android:src="@drawable/coin" />
 
                 <TextView
-                    android:layout_width="0dp"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="12dp"
-                    android:layout_weight="1"
                     android:fontFamily="@font/montserratalternatess_bold"
                     android:text="@string/dialog_borrow_now_title"
                     android:textColor="@color/darkBlue"
@@ -44,16 +44,16 @@
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:background="@color/lightgrey"
-                android:layout_marginHorizontal="20dp"/>
+                android:layout_marginHorizontal="20dp"
+                android:background="@color/lightgrey" />
 
             <!-- Date and Borrower Info -->
             <LinearLayout
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="end"
-                android:layout_marginVertical="8dp"
                 android:layout_marginHorizontal="20dp"
+                android:layout_marginVertical="8dp"
                 android:orientation="horizontal">
 
                 <TextView
@@ -78,8 +78,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="end"
-                android:layout_marginBottom="12dp"
                 android:layout_marginHorizontal="20dp"
+                android:layout_marginBottom="8dp"
                 android:orientation="horizontal">
 
                 <TextView
@@ -102,17 +102,16 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
+                android:layout_marginHorizontal="20dp"
                 android:fontFamily="@font/montserratalternatess_regular"
                 android:text="@string/dialog_borrow_from_label"
-                android:textColor="@color/darkBlue"
-                android:layout_marginHorizontal="20dp"/>
+                android:textColor="@color/darkBlue" />
 
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/lenderRecyclerView"
-                android:layout_width="match_parent"
-                android:layout_gravity="center"
+                android:layout_width="wrap_content"
                 android:layout_height="120dp"
+                android:layout_gravity="center"
                 android:layout_marginTop="8dp"
                 android:clipToPadding="false"
                 android:orientation="horizontal" />
@@ -121,33 +120,33 @@
             <TextView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="8dp"
                 android:fontFamily="@font/montserratalternatess_regular"
                 android:text="@string/dialog_how_much_label"
-                android:textColor="@color/darkBlue"
-                android:layout_marginHorizontal="20dp"/>
+                android:textColor="@color/darkBlue" />
 
             <EditText
                 android:id="@+id/dialogBorrowEditText"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:background="@drawable/glassy_background"
+                android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/rounded_border_transparent_bg"
                 android:elevation="3dp"
                 android:fontFamily="@font/montserratalternatess_regular"
                 android:hint="@string/dialog_enter_amount_hint"
                 android:inputType="number"
                 android:paddingVertical="12dp"
                 android:textAlignment="center"
-                android:textSize="16sp"
-                android:layout_marginHorizontal="20dp" />
+                android:textSize="16sp" />
 
             <!-- Buttons -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
                 android:layout_marginHorizontal="20dp"
+                android:layout_marginTop="12dp"
                 android:orientation="horizontal">
 
                 <Button
@@ -158,7 +157,6 @@
                     android:layout_weight="1"
                     android:backgroundTint="@color/grey"
                     android:fontFamily="@font/montserratalternatess_bold"
-                    android:paddingVertical="14dp"
                     android:text="@string/btn_cancel"
                     android:textColor="@color/whitest"
                     android:textSize="12sp" />
@@ -171,7 +169,6 @@
                     android:layout_weight="1"
                     android:backgroundTint="@color/yellow"
                     android:fontFamily="@font/montserratalternatess_bold"
-                    android:paddingVertical="14dp"
                     android:text="@string/btn_borrow"
                     android:textColor="@color/whitest"
                     android:textSize="12sp" />
