@@ -1,15 +1,24 @@
 package com.waray.spendhound;
 
+import android.content.Context;
+import android.graphics.drawable.Drawable;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.DataSource;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.bumptech.glide.load.engine.GlideException;
+import com.bumptech.glide.request.RequestListener;
+import com.bumptech.glide.request.target.Target;
 import com.google.android.material.imageview.ShapeableImageView;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class LenderAdapter extends RecyclerView.Adapter<LenderAdapter.ViewHolder> {
 
@@ -70,6 +79,49 @@ public class LenderAdapter extends RecyclerView.Adapter<LenderAdapter.ViewHolder
             }
         }
         return null;
+    }
+
+    public void preloadAllImages(Context context, Runnable onComplete) {
+        List<String> urls = new ArrayList<>();
+        for (User lender : lenders) {
+            if (lender.getProfileImageUrl() != null && !lender.getProfileImageUrl().isEmpty()) {
+                urls.add(lender.getProfileImageUrl());
+            }
+        }
+
+        if (urls.isEmpty()) {
+            if (onComplete != null) onComplete.run();
+            return;
+        }
+
+        AtomicInteger loadedCount = new AtomicInteger(0);
+        int total = urls.size();
+
+        for (String url : urls) {
+            Glide.with(context)
+                    .load(url)
+                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                    .listener(new RequestListener<Drawable>() {
+                        @Override
+                        public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
+                            checkComplete();
+                            return false;
+                        }
+
+                        @Override
+                        public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
+                            checkComplete();
+                            return false;
+                        }
+
+                        private void checkComplete() {
+                            if (loadedCount.incrementAndGet() >= total) {
+                                if (onComplete != null) onComplete.run();
+                            }
+                        }
+                    })
+                    .preload();
+        }
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {

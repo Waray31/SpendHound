@@ -10,7 +10,6 @@ import android.view.View;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.Button;
 import android.widget.EditText;
-import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -44,8 +43,8 @@ public class BorrowNowActivity extends AppCompatActivity {
     private TextView date, borrower;
     public String currentNickname, lender, currentDate, status, borrowedAmountSTR, borrowerID, lenderID;
     private Integer borrowedAmount = 0;
-    private ProgressBar progressBar;
-    private Button borrowBtn;
+    private View dialogProgressBar;
+    private Button borrowBtn, cancelBtn;
     private DatabaseReference usersRef;
     private LenderAdapter adapter;
     private List<User> lenders;
@@ -59,14 +58,25 @@ public class BorrowNowActivity extends AppCompatActivity {
         lenderRecyclerView = findViewById(R.id.lenderRecyclerView);
         date = findViewById(R.id.dialogBorrowDate);
         borrower = findViewById(R.id.dialogBorrower);
-        progressBar = findViewById(R.id.progressBar);
+        dialogProgressBar = findViewById(R.id.dialogProgressBar);
         borrowBtn = findViewById(R.id.dialogBorrowBtn);
+        cancelBtn = findViewById(R.id.dialogCancelBtn);
         status = "For Lender Approval";
         usersRef = FirebaseDatabase.getInstance().getReference("users");
+
+        // Show progress bar initially
+        if (dialogProgressBar != null) {
+            dialogProgressBar.setVisibility(View.VISIBLE);
+        }
 
         setDate();
         setupLenderRecyclerView();
         borrowBtnClicked();
+        
+        if (cancelBtn != null) {
+            cancelBtn.setOnClickListener(v -> finish());
+        }
+        
         exitEditText();
         loadNickname();
 
@@ -117,7 +127,7 @@ public class BorrowNowActivity extends AppCompatActivity {
         float midpoint = recyclerView.getWidth() / 2f;
         float d0 = 0f;
         float d1 = 0.9f * midpoint;
-        float s0 = 1.6f; // Increased selected scale from 1.3f to 1.6f
+        float s0 = 1.6f; 
         float s1 = 1.0f;
         float a0 = 1.0f;
         float a1 = 0.5f;
@@ -156,7 +166,6 @@ public class BorrowNowActivity extends AppCompatActivity {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 lenders.clear();
-                // Padding for snapping (2 items on each side to center the actual users)
                 lenders.add(new User("", "", "", "", new UserBalance()));
                 lenders.add(new User("", "", "", "", new UserBalance()));
 
@@ -172,23 +181,34 @@ public class BorrowNowActivity extends AppCompatActivity {
 
                 adapter.notifyDataSetChanged();
                 
-                // Initial selection and layout update
-                if (lenders.size() > 2) {
-                    lenderRecyclerView.scrollToPosition(2);
-                    lenderRecyclerView.post(() -> {
-                        User firstUser = adapter.getLenderAt(2);
-                        if (firstUser != null) {
-                            lender = firstUser.getUsername();
+                // Preload all profile images before hiding progress bar
+                adapter.preloadAllImages(BorrowNowActivity.this, () -> {
+                    runOnUiThread(() -> {
+                        if (dialogProgressBar != null) {
+                            dialogProgressBar.setVisibility(View.GONE);
                         }
-                        updateLayoutEffect(lenderRecyclerView);
+                        // Initial selection and layout update
+                        if (lenders.size() > 2) {
+                            lenderRecyclerView.scrollToPosition(2);
+                            lenderRecyclerView.post(() -> {
+                                User firstUser = adapter.getLenderAt(2);
+                                if (firstUser != null) {
+                                    lender = firstUser.getUsername();
+                                }
+                                updateLayoutEffect(lenderRecyclerView);
+                            });
+                        }
                     });
-                }
+                });
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
                 Log.e("FirebaseDatabase", "Database read error: " + databaseError.getMessage());
                 Toast.makeText(getApplicationContext(), "Failed to load users", Toast.LENGTH_LONG).show();
+                if (dialogProgressBar != null) {
+                    dialogProgressBar.setVisibility(View.GONE);
+                }
             }
         });
     }
@@ -224,7 +244,7 @@ public class BorrowNowActivity extends AppCompatActivity {
         String borrowId = dayRef.push().getKey();
         if (borrowId == null) {
             Toast.makeText(BorrowNowActivity.this, "Failed to generate borrow ID", Toast.LENGTH_SHORT).show();
-            progressBar.setVisibility(View.GONE);
+            if (dialogProgressBar != null) dialogProgressBar.setVisibility(View.GONE);
             return;
         }
 
@@ -258,18 +278,17 @@ public class BorrowNowActivity extends AppCompatActivity {
                             BalanceHelper.addLenderEntry(lenderID, borrowId, null);
 
                             int amount = Integer.parseInt(borrowedAmountSTR);
-                            // Update with new balance field methods
                             BalanceHelper.updateTotaldebt(borrowerID, amount, null);
                             BalanceHelper.updateTotalreceivable(lenderID, amount, null);
 
                             Toast.makeText(BorrowNowActivity.this, "Borrowed successfully", Toast.LENGTH_SHORT).show();
-                            progressBar.setVisibility(View.GONE);
+                            if (dialogProgressBar != null) dialogProgressBar.setVisibility(View.GONE);
                             finish();
                         }
                     }).addOnFailureListener(new OnFailureListener() {
                         @Override
                         public void onFailure(@NonNull Exception e) {
-                            progressBar.setVisibility(View.GONE);
+                            if (dialogProgressBar != null) dialogProgressBar.setVisibility(View.GONE);
                             Toast.makeText(BorrowNowActivity.this, "Failed to Borrow", Toast.LENGTH_SHORT).show();
                         }
                     });
@@ -285,16 +304,20 @@ public class BorrowNowActivity extends AppCompatActivity {
                 EditText borrowEditText = findViewById(R.id.dialogBorrowEditText);
                 String borrowedAmountStr = borrowEditText.getText().toString();
                 if (!borrowedAmountStr.isEmpty() && lender != null && !lender.isEmpty()) {
-                    borrowedAmount = Integer.parseInt(borrowedAmountStr);
-                    borrowedAmountSTR = String.valueOf(borrowedAmount);
-                    
-                    if (borrowedAmount == 0) {
-                        Toast.makeText(BorrowNowActivity.this, "Please enter a valid amount", Toast.LENGTH_SHORT).show();
-                        return;
+                    try {
+                        borrowedAmount = Integer.parseInt(borrowedAmountStr);
+                        borrowedAmountSTR = String.valueOf(borrowedAmount);
+                        
+                        if (borrowedAmount <= 0) {
+                            Toast.makeText(BorrowNowActivity.this, "Please enter a valid amount", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        
+                        if (dialogProgressBar != null) dialogProgressBar.setVisibility(View.VISIBLE);
+                        addBorrowTransaction();
+                    } catch (NumberFormatException e) {
+                        Toast.makeText(BorrowNowActivity.this, "Invalid amount", Toast.LENGTH_SHORT).show();
                     }
-                    
-                    progressBar.setVisibility(View.VISIBLE);
-                    addBorrowTransaction();
                 } else {
                     Toast.makeText(BorrowNowActivity.this, "Please select a lender and enter amount", Toast.LENGTH_SHORT).show();
                 }
@@ -305,22 +328,26 @@ public class BorrowNowActivity extends AppCompatActivity {
     @SuppressLint("ClickableViewAccessibility")
     public void exitEditText(){
         final EditText borrowEditText = findViewById(R.id.dialogBorrowEditText);
-        borrowEditText.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                v.performClick();
-                return false;
-            }
-        });
+        if (borrowEditText != null) {
+            borrowEditText.setOnTouchListener(new View.OnTouchListener() {
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    v.performClick();
+                    return false;
+                }
+            });
+        }
 
         View rootView = findViewById(android.R.id.content);
-        rootView.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                hideKeyboard(borrowEditText);
-                return false;
-            }
-        });
+        if (rootView != null) {
+            rootView.setOnTouchListener(new View.OnTouchListener() {
+                @Override
+                public boolean onTouch(View v, MotionEvent event) {
+                    if (borrowEditText != null) hideKeyboard(borrowEditText);
+                    return false;
+                }
+            });
+        }
     }
 
     public void getUserIDByName(String name, UserIDCallback callback) {
@@ -334,11 +361,13 @@ public class BorrowNowActivity extends AppCompatActivity {
                         return;
                     }
                 }
+                callback.onUserIDRetrieved(null);
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
                 Log.e("FirebaseDatabase", "Database error: " + databaseError.getMessage());
+                callback.onUserIDRetrieved(null);
             }
         });
     }

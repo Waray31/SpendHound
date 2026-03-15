@@ -311,10 +311,16 @@ public class MainActivity extends AppCompatActivity {
         Button cancelBtn = dialog.findViewById(R.id.dialogCancelBtn);
         Button borrowBtn = dialog.findViewById(R.id.dialogBorrowBtn);
         View dialogProgressBar = dialog.findViewById(R.id.dialogProgressBar);
+
+        // Show progress bar initially while loading lenders and their images
+        if (dialogProgressBar != null) {
+            dialogProgressBar.setVisibility(View.VISIBLE);
+        }
+
         Calendar calendar = Calendar.getInstance();
         dateTV.setText(new SimpleDateFormat("MMMM-dd-yyyy", Locale.getDefault()).format(calendar.getTime()));
         borrowerTV.setText(currentNickname);
-        setupLenderRecyclerView(lenderRecyclerView);
+        setupLenderRecyclerView(lenderRecyclerView, dialogProgressBar);
         cancelBtn.setOnClickListener(v -> dialog.dismiss());
         borrowBtn.setOnClickListener(v -> {
             String amountStr = amountEditText.getText().toString().trim();
@@ -323,14 +329,14 @@ public class MainActivity extends AppCompatActivity {
                 int amount = Integer.parseInt(amountStr);
                 if (amount <= 0) { Toast.makeText(this, "Please enter a valid amount", Toast.LENGTH_SHORT).show(); return; }
                 borrowBtn.setEnabled(false); cancelBtn.setEnabled(false);
-                dialogProgressBar.setVisibility(View.VISIBLE);
+                if (dialogProgressBar != null) dialogProgressBar.setVisibility(View.VISIBLE);
                 addBorrowTransaction(selectedLenderName, String.valueOf(amount), dateTV.getText().toString(), dialog, dialogProgressBar, borrowBtn, cancelBtn);
             } catch (NumberFormatException e) { Toast.makeText(this, "Invalid amount format", Toast.LENGTH_SHORT).show(); }
         });
         dialog.show();
     }
 
-    private void setupLenderRecyclerView(RecyclerView recyclerView) {
+    private void setupLenderRecyclerView(RecyclerView recyclerView, View dialogProgressBar) {
         LinearLayoutManager layoutManager = new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false);
         recyclerView.setLayoutManager(layoutManager);
         List<User> lenders = new ArrayList<>();
@@ -351,7 +357,7 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
-        loadLenders(adapter, lenders, recyclerView);
+        loadLenders(adapter, lenders, recyclerView, dialogProgressBar);
     }
 
     private void updateLayoutEffect(RecyclerView recyclerView) {
@@ -369,7 +375,7 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void loadLenders(LenderAdapter adapter, List<User> lenders, RecyclerView recyclerView) {
+    private void loadLenders(LenderAdapter adapter, List<User> lenders, RecyclerView recyclerView, View dialogProgressBar) {
         DeclareDatabase.getDatabaseReference().addListenerForSingleValueEvent(new ValueEventListener() {
             @Override public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 lenders.clear(); lenders.add(new User("", "", "", "", new UserBalance())); lenders.add(new User("", "", "", "", new UserBalance()));
@@ -379,16 +385,28 @@ public class MainActivity extends AppCompatActivity {
                 }
                 lenders.add(new User("", "", "", "", new UserBalance())); lenders.add(new User("", "", "", "", new UserBalance()));
                 adapter.notifyDataSetChanged();
-                if (lenders.size() > 2) {
-                    recyclerView.scrollToPosition(2);
-                    recyclerView.post(() -> {
-                        User firstUser = adapter.getLenderAt(2);
-                        if (firstUser != null) selectedLenderName = firstUser.getUsername();
-                        updateLayoutEffect(recyclerView);
+
+                // Preload images before hiding progress bar
+                adapter.preloadAllImages(MainActivity.this, () -> {
+                    runOnUiThread(() -> {
+                        if (dialogProgressBar != null) {
+                            dialogProgressBar.setVisibility(View.GONE);
+                        }
+                        if (lenders.size() > 2) {
+                            recyclerView.scrollToPosition(2);
+                            recyclerView.post(() -> {
+                                User firstUser = adapter.getLenderAt(2);
+                                if (firstUser != null) selectedLenderName = firstUser.getUsername();
+                                updateLayoutEffect(recyclerView);
+                            });
+                        }
                     });
-                }
+                });
             }
-            @Override public void onCancelled(@NonNull DatabaseError databaseError) { Log.e("MainActivity", "Database error: " + databaseError.getMessage()); }
+            @Override public void onCancelled(@NonNull DatabaseError databaseError) { 
+                Log.e("MainActivity", "Database error: " + databaseError.getMessage()); 
+                if (dialogProgressBar != null) dialogProgressBar.setVisibility(View.GONE);
+            }
         });
     }
 
@@ -399,18 +417,18 @@ public class MainActivity extends AppCompatActivity {
         long timestamp = System.currentTimeMillis();
         DatabaseReference dayRef = DeclareDatabase.getDBRefBorrows().child(currentMonthYear).child(currentDay);
         String borrowId = dayRef.push().getKey();
-        if (borrowId == null) { Toast.makeText(this, "Failed to generate borrow ID", Toast.LENGTH_SHORT).show(); dialogProgressBar.setVisibility(View.GONE); borrowBtn.setEnabled(true); cancelBtn.setEnabled(true); return; }
+        if (borrowId == null) { Toast.makeText(this, "Failed to generate borrow ID", Toast.LENGTH_SHORT).show(); if (dialogProgressBar != null) dialogProgressBar.setVisibility(View.GONE); borrowBtn.setEnabled(true); cancelBtn.setEnabled(true); return; }
         FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
         if (currentUser != null) {
             String borrowerID = currentUser.getUid();
             getUserIDByName(lender, lenderID -> {
-                if (lenderID == null) { runOnUiThread(() -> { Toast.makeText(this, "Failed to find lender", Toast.LENGTH_SHORT).show(); dialogProgressBar.setVisibility(View.GONE); borrowBtn.setEnabled(true); cancelBtn.setEnabled(true); }); return; }
+                if (lenderID == null) { runOnUiThread(() -> { Toast.makeText(this, "Failed to find lender", Toast.LENGTH_SHORT).show(); if (dialogProgressBar != null) dialogProgressBar.setVisibility(View.GONE); borrowBtn.setEnabled(true); cancelBtn.setEnabled(true); }); return; }
                 BorrowNowTransaction borrowNowTransaction = new BorrowNowTransaction(borrowId, borrowerID, lenderID, currentNickname, currentDate, lender, borrowedAmountStr, "For Lender Approval", timestamp);
                 dayRef.child(borrowId).setValue(borrowNowTransaction).addOnSuccessListener(unused -> {
                     BalanceHelper.addBorrowerEntry(borrowerID, borrowId, null); BalanceHelper.addLenderEntry(lenderID, borrowId, null);
                     int amount = Integer.parseInt(borrowedAmountStr); BalanceHelper.updateTotaldebt(borrowerID, amount, null); BalanceHelper.updateTotalreceivable(lenderID, amount, null);
                     runOnUiThread(() -> { Toast.makeText(this, "Borrowed successfully", Toast.LENGTH_SHORT).show(); dialog.dismiss(); });
-                }).addOnFailureListener(e -> { runOnUiThread(() -> { Toast.makeText(this, "Failed to Borrow", Toast.LENGTH_SHORT).show(); dialogProgressBar.setVisibility(View.GONE); borrowBtn.setEnabled(true); cancelBtn.setEnabled(true); }); });
+                }).addOnFailureListener(e -> { runOnUiThread(() -> { Toast.makeText(this, "Failed to Borrow", Toast.LENGTH_SHORT).show(); if (dialogProgressBar != null) dialogProgressBar.setVisibility(View.GONE); borrowBtn.setEnabled(true); cancelBtn.setEnabled(true); }); });
             });
         }
     }
@@ -643,6 +661,16 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
+    public void getCurrentNickname(CurrentNicknameCallback callback) {
+        String uid = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
+        DeclareDatabase.getDatabaseReference().child(uid).child("username").addListenerForSingleValueEvent(new ValueEventListener() {
+            public void onDataChange(@NonNull DataSnapshot ds) { currentNickname = ds.exists() ? ds.getValue(String.class) : ""; callback.onCurrentNicknameReceived(currentNickname); }
+            @Override public void onCancelled(@NonNull DatabaseError e) { callback.onCurrentNicknameReceived(""); }
+        });
+    }
+
+    public String changeFormatDate(String date) { try { Date d = new SimpleDateFormat("MMMM-dd-yyyy", Locale.ENGLISH).parse(date); return new SimpleDateFormat("MMM-dd-yyyy", Locale.getDefault()).format(d); } catch (Exception e) { return date; } }
+
     private boolean shouldIncludeForStatus(String s, String ss) { if ("All".equals(ss)) return true; if ("Pending".equals(ss)) return "Pending Payment".equals(s) || "For Lender Approval".equals(s); return Objects.equals(s, ss); }
     private boolean shouldIncludeForDebtStatus(String s, String ss) { if ("All".equals(ss)) return true; if ("Pending".equals(ss)) return "Pending Payment".equals(s) || "For Lender Approval".equals(s) || "Declined".equals(s); return Objects.equals(s, ss); }
 
@@ -663,14 +691,4 @@ public class MainActivity extends AppCompatActivity {
             @Override public void onCancelled(@NonNull DatabaseError e) { }
         });
     }
-
-    public void getCurrentNickname(CurrentNicknameCallback callback) {
-        String uid = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
-        DeclareDatabase.getDatabaseReference().child(uid).child("username").addListenerForSingleValueEvent(new ValueEventListener() {
-            public void onDataChange(@NonNull DataSnapshot ds) { currentNickname = ds.exists() ? ds.getValue(String.class) : ""; callback.onCurrentNicknameReceived(currentNickname); }
-            @Override public void onCancelled(@NonNull DatabaseError e) { callback.onCurrentNicknameReceived(""); }
-        });
-    }
-
-    public String changeFormatDate(String date) { try { Date d = new SimpleDateFormat("MMMM-dd-yyyy", Locale.ENGLISH).parse(date); return new SimpleDateFormat("MMM-dd-yyyy", Locale.getDefault()).format(d); } catch (Exception e) { return date; } }
 }

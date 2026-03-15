@@ -45,7 +45,7 @@ import com.waray.spendhound.OwedTransactionAdapter;
 import com.waray.spendhound.R;
 import com.waray.spendhound.SpinnerItemMonths;
 import com.waray.spendhound.User;
-import com.waray.spendhound.UserBalance; // ...added import for UserBalance
+import com.waray.spendhound.UserBalance;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -214,9 +214,6 @@ public class BorrowFragment extends Fragment {
         }
     }
 
-    /**
-     * Create lender action listener for owed transactions
-     */
     private OwedTransactionAdapter.OnLenderActionListener getLenderActionListener() {
         return new OwedTransactionAdapter.OnLenderActionListener() {
             @Override
@@ -285,9 +282,6 @@ public class BorrowFragment extends Fragment {
         };
     }
 
-    /**
-     * Create borrower action listener for debt transactions
-     */
     private DebtTransactionAdapter.OnBorrowerActionListener getBorrowerActionListener() {
         return new DebtTransactionAdapter.OnBorrowerActionListener() {
             @Override
@@ -385,16 +379,13 @@ public class BorrowFragment extends Fragment {
                     String monthYear = monthSnapshot.getKey();
                     for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
                         for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
-                            // Try new structure first: borrows/{month}/{day}/{borrowId}
                             BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
 
                             if (borrowNowTransaction != null && borrowNowTransaction.getBorrowerID() != null) {
-                                // New UID-based structure - check if current user is the borrower
                                 if (Objects.equals(borrowNowTransaction.getBorrowerID(), currentUserId)) {
                                     debtUniqueMonthYear.add(monthYear);
                                 }
                             } else {
-                                // Legacy structure: borrows/{month}/{day}/{username}/{time}
                                 if (Objects.equals(borrowSnapshot.getKey(), currentNickname)) {
                                     debtUniqueMonthYear.add(monthYear);
                                 }
@@ -428,16 +419,13 @@ public class BorrowFragment extends Fragment {
                     String monthYear = monthSnapshot.getKey();
                     for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
                         for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
-                            // Try new structure first: borrows/{month}/{day}/{borrowId}
                             BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
 
                             if (borrowNowTransaction != null && borrowNowTransaction.getLenderID() != null) {
-                                // New UID-based structure - check if current user is the lender
                                 if (Objects.equals(borrowNowTransaction.getLenderID(), currentUserId)) {
                                     owedUniqueMonthYear.add(monthYear);
                                 }
                             } else {
-                                // Legacy structure: borrows/{month}/{day}/{username}/{time}
                                 if (!Objects.equals(borrowSnapshot.getKey(), currentNickname)) {
                                     for (DataSnapshot timeSnapshot : borrowSnapshot.getChildren()) {
                                         try {
@@ -505,9 +493,6 @@ public class BorrowFragment extends Fragment {
         noOwedTextView.setVisibility(View.GONE);
     }
 
-    /**
-     * Show confirmation dialog for actions
-     */
     public void showConfirmationDialog(String title, String message, int confirmBtnColor, Runnable onConfirm) {
         Dialog dialog = new Dialog(getContext());
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -537,29 +522,23 @@ public class BorrowFragment extends Fragment {
         dialog.show();
     }
 
-    /**
-     * Update transaction status in Firebase
-     */
     public void updateTransactionStatus(String borrowId, String monthYear, String day, String newStatus, Runnable onSuccess) {
         DatabaseReference borrowRef = DeclareDatabase.getDBRefBorrows()
                 .child(monthYear)
                 .child(day)
                 .child(borrowId);
 
-        // If status is being changed to "Paid", we need to decrement the balance fields
         if ("Paid".equals(newStatus)) {
             borrowRef.addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                     BorrowNowTransaction borrow = dataSnapshot.getValue(BorrowNowTransaction.class);
                     if (borrow != null && !("Paid".equals(borrow.getStatus()))) {
-                        // Only decrement if it wasn't already paid
                         try {
                             int amount = Integer.parseInt(borrow.getBorrowedAmountStr());
                             String borrowerID = borrow.getBorrowerID();
                             String lenderID = borrow.getLenderID();
 
-                            // Decrement balances (negative amount to subtract)
                             if (borrowerID != null) {
                                 BalanceHelper.updateTotaldebt(borrowerID, -amount, null);
                             }
@@ -571,7 +550,6 @@ public class BorrowFragment extends Fragment {
                         }
                     }
 
-                    // Update status in database
                     borrowRef.child("status").setValue(newStatus)
                             .addOnSuccessListener(unused -> {
                                 if (onSuccess != null) {
@@ -593,7 +571,6 @@ public class BorrowFragment extends Fragment {
                 }
             });
         } else {
-            // If not changing to "Paid", just update the status
             borrowRef.child("status").setValue(newStatus)
                     .addOnSuccessListener(unused -> {
                         if (onSuccess != null) {
@@ -609,9 +586,6 @@ public class BorrowFragment extends Fragment {
         }
     }
 
-    /**
-     * Update transaction status and save payment sent date
-     */
     public void updateTransactionStatusWithPaymentDate(String borrowId, String monthYear, String day, String newStatus, Runnable onSuccess) {
         DatabaseReference borrowRef = DeclareDatabase.getDBRefBorrows()
                 .child(monthYear)
@@ -620,20 +594,17 @@ public class BorrowFragment extends Fragment {
 
         long paymentSentDate = System.currentTimeMillis();
 
-        // If status is being changed to "Paid", we need to decrement the balance fields
         if ("Paid".equals(newStatus)) {
             borrowRef.addListenerForSingleValueEvent(new ValueEventListener() {
                 @Override
                 public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                     BorrowNowTransaction borrow = dataSnapshot.getValue(BorrowNowTransaction.class);
                     if (borrow != null && !("Paid".equals(borrow.getStatus()))) {
-                        // Only decrement if it wasn't already paid
                         try {
                             int amount = Integer.parseInt(borrow.getBorrowedAmountStr());
                             String borrowerID = borrow.getBorrowerID();
                             String lenderID = borrow.getLenderID();
 
-                            // Decrement balances (negative amount to subtract)
                             if (borrowerID != null) {
                                 BalanceHelper.updateTotaldebt(borrowerID, -amount, null);
                             }
@@ -645,7 +616,6 @@ public class BorrowFragment extends Fragment {
                         }
                     }
 
-                    // Update status and payment date in database
                     borrowRef.child("status").setValue(newStatus);
                     borrowRef.child("paymentSentDate").setValue(paymentSentDate)
                             .addOnSuccessListener(unused -> {
@@ -668,7 +638,6 @@ public class BorrowFragment extends Fragment {
                 }
             });
         } else {
-            // If not changing to "Paid", just update the status and payment date
             borrowRef.child("status").setValue(newStatus);
             borrowRef.child("paymentSentDate").setValue(paymentSentDate)
                     .addOnSuccessListener(unused -> {
@@ -685,9 +654,6 @@ public class BorrowFragment extends Fragment {
         }
     }
 
-    /**
-     * Show the Borrow Now dialog as a modal
-     */
     private void showBorrowNowDialog() {
         Dialog dialog = new Dialog(getContext());
         dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
@@ -699,7 +665,6 @@ public class BorrowFragment extends Fragment {
             dialog.getWindow().setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         }
 
-        // Initialize dialog views
         TextView dateTV = dialog.findViewById(R.id.dialogBorrowDate);
         TextView borrowerTV = dialog.findViewById(R.id.dialogBorrower);
         RecyclerView lenderRecyclerView = dialog.findViewById(R.id.lenderRecyclerView);
@@ -708,22 +673,19 @@ public class BorrowFragment extends Fragment {
         Button borrowBtn = dialog.findViewById(R.id.dialogBorrowBtn);
         View dialogProgressBar = dialog.findViewById(R.id.dialogProgressBar);
 
-        // Set current date
+        dialogProgressBar.setVisibility(View.VISIBLE);
+
         Calendar calendar = Calendar.getInstance();
         SimpleDateFormat dateFormat = new SimpleDateFormat("MMMM-dd-yyyy", Locale.getDefault());
         String currentDate = dateFormat.format(calendar.getTime());
         dateTV.setText(currentDate);
 
-        // Set borrower name
         borrowerTV.setText(currentNickname);
 
-        // Setup Lender RecyclerView
-        setupLenderRecyclerView(lenderRecyclerView);
+        setupLenderRecyclerView(lenderRecyclerView, dialogProgressBar);
 
-        // Cancel button
         cancelBtn.setOnClickListener(v -> dialog.dismiss());
 
-        // Borrow button
         borrowBtn.setOnClickListener(v -> {
             String amountStr = amountEditText.getText().toString().trim();
             
@@ -744,20 +706,18 @@ public class BorrowFragment extends Fragment {
                 return;
             }
 
-            // Disable buttons and show progress
             borrowBtn.setEnabled(false);
             cancelBtn.setEnabled(false);
             dialogProgressBar.setVisibility(View.VISIBLE);
             showGlobalLoading();
 
-            // Process the borrow transaction
             addBorrowTransaction(selectedLenderName, String.valueOf(amount), currentDate, dialog, dialogProgressBar, borrowBtn, cancelBtn);
         });
 
         dialog.show();
     }
 
-    private void setupLenderRecyclerView(RecyclerView recyclerView) {
+    private void setupLenderRecyclerView(RecyclerView recyclerView, View dialogProgressBar) {
         LinearLayoutManager layoutManager = new LinearLayoutManager(getContext(), LinearLayoutManager.HORIZONTAL, false);
         recyclerView.setLayoutManager(layoutManager);
         
@@ -791,17 +751,17 @@ public class BorrowFragment extends Fragment {
             }
         });
 
-        loadLenders(adapter, lenders, recyclerView);
+        loadLenders(adapter, lenders, recyclerView, dialogProgressBar);
     }
 
     private void updateLayoutEffect(RecyclerView recyclerView) {
         float midpoint = recyclerView.getWidth() / 2f;
         float d0 = 0f;
         float d1 = 0.9f * midpoint;
-        float s0 = 1.6f; // Increased scale factor for center from 1.3f to 1.6f
-        float s1 = 1.0f; // Scale factor for side
-        float a0 = 1.0f; // Alpha for center
-        float a1 = 0.5f; // Alpha for side
+        float s0 = 1.6f;
+        float s1 = 1.0f;
+        float a0 = 1.0f;
+        float a1 = 0.5f;
 
         for (int i = 0; i < recyclerView.getChildCount(); i++) {
             View child = recyclerView.getChildAt(i);
@@ -815,13 +775,12 @@ public class BorrowFragment extends Fragment {
         }
     }
 
-    private void loadLenders(LenderAdapter adapter, List<User> lenders, RecyclerView recyclerView) {
+    private void loadLenders(LenderAdapter adapter, List<User> lenders, RecyclerView recyclerView, View dialogProgressBar) {
         DatabaseReference databaseReference = DeclareDatabase.getDatabaseReference();
         databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
                 lenders.clear();
-                // Add an empty user at start and end for better snapping of edge items
                 lenders.add(new User("", "", "", "", new UserBalance()));
                 lenders.add(new User("", "", "", "", new UserBalance()));
 
@@ -837,29 +796,33 @@ public class BorrowFragment extends Fragment {
 
                 adapter.notifyDataSetChanged();
                 
-                // Scroll to the first real user and select them
-                if (lenders.size() > 2) {
-                    recyclerView.scrollToPosition(2);
-                    recyclerView.post(() -> {
-                        User firstUser = adapter.getLenderAt(2);
-                        if (firstUser != null) {
-                            selectedLenderName = firstUser.getUsername();
-                        }
-                        updateLayoutEffect(recyclerView);
-                    });
-                }
+                adapter.preloadAllImages(getContext(), () -> {
+                    if (getActivity() != null) {
+                        getActivity().runOnUiThread(() -> {
+                            dialogProgressBar.setVisibility(View.GONE);
+                            if (lenders.size() > 2) {
+                                recyclerView.scrollToPosition(2);
+                                recyclerView.post(() -> {
+                                    User firstUser = adapter.getLenderAt(2);
+                                    if (firstUser != null) {
+                                        selectedLenderName = firstUser.getUsername();
+                                    }
+                                    updateLayoutEffect(recyclerView);
+                                });
+                            }
+                        });
+                    }
+                });
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError databaseError) {
                 Log.e("BorrowFragment", "Database error: " + databaseError.getMessage());
+                dialogProgressBar.setVisibility(View.GONE);
             }
         });
     }
 
-    /**
-     * Add a borrow transaction to Firebase
-     */
     private void addBorrowTransaction(String lender, String borrowedAmountStr, String currentDate,
             Dialog dialog, View dialogProgressBar, Button borrowBtn, Button cancelBtn) {
 
@@ -891,7 +854,6 @@ public class BorrowFragment extends Fragment {
         if (currentUser != null) {
             String borrowerID = currentUser.getUid();
 
-            // Get lender's user ID
             getUserIDByName(lender, lenderID -> {
                 if (lenderID == null) {
                     if (getActivity() != null) {
@@ -906,7 +868,6 @@ public class BorrowFragment extends Fragment {
                     return;
                 }
 
-                // Create transaction with "For Lender Approval" status
                 BorrowNowTransaction borrowNowTransaction = new BorrowNowTransaction(
                         borrowId,
                         borrowerID,
@@ -920,13 +881,9 @@ public class BorrowFragment extends Fragment {
                 );
 
                 borrowRef.setValue(borrowNowTransaction).addOnSuccessListener(unused -> {
-                    // Update userBorrows index for borrower
                     BalanceHelper.addBorrowerEntry(borrowerID, borrowId, null);
-
-                    // Update userBorrows index for lender
                     BalanceHelper.addLenderEntry(lenderID, borrowId, null);
 
-                    // Update borrower's totaldebt and lender's totalreceivable
                     int amount = Integer.parseInt(borrowedAmountStr);
                     BalanceHelper.updateTotaldebt(borrowerID, amount, null);
                     BalanceHelper.updateTotalreceivable(lenderID, amount, null);
@@ -953,9 +910,6 @@ public class BorrowFragment extends Fragment {
         }
     }
 
-    /**
-     * Get user ID by username
-     */
     private void getUserIDByName(String name, UserIDCallback callback) {
         DatabaseReference usersRef = FirebaseDatabase.getInstance().getReference("users");
         usersRef.addListenerForSingleValueEvent(new ValueEventListener() {
@@ -979,9 +933,6 @@ public class BorrowFragment extends Fragment {
         });
     }
 
-    /**
-     * Callback interface for user ID retrieval
-     */
     private interface UserIDCallback {
         void onUserIDRetrieved(String userID);
     }
@@ -993,9 +944,6 @@ public class BorrowFragment extends Fragment {
         }
     }
 
-    /**
-     * Show loading overlay while data is being fetched
-     */
     private void showLoading() {
         isLoading = true;
         if (loadingOverlay != null) {
@@ -1003,9 +951,6 @@ public class BorrowFragment extends Fragment {
         }
     }
 
-    /**
-     * Hide loading overlay when data fetch is complete
-     */
     private void hideLoading() {
         isLoading = false;
         if (loadingOverlay != null) {
@@ -1016,7 +961,6 @@ public class BorrowFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        // Refresh data when returning to this fragment
         applyFilters();
     }
 
