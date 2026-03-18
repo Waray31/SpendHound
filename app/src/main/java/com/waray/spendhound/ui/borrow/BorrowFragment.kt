@@ -2,6 +2,7 @@ package com.waray.spendhound.ui.borrow
 
 import android.annotation.SuppressLint
 import android.app.Dialog
+import android.app.DatePickerDialog
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
@@ -10,9 +11,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
-import android.widget.AdapterView
 import android.widget.Button
-import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -32,7 +31,6 @@ import com.waray.spendhound.MainActivity
 import com.waray.spendhound.OwedTransaction
 import com.waray.spendhound.OwedTransactionAdapter
 import com.waray.spendhound.R
-import com.waray.spendhound.SpinnerItemMonths
 import com.waray.spendhound.User
 import com.waray.spendhound.UserBalance
 import io.github.jan.supabase.gotrue.Auth
@@ -41,13 +39,16 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.Calendar
 import java.util.Collections
+import java.text.SimpleDateFormat
+import java.util.Locale
 import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.min
 
 class BorrowFragment : Fragment() {
-    private var monthYearSpinner: Spinner? = null
+    private var datePickerButton: Button? = null
     var owedTV: TextView? = null
     var debtTV: TextView? = null
     private var allTabTV: TextView? = null
@@ -70,6 +71,7 @@ class BorrowFragment : Fragment() {
 
     private var globalLoadingOverlay: View? = null
     private var selectedLenderName = ""
+    private val selectedCalendar: Calendar = Calendar.getInstance()
 
     private val uiScope = CoroutineScope(Dispatchers.Main)
 
@@ -82,7 +84,7 @@ class BorrowFragment : Fragment() {
         
         mAuth = DeclareDatabase.auth
         
-        monthYearSpinner = view.findViewById(R.id.monthYearSpinner)
+        datePickerButton = view.findViewById(R.id.datePickerButton)
         owedTV = view.findViewById(R.id.owedTV)
         debtTV = view.findViewById(R.id.debtTV)
         owedRecyclerList = view.findViewById(R.id.owedRecyclerList)
@@ -100,7 +102,7 @@ class BorrowFragment : Fragment() {
 
         getCurrentNickname()
         setupViews()
-        setupSpinners()
+        setupDatePicker()
         setupStatusTabs()
         setupClickListeners()
 
@@ -118,14 +120,43 @@ class BorrowFragment : Fragment() {
         OwedMonthlyFilterList()
     }
 
-    private fun setupSpinners() {
-        monthYearSpinner?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parentView: AdapterView<*>, selectedItemView: View?, position: Int, id: Long) {
-                selectedMonth = parentView.getItemAtPosition(position) as? String
-                applyFilters()
-            }
-            override fun onNothingSelected(parentView: AdapterView<*>?) {}
+    private fun setupDatePicker() {
+        // Initialize selectedMonth with current date
+        val year = selectedCalendar.get(Calendar.YEAR)
+        val month = selectedCalendar.get(Calendar.MONTH)
+        selectedMonth = formatMonthYear(year, month)
+        
+        updateDatePickerButtonText()
+        datePickerButton?.setOnClickListener {
+            showDatePickerDialog()
         }
+    }
+
+    private fun showDatePickerDialog() {
+        val year = selectedCalendar.get(Calendar.YEAR)
+        val month = selectedCalendar.get(Calendar.MONTH)
+        val day = selectedCalendar.get(Calendar.DAY_OF_MONTH)
+
+        DatePickerDialog(requireContext(), { _, selectedYear, selectedMonth, selectedDay ->
+            selectedCalendar.set(selectedYear, selectedMonth, selectedDay)
+            val monthYear = formatMonthYear(selectedYear, selectedMonth)
+            this.selectedMonth = monthYear
+            updateDatePickerButtonText()
+            applyFilters()
+        }, year, month, day).show()
+    }
+
+    private fun formatMonthYear(year: Int, month: Int): String {
+        val cal = Calendar.getInstance()
+        cal.set(year, month, 1)
+        val sdf = SimpleDateFormat("MMM yyyy", Locale.getDefault())
+        return sdf.format(cal.time)
+    }
+
+    private fun updateDatePickerButtonText() {
+        val sdf = SimpleDateFormat("MMM yyyy", Locale.getDefault())
+        val dateText = sdf.format(selectedCalendar.time)
+        datePickerButton?.text = dateText
     }
 
     private fun setupStatusTabs() {
@@ -252,7 +283,6 @@ class BorrowFragment : Fragment() {
         owedRecyclerList?.visibility = View.VISIBLE
         debtRecyclerList?.visibility = View.GONE
         owedDebtClicked = true
-        resetSpinners()
         OwedMonthlyFilterList()
     }
 
@@ -261,7 +291,6 @@ class BorrowFragment : Fragment() {
         owedRecyclerList?.visibility = View.GONE
         debtRecyclerList?.visibility = View.VISIBLE
         owedDebtClicked = false
-        resetSpinners()
         DebtMonthlyFilterList()
     }
 
@@ -272,9 +301,6 @@ class BorrowFragment : Fragment() {
         inactiveTab.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
     }
 
-    private fun resetSpinners() {
-        monthYearSpinner?.setSelection(0)
-    }
 
     fun DebtMonthlyFilterList() {
         val currentUserId = mAuth?.currentUserOrNull()?.id
@@ -286,11 +312,9 @@ class BorrowFragment : Fragment() {
                     }
                 }.decodeList<BorrowNowTransaction>()
             }
-            val months = borrows.mapNotNull { it.month_year }.toSet().toMutableList()
-            months.add(0, "All")
-            debtSortedMonths = months
+            debtSortedMonths = borrows.mapNotNull { it.month_year }.toSet().toMutableList()
+            debtSortedMonths?.add(0, "All")
             Collections.sort(debtSortedMonths as MutableList<String>)
-            updateSpinnerAdapter(debtSortedMonths)
         }
     }
 
@@ -304,18 +328,10 @@ class BorrowFragment : Fragment() {
                     }
                 }.decodeList<BorrowNowTransaction>()
             }
-            val months = borrows.mapNotNull { it.month_year }.toSet().toMutableList()
-            months.add(0, "All")
-            owedSortedMonths = months
+            owedSortedMonths = borrows.mapNotNull { it.month_year }.toSet().toMutableList()
+            owedSortedMonths?.add(0, "All")
             Collections.sort(owedSortedMonths as MutableList<String>)
-            updateSpinnerAdapter(owedSortedMonths)
         }
-    }
-
-    private fun updateSpinnerAdapter(months: MutableList<String?>?) {
-        monthYearSpinner?.setBackgroundResource(R.drawable.transparent_background)
-        val adapter = SpinnerItemMonths(requireContext(), months ?: mutableListOf())
-        monthYearSpinner?.adapter = adapter
     }
 
     fun getCurrentNickname() {

@@ -126,12 +126,14 @@
                             android:layout_marginTop="4dp"
                             android:orientation="horizontal">
 
-                            <Spinner
-                                android:id="@+id/monthYearSpinner"
+                            <Button
+                                android:id="@+id/datePickerButton"
                                 android:layout_width="140dp"
                                 android:layout_height="wrap_content"
                                 android:textAlignment="center"
-                                android:background="@drawable/transparent_background" />
+                                android:background="@drawable/transparent_background"
+                                android:textColor="@color/darkBlue"
+                                android:textSize="14sp" />
 
                         </LinearLayout>
 
