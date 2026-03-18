@@ -5,8 +5,8 @@ import android.content.Intent
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.text.Editable
-import android.text.TextUtils
 import android.text.TextWatcher
+import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.MotionEvent
@@ -21,15 +21,13 @@ import android.widget.PopupWindow
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
+import androidx.lifecycle.lifecycleScope
 import io.github.jan.supabase.gotrue.Auth
-import io.github.jan.supabase.gotrue.auth
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -40,33 +38,33 @@ class AddTransactionActivity : AppCompatActivity() {
     private var btnAdd: Button? = null
     private var btnAddGroup: Button? = null
     private var addTransactionbtn: Button? = null
-    private var payorSpinner: Spinner? = null
     private var transactionTypeSpinner: Spinner? = null
     private var transactionType: String? = null
-    var paymentAmountStr: String? = null
-    var multilineStr: String? = null
+    private var paymentAmountStr: String? = null
+    private var multilineStr: String? = null
     private var progressBar: View? = null
-    var usernames: MutableList<String?>? = null
-    var mAuth: Auth? = null
+    private var usernames: MutableList<String?>? = null
+    private var mAuth: Auth? = null
     private var rows: MutableList<View>? = null
     private var groupViews: MutableList<View?>? = null
     private var payerGroups: MutableList<PayerGroup?>? = null
-    var payorsList: MutableList<String?>? = null
-    var payorsDisplayNames: MutableList<String?>? = null
-    var amountsPaidList: MutableList<Double?>? = null
-    var totalAmountPaid: Double = 0.0
-    var paymentAmount: Double? = null
+    private var payorsList: MutableList<String?>? = null
+    private var payorsDisplayNames: MutableList<String?>? = null
+    private var amountsPaidList: MutableList<Double?>? = null
+    private var paymentAmount: Double? = null
     private var paymentAmountEditText: EditText? = null
     private var editTextTextMultiLine: EditText? = null
     private var individualPayment: TextView? = null
     private var totalIndividualPayment = 0.0
     private var currentUserId: String? = null
-    private val recentTransactionList = ArrayList<RecentTransaction?>()
     private var selectedGroup: PayerGroup? = null
     private var selectedGroupView: View? = null
     private var payorTooltipPopup: PopupWindow? = null
     private var firstRow: View? = null
     private var groupMemberUsernames: MutableList<String?>? = null
+
+    private var posterDisplayName: String? = null
+    private var usernamePost: String? = null
 
     private val usernameToUidMap: MutableMap<String?, String?> = HashMap()
     private val uidToUsernameMap: MutableMap<String?, String?> = HashMap()
@@ -88,7 +86,8 @@ class AddTransactionActivity : AppCompatActivity() {
 
         transactionTypeSpinner = findViewById(R.id.transactionType)
         val transactionTypes = resources.getStringArray(R.array.transactionTypes_String)
-        val adapter = SpinnerItem(this, transactionTypes.toList())
+        val typesList = transactionTypes.map { it as String? }.toMutableList()
+        val adapter = SpinnerItem(this, typesList)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         transactionTypeSpinner?.adapter = adapter
 
@@ -100,6 +99,10 @@ class AddTransactionActivity : AppCompatActivity() {
         groupViews = ArrayList()
         payerGroups = ArrayList()
         progressBar = findViewById(R.id.progressBar)
+
+        paymentAmountEditText = findViewById(R.id.paymentAmount)
+        editTextTextMultiLine = findViewById(R.id.editTextTextMultiLine)
+        individualPayment = findViewById(R.id.individualPayment)
 
         fetchUsernamesAndSetupInitialRow()
         loadExistingGroups()
@@ -125,25 +128,21 @@ class AddTransactionActivity : AppCompatActivity() {
 
         btnAddGroup?.setOnClickListener { showCreateGroupDialog() }
 
-        paymentAmountEditText = findViewById(R.id.paymentAmount)
-        individualPayment = findViewById(R.id.individualPayment)
         setupIndividualPaymentCalculator()
-
-        detailsCharacterCount()
-        exitEditText()
     }
 
     private fun fetchUsernamesAndSetupInitialRow() {
-        FirebaseDatabase.getInstance().getReference("users").addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
+        lifecycleScope.launch {
+            try {
+                val userList = DeclareDatabase.usersTable.select().decodeList<User>()
                 usernames = ArrayList()
                 usernames!!.add("Select a payor:")
                 usernameToUidMap.clear()
                 uidToUsernameMap.clear()
 
-                for (userSnapshot in dataSnapshot.children) {
-                    val username = userSnapshot.child("username").getValue(String::class.java)
-                    val uid = userSnapshot.key
+                for (user in userList) {
+                    val username = user.username
+                    val uid = user.id
                     if (username != null && uid != null) {
                         usernames!!.add(username)
                         usernameToUidMap[username] = uid
@@ -152,18 +151,16 @@ class AddTransactionActivity : AppCompatActivity() {
                     }
                 }
                 addRow()
-                if (rows!!.size > 0) {
+                if (rows!!.isNotEmpty()) {
                     firstRow = rows!![0]
                     firstRow?.visibility = View.GONE
                 }
                 btnAdd?.isEnabled = false
                 btnAdd?.alpha = 0.5f
+            } catch (e: Exception) {
+                Log.e("Supabase", "Error fetching users: ${e.message}")
             }
-
-            override fun onCancelled(databaseError: DatabaseError) {
-                Log.e("FirebaseDatabase", "Database error: " + databaseError.message)
-            }
-        })
+        }
     }
 
     private fun addRow() {
@@ -174,13 +171,13 @@ class AddTransactionActivity : AppCompatActivity() {
         val spinnerUsernames = if (!groupMemberUsernames.isNullOrEmpty()) groupMemberUsernames else usernames
 
         if (!spinnerUsernames.isNullOrEmpty()) {
-            val adapter = SpinnerItem(this@AddTransactionActivity, spinnerUsernames)
+            val adapter = SpinnerItem(this@AddTransactionActivity, spinnerUsernames!!)
             adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
             spinner.adapter = adapter
         }
 
         row.findViewById<Button>(R.id.closeBtn).setOnClickListener { removeRow(row) }
-        ViewCompat.setBackground(row, resources.getDrawable(R.drawable.rounded_alternating_row))
+        ViewCompat.setBackground(row, ContextCompat.getDrawable(this, R.drawable.rounded_alternating_row))
         rows?.add(row)
         container?.addView(row)
     }
@@ -228,8 +225,8 @@ class AddTransactionActivity : AppCompatActivity() {
             }
         }
 
-        val groupMembers = selectedGroup!!.getMembers() ?: ArrayList()
-        val groupMemberNames = selectedGroup!!.getMemberDisplayNames() ?: ArrayList()
+        val groupMembers = selectedGroup!!.members ?: ArrayList()
+        val groupMemberNames = selectedGroup!!.memberDisplayNames ?: ArrayList()
 
         if (hasManualPayorRows && rows!!.isNotEmpty()) {
             val manualPayments = HashMap<String?, Double>()
@@ -307,21 +304,27 @@ class AddTransactionActivity : AppCompatActivity() {
             totalIndividualPayment = individualAmount
         }
 
-        FirebaseDatabase.getInstance().getReference("users").child(currentUserId!!).child("username").addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
-                if (dataSnapshot.exists()) {
-                    posterDisplayName = dataSnapshot.getValue(String::class.java)
+        lifecycleScope.launch {
+            try {
+                val user = DeclareDatabase.usersTable.select {
+                    filter {
+                        eq("id", currentUserId!!)
+                    }
+                }.decodeSingleOrNull<User>()
+
+                if (user != null) {
+                    posterDisplayName = user.username
                     usernamePost = currentUserId
                     saveTransaction()
                 } else {
                     progressBar?.visibility = View.GONE
                     Toast.makeText(this@AddTransactionActivity, "Username not found.", Toast.LENGTH_SHORT).show()
                 }
-            }
-            override fun onCancelled(databaseError: DatabaseError) {
+            } catch (e: Exception) {
+                Log.e("Supabase", "Error getting user: ${e.message}")
                 progressBar?.visibility = View.GONE
             }
-        })
+        }
     }
 
     private fun saveTransaction() {
@@ -330,29 +333,36 @@ class AddTransactionActivity : AppCompatActivity() {
         val currentDay = SimpleDateFormat("dd", Locale.getDefault()).format(calendar.time)
         val currentTime = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(calendar.time)
 
-        val timestampRef = DeclareDatabase.getDBRefTransaction()
-            .child(currentMonthYear)
-            .child(currentDay)
-            .child(currentTime)
-
         val transaction = Transaction(
-            transactionType, paymentAmount!!, multilineStr,
-            payorsList, amountsPaidList, usernamePost, totalIndividualPayment,
-            selectedGroup?.getGroupId(), selectedGroup?.getGroupName(),
-            payorsDisplayNames, posterDisplayName
+            transactionType = transactionType,
+            paymentAmount = paymentAmount!!,
+            multilineStr = multilineStr,
+            payorsList = payorsList,
+            amountsPaidList = amountsPaidList,
+            usernamePost = usernamePost,
+            totalIndividualPayment = totalIndividualPayment,
+            groupId = selectedGroup?.groupId,
+            groupName = selectedGroup?.groupName,
+            payorsDisplayNames = payorsDisplayNames,
+            posterDisplayName = posterDisplayName,
+            monthYear = currentMonthYear,
+            day = currentDay,
+            timeKey = currentTime
         )
 
-        timestampRef.setValue(transaction)
-            .addOnSuccessListener {
+        lifecycleScope.launch {
+            try {
+                DeclareDatabase.transactionsTable.insert(transaction)
                 progressBar?.visibility = View.GONE
                 Toast.makeText(this@AddTransactionActivity, "Transaction added successfully", Toast.LENGTH_SHORT).show()
                 startActivity(Intent(this@AddTransactionActivity, MainActivity::class.java))
                 finish()
-            }
-            .addOnFailureListener {
+            } catch (e: Exception) {
+                Log.e("Supabase", "Error inserting transaction: ${e.message}")
                 progressBar?.visibility = View.GONE
                 Toast.makeText(this@AddTransactionActivity, "Failed to add transaction", Toast.LENGTH_SHORT).show()
             }
+        }
     }
 
     private fun setupIndividualPaymentCalculator() {
@@ -365,8 +375,8 @@ class AddTransactionActivity : AppCompatActivity() {
 
     private fun calculateAndDisplayIndividualPayment() {
         val amount = paymentAmountEditText?.text?.toString()?.toDoubleOrNull() ?: 0.0
-        val numberOfUsers = if (selectedGroup != null && !selectedGroup!!.getMembers().isNullOrEmpty()) {
-            selectedGroup!!.getMembers().size
+        val numberOfUsers = if (selectedGroup != null && !selectedGroup!!.members.isNullOrEmpty()) {
+            selectedGroup!!.members!!.size
         } else if (!usernames.isNullOrEmpty() && usernames!!.size > 1) {
             usernames!!.size - 1
         } else 1
@@ -375,37 +385,34 @@ class AddTransactionActivity : AppCompatActivity() {
         individualPayment?.text = CurrencyUtils.formatAmountWithCurrency(totalIndividualPayment)
     }
 
-    private fun detailsCharacterCount() {}
-    private fun exitEditText() {}
-
     private fun loadExistingGroups() {
-        FirebaseDatabase.getInstance().getReference("groups").child(currentUserId!!).addValueEventListener(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
+        lifecycleScope.launch {
+            try {
+                val groupList = DeclareDatabase.groupsTable.select().decodeList<PayerGroup>()
                 groupsContainer?.removeAllViews()
                 groupViews?.clear()
                 payerGroups?.clear()
 
-                for (groupSnapshot in dataSnapshot.children) {
-                    val group = groupSnapshot.getValue(PayerGroup::class.java)
-                    if (group != null) {
-                        group.groupId = groupSnapshot.key
+                for (group in groupList) {
+                    if (group.members?.contains(currentUserId) == true) {
                         payerGroups?.add(group)
                         addGroupView(group)
                     }
                 }
+            } catch (e: Exception) {
+                Log.e("Supabase", "Error loading groups: ${e.message}")
             }
-            override fun onCancelled(databaseError: DatabaseError) {}
-        })
+        }
     }
 
     private fun addGroupView(group: PayerGroup) {
         val inflater = LayoutInflater.from(this)
         val groupView = inflater.inflate(R.layout.item_group, groupsContainer, false)
 
-        groupView.findViewById<TextView>(R.id.groupName).text = group.getGroupName()
+        groupView.findViewById<TextView>(R.id.groupName).text = group.groupName
         val membersTV: TextView = groupView.findViewById(R.id.groupMembers)
         
-        val displayNames = group.getMemberDisplayNames()
+        val displayNames = group.memberDisplayNames
         if (!displayNames.isNullOrEmpty()) {
             membersTV.text = "Members: ${displayNames.joinToString(", ")}"
         }
@@ -419,7 +426,7 @@ class AddTransactionActivity : AppCompatActivity() {
     }
 
     private fun selectGroup(group: PayerGroup, groupView: View) {
-        if (selectedGroup?.getGroupId() == group.getGroupId()) {
+        if (selectedGroup?.groupId == group.groupId) {
             deselectGroup()
             return
         }
@@ -432,7 +439,7 @@ class AddTransactionActivity : AppCompatActivity() {
         groupMemberUsernames = ArrayList()
         groupMemberUsernames?.add("Select a payor:")
         
-        val displayNames = group.getMemberDisplayNames()
+        val displayNames = group.memberDisplayNames
         if (!displayNames.isNullOrEmpty()) {
             groupMemberUsernames?.addAll(displayNames)
         }
@@ -483,7 +490,7 @@ class AddTransactionActivity : AppCompatActivity() {
         val dialog = builder.create()
 
         val nameET: EditText = dialogView.findViewById(R.id.groupNameEditText)
-        val container: LinearLayout = dialogView.findViewById(R.id.usersCheckboxContainer)
+        val checkboxContainer: LinearLayout = dialogView.findViewById(R.id.usersCheckboxContainer)
         val checkBoxes = ArrayList<CheckBox>()
 
         for (i in 1 until usernames!!.size) {
@@ -492,10 +499,10 @@ class AddTransactionActivity : AppCompatActivity() {
 
             val checkBox = CheckBox(this)
             checkBox.text = username
-            checkBox.setTextColor(resources.getColor(R.color.darkBlue))
+            checkBox.setTextColor(ContextCompat.getColor(this, R.color.darkBlue))
             checkBox.setPadding(8, 8, 8, 8)
             checkBoxes.add(checkBox)
-            container.addView(checkBox)
+            checkboxContainer.addView(checkBox)
         }
 
         dialogView.findViewById<Button>(R.id.cancelGroupBtn).setOnClickListener { dialog.dismiss() }
@@ -526,10 +533,20 @@ class AddTransactionActivity : AppCompatActivity() {
     }
 
     private fun saveGroupToDatabase(name: String, uids: MutableList<String?>, names: MutableList<String?>) {
-        val groupsRef = FirebaseDatabase.getInstance().getReference("groups").child(currentUserId!!)
-        val groupId = groupsRef.push().key ?: return
-        val newGroup = PayerGroup(groupId, name, uids, currentUserId, names)
-        groupsRef.child(groupId).setValue(newGroup)
+        val newGroup = PayerGroup(
+            groupName = name,
+            members = uids,
+            createdBy = currentUserId,
+            memberDisplayNames = names
+        )
+        lifecycleScope.launch {
+            try {
+                DeclareDatabase.groupsTable.insert(newGroup)
+                loadExistingGroups()
+            } catch (e: Exception) {
+                Log.e("Supabase", "Error saving group: ${e.message}")
+            }
+        }
     }
 
     private fun showEditGroupDialog(group: PayerGroup, groupView: View) {
@@ -540,8 +557,8 @@ class AddTransactionActivity : AppCompatActivity() {
         val dialog = builder.create()
 
         val nameET: EditText = dialogView.findViewById(R.id.editGroupNameEditText)
-        nameET.setText(group.getGroupName())
-        val container: LinearLayout = dialogView.findViewById(R.id.editUsersCheckboxContainer)
+        nameET.setText(group.groupName)
+        val checkboxContainer: LinearLayout = dialogView.findViewById(R.id.editUsersCheckboxContainer)
         val checkBoxes = ArrayList<CheckBox>()
 
         for (i in 1 until usernames!!.size) {
@@ -550,11 +567,11 @@ class AddTransactionActivity : AppCompatActivity() {
 
             val checkBox = CheckBox(this)
             checkBox.text = username
-            checkBox.setTextColor(resources.getColor(R.color.darkBlue))
+            checkBox.setTextColor(ContextCompat.getColor(this, R.color.darkBlue))
             checkBox.setPadding(8, 8, 8, 8)
-            checkBox.isChecked = group.getMembers()?.contains(usernameToUidMap[username]) == true || group.getMemberDisplayNames()?.contains(username) == true
+            checkBox.isChecked = group.members?.contains(usernameToUidMap[username]) == true || group.memberDisplayNames?.contains(username) == true
             checkBoxes.add(checkBox)
-            container.addView(checkBox)
+            checkboxContainer.addView(checkBox)
         }
 
         dialogView.findViewById<Button>(R.id.cancelEditGroupBtn).setOnClickListener { dialog.dismiss() }
@@ -575,18 +592,31 @@ class AddTransactionActivity : AppCompatActivity() {
                 }
             }}
 
-            updateGroupInDatabase(group.getGroupId(), name, selectedUids, selectedNames, groupView)
+            updateGroupInDatabase(group.groupId, name, selectedUids, selectedNames, groupView)
             dialog.dismiss()
         }
         dialog.show()
     }
 
     private fun updateGroupInDatabase(id: String?, name: String, uids: MutableList<String?>, names: MutableList<String?>, groupView: View) {
-        val groupRef = FirebaseDatabase.getInstance().getReference("groups").child(currentUserId!!).child(id!!)
-        val updatedGroup = PayerGroup(id, name, uids, currentUserId, names)
-        groupRef.setValue(updatedGroup).addOnSuccessListener {
-            groupView.findViewById<TextView>(R.id.groupName).text = name
-            groupView.findViewById<TextView>(R.id.groupMembers).text = "Members: ${names.joinToString(", ")}"
+        if (id == null) return
+        lifecycleScope.launch {
+            try {
+                DeclareDatabase.groupsTable.update({
+                    set("groupName", name)
+                    set("members", uids)
+                    set("memberDisplayNames", names)
+                }) {
+                    filter {
+                        eq("groupId", id)
+                    }
+                }
+                groupView.findViewById<TextView>(R.id.groupName).text = name
+                groupView.findViewById<TextView>(R.id.groupMembers).text = "Members: ${names.joinToString(", ")}"
+                loadExistingGroups()
+            } catch (e: Exception) {
+                Log.e("Supabase", "Error updating group: ${e.message}")
+            }
         }
     }
 
@@ -595,13 +625,25 @@ class AddTransactionActivity : AppCompatActivity() {
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_remove_group, null)
         builder.setView(dialogView)
         val dialog = builder.create()
-        dialogView.findViewById<TextView>(R.id.groupNameToRemove).text = group.getGroupName()
+        dialogView.findViewById<TextView>(R.id.groupNameToRemove).text = group.groupName
         dialogView.findViewById<Button>(R.id.cancelRemoveBtn).setOnClickListener { dialog.dismiss() }
         dialogView.findViewById<Button>(R.id.confirmRemoveBtn).setOnClickListener {
-            FirebaseDatabase.getInstance().getReference("groups").child(currentUserId!!).child(group.getGroupId()!!).removeValue().addOnSuccessListener {
-                groupsContainer?.removeView(groupView)
-                groupViews?.remove(groupView)
-                payerGroups?.remove(group)
+            lifecycleScope.launch {
+                try {
+                    DeclareDatabase.groupsTable.delete {
+                        filter {
+                            eq("groupId", group.groupId!!)
+                        }
+                    }
+                    groupsContainer?.removeView(groupView)
+                    groupViews?.remove(groupView)
+                    payerGroups?.remove(group)
+                    if (selectedGroup?.groupId == group.groupId) {
+                        deselectGroup()
+                    }
+                } catch (e: Exception) {
+                    Log.e("Supabase", "Error deleting group: ${e.message}")
+                }
             }
             dialog.dismiss()
         }

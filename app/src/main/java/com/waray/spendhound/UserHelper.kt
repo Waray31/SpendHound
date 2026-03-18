@@ -186,6 +186,11 @@ object UserHelper {
         }
     }
 
+    fun updateCache(uid: String, username: String) {
+        uidToUsernameCache[uid] = username
+        usernameToUidCache[username] = uid
+    }
+
     fun getCachedUsername(uid: String?): String? = uidToUsernameCache[uid]
     fun getCachedUid(username: String?): String? = usernameToUidCache[username]
     fun clearCache() {
