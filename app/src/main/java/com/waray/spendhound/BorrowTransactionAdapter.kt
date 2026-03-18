@@ -5,70 +5,55 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.CheckBox
-import android.widget.CompoundButton
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 
 class BorrowTransactionAdapter(private val borrowTransactionList: ArrayList<BorrowTransaction>) :
-    RecyclerView.Adapter<BorrowTransactionAdapter.ViewHolder?>() {
-    val checkedPositions: ArrayList<Int?>
+    RecyclerView.Adapter<BorrowTransactionAdapter.ViewHolder>() {
+    val checkedPositions: ArrayList<Int> = ArrayList()
 
-    init {
-        checkedPositions = ArrayList<Int?>()
-    }
-
-    // Add this method to retrieve a BorrowTransaction by its position
     fun getBorrowTransaction(position: Int): BorrowTransaction? {
-        return borrowTransactionList.get(position)
+        return borrowTransactionList[position]
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val itemView = LayoutInflater.from(parent.getContext())
+        val itemView = LayoutInflater.from(parent.context)
             .inflate(R.layout.debt_rowcheckbox_layout, parent, false)
-        return BorrowTransactionAdapter.ViewHolder(itemView)
+        return ViewHolder(itemView)
     }
 
     override fun onBindViewHolder(holder: ViewHolder, @SuppressLint("RecyclerView") position: Int) {
-        val transaction = borrowTransactionList.get(position)
+        val transaction = borrowTransactionList[position]
 
-        // Bind data to the ViewHolder's views
-        holder.cbDebtDateTV.setText(transaction.getDate())
-        holder.cbDebtBorroweeTV.setText(transaction.getBorrowee())
-        holder.cbDebtAmountBorrowedTV.setText(CurrencyUtils.formatAmountWithCurrency(transaction.getBorrowedAmountStr()))
-        holder.cbDebtStatusTV.setText(transaction.getStatus())
+        holder.cbDebtDateTV.text = transaction.getDate()
+        holder.cbDebtBorroweeTV.text = transaction.getBorrowee()
+        holder.cbDebtAmountBorrowedTV.text = CurrencyUtils.formatAmountWithCurrency(transaction.getBorrowedAmountStr() ?: "")
+        holder.cbDebtStatusTV.text = transaction.getStatus()
 
-        // Set status color based on status value
         val status = transaction.getStatus()
-        val statusColor: Int
-        if ("Paid".equals(status, ignoreCase = true)) {
-            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.green)
+        val statusColor: Int = if ("Paid".equals(status, ignoreCase = true)) {
+            ContextCompat.getColor(holder.itemView.context, R.color.green)
         } else if ("Pending".equals(status, ignoreCase = true)) {
-            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.yellow)
+            ContextCompat.getColor(holder.itemView.context, R.color.yellow)
         } else if ("Paid Partially".equals(status, ignoreCase = true)) {
-            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.yellow)
+            ContextCompat.getColor(holder.itemView.context, R.color.yellow)
         } else {
-            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.red)
+            ContextCompat.getColor(holder.itemView.context, R.color.red)
         }
         holder.cbDebtStatusTV.setTextColor(statusColor)
 
-        // Set click listener for payCheckBox
-        holder.payCheckBox.setOnCheckedChangeListener(null) // To prevent triggering listener for recycled views
-        holder.payCheckBox.setChecked(checkedPositions.contains(position))
-        holder.payCheckBox.setOnCheckedChangeListener(object :
-            CompoundButton.OnCheckedChangeListener {
-            override fun onCheckedChanged(buttonView: CompoundButton?, isChecked: Boolean) {
-                if (isChecked) {
-                    // Add position to checkedPositions
-                    if (!checkedPositions.contains(position)) {
-                        checkedPositions.add(position)
-                    }
-                } else {
-                    // Remove position from checkedPositions
-                    checkedPositions.remove(position as Int?)
+        holder.payCheckBox.setOnCheckedChangeListener(null)
+        holder.payCheckBox.isChecked = checkedPositions.contains(position)
+        holder.payCheckBox.setOnCheckedChangeListener { _, isChecked ->
+            if (isChecked) {
+                if (!checkedPositions.contains(position)) {
+                    checkedPositions.add(position)
                 }
+            } else {
+                checkedPositions.remove(position)
             }
-        })
+        }
     }
 
     fun selectAll() {
@@ -88,19 +73,11 @@ class BorrowTransactionAdapter(private val borrowTransactionList: ArrayList<Borr
         return borrowTransactionList.size
     }
 
-    inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        var cbDebtDateTV: TextView
-        var cbDebtBorroweeTV: TextView
-        var cbDebtAmountBorrowedTV: TextView
-        var cbDebtStatusTV: TextView
-        var payCheckBox: CheckBox
-
-        init {
-            cbDebtDateTV = itemView.findViewById<TextView>(R.id.cbDebtDateTV)
-            cbDebtBorroweeTV = itemView.findViewById<TextView>(R.id.cbDebtBorroweeTV)
-            cbDebtAmountBorrowedTV = itemView.findViewById<TextView>(R.id.cbDebtAmountBorrowedTV)
-            cbDebtStatusTV = itemView.findViewById<TextView>(R.id.cbDebtStatusTV)
-            payCheckBox = itemView.findViewById<CheckBox>(R.id.payCheckBox)
-        }
+    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        var cbDebtDateTV: TextView = itemView.findViewById(R.id.cbDebtDateTV)
+        var cbDebtBorroweeTV: TextView = itemView.findViewById(R.id.cbDebtBorroweeTV)
+        var cbDebtAmountBorrowedTV: TextView = itemView.findViewById(R.id.cbDebtAmountBorrowedTV)
+        var cbDebtStatusTV: TextView = itemView.findViewById(R.id.cbDebtStatusTV)
+        var payCheckBox: CheckBox = itemView.findViewById(R.id.payCheckBox)
     }
 }
