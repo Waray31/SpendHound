@@ -1,10 +1,7 @@
 package com.waray.spendhound.ui.profile
 
-import android.annotation.SuppressLint
 import android.app.Activity
-import android.app.ProgressDialog
 import android.content.Context
-import android.content.DialogInterface
 import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
@@ -13,14 +10,12 @@ import android.os.Bundle
 import android.provider.MediaStore
 import android.util.Log
 import android.view.LayoutInflater
-import android.view.MenuItem
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.PopupMenu
 import android.widget.Spinner
 import android.widget.TextView
@@ -38,32 +33,18 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.ValueEventListener
-import com.waray.spendhound.BorrowNowTransaction
-import com.waray.spendhound.BorrowTransaction
 import com.waray.spendhound.BreakdownAdapter
 import com.waray.spendhound.BreakdownItem
 import com.waray.spendhound.CurrencyUtils
 import com.waray.spendhound.DeclareDatabase
 import com.waray.spendhound.LoginActivity
-import com.waray.spendhound.MigrationCallback
-import com.waray.spendhound.MigrationHelper
 import com.waray.spendhound.PayorAdapter
 import com.waray.spendhound.R
-import com.waray.spendhound.Transaction
 import io.github.jan.supabase.gotrue.Auth
-import io.github.jan.supabase.gotrue.auth
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
-import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Locale
-import java.util.Objects
 import kotlin.math.max
 
 class ProfileFragment : Fragment() {
@@ -78,11 +59,8 @@ class ProfileFragment : Fragment() {
     private var nicknameEditText: EditText? = null
     private var editNickname: ImageView? = null
     private var saveNickname: ImageView? = null
-    private val monthSpinner: Spinner? = null
     var mAuth: Auth? = null
-    var sortedMonths: MutableList<String?>? = null
     private var currentNickname: String? = ""
-    var monthYear: String? = null
     private var totalIndividualPayment = 0
     private var totalPaymentList = 0
     private var balance = 0
@@ -97,10 +75,9 @@ class ProfileFragment : Fragment() {
     private var balanceUnpaidDrawableTransparent: Drawable? = null
     private var oweDebtDrawableTransparent: Drawable? = null
     private var profileLogout: Button? = null
-    private var btnAdminSettings: Button? = null
     private var breakdownBtn: Button? = null
 
-    private var loadingOverlay_profile: View? = null
+    private var loadingOverlayProfile: View? = null
     private var pendingLoads = 0
 
     override fun onCreateView(
@@ -109,25 +86,24 @@ class ProfileFragment : Fragment() {
     ): View {
         val view: View = inflater.inflate(R.layout.fragment_profile, container, false)
 
-        loadingOverlay_profile = view.findViewById<View?>(R.id.loadingOverlay_profile)
-        loadingOverlay_profile?.visibility = View.VISIBLE
+        loadingOverlayProfile = view.findViewById(R.id.loadingOverlay_profile)
+        loadingOverlayProfile?.visibility = View.VISIBLE
 
-        profileImageView = view.findViewById<ImageView>(R.id.profileImageView)
-        nicknameTextView = view.findViewById<TextView>(R.id.nicknameTextView)
-        nicknameEditText = view.findViewById<EditText>(R.id.nicknameEditText)
-        editNickname = view.findViewById<ImageView>(R.id.editNickname)
-        saveNickname = view.findViewById<ImageView>(R.id.saveNickname)
-        totalBalancedTextView = view.findViewById<TextView>(R.id.totalBalancedTextView)
-        totalTextView = view.findViewById<TextView>(R.id.totalTextView)
-        balanceTextView = view.findViewById<TextView>(R.id.balanceTextView)
-        unpaidTextView = view.findViewById<TextView>(R.id.unpaidTextView)
-        oweTextView = view.findViewById<TextView>(R.id.oweTextView)
-        debtTextView = view.findViewById<TextView>(R.id.debtTextView)
-        balanceUnpaidLayout = view.findViewById<View>(R.id.balanceUnpaidLayout)
-        oweDebtLayout = view.findViewById<View>(R.id.oweDebtLayout)
-        profileLogout = view.findViewById<Button>(R.id.profileLogout)
-        btnAdminSettings = view.findViewById<Button>(R.id.btnAdminSettings)
-        breakdownBtn = view.findViewById<Button>(R.id.breakdown_btn)
+        profileImageView = view.findViewById(R.id.profileImageView)
+        nicknameTextView = view.findViewById(R.id.nicknameTextView)
+        nicknameEditText = view.findViewById(R.id.nicknameEditText)
+        editNickname = view.findViewById(R.id.editNickname)
+        saveNickname = view.findViewById(R.id.saveNickname)
+        totalBalancedTextView = view.findViewById(R.id.totalBalancedTextView)
+        totalTextView = view.findViewById(R.id.totalTextView)
+        balanceTextView = view.findViewById(R.id.balanceTextView)
+        unpaidTextView = view.findViewById(R.id.unpaidTextView)
+        oweTextView = view.findViewById(R.id.oweTextView)
+        debtTextView = view.findViewById(R.id.debtTextView)
+        balanceUnpaidLayout = view.findViewById(R.id.balanceUnpaidLayout)
+        oweDebtLayout = view.findViewById(R.id.oweDebtLayout)
+        profileLogout = view.findViewById(R.id.profileLogout)
+        breakdownBtn = view.findViewById(R.id.breakdown_btn)
 
         balanceUnpaidDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.round_border_glassy)
         balanceUnpaidDrawableTransparent = ContextCompat.getDrawable(requireContext(), R.drawable.transparent_background)
@@ -141,19 +117,15 @@ class ProfileFragment : Fragment() {
         mAuth = DeclareDatabase.auth
 
         profileImageView?.let { setProfileImage(it) }
-        loadNickname()
+        loadNicknameAndData()
         setupEditNickname()
         setupSaveNickname()
-        TotalBalanceUnpaid()
         setupUnpaidButton()
         setupBalanceButton()
         setupOweButton()
         setupDebtButton()
-        fetchDebt()
-        fetchOwe()
         setupProfileImageViewClick()
         setupProfileLogoutButton()
-        setupAdminSettingsButton()
         setupBreakdownButton()
 
         val activity: AppCompatActivity? = getActivity() as AppCompatActivity?
@@ -242,24 +214,28 @@ class ProfileFragment : Fragment() {
         }
     }
 
-    private fun loadNickname() {
+    private fun loadNicknameAndData() {
         showLoading()
         val currentUserID = mAuth?.currentUserOrNull()?.id ?: return hideLoading()
-        val usersRef = DeclareDatabase.getDatabaseReference().child(currentUserID)
-        usersRef.child("username").addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
-                if (dataSnapshot.exists()) {
-                    currentNickname = dataSnapshot.getValue(String::class.java)
-                    nicknameTextView?.text = currentNickname
-                }
+        lifecycleScope.launch {
+            try {
+                val users = DeclareDatabase.usersTable.select {
+                    filter { eq("id", currentUserID) }
+                }.decodeList<Map<String, Any>>()
+                val user = users.singleOrNull()
+                currentNickname = user?.get("username") as? String ?: ""
+                nicknameTextView?.text = currentNickname
+                
+                // Load other data that depends on nickname or userId
+                totalBalanceUnpaid()
+                fetchDebt()
+                fetchOwe()
+            } catch (e: Exception) {
+                Log.e("Supabase", "Error loading profile data: ${e.message}")
+            } finally {
                 hideLoading()
             }
-
-            override fun onCancelled(databaseError: DatabaseError) {
-                Log.e("FirebaseDatabase", "Database read error: " + databaseError.message)
-                hideLoading()
-            }
-        })
+        }
     }
 
     private fun switchToEditMode() {
@@ -283,117 +259,66 @@ class ProfileFragment : Fragment() {
         val updatedNickname = nicknameEditText?.text.toString()
         currentNickname = updatedNickname
         val userId = mAuth?.currentUserOrNull()?.id ?: return
-        val userRef = DeclareDatabase.getDatabaseReference().child(userId)
-        userRef.child("username").setValue(updatedNickname)
+        lifecycleScope.launch {
+            try {
+                DeclareDatabase.usersTable.update({
+                    set("username", updatedNickname)
+                }) {
+                    filter { eq("id", userId) }
+                }
+            } catch (e: Exception) {
+                Log.e("Supabase", "Error saving nickname: ${e.message}")
+            }
+        }
     }
 
     private fun fetchOwe() {
-        showLoading()
-        val databaseReference = DeclareDatabase.getDBRefBorrows()
-        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return hideLoading()
-
-        databaseReference.addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
-                currentOwe = 0
-                for (monthSnapshot in dataSnapshot.children) {
-                    for (daySnapshot in monthSnapshot.children) {
-                        for (borrowSnapshot in daySnapshot.children) {
-                            val borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction::class.java)
-                            if (borrowNowTransaction != null && borrowNowTransaction.getLenderID() == currentUserId) {
-                                try {
-                                    currentOwe += borrowNowTransaction.getBorrowedAmountStr().toInt()
-                                } catch (e: NumberFormatException) {
-                                    Log.e("ProfileFragment", "Error parsing amount: " + e.message)
-                                }
-                            }
-                        }
-                    }
-                }
-                hideLoading()
+        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
+        lifecycleScope.launch {
+            try {
+                val borrows = DeclareDatabase.borrowsTable.select {
+                    filter { eq("lender_id", currentUserId) }
+                }.decodeList<Map<String, Any>>()
+                currentOwe = borrows.sumOf { it["borrowed_amount"]?.toString()?.toDoubleOrNull()?.toInt() ?: 0 }
+            } catch (e: Exception) {
+                Log.e("Supabase", "Error fetching owe: ${e.message}")
             }
-
-            override fun onCancelled(databaseError: DatabaseError) {
-                Log.e("FirebaseDatabase", "Database error: " + databaseError.message)
-                hideLoading()
-            }
-        })
+        }
     }
 
     private fun fetchDebt() {
-        showLoading()
-        val databaseReference = DeclareDatabase.getDBRefBorrows()
-        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return hideLoading()
-
-        databaseReference.addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
-                currentDebt = 0
-                for (monthSnapshot in dataSnapshot.children) {
-                    for (daySnapshot in monthSnapshot.children) {
-                        for (borrowSnapshot in daySnapshot.children) {
-                            val borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction::class.java)
-                            if (borrowNowTransaction != null && borrowNowTransaction.getBorrowerID() == currentUserId) {
-                                try {
-                                    currentDebt += borrowNowTransaction.getBorrowedAmountStr().toInt()
-                                } catch (e: NumberFormatException) {
-                                    Log.e("ProfileFragment", "Error parsing amount: " + e.message)
-                                }
-                            }
-                        }
-                    }
-                }
-                hideLoading()
+        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
+        lifecycleScope.launch {
+            try {
+                val borrows = DeclareDatabase.borrowsTable.select {
+                    filter { eq("borrower_id", currentUserId) }
+                }.decodeList<Map<String, Any>>()
+                currentDebt = borrows.sumOf { it["borrowed_amount"]?.toString()?.toDoubleOrNull()?.toInt() ?: 0 }
+            } catch (e: Exception) {
+                Log.e("Supabase", "Error fetching debt: ${e.message}")
             }
-
-            override fun onCancelled(databaseError: DatabaseError) {
-                Log.e("FirebaseDatabase", "Database error: " + databaseError.message)
-                hideLoading()
-            }
-        })
+        }
     }
 
-    private fun TotalBalanceUnpaid() {
-        showLoading()
-        val transRef = DeclareDatabase.getDBRefTransaction()
-
-        transRef.addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
+    private fun totalBalanceUnpaid() {
+        lifecycleScope.launch {
+            try {
+                val transactions = DeclareDatabase.transactionsTable.select().decodeList<Map<String, Any>>()
                 totalIndividualPayment = 0
                 totalPaymentList = 0
 
-                for (monthSnapshot in dataSnapshot.children) {
-                    for (daySnapshot in monthSnapshot.children) {
-                        for (timeSnapshot in daySnapshot.children) {
-                            val transaction = timeSnapshot.getValue(Transaction::class.java) ?: continue
-                            val individualPayment = transaction.getTotalIndividualPayment()
-                            
-                            val payorsSnapshot = timeSnapshot.child("payorsList")
-                            var userIndex = -1
-                            var idx = 0
-                            for (payorSnapshot in payorsSnapshot.children) {
-                                val payorUsername = payorSnapshot.getValue(String::class.java)
-                                if (payorUsername == currentNickname) {
-                                    userIndex = idx
-                                    totalIndividualPayment += individualPayment.toInt()
-                                    break
-                                }
-                                idx++
-                            }
+                for (transaction in transactions) {
+                    val individualPayment = transaction["total_individual_payment"]?.toString()?.toDoubleOrNull()?.toInt() ?: 0
+                    val payorsList = transaction["payors_list"] as? List<String> ?: emptyList()
+                    val amountsPaidList = transaction["amounts_paid_list"] as? List<Int> ?: emptyList()
 
-                            if (userIndex != -1) {
-                                val amountsSnapshot = timeSnapshot.child("amountsPaidList")
-                                idx = 0
-                                for (amountSnapshot in amountsSnapshot.children) {
-                                    if (idx == userIndex) {
-                                        totalPaymentList += (amountSnapshot.getValue(Int::class.java) ?: 0)
-                                        break
-                                    }
-                                    idx++
-                                }
-                            }
-                        }
+                    val userIndex = payorsList.indexOf(currentNickname)
+                    if (userIndex != -1 && userIndex < amountsPaidList.size) {
+                        totalIndividualPayment += individualPayment
+                        totalPaymentList += amountsPaidList[userIndex]
                     }
                 }
-                
+
                 if (totalPaymentList > totalIndividualPayment) {
                     balance = totalPaymentList - totalIndividualPayment
                     unpaid = 0
@@ -404,14 +329,10 @@ class ProfileFragment : Fragment() {
 
                 totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(balance.toDouble())
                 totalTextView?.text = "Total Balance:"
-                hideLoading()
+            } catch (e: Exception) {
+                Log.e("Supabase", "Error fetching balance/unpaid: ${e.message}")
             }
-
-            override fun onCancelled(databaseError: DatabaseError) {
-                Log.e("FirebaseDatabase", "Database error: " + databaseError.message)
-                hideLoading()
-            }
-        })
+        }
     }
 
     private fun setupBalanceButton() {
@@ -640,63 +561,6 @@ class ProfileFragment : Fragment() {
         }
     }
 
-    private fun setupAdminSettingsButton() {
-        btnAdminSettings?.setOnClickListener { showAdminLoginDialog() }
-    }
-
-    private fun showAdminLoginDialog() {
-        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_admin_login, null)
-        val etUsername = dialogView.findViewById<EditText>(R.id.etAdminUsername)
-        val etPassword = dialogView.findViewById<EditText>(R.id.etAdminPassword)
-
-        AlertDialog.Builder(requireContext())
-            .setTitle("Admin Access")
-            .setView(dialogView)
-            .setPositiveButton("Login") { _, _ ->
-                val username = etUsername.text.toString().trim()
-                val password = etPassword.text.toString().trim()
-                if (username == "admin" && password == "admin") {
-                    showAdminPanelDialog()
-                } else {
-                    Toast.makeText(requireContext(), "Invalid credentials", Toast.LENGTH_SHORT).show()
-                }
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
-    private fun showAdminPanelDialog() {
-        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_admin_panel, null)
-        val btnRunMigration = dialogView.findViewById<Button>(R.id.btnRunMigration)
-        val btnMigrateBalances = dialogView.findViewById<Button>(R.id.btnMigrateBalances)
-        val btnMigrateBorrowIndex = dialogView.findViewById<Button>(R.id.btnMigrateBorrowIndex)
-        val btnMigrateExistingUsers = dialogView.findViewById<Button>(R.id.btnMigrateExistingUsers)
-        val tvStatus = dialogView.findViewById<TextView>(R.id.tvMigrationStatus)
-
-        val adminDialog = AlertDialog.Builder(requireContext())
-            .setTitle("Admin Panel")
-            .setView(dialogView)
-            .setNegativeButton("Close", null)
-            .create()
-
-        val callback = object : MigrationCallback {
-            override fun onComplete(migratedCount: Int) {
-                tvStatus.text = "Status: Migration complete! $migratedCount records."
-                Toast.makeText(requireContext(), "Migration complete", Toast.LENGTH_SHORT).show()
-            }
-            override fun onError(error: String?) {
-                tvStatus.text = "Status: Error - $error"
-            }
-        }
-
-        btnRunMigration.setOnClickListener { MigrationHelper.runAllMigrations(callback) }
-        btnMigrateBalances.setOnClickListener { MigrationHelper.migrateUserBalances(callback) }
-        btnMigrateBorrowIndex.setOnClickListener { MigrationHelper.migrateUserBorrowsIndex(callback) }
-        btnMigrateExistingUsers.setOnClickListener { MigrationHelper.migrateExistingUsers(callback) }
-
-        adminDialog.show()
-    }
-
     private fun setupBreakdownButton() {
         breakdownBtn?.setOnClickListener { showBreakdownDialog() }
     }
@@ -782,54 +646,37 @@ class ProfileFragment : Fragment() {
         recyclerView: RecyclerView, emptyStateLayout: View,
         emptyStateText: TextView, progressBar: View
     ) {
-        DeclareDatabase.getDBRefTransaction().addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
+        progressBar.visibility = View.VISIBLE
+        recyclerView.visibility = View.GONE
+        emptyStateLayout.visibility = View.GONE
+
+        lifecycleScope.launch {
+            try {
+                val transactions = DeclareDatabase.transactionsTable.select().decodeList<Map<String, Any>>()
                 items.clear()
-                for (monthSnapshot in dataSnapshot.children) {
-                    val monthKey = monthSnapshot.key
-                    for (daySnapshot in monthSnapshot.children) {
-                        val dayKey = daySnapshot.key
-                        val dateStr = if (dayKey != null && monthKey != null) "$monthKey $dayKey" else "Unknown Date"
-                        for (timeSnapshot in daySnapshot.children) {
-                            val transaction = timeSnapshot.getValue(Transaction::class.java) ?: continue
-                            val individualPayment = transaction.getTotalIndividualPayment()
-                            val payorsSnapshot = timeSnapshot.child("payorsList")
-                            var userIndex = -1
-                            var idx = 0
-                            for (payorSnapshot in payorsSnapshot.children) {
-                                if (payorSnapshot.getValue(String::class.java) == currentNickname) {
-                                    userIndex = idx
-                                    break
-                                }
-                                idx++
-                            }
-                            if (userIndex != -1) {
-                                val amountsSnapshot = timeSnapshot.child("amountsPaidList")
-                                idx = 0
-                                var userPayment = 0.0
-                                for (amountSnapshot in amountsSnapshot.children) {
-                                    if (idx == userIndex) {
-                                        userPayment = (amountSnapshot.getValue(Int::class.java) ?: 0).toDouble()
-                                        break
-                                    }
-                                    idx++
-                                }
-                                val transactionBalance = userPayment - individualPayment
-                                if (transactionBalance > 0) {
-                                    items.add(BreakdownItem(BreakdownItem.Category.BALANCE, dateStr, "Transaction", transactionBalance, "Completed", transaction.getTransactionType() ?: ""))
-                                }
-                            }
+                for (transaction in transactions) {
+                    val individualPayment = transaction["total_individual_payment"]?.toString()?.toDoubleOrNull()?.toInt() ?: 0
+                    val payorsList = transaction["payors_list"] as? List<String> ?: emptyList()
+                    val amountsPaidList = transaction["amounts_paid_list"] as? List<Int> ?: emptyList()
+                    val dateStr = transaction["date"]?.toString() ?: "Unknown Date"
+                    val transactionType = transaction["transaction_type"]?.toString() ?: ""
+
+                    val userIndex = payorsList.indexOf(currentNickname)
+                    if (userIndex != -1 && userIndex < amountsPaidList.size) {
+                        val userPayment = amountsPaidList[userIndex]
+                        val transactionBalance = userPayment - individualPayment
+                        if (transactionBalance > 0) {
+                            items.add(BreakdownItem(BreakdownItem.Category.BALANCE, dateStr, "Transaction", transactionBalance.toDouble(), "Completed", transactionType))
                         }
                     }
                 }
                 updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No balance transactions found")
-            }
-            override fun onCancelled(databaseError: DatabaseError) {
+            } catch (e: Exception) {
                 progressBar.visibility = View.GONE
                 emptyStateLayout.visibility = View.VISIBLE
                 emptyStateText.text = "Error loading data"
             }
-        })
+        }
     }
 
     private fun loadUnpaidBreakdown(
@@ -837,54 +684,37 @@ class ProfileFragment : Fragment() {
         recyclerView: RecyclerView, emptyStateLayout: View,
         emptyStateText: TextView, progressBar: View
     ) {
-        DeclareDatabase.getDBRefTransaction().addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
+        progressBar.visibility = View.VISIBLE
+        recyclerView.visibility = View.GONE
+        emptyStateLayout.visibility = View.GONE
+
+        lifecycleScope.launch {
+            try {
+                val transactions = DeclareDatabase.transactionsTable.select().decodeList<Map<String, Any>>()
                 items.clear()
-                for (monthSnapshot in dataSnapshot.children) {
-                    val monthKey = monthSnapshot.key
-                    for (daySnapshot in monthSnapshot.children) {
-                        val dayKey = daySnapshot.key
-                        val dateStr = if (dayKey != null && monthKey != null) "$monthKey $dayKey" else "Unknown Date"
-                        for (timeSnapshot in daySnapshot.children) {
-                            val transaction = timeSnapshot.getValue(Transaction::class.java) ?: continue
-                            val individualPayment = transaction.getTotalIndividualPayment()
-                            val payorsSnapshot = timeSnapshot.child("payorsList")
-                            var userIndex = -1
-                            var idx = 0
-                            for (payorSnapshot in payorsSnapshot.children) {
-                                if (payorSnapshot.getValue(String::class.java) == currentNickname) {
-                                    userIndex = idx
-                                    break
-                                }
-                                idx++
-                            }
-                            if (userIndex != -1) {
-                                val amountsSnapshot = timeSnapshot.child("amountsPaidList")
-                                idx = 0
-                                var userPayment = 0
-                                for (amountSnapshot in amountsSnapshot.children) {
-                                    if (idx == userIndex) {
-                                        userPayment = amountSnapshot.getValue(Int::class.java) ?: 0
-                                        break
-                                    }
-                                    idx++
-                                }
-                                val transactionUnpaid = individualPayment - userPayment
-                                if (transactionUnpaid > 0) {
-                                    items.add(BreakdownItem(BreakdownItem.Category.UNPAID, dateStr, "Transaction", transactionUnpaid, "Pending", transaction.getTransactionType() ?: ""))
-                                }
-                            }
+                for (transaction in transactions) {
+                    val individualPayment = transaction["total_individual_payment"]?.toString()?.toDoubleOrNull()?.toInt() ?: 0
+                    val payorsList = transaction["payors_list"] as? List<String> ?: emptyList()
+                    val amountsPaidList = transaction["amounts_paid_list"] as? List<Int> ?: emptyList()
+                    val dateStr = transaction["date"]?.toString() ?: "Unknown Date"
+                    val transactionType = transaction["transaction_type"]?.toString() ?: ""
+
+                    val userIndex = payorsList.indexOf(currentNickname)
+                    if (userIndex != -1 && userIndex < amountsPaidList.size) {
+                        val userPayment = amountsPaidList[userIndex]
+                        val transactionUnpaid = individualPayment - userPayment
+                        if (transactionUnpaid > 0) {
+                            items.add(BreakdownItem(BreakdownItem.Category.UNPAID, dateStr, "Transaction", transactionUnpaid.toDouble(), "Pending", transactionType))
                         }
                     }
                 }
                 updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No unpaid transactions found")
-            }
-            override fun onCancelled(databaseError: DatabaseError) {
+            } catch (e: Exception) {
                 progressBar.visibility = View.GONE
                 emptyStateLayout.visibility = View.VISIBLE
                 emptyStateText.text = "Error loading data"
             }
-        })
+        }
     }
 
     private fun loadOweBreakdown(
@@ -892,27 +722,31 @@ class ProfileFragment : Fragment() {
         recyclerView: RecyclerView, emptyStateLayout: View,
         emptyStateText: TextView, progressBar: View
     ) {
-        DeclareDatabase.getDBRefBorrows().addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
+        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
+        progressBar.visibility = View.VISIBLE
+        recyclerView.visibility = View.GONE
+        emptyStateLayout.visibility = View.GONE
+
+        lifecycleScope.launch {
+            try {
+                val borrows = DeclareDatabase.borrowsTable.select {
+                    filter { eq("lender_id", currentUserId) }
+                }.decodeList<Map<String, Any>>()
                 items.clear()
-                for (monthSnapshot in dataSnapshot.children) {
-                    for (daySnapshot in monthSnapshot.children) {
-                        for (borrowSnapshot in daySnapshot.children) {
-                            val bnt = borrowSnapshot.getValue(BorrowNowTransaction::class.java)
-                            if (bnt != null && bnt.getLenderID() == mAuth?.currentUserOrNull()?.id) {
-                                items.add(BreakdownItem(BreakdownItem.Category.OWE, bnt.getDate() ?: "Unknown Date", "From: ${bnt.getBorrowerName() ?: "Unknown"}", bnt.getBorrowedAmountStr().toDouble(), bnt.getStatus() ?: "Pending"))
-                            }
-                        }
-                    }
+                for (borrow in borrows) {
+                    val dateStr = borrow["date"]?.toString() ?: "Unknown Date"
+                    val borrowerName = borrow["borrower_name"]?.toString() ?: "Unknown"
+                    val borrowedAmount = borrow["borrowed_amount"]?.toString()?.toDoubleOrNull() ?: 0.0
+                    val status = borrow["status"]?.toString() ?: "Pending"
+                    items.add(BreakdownItem(BreakdownItem.Category.OWE, dateStr, "From: $borrowerName", borrowedAmount, status))
                 }
                 updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No owed amounts found")
-            }
-            override fun onCancelled(databaseError: DatabaseError) {
+            } catch (e: Exception) {
                 progressBar.visibility = View.GONE
                 emptyStateLayout.visibility = View.VISIBLE
                 emptyStateText.text = "Error loading data"
             }
-        })
+        }
     }
 
     private fun loadDebtBreakdown(
@@ -920,27 +754,31 @@ class ProfileFragment : Fragment() {
         recyclerView: RecyclerView, emptyStateLayout: View,
         emptyStateText: TextView, progressBar: View
     ) {
-        DeclareDatabase.getDBRefBorrows().addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
+        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
+        progressBar.visibility = View.VISIBLE
+        recyclerView.visibility = View.GONE
+        emptyStateLayout.visibility = View.GONE
+
+        lifecycleScope.launch {
+            try {
+                val borrows = DeclareDatabase.borrowsTable.select {
+                    filter { eq("borrower_id", currentUserId) }
+                }.decodeList<Map<String, Any>>()
                 items.clear()
-                for (monthSnapshot in dataSnapshot.children) {
-                    for (daySnapshot in monthSnapshot.children) {
-                        for (borrowSnapshot in daySnapshot.children) {
-                            val bnt = borrowSnapshot.getValue(BorrowNowTransaction::class.java)
-                            if (bnt != null && bnt.getBorrowerID() == mAuth?.currentUserOrNull()?.id) {
-                                items.add(BreakdownItem(BreakdownItem.Category.DEBT, bnt.getDate() ?: "Unknown Date", "To: ${bnt.getLender() ?: "Unknown"}", bnt.getBorrowedAmountStr().toDouble(), bnt.getStatus() ?: "Pending"))
-                            }
-                        }
-                    }
+                for (borrow in borrows) {
+                    val dateStr = borrow["date"]?.toString() ?: "Unknown Date"
+                    val lenderName = borrow["lender_name"]?.toString() ?: "Unknown"
+                    val borrowedAmount = borrow["borrowed_amount"]?.toString()?.toDoubleOrNull() ?: 0.0
+                    val status = borrow["status"]?.toString() ?: "Pending"
+                    items.add(BreakdownItem(BreakdownItem.Category.DEBT, dateStr, "To: $lenderName", borrowedAmount, status))
                 }
                 updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No debt found")
-            }
-            override fun onCancelled(databaseError: DatabaseError) {
+            } catch (e: Exception) {
                 progressBar.visibility = View.GONE
                 emptyStateLayout.visibility = View.VISIBLE
                 emptyStateText.text = "Error loading data"
             }
-        })
+        }
     }
 
     private fun updateBreakdownUI(
@@ -962,13 +800,13 @@ class ProfileFragment : Fragment() {
 
     private fun showLoading() {
         pendingLoads++
-        loadingOverlay_profile?.visibility = View.VISIBLE
+        loadingOverlayProfile?.visibility = View.VISIBLE
     }
 
     private fun hideLoading() {
         pendingLoads = max(0, pendingLoads - 1)
         if (pendingLoads == 0) {
-            loadingOverlay_profile?.visibility = View.GONE
+            loadingOverlayProfile?.visibility = View.GONE
         }
     }
 
