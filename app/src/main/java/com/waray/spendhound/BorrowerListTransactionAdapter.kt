@@ -1,44 +1,45 @@
 package com.waray.spendhound
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.ImageView
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
-import com.google.firebase.database.DataSnapshot
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import io.github.jan.supabase.postgrest.query.Columns
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class BorrowerListTransactionAdapter(
     private val context: Context?,
     private val transactionList: MutableList<BorrowerListTransaction>,
     private val pathList: MutableList<Array<String?>?>,
-    statusUpdatedListener: PendingStatusActivity?,
+    private val statusUpdatedListener: OnTransactionStatusUpdatedListener?,
     acceptAllBorrowerBtn: Button,
     declineAllBorrowerBtn: Button
-) : RecyclerView.Adapter<BorrowerListTransactionAdapter.ViewHolder?>() {
-    private val statusUpdatedListener: OnTransactionStatusUpdatedListener?
+) : RecyclerView.Adapter<BorrowerListTransactionAdapter.ViewHolder>() {
+    private val adapterScope = CoroutineScope(Dispatchers.Main)
 
     interface OnTransactionStatusUpdatedListener {
         fun onTransactionStatusUpdated()
     }
 
     init {
-        this.statusUpdatedListener = statusUpdatedListener
-
-        acceptAllBorrowerBtn.setOnClickListener(View.OnClickListener { v: View? ->
-            handleAllTransactions(
-                "Accept"
-            )
-        })
-        declineAllBorrowerBtn.setOnClickListener(View.OnClickListener { v: View? ->
-            handleAllTransactions(
-                "Decline"
-            )
-        })
-    }
-
-    fun getBorrowerListTransaction(position: Int): BorrowerListTransaction? {
-        return transactionList.get(position)
+        acceptAllBorrowerBtn.setOnClickListener {
+            handleAllTransactions("Accept")
+        }
+        declineAllBorrowerBtn.setOnClickListener {
+            handleAllTransactions("Decline")
+        }
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -48,38 +49,25 @@ class BorrowerListTransactionAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val transaction = transactionList.get(position)
-        holder.hoursAgoTV.setText(transaction.getDate())
-        holder.borrowerNameTV.setText(transaction.getBorrowee())
-        holder.amountBorrowedTV.setText(CurrencyUtils.formatAmountWithCurrency(transaction.getBorrowedAmountStr()))
+        val transaction = transactionList[position]
+        holder.hoursAgoTV.text = transaction.getDate()
+        holder.borrowerNameTV.text = transaction.getBorrowee()
+        holder.amountBorrowedTV.text = transaction.getBorrowedAmountStr()
 
-        // Set a placeholder image and a tag for the ImageView
         holder.borrowerImg.setImageResource(R.drawable.placeholder_profile_image)
-        holder.borrowerImg.setTag(transaction.getBorrowee())
+        holder.borrowerImg.tag = transaction.getBorrowee()
 
-        // Load the profile image asynchronously
         setProfileImage(holder.borrowerImg, transaction.getBorrowee())
 
-        holder.acceptBorrowerBtn.setOnClickListener(View.OnClickListener { v: View? ->
-            showConfirmationDialog(
-                "Accept",
-                transaction,
-                pathList.get(position)!!,
-                position
-            )
-        })
-        holder.declineBorrowerBtn.setOnClickListener(View.OnClickListener { v: View? ->
-            showConfirmationDialog(
-                "Decline",
-                transaction,
-                pathList.get(position)!!,
-                position
-            )
-        })
+        holder.acceptBorrowerBtn.setOnClickListener {
+            showConfirmationDialog("Accept", transaction, pathList[position]!!, position)
+        }
+        holder.declineBorrowerBtn.setOnClickListener {
+            showConfirmationDialog("Decline", transaction, pathList[position]!!, position)
+        }
     }
 
-    val itemCount: Int
-        get() = transactionList.size
+    override fun getItemCount(): Int = transactionList.size
 
     private fun showConfirmationDialog(
         action: String?,
@@ -87,31 +75,24 @@ class BorrowerListTransactionAdapter(
         path: Array<String?>,
         position: Int
     ) {
-        val inflater: LayoutInflater = LayoutInflater.from(context)
-        val dialogView: View = inflater.inflate(R.layout.dialog_borrowerlistconfirmation, null)
-
+        val dialogView: View = LayoutInflater.from(context).inflate(R.layout.dialog_borrowerlistconfirmation, null)
         val builder = AlertDialog.Builder(context!!)
         builder.setView(dialogView)
 
-        val confirmAction: TextView = dialogView.findViewById<TextView>(R.id.confirmAction)
+        val confirmAction: TextView = dialogView.findViewById(R.id.confirmAction)
         val payNowConfirmBtn = dialogView.findViewById<Button>(R.id.payNowConfirmBtn)
         val closeButton = dialogView.findViewById<Button>(R.id.closeButton)
 
-        confirmAction.setText(action)
-
+        confirmAction.text = action
         val dialog = builder.create()
 
-        payNowConfirmBtn.setOnClickListener(View.OnClickListener { v: View? ->
-            if ("Accept".equals(action, ignoreCase = true)) {
-                updateTransactionStatus(transaction, path, position, "Unpaid")
-            } else if ("Decline".equals(action, ignoreCase = true)) {
-                updateTransactionStatus(transaction, path, position, "Declined")
-            }
+        payNowConfirmBtn.setOnClickListener {
+            val status = if ("Accept".equals(action, ignoreCase = true)) "Unpaid" else "Declined"
+            updateTransactionStatus(transaction, path, position, status)
             dialog.dismiss()
-        })
+        }
 
-        closeButton.setOnClickListener(View.OnClickListener { v: View? -> dialog.dismiss() })
-
+        closeButton.setOnClickListener { dialog.dismiss() }
         dialog.show()
     }
 
@@ -122,189 +103,103 @@ class BorrowerListTransactionAdapter(
         position: Int,
         status: String?
     ) {
-        val userRef: DatabaseReference = FirebaseDatabase.getInstance().getReference("borrows")
-            .child(path[0]).child(path[1]).child(path[2]).child(path[3])
-
-        transaction.setStatus(status)
-        userRef.child("status").setValue(status)
-            .addOnSuccessListener({ aVoid ->
-                transactionList.set(position, transaction)
-                notifyDataSetChanged()
-                if (statusUpdatedListener != null) {
-                    statusUpdatedListener.onTransactionStatusUpdated()
+        val borrowId = path[2] ?: return
+        adapterScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    DeclareDatabase.borrowsTable.update({
+                        set("status", status)
+                    }) {
+                        filter { eq("borrowId", borrowId) }
+                    }
                 }
-            })
-            .addOnFailureListener({ e ->
-                Toast.makeText(
-                    context,
-                    "Failed to update status: " + e.getMessage(),
-                    Toast.LENGTH_SHORT
-                ).show()
-            })
-    }
-
-    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        var borrowerImg: ImageView
-        var hoursAgoTV: TextView
-        var borrowerNameTV: TextView
-        var amountBorrowedTV: TextView
-        var acceptBorrowerBtn: Button
-        var declineBorrowerBtn: Button
-        var acceptAllBorrowerBtn: Button
-        var declineAllBorrowerBtn: Button
-
-        init {
-            borrowerImg = itemView.findViewById<ImageView>(R.id.borrowerImg)
-            hoursAgoTV = itemView.findViewById<TextView>(R.id.hoursAgoTV)
-            borrowerNameTV = itemView.findViewById<TextView>(R.id.borrowerNameTV)
-            amountBorrowedTV = itemView.findViewById<TextView>(R.id.amountBorrowedTV)
-            acceptBorrowerBtn = itemView.findViewById<Button>(R.id.acceptBorrowerBtn)
-            declineBorrowerBtn = itemView.findViewById<Button>(R.id.declineBorrowerBtn)
-            acceptAllBorrowerBtn = itemView.findViewById<Button>(R.id.acceptAllBorrowerBtn)
-            declineAllBorrowerBtn = itemView.findViewById<Button>(R.id.declineAllBorrowerBtn)
+                transaction.setStatus(status)
+                transactionList[position] = transaction
+                notifyDataSetChanged()
+                statusUpdatedListener?.onTransactionStatusUpdated()
+            } catch (e: Exception) {
+                Log.e("BorrowerListTransactionAdapter", "Update failed", e)
+                Toast.makeText(context, "Update failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
     private fun handleAllTransactions(action: String) {
-        showAllConfirmationDialog(action, transactionList.get(0), pathList.get(0)!!, 0, true)
+        if (transactionList.isEmpty()) return
+        showAllConfirmationDialog(action)
     }
 
-    private fun showAllConfirmationDialog(
-        action: String,
-        transaction: BorrowerListTransaction,
-        path: Array<String?>,
-        position: Int,
-        isAll: Boolean
-    ) {
-        val inflater: LayoutInflater = LayoutInflater.from(context)
-        val dialogView: View = inflater.inflate(R.layout.dialog_borrowerlistconfirmation, null)
-
+    private fun showAllConfirmationDialog(action: String) {
+        val dialogView: View = LayoutInflater.from(context).inflate(R.layout.dialog_borrowerlistconfirmation, null)
         val builder = AlertDialog.Builder(context!!)
         builder.setView(dialogView)
 
-        val confirmAction: TextView = dialogView.findViewById<TextView>(R.id.confirmAction)
+        val confirmAction: TextView = dialogView.findViewById(R.id.confirmAction)
         val payNowConfirmBtn = dialogView.findViewById<Button>(R.id.payNowConfirmBtn)
         val closeButton = dialogView.findViewById<Button>(R.id.closeButton)
 
-        confirmAction.setText(action)
-
+        confirmAction.text = action
         val dialog = builder.create()
 
-        payNowConfirmBtn.setOnClickListener(View.OnClickListener { v: View? ->
-            if (isAll) {
-                updateAllTransactionStatus(if (action == "Accept") "Unpaid" else "Declined")
-            } else {
-                if ("Accept".equals(action, ignoreCase = true)) {
-                    updateTransactionStatus(transaction, path, position, "Unpaid")
-                } else if ("Decline".equals(action, ignoreCase = true)) {
-                    updateTransactionStatus(transaction, path, position, "Declined")
-                }
-            }
+        payNowConfirmBtn.setOnClickListener {
+            val status = if (action == "Accept") "Unpaid" else "Declined"
+            updateAllTransactionStatus(status)
             dialog.dismiss()
-        })
+        }
 
-        closeButton.setOnClickListener(View.OnClickListener { v: View? -> dialog.dismiss() })
-
+        closeButton.setOnClickListener { dialog.dismiss() }
         dialog.show()
     }
 
     @SuppressLint("NotifyDataSetChanged")
     private fun updateAllTransactionStatus(status: String?) {
-        for (i in transactionList.indices) {
-            val transaction = transactionList.get(i)
-            val path = pathList.get(i)!!
-            val index = i
-            val userRef: DatabaseReference = FirebaseDatabase.getInstance().getReference("borrows")
-                .child(path[0]).child(path[1]).child(path[2]).child(path[3])
-
-            transaction.setStatus(status)
-            userRef.child("status").setValue(status)
-                .addOnSuccessListener({ aVoid ->
-                    transactionList.set(index, transaction)
-                    if (index == transactionList.size - 1) {
-                        notifyDataSetChanged()
-                        if (statusUpdatedListener != null) {
-                            statusUpdatedListener.onTransactionStatusUpdated()
+        adapterScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    transactionList.indices.forEach { i ->
+                        val borrowId = pathList[i]?.get(2) ?: return@forEach
+                        DeclareDatabase.borrowsTable.update({
+                            set("status", status)
+                        }) {
+                            filter { eq("borrowId", borrowId) }
                         }
                     }
-                })
-                .addOnFailureListener({ e ->
-                    Toast.makeText(
-                        context,
-                        "Failed to update status: " + e.getMessage(),
-                        Toast.LENGTH_SHORT
-                    ).show()
-                })
+                }
+                transactionList.forEach { it.setStatus(status) }
+                notifyDataSetChanged()
+                statusUpdatedListener?.onTransactionStatusUpdated()
+            } catch (e: Exception) {
+                Log.e("BorrowerListTransactionAdapter", "Update all failed", e)
+                Toast.makeText(context, "Update failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
-    /*public void AcceptDeclineAllBtnClicked(){
-        acceptAllBorrowerBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                allTV.setVisibility(View.VISIBLE);
+    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val borrowerImg: ImageView = itemView.findViewById(R.id.borrowerImg)
+        val hoursAgoTV: TextView = itemView.findViewById(R.id.hoursAgoTV)
+        val borrowerNameTV: TextView = itemView.findViewById(R.id.borrowerNameTV)
+        val amountBorrowedTV: TextView = itemView.findViewById(R.id.amountBorrowedTV)
+        val acceptBorrowerBtn: Button = itemView.findViewById(R.id.acceptBorrowerBtn)
+        val declineBorrowerBtn: Button = itemView.findViewById(R.id.declineBorrowerBtn)
+    }
+
+    private fun setProfileImage(imageView: ImageView, borrowerName: String?) {
+        if (borrowerName == null) return
+        adapterScope.launch {
+            try {
+                val user = withContext(Dispatchers.IO) {
+                    DeclareDatabase.usersTable.select(Columns.list("profileImageUrl")) {
+                        filter { eq("username", borrowerName) }
+                    }.decodeSingleOrNull<User>()
+                }
+                val imageUrl = user?.profileImageUrl
+                if (imageUrl != null && borrowerName == imageView.tag && context != null) {
+                    Glide.with(context).load(imageUrl).placeholder(R.drawable.placeholder_profile_image).into(imageView)
+                }
+            } catch (e: Exception) {
+                Log.e("BorrowerListTransactionAdapter", "Profile image error", e)
             }
-        });
-        declineAllBorrowerBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                allTV.setVisibility(View.VISIBLE);
-            }
-        });
-    }*/
-    private fun setProfileImage(imageView: ImageView?, borrowerNameTV: String?) {
-        if (imageView == null || borrowerNameTV == null) {
-            Log.e("BorrowerListTransactionAdapter", "ImageView or borrowerNameTV is null.")
-            return
         }
-
-        val usersRef: DatabaseReference = FirebaseDatabase.getInstance().getReference("users")
-        val query: Query = usersRef.orderByChild("username").equalTo(borrowerNameTV)
-
-        query.addListenerForSingleValueEvent(object : ValueEventListener() {
-            public override fun onDataChange(dataSnapshot: DataSnapshot) {
-                if (dataSnapshot.exists()) {
-                    for (userSnapshot in dataSnapshot.getChildren()) {
-                        val userId: String? =
-                            userSnapshot.getKey() // Assuming the key is the userId
-                        if (userId != null) {
-                            val storageRef: StorageReference =
-                                FirebaseStorage.getInstance().getReference("profile_images")
-                                    .child(userId)
-                            storageRef.getDownloadUrl().addOnSuccessListener({ uri ->
-                                // Check if the tag is still valid before loading the image
-                                if (borrowerNameTV == imageView.getTag() && context != null) {
-                                    Glide.with(context).load(uri)
-                                        .placeholder(R.drawable.placeholder_profile_image)
-                                        .into(imageView)
-                                }
-                            }).addOnFailureListener({ e ->
-                                Log.e(
-                                    "FirebaseStorage",
-                                    "Failed to get download URL: " + e.getMessage()
-                                )
-                                if (borrowerNameTV == imageView.getTag()) {
-                                    imageView.setImageResource(R.drawable.placeholder_profile_image) // default image
-                                }
-                            })
-                        }
-                    }
-                } else {
-                    if (borrowerNameTV == imageView.getTag()) {
-                        imageView.setImageResource(R.drawable.placeholder_profile_image) // default image
-                    }
-                }
-            }
-
-            public override fun onCancelled(databaseError: DatabaseError) {
-                Log.e(
-                    "FirebaseDatabase",
-                    "Profile image query cancelled: " + databaseError.getMessage()
-                )
-                if (borrowerNameTV == imageView.getTag()) {
-                    imageView.setImageResource(R.drawable.placeholder_profile_image) // default image
-                }
-            }
-        })
     }
 }

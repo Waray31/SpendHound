@@ -13,14 +13,15 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.ValueEventListener
 import io.github.jan.supabase.gotrue.Auth
-import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Columns
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class PendingStatusActivity : AppCompatActivity(),
     BorrowerListTransactionAdapter.OnTransactionStatusUpdatedListener,
@@ -44,10 +45,10 @@ class PendingStatusActivity : AppCompatActivity(),
     private var payerListRecyclerView: RecyclerView? = null
     private var adapter: BorrowerListTransactionAdapter? = null
     private var adapterPayer: PayerListTransactionAdapter? = null
-    private var borrowerListTransactions: MutableList<BorrowerListTransaction?>? = null
-    private var payerListTransactions: MutableList<BorrowerListTransaction?>? = null
-    private var borrowerListPath: MutableList<Array<String?>?>? = null
-    private var payerListPath: MutableList<Array<String?>?>? = null
+    private var borrowerListTransactions: MutableList<BorrowerListTransaction> = ArrayList()
+    private var payerListTransactions: MutableList<BorrowerListTransaction> = ArrayList()
+    private var borrowerListPath: MutableList<Array<String?>?> = ArrayList()
+    private var payerListPath: MutableList<Array<String?>?> = ArrayList()
     private var mAuth: Auth? = null
 
     var acceptAllBorrowerBtn: Button? = null
@@ -137,49 +138,44 @@ class PendingStatusActivity : AppCompatActivity(),
     }
 
     private fun fetchBorrowerList() {
-        borrowerListTransactions = ArrayList()
-        borrowerListPath = ArrayList()
-
         val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
-        val databaseReference = DeclareDatabase.getDBRefBorrows()
         
-        databaseReference.addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
-                for (monthSnapshot in dataSnapshot.children) {
-                    val month = monthSnapshot.key
-                    for (daySnapshot in monthSnapshot.children) {
-                        val day = daySnapshot.key
-                        for (borrowSnapshot in daySnapshot.children) {
-                            val borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction::class.java)
-
-                            if (borrowNowTransaction?.getLenderID() == currentUserId) {
-                                val status = borrowNowTransaction.getStatus()
-                                if (status == "For Lender Approval") {
-                                    val borrowId = borrowNowTransaction.getBorrowId()
-                                    val borrowerName = borrowNowTransaction.getBorrowerName() ?: "Unknown"
-                                    val borrowedAmountStr = CurrencyUtils.formatAmountWithCurrency(borrowNowTransaction.getBorrowedAmountStr())
-                                    val timeDifferenceStr = calculateTimeDifference(borrowNowTransaction.getTimestamp())
-
-                                    borrowerListTransactions?.add(BorrowerListTransaction(timeDifferenceStr, borrowerName, borrowedAmountStr, status))
-                                    borrowerListPath?.add(arrayOf(month, day, borrowId, ""))
-                                }
-                            }
+        lifecycleScope.launch {
+            try {
+                val results = withContext(Dispatchers.IO) {
+                    DeclareDatabase.borrowsTable.select {
+                        filter {
+                            eq("lenderID", currentUserId)
+                            eq("status", "For Lender Approval")
                         }
-                    }
+                    }.decodeList<BorrowNowTransaction>()
                 }
-                
-                adapter = BorrowerListTransactionAdapter(this@PendingStatusActivity, borrowerListTransactions, borrowerListPath, this@PendingStatusActivity, acceptAllBorrowerBtn, declineAllBorrowerBtn)
+
+                borrowerListTransactions.clear()
+                borrowerListPath.clear()
+
+                for (bnt in results) {
+                    val borrowId = bnt.borrowId ?: ""
+                    val borrowerName = bnt.borrowerName ?: "Unknown"
+                    val borrowedAmountStr = CurrencyUtils.formatAmountWithCurrency(bnt.borrowedAmount ?: 0.0)
+                    val timeDifferenceStr = calculateTimeDifference(bnt.timestamp)
+
+                    borrowerListTransactions.add(BorrowerListTransaction(timeDifferenceStr, borrowerName, borrowedAmountStr, bnt.status))
+                    borrowerListPath.add(arrayOf("", "", borrowId, ""))
+                }
+
+                adapter = BorrowerListTransactionAdapter(this@PendingStatusActivity, borrowerListTransactions, borrowerListPath, this@PendingStatusActivity, acceptAllBorrowerBtn!!, declineAllBorrowerBtn!!)
                 borrowerListRecyclerView = findViewById(R.id.borrowerListRecyclerView)
                 borrowerListRecyclerView?.adapter = adapter
                 borrowerListRecyclerView?.layoutManager = LinearLayoutManager(this@PendingStatusActivity)
                 
-                borrowerNum = borrowerListTransactions?.size ?: 0
+                borrowerNum = borrowerListTransactions.size
                 updateBorrowerButtons(borrowerNum >= 2)
+            } catch (e: Exception) {
+                Log.e("Supabase", "Error fetching borrower list", e)
+                showToast("Error fetching borrower list")
             }
-            override fun onCancelled(databaseError: DatabaseError) {
-                Log.e("FirebaseDatabase", "Database read error: " + databaseError.message)
-            }
-        })
+        }
     }
 
     private fun updateBorrowerButtons(enabled: Boolean) {
@@ -205,48 +201,44 @@ class PendingStatusActivity : AppCompatActivity(),
     }
 
     private fun fetchPayerList() {
-        payerListTransactions = ArrayList()
-        payerListPath = ArrayList()
-
         val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
-        val databaseReference = DeclareDatabase.getDBRefBorrows()
-        
-        databaseReference.addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
-                for (monthSnapshot in dataSnapshot.children) {
-                    val month = monthSnapshot.key
-                    for (daySnapshot in monthSnapshot.children) {
-                        val day = daySnapshot.key
-                        for (borrowSnapshot in daySnapshot.children) {
-                            val bnt = borrowSnapshot.getValue(BorrowNowTransaction::class.java)
 
-                            if (bnt?.getLenderID() == currentUserId) {
-                                val status = bnt.getStatus()
-                                if (status == "Payment Pending") {
-                                    val borrowId = bnt.getBorrowId()
-                                    val borrowerName = bnt.getBorrowerName() ?: "Unknown"
-                                    val borrowedAmountStr = CurrencyUtils.formatAmountWithCurrency(bnt.getBorrowedAmountStr())
-                                    val timeDifferenceStr = calculateTimeDifference(bnt.getTimestamp())
-
-                                    payerListTransactions?.add(BorrowerListTransaction(timeDifferenceStr, borrowerName, borrowedAmountStr, status))
-                                    payerListPath?.add(arrayOf(month, day, borrowId, ""))
-                                }
-                            }
+        lifecycleScope.launch {
+            try {
+                val results = withContext(Dispatchers.IO) {
+                    DeclareDatabase.borrowsTable.select {
+                        filter {
+                            eq("lenderID", currentUserId)
+                            eq("status", "Payment Pending")
                         }
-                    }
+                    }.decodeList<BorrowNowTransaction>()
                 }
-                adapterPayer = PayerListTransactionAdapter(this@PendingStatusActivity, payerListTransactions, payerListPath, this@PendingStatusActivity, confirmAllPayerBtn, denyAllPayerBtn)
+
+                payerListTransactions.clear()
+                payerListPath.clear()
+
+                for (bnt in results) {
+                    val borrowId = bnt.borrowId ?: ""
+                    val borrowerName = bnt.borrowerName ?: "Unknown"
+                    val borrowedAmountStr = CurrencyUtils.formatAmountWithCurrency(bnt.borrowedAmount ?: 0.0)
+                    val timeDifferenceStr = calculateTimeDifference(bnt.timestamp)
+
+                    payerListTransactions.add(BorrowerListTransaction(timeDifferenceStr, borrowerName, borrowedAmountStr, bnt.status))
+                    payerListPath.add(arrayOf("", "", borrowId, ""))
+                }
+
+                adapterPayer = PayerListTransactionAdapter(this@PendingStatusActivity, payerListTransactions, payerListPath, this@PendingStatusActivity, confirmAllPayerBtn!!, denyAllPayerBtn!!)
                 payerListRecyclerView = findViewById(R.id.payerListRecyclerView)
                 payerListRecyclerView?.adapter = adapterPayer
                 payerListRecyclerView?.layoutManager = LinearLayoutManager(this@PendingStatusActivity)
                 
-                payerNum = payerListTransactions?.size ?: 0
+                payerNum = payerListTransactions.size
                 updatePayerButtons(payerNum >= 2)
+            } catch (e: Exception) {
+                Log.e("Supabase", "Error fetching payer list", e)
+                showToast("Error fetching payer list")
             }
-            override fun onCancelled(databaseError: DatabaseError) {
-                Log.e("FirebaseDatabase", "Database read error: " + databaseError.message)
-            }
-        })
+        }
     }
 
     private fun updatePayerButtons(enabled: Boolean) {
@@ -265,6 +257,7 @@ class PendingStatusActivity : AppCompatActivity(),
 
     override fun onTransactionStatusUpdated() {
         fetchBorrowerList()
+        fetchPayerList()
     }
 
     fun showToast(message: String?) {
