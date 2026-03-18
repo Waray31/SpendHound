@@ -1,13 +1,16 @@
 package com.waray.spendhound
 
+import kotlinx.serialization.Serializable
+
+@Serializable
 class BorrowNowTransaction {
     var borrowId: String? = null
     var borrowerID: String? = null
     var lenderID: String? = null
     var borrowerName: String? = null
-    var date: Long? = null // changed from String? to Long?
+    var date: Long? = null
     var lender: String? = null
-    var borrowedAmount: Double? = null // changed from borrowedAmountStr: String?
+    var borrowedAmount: Double? = null
     var status: String? = null
     var timestamp: Long = 0
     var paymentSentDate: Long = 0
@@ -55,7 +58,7 @@ class BorrowNowTransaction {
         this.timestamp = System.currentTimeMillis()
     }
 
-    // Getters aligned with database schema
+    // Getters
     fun getBorrowId(): String? = borrowId
     fun getBorrowerID(): String? = borrowerID
     fun getLenderID(): String? = lenderID
@@ -68,7 +71,7 @@ class BorrowNowTransaction {
     fun getPaymentSentDate(): Long = paymentSentDate
     fun getMonthYear(): String? = month_year
 
-    // Setters aligned with database schema
+    // Setters
     fun setBorrowId(id: String?) {
         this.borrowId = id
     }

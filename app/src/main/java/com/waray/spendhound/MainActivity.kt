@@ -6,6 +6,7 @@ import android.app.Dialog
 import android.content.Intent
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -20,9 +21,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.NavController
-import androidx.navigation.NavDestination
-import androidx.navigation.NavHostFragment
+import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.NavigationUI.onNavDestinationSelected
 import androidx.navigation.ui.NavigationUI.setupWithNavController
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -32,18 +31,13 @@ import androidx.recyclerview.widget.SnapHelper
 import com.google.android.material.behavior.HideBottomViewOnScrollBehavior
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.google.android.material.navigation.NavigationBarView
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
 import io.github.jan.supabase.gotrue.Auth
-import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
     var navView: BottomNavigationView? = null
@@ -76,14 +70,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     interface CurrentNicknameCallback {
-        fun onCurrentNicknameReceived(CurrentNickname: String?)
+        fun onCurrentNicknameReceived(currentNickname: String?)
     }
 
     fun isUserInvolved(
         transaction: Transaction?,
         usernameOrUid: String?
     ): Boolean {
-        if (transaction == null || usernameOrUid == null || usernameOrUid.isEmpty()) return false
+        if (transaction == null || usernameOrUid.isNullOrEmpty()) return false
         val currentUid = mAuth?.currentUserOrNull()?.id
         if (transaction.isUserInvolvedByUid(currentUid)) return true
         if (usernameOrUid == transaction.getUsernamePost()) return true
@@ -106,7 +100,6 @@ class MainActivity : AppCompatActivity() {
 
         val currentUserId = mAuth?.currentUserOrNull()?.id
         BalanceHelper.ensureBalancesExist(currentUserId, null)
-        BalanceHelper.ensureUserBorrowsExist(currentUserId, null)
 
         getCurrentNickname { nickname -> }
 
@@ -114,8 +107,8 @@ class MainActivity : AppCompatActivity() {
         val recyclerView: RecyclerView? = findViewById(R.id.transactionListRecycler)
         recentTransactionList = ArrayList()
         recentTransactionAdapter = RecentTransactionAdapter(
-            recentTransactionList,
-            OnTransactionClickListener { transaction ->
+            recentTransactionList as ArrayList<RecentTransaction>,
+            RecentTransactionAdapter.OnTransactionClickListener { transaction ->
                 this.onTransactionTap(transaction!!)
             })
         if (recyclerView != null) {
@@ -333,7 +326,7 @@ class MainActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             try {
-                val amount = amountStr.toInt()
+                val amount = amountStr.toDouble()
                 if (amount <= 0) {
                     Toast.makeText(this, "Please enter a valid amount", Toast.LENGTH_SHORT).show()
                     return@setOnClickListener
@@ -343,8 +336,8 @@ class MainActivity : AppCompatActivity() {
                 dialogProgressBar?.visibility = View.VISIBLE
                 addBorrowTransaction(
                     selectedLenderName,
-                    amount.toString(),
-                    dateTV.text.toString(),
+                    amount,
+                    calendar.timeInMillis,
                     dialog,
                     dialogProgressBar,
                     borrowBtn,
@@ -419,49 +412,48 @@ class MainActivity : AppCompatActivity() {
         recyclerView: RecyclerView,
         dialogProgressBar: View?
     ) {
-        FirebaseDatabase.getInstance().getReference("users")
-            .addListenerForSingleValueEvent(object : ValueEventListener() {
-                override fun onDataChange(dataSnapshot: DataSnapshot) {
-                    lenders.clear()
-                    lenders.add(User("", "", "", UserBalance()))
-                    lenders.add(User("", "", "", UserBalance()))
-                    for (userSnapshot in dataSnapshot.children) {
-                        val user = userSnapshot.getValue(User::class.java)
-                        if (user != null && user.username != null && user.username != currentNickname) {
-                            user.id = userSnapshot.key
-                            lenders.add(user)
-                        }
+        lifecycleScope.launch {
+            try {
+                val users = DeclareDatabase.usersTable.select().decodeList<User>()
+                lenders.clear()
+                // Padding for snapping
+                lenders.add(User("", "", "", UserBalance()))
+                lenders.add(User("", "", "", UserBalance()))
+                
+                for (user in users) {
+                    if (user.username != null && user.username != currentNickname) {
+                        lenders.add(user)
                     }
-                    lenders.add(User("", "", "", UserBalance()))
-                    lenders.add(User("", "", "", UserBalance()))
-                    adapter.notifyDataSetChanged()
-
-                    adapter.preloadAllImages(this@MainActivity) {
-                        runOnUiThread {
-                            dialogProgressBar?.visibility = View.GONE
-                            if (lenders.size > 2) {
-                                recyclerView.scrollToPosition(2)
-                                recyclerView.post {
-                                    val firstUser = adapter.getLenderAt(2)
-                                    firstUser?.let { selectedLenderName = it.username ?: "" }
-                                    updateLayoutEffect(recyclerView)
-                                }
+                }
+                
+                lenders.add(User("", "", "", UserBalance()))
+                lenders.add(User("", "", "", UserBalance()))
+                
+                adapter.notifyDataSetChanged()
+                adapter.preloadAllImages(this@MainActivity) {
+                    runOnUiThread {
+                        dialogProgressBar?.visibility = View.GONE
+                        if (lenders.size > 2) {
+                            recyclerView.scrollToPosition(2)
+                            recyclerView.post {
+                                val firstUser = adapter.getLenderAt(2)
+                                firstUser?.let { selectedLenderName = it.username ?: "" }
+                                updateLayoutEffect(recyclerView)
                             }
                         }
                     }
                 }
-
-                override fun onCancelled(databaseError: DatabaseError) {
-                    android.util.Log.e("MainActivity", "Database error: " + databaseError.message)
-                    dialogProgressBar?.visibility = View.GONE
-                }
-            })
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error loading lenders: " + e.message)
+                dialogProgressBar?.visibility = View.GONE
+            }
+        }
     }
 
     private fun addBorrowTransaction(
         lender: String,
-        borrowedAmountStr: String,
-        currentDate: String?,
+        borrowedAmount: Double,
+        date: Long,
         dialog: Dialog,
         dialogProgressBar: View?,
         borrowBtn: Button,
@@ -469,17 +461,9 @@ class MainActivity : AppCompatActivity() {
     ) {
         val calendar = Calendar.getInstance()
         val currentMonthYear = SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(calendar.time)
-        val currentDay = SimpleDateFormat("dd", Locale.getDefault()).format(calendar.time)
         val timestamp = System.currentTimeMillis()
-        val dayRef = DeclareDatabase.getDBRefBorrows().child(currentMonthYear).child(currentDay)
-        val borrowId = dayRef.push().key
-        if (borrowId == null) {
-            Toast.makeText(this, "Failed to generate borrow ID", Toast.LENGTH_SHORT).show()
-            dialogProgressBar?.visibility = View.GONE
-            borrowBtn.isEnabled = true
-            cancelBtn.isEnabled = true
-            return
-        }
+        val borrowId = UUID.randomUUID().toString()
+        
         val currentUserId = mAuth?.currentUserOrNull()?.id
         if (currentUserId != null) {
             getUserIDByName(lender) { lenderID ->
@@ -492,36 +476,41 @@ class MainActivity : AppCompatActivity() {
                     }
                     return@getUserIDByName
                 }
+                
                 val borrowNowTransaction = BorrowNowTransaction(
                     borrowId,
                     currentUserId,
                     lenderID,
                     currentNickname,
-                    currentDate,
+                    date,
                     lender,
-                    borrowedAmountStr,
+                    borrowedAmount,
                     "For Lender Approval",
                     timestamp
                 )
-                dayRef.child(borrowId).setValue(borrowNowTransaction)
-                    .addOnSuccessListener {
-                        BalanceHelper.addBorrowerEntry(currentUserId, borrowId, null)
-                        BalanceHelper.addLenderEntry(lenderID, borrowId, null)
-                        val amount = borrowedAmountStr.toInt()
-                        BalanceHelper.updateTotaldebt(currentUserId, amount, null)
-                        BalanceHelper.updateTotalreceivable(lenderID, amount, null)
+                borrowNowTransaction.setMonthYear(currentMonthYear)
+
+                lifecycleScope.launch {
+                    try {
+                        DeclareDatabase.borrowsTable.insert(borrowNowTransaction)
+                        
+                        BalanceHelper.updateTotaldebt(currentUserId, borrowedAmount, null)
+                        BalanceHelper.updateTotalreceivable(lenderID, borrowedAmount, null)
+                        
                         runOnUiThread {
-                            Toast.makeText(this, "Borrowed successfully", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@MainActivity, "Borrowed successfully", Toast.LENGTH_SHORT).show()
                             dialog.dismiss()
                         }
-                    }.addOnFailureListener {
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "Failed to borrow: ${e.message}")
                         runOnUiThread {
-                            Toast.makeText(this, "Failed to Borrow", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(this@MainActivity, "Failed to Borrow", Toast.LENGTH_SHORT).show()
                             dialogProgressBar?.visibility = View.GONE
                             borrowBtn.isEnabled = true
                             cancelBtn.isEnabled = true
                         }
                     }
+                }
             }
         }
     }
@@ -530,87 +519,81 @@ class MainActivity : AppCompatActivity() {
         name: String,
         callback: (String?) -> Unit
     ) {
-        FirebaseDatabase.getInstance().getReference("users")
-            .addListenerForSingleValueEvent(object : ValueEventListener() {
-                override fun onDataChange(dataSnapshot: DataSnapshot) {
-                    for (userSnapshot in dataSnapshot.children) {
-                        if (name == userSnapshot.child("username").getValue(String::class.java)) {
-                            callback(userSnapshot.key)
-                            return
-                        }
-                    }
-                    callback(null)
-                }
-
-                override fun onCancelled(databaseError: DatabaseError) {
-                    callback(null)
-                }
-            })
+        lifecycleScope.launch {
+            try {
+                val user = DeclareDatabase.usersTable.select(Columns.list("id")) {
+                    filter { eq("username", name) }
+                }.decodeSingleOrNull<User>()
+                callback(user?.id)
+            } catch (e: Exception) {
+                callback(null)
+            }
+        }
     }
 
     private fun showCreateGroupDialog() {
-        FirebaseDatabase.getInstance().getReference("users")
-            .addListenerForSingleValueEvent(object : ValueEventListener() {
-                override fun onDataChange(dataSnapshot: DataSnapshot) {
-                    val usernamesList: MutableList<String?> = ArrayList()
-                    val userIdsList: MutableList<String?> = ArrayList()
-                    val currentUserId = mAuth?.currentUserOrNull()?.id
-                    for (userSnapshot in dataSnapshot.children) {
-                        val username = userSnapshot.child("username").getValue(String::class.java)
-                        val uid = userSnapshot.key
-                        if (username != null && uid != null && uid != currentUserId) {
-                            usernamesList.add(username)
-                            userIdsList.add(uid)
-                        }
+        lifecycleScope.launch {
+            try {
+                val users = DeclareDatabase.usersTable.select().decodeList<User>()
+                val usernamesList: MutableList<String?> = ArrayList()
+                val userIdsList: MutableList<String?> = ArrayList()
+                val currentUserId = mAuth?.currentUserOrNull()?.id
+                
+                for (user in users) {
+                    if (user.username != null && user.id != null && user.id != currentUserId) {
+                        usernamesList.add(user.username)
+                        userIdsList.add(user.id)
                     }
-                    val builder = android.app.AlertDialog.Builder(this@MainActivity)
-                    val dialogView = LayoutInflater.from(this@MainActivity).inflate(R.layout.dialog_create_group, null)
-                    builder.setView(dialogView)
-                    val dialog = builder.create()
-                    val groupNameEditText: EditText = dialogView.findViewById(R.id.groupNameEditText)
-                    val usersCheckboxContainer: LinearLayout = dialogView.findViewById(R.id.usersCheckboxContainer)
-                    val cancelBtn = dialogView.findViewById<Button>(R.id.cancelGroupBtn)
-                    val createBtn = dialogView.findViewById<Button>(R.id.createGroupBtn)
-                    val checkBoxes: MutableList<CheckBox> = ArrayList()
-                    for (username in usernamesList) {
-                        val checkBox = CheckBox(this@MainActivity)
-                        checkBox.text = username
-                        checkBox.setTextColor(resources.getColor(R.color.darkBlue))
-                        checkBox.setPadding(8, 8, 8, 8)
-                        checkBoxes.add(checkBox)
-                        usersCheckboxContainer.addView(checkBox)
-                    }
-                    cancelBtn.setOnClickListener { dialog.dismiss() }
-                    createBtn.setOnClickListener {
-                        val groupName = groupNameEditText.text.toString().trim()
-                        if (groupName.isEmpty()) {
-                            Toast.makeText(this@MainActivity, "Please enter a group name", Toast.LENGTH_SHORT).show()
-                            return@setOnClickListener
-                        }
-                        val selectedMemberUids: MutableList<String?> = ArrayList()
-                        val selectedMemberDisplayNames: MutableList<String?> = ArrayList()
-                        selectedMemberUids.add(currentUserId)
-                        selectedMemberDisplayNames.add(if (currentNickname?.isEmpty() == true) "Me" else currentNickname)
-                        for (i in checkBoxes.indices) {
-                            if (checkBoxes[i].isChecked) {
-                                selectedMemberUids.add(userIdsList[i])
-                                selectedMemberDisplayNames.add(usernamesList[i])
-                            }
-                        }
-                        if (selectedMemberUids.size <= 1) {
-                            Toast.makeText(this@MainActivity, "Please select at least one member", Toast.LENGTH_SHORT).show()
-                            return@setOnClickListener
-                        }
-                        saveGroupToDatabase(groupName, selectedMemberUids, selectedMemberDisplayNames, currentUserId)
-                        dialog.dismiss()
-                    }
-                    dialog.show()
                 }
 
-                override fun onCancelled(databaseError: DatabaseError) {
-                    Toast.makeText(this@MainActivity, "Failed to load users", Toast.LENGTH_SHORT).show()
+                val builder = android.app.AlertDialog.Builder(this@MainActivity)
+                val dialogView = LayoutInflater.from(this@MainActivity).inflate(R.layout.dialog_create_group, null)
+                builder.setView(dialogView)
+                val dialog = builder.create()
+                val groupNameEditText: EditText = dialogView.findViewById(R.id.groupNameEditText)
+                val usersCheckboxContainer: LinearLayout = dialogView.findViewById(R.id.usersCheckboxContainer)
+                val cancelBtn = dialogView.findViewById<Button>(R.id.cancelGroupBtn)
+                val createBtn = dialogView.findViewById<Button>(R.id.createGroupBtn)
+                val checkBoxes: MutableList<CheckBox> = ArrayList()
+                
+                for (username in usernamesList) {
+                    val checkBox = CheckBox(this@MainActivity)
+                    checkBox.text = username
+                    checkBox.setTextColor(resources.getColor(R.color.darkBlue))
+                    checkBox.setPadding(8, 8, 8, 8)
+                    checkBoxes.add(checkBox)
+                    usersCheckboxContainer.addView(checkBox)
                 }
-            })
+                
+                cancelBtn.setOnClickListener { dialog.dismiss() }
+                createBtn.setOnClickListener {
+                    val groupName = groupNameEditText.text.toString().trim()
+                    if (groupName.isEmpty()) {
+                        Toast.makeText(this@MainActivity, "Please enter a group name", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                    val selectedMemberUids: MutableList<String?> = ArrayList()
+                    val selectedMemberDisplayNames: MutableList<String?> = ArrayList()
+                    selectedMemberUids.add(currentUserId)
+                    selectedMemberDisplayNames.add(if (currentNickname.isNullOrEmpty()) "Me" else currentNickname)
+                    for (i in checkBoxes.indices) {
+                        if (checkBoxes[i].isChecked) {
+                            selectedMemberUids.add(userIdsList[i])
+                            selectedMemberDisplayNames.add(usernamesList[i])
+                        }
+                    }
+                    if (selectedMemberUids.size <= 1) {
+                        Toast.makeText(this@MainActivity, "Please select at least one member", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+                    saveGroupToDatabase(groupName, selectedMemberUids, selectedMemberDisplayNames, currentUserId)
+                    dialog.dismiss()
+                }
+                dialog.show()
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "Failed to load users", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun saveGroupToDatabase(
@@ -619,12 +602,16 @@ class MainActivity : AppCompatActivity() {
         memberDisplayNames: MutableList<String?>?,
         currentUserId: String?
     ) {
-        val groupsRef = DeclareDatabase.getDBRefGroups().child(currentUserId!!)
-        val groupId = groupsRef.push().key
-        if (groupId != null) {
-            val newGroup = PayerGroup(groupId, groupName, memberUids, currentUserId, memberDisplayNames)
-            groupsRef.child(groupId).setValue(newGroup).addOnSuccessListener {
+        if (currentUserId == null) return
+        val groupId = UUID.randomUUID().toString()
+        val newGroup = PayerGroup(groupId, groupName, memberUids, currentUserId, memberDisplayNames)
+        
+        lifecycleScope.launch {
+            try {
+                DeclareDatabase.groupsTable.insert(newGroup)
                 Toast.makeText(this@MainActivity, "Group created successfully", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Toast.makeText(this@MainActivity, "Failed to create group", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -635,25 +622,26 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun fetchTotalMonthSpends(username: String?, callback: Runnable?) {
-        val monthYearRef = DeclareDatabase.getDBRefTransaction().child(SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(Calendar.getInstance().time))
-        totalMonthSpends = 0.0
-        monthYearRef.addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
-                for (daySnapshot in dataSnapshot.children) {
-                    for (timeSnapshot in daySnapshot.children) {
-                        val transaction = timeSnapshot.getValue(Transaction::class.java)
-                        if (transaction != null && isUserInvolved(transaction, username)) totalMonthSpends += transaction.getPaymentAmount()
+        val currentMonthYear = SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(Calendar.getInstance().time)
+        lifecycleScope.launch {
+            try {
+                val transactions = DeclareDatabase.transactionsTable.select {
+                    filter { eq("monthYear", currentMonthYear) }
+                }.decodeList<Transaction>()
+                
+                totalMonthSpends = 0.0
+                for (transaction in transactions) {
+                    if (isUserInvolved(transaction, username)) {
+                        totalMonthSpends += transaction.getPaymentAmount()
                     }
                 }
                 val tv: TextView? = findViewById(R.id.totalMonthSpends)
                 tv?.text = CurrencyUtils.formatAmountWithCurrency(totalMonthSpends)
                 callback?.run()
-            }
-
-            override fun onCancelled(databaseError: DatabaseError) {
+            } catch (e: Exception) {
                 callback?.run()
             }
-        })
+        }
     }
 
     @SuppressLint("DefaultLocale")
@@ -666,33 +654,7 @@ class MainActivity : AppCompatActivity() {
     private fun fetchEverydaySpends(username: String?, callback: Runnable?) {
         val calendar = Calendar.getInstance()
         calendar.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        val daysFetched = java.util.concurrent.atomic.AtomicInteger(0)
-        for (i in 0..6) {
-            val currentMonthYear = SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(calendar.time)
-            val currentDay = SimpleDateFormat("dd", Locale.getDefault()).format(calendar.time)
-            val dayIndex = i
-            DeclareDatabase.getDBRefTransaction().child(currentMonthYear).child(currentDay)
-                .addListenerForSingleValueEvent(object : ValueEventListener() {
-                    override fun onDataChange(dataSnapshot: DataSnapshot) {
-                        var ds = 0.0
-                        for (ts in dataSnapshot.children) {
-                            val t = ts.getValue(Transaction::class.java)
-                            if (t != null && isUserInvolved(t, username)) ds += t.getPaymentAmount()
-                        }
-                        setViewHeightForDay(dayIndex, ds)
-                        if (daysFetched.incrementAndGet() == 7) callback?.run()
-                    }
-
-                    override fun onCancelled(databaseError: DatabaseError) {
-                        if (daysFetched.incrementAndGet() == 7) callback?.run()
-                    }
-                })
-            calendar.add(Calendar.DAY_OF_YEAR, 1)
-        }
+        fetchEverydaySpendsForWeek(calendar, username, callback)
     }
 
     fun getEverydaySpendsForWeek(weekStart: Calendar, callback: Runnable?) {
@@ -706,28 +668,37 @@ class MainActivity : AppCompatActivity() {
         callback: Runnable?
     ) {
         val calendar = weekStart.clone() as Calendar
-        val daysFetched = java.util.concurrent.atomic.AtomicInteger(0)
-        for (i in 0..6) {
-            val cmy = SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(calendar.time)
-            val cd = SimpleDateFormat("dd", Locale.getDefault()).format(calendar.time)
-            val dayIndex = i
-            DeclareDatabase.getDBRefTransaction().child(cmy).child(cd)
-                .addListenerForSingleValueEvent(object : ValueEventListener() {
-                    override fun onDataChange(dataSnapshot: DataSnapshot) {
-                        var ds = 0.0
-                        for (ts in dataSnapshot.children) {
-                            val t = ts.getValue(Transaction::class.java)
-                            if (t != null && isUserInvolved(t, username)) ds += t.getPaymentAmount()
+        val startOfWeek = calendar.timeInMillis
+        calendar.add(Calendar.DAY_OF_YEAR, 7)
+        val endOfWeek = calendar.timeInMillis
+        
+        // This is tricky with the current schema where transactions are split by monthYear/day in old DB.
+        // In Supabase, we should ideally have a single 'transactions' table with a timestamp.
+        // Assuming 'transactions' table has all transactions.
+        
+        lifecycleScope.launch {
+            try {
+                val allTransactions = DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
+                
+                val dailySpends = DoubleArray(7) { 0.0 }
+                val weekCalendar = weekStart.clone() as Calendar
+                
+                for (i in 0..6) {
+                    val currentMonthYear = SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(weekCalendar.time)
+                    val currentDay = SimpleDateFormat("dd", Locale.getDefault()).format(weekCalendar.time)
+                    
+                    for (t in allTransactions) {
+                        if (t.monthYear == currentMonthYear && t.day == currentDay && isUserInvolved(t, username)) {
+                            dailySpends[i] += t.getPaymentAmount()
                         }
-                        setViewHeightForDay(dayIndex, ds)
-                        if (daysFetched.incrementAndGet() == 7) callback?.run()
                     }
-
-                    override fun onCancelled(de: DatabaseError) {
-                        if (daysFetched.incrementAndGet() == 7) callback?.run()
-                    }
-                })
-            calendar.add(Calendar.DAY_OF_YEAR, 1)
+                    setViewHeightForDay(i, dailySpends[i])
+                    weekCalendar.add(Calendar.DAY_OF_YEAR, 1)
+                }
+                callback?.run()
+            } catch (e: Exception) {
+                callback?.run()
+            }
         }
     }
 
@@ -769,69 +740,64 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun fetchRecentTransactions(username: String?, callback: Runnable?) {
-        recentTransactionList.clear()
-        val calendar = Calendar.getInstance()
-        val daysFetched = java.util.concurrent.atomic.AtomicInteger(0)
-        for (i in 0..6) {
-            val cmy = SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(calendar.time)
-            val cd = SimpleDateFormat("dd", Locale.getDefault()).format(calendar.time)
-            val fmy = cmy
-            val fd = cd
-            DeclareDatabase.getDBRefTransaction().child(cmy).child(cd)
-                .addListenerForSingleValueEvent(object : ValueEventListener() {
-                    override fun onDataChange(ds: DataSnapshot) {
-                        for (ts in ds.children) {
-                            val t = ts.getValue(Transaction::class.java)
-                            if (t != null && isUserInvolved(t, username)) {
-                                val tk = ts.key
-                                val p = fmy.split("-").toTypedArray()
-                                recentTransactionList.add(
-                                    RecentTransaction(
-                                        p[0] + " - " + fd,
-                                        t.getTransactionType(),
-                                        t.getMultilineStr(),
-                                        CurrencyUtils.formatAmountWithCurrency(t.getPaymentAmount()),
-                                        getTransactionIcon(t.getTransactionType()),
-                                        p[1] + "-" + p[0] + "-" + fd + " " + tk,
-                                        t.getPayorsDisplayNames() ?: t.getPayorsList(),
-                                        t.getPayorsList(),
-                                        t.getAmountsPaidList(),
-                                        t.getTotalIndividualPayment(),
-                                        null,
-                                        t.getPosterDisplayName() ?: t.getUsernamePost(),
-                                        t.getUsernamePost(),
-                                        fmy,
-                                        fd,
-                                        tk
-                                    )
-                                )
-                            }
-                        }
-                        if (daysFetched.incrementAndGet() == 7) {
-                            recentTransactionList.sortWith(Comparator { t1, t2 ->
-                                if (t1?.getSortDateTime() != null && t2?.getSortDateTime() != null) t2.getSortDateTime()
-                                    .compareTo(t1.getSortDateTime()) else 0
-                            })
-                            val rv: RecyclerView? = findViewById(R.id.transactionListRecycler)
-                            if (rv != null) {
-                                recentTransactionAdapter = RecentTransactionAdapter(
-                                    recentTransactionList,
-                                    OnTransactionClickListener { transaction ->
-                                        this@MainActivity.onTransactionTap(transaction!!)
-                                    })
-                                rv.adapter = recentTransactionAdapter
-                                rv.layoutManager = LinearLayoutManager(this@MainActivity)
-                                recentTransactionAdapter?.preloadAllImages(this@MainActivity)
-                            }
-                            callback?.run()
-                        }
+        lifecycleScope.launch {
+            try {
+                val transactions = DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
+                recentTransactionList.clear()
+                
+                for (t in transactions) {
+                    if (isUserInvolved(t, username)) {
+                        val my = t.monthYear ?: ""
+                        val d = t.day ?: ""
+                        val tk = t.timeKey ?: ""
+                        val p = my.split("-").toTypedArray()
+                        val month = if (p.isNotEmpty()) p[0] else ""
+                        val year = if (p.size > 1) p[1] else ""
+                        
+                        recentTransactionList.add(
+                            RecentTransaction(
+                                "$month - $d",
+                                t.getTransactionType(),
+                                t.getMultilineStr(),
+                                CurrencyUtils.formatAmountWithCurrency(t.getPaymentAmount()),
+                                getTransactionIcon(t.getTransactionType()),
+                                "$year-$month-$d $tk",
+                                t.getPayorsDisplayNames() ?: t.getPayorsList(),
+                                t.getPayorsList(),
+                                t.getAmountsPaidList(),
+                                t.getTotalIndividualPayment(),
+                                null,
+                                t.getPosterDisplayName() ?: t.getUsernamePost(),
+                                t.getUsernamePost(),
+                                my,
+                                d,
+                                tk
+                            )
+                        )
                     }
-
-                    override fun onCancelled(de: DatabaseError) {
-                        if (daysFetched.incrementAndGet() == 7) callback?.run()
-                    }
-                })
-            calendar.add(Calendar.DAY_OF_YEAR, -1)
+                }
+                
+                recentTransactionList.sortWith { t1, t2 ->
+                    if (t1?.getSortDateTime() != null && t2?.getSortDateTime() != null) 
+                        t2.getSortDateTime()!!.compareTo(t1.getSortDateTime()!!) 
+                    else 0
+                }
+                
+                val rv: RecyclerView? = findViewById(R.id.transactionListRecycler)
+                if (rv != null) {
+                    recentTransactionAdapter = RecentTransactionAdapter(
+                        recentTransactionList as ArrayList<RecentTransaction>,
+                        RecentTransactionAdapter.OnTransactionClickListener { transaction ->
+                            this@MainActivity.onTransactionTap(transaction!!)
+                        })
+                    rv.adapter = recentTransactionAdapter
+                    rv.layoutManager = LinearLayoutManager(this@MainActivity)
+                    recentTransactionAdapter?.preloadAllImages(this@MainActivity)
+                }
+                callback?.run()
+            } catch (e: Exception) {
+                callback?.run()
+            }
         }
     }
 
@@ -856,52 +822,53 @@ class MainActivity : AppCompatActivity() {
         callback: DebtNumCallback,
         actionListener: OnBorrowerActionListener?
     ) {
-        debtList.clear()
-        val currentUserId = mAuth?.currentUserOrNull()?.id
-        DeclareDatabase.getDBRefBorrows()
-            .addListenerForSingleValueEvent(object : ValueEventListener() {
-                override fun onDataChange(ds: DataSnapshot) {
-                    for (ms in ds.children) {
-                        val my = ms.key
-                        for (days in ms.children) {
-                            val d = days.key
-                            for (bs in days.children) {
-                                val bnt = bs.getValue(BorrowNowTransaction::class.java)
-                                if (bnt != null && bnt.getBorrowerID() == currentUserId) {
-                                    if (bnt.getStatus() != "Removed" && bnt.getStatus() != "Payment Denied" && shouldIncludeForDebtStatus(
-                                            bnt.getStatus(),
-                                            selectedStatus
-                                        )
-                                    ) addDebtTransactionFromBorrowNow(bnt, my, d, bs.key)
-                                }
-                            }
+        lifecycleScope.launch {
+            try {
+                val currentUserId = mAuth?.currentUserOrNull()?.id
+                val borrows = DeclareDatabase.borrowsTable.select().decodeList<BorrowNowTransaction>()
+                
+                debtList.clear()
+                for (bnt in borrows) {
+                    if (bnt.getBorrowerID() == currentUserId) {
+                        if (bnt.getStatus() != "Removed" && bnt.getStatus() != "Payment Denied" && shouldIncludeForDebtStatus(
+                                bnt.getStatus(),
+                                selectedStatus
+                            )
+                        ) {
+                            addDebtTransactionFromBorrowNow(bnt, bnt.getMonthYear(), null, bnt.getBorrowId())
                         }
                     }
-                    debtList.sortWith(Comparator { o1, o2 ->
-                        try {
-                            val f = SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH)
-                            return@Comparator f.parse(o2!!.getDate())!!.compareTo(f.parse(o1!!.getDate()))
-                        } catch (e: Exception) {
-                            return@Comparator 0
-                        }
-                    })
-                    val rv: RecyclerView? = findViewById(R.id.debtRecyclerList)
-                    if (rv != null) {
-                        rv.adapter = DebtTransactionAdapter(
-                                debtList,
-                                actionListener ?: object : OnBorrowerActionListener {
-                                    override fun onPayClicked(t: BorrowTransaction?, p: Int) {}
-                                    override fun onRemoveClicked(t: BorrowTransaction?, p: Int) {}
-                                    override fun onTryAgainClicked(t: BorrowTransaction?, p: Int) {}
-                                })
-                        rv.layoutManager = LinearLayoutManager(this@MainActivity)
-                    }
-                    debtNum = debtList.size
-                    callback.onDebtNumReceived(debtNum)
                 }
+                
+                sortAndDisplayDebtList(actionListener)
+                debtNum = debtList.size
+                callback.onDebtNumReceived(debtNum)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error getting debt list: ${e.message}")
+            }
+        }
+    }
 
-                override fun onCancelled(e: DatabaseError) {}
-            })
+    private fun sortAndDisplayDebtList(actionListener: OnBorrowerActionListener?) {
+        debtList.sortWith { o1, o2 ->
+            try {
+                val f = SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH)
+                return@sortWith f.parse(o2!!.getDate())!!.compareTo(f.parse(o1!!.getDate()))
+            } catch (e: Exception) {
+                return@sortWith 0
+            }
+        }
+        val rv: RecyclerView? = findViewById(R.id.debtRecyclerList)
+        if (rv != null) {
+            rv.adapter = DebtTransactionAdapter(
+                    debtList,
+                    actionListener ?: object : OnBorrowerActionListener {
+                        override fun onPayClicked(t: BorrowTransaction?, p: Int) {}
+                        override fun onRemoveClicked(t: BorrowTransaction?, p: Int) {}
+                        override fun onTryAgainClicked(t: BorrowTransaction?, p: Int) {}
+                    })
+            rv.layoutManager = LinearLayoutManager(this@MainActivity)
+        }
     }
 
     private fun addDebtTransactionFromBorrowNow(
@@ -910,15 +877,16 @@ class MainActivity : AppCompatActivity() {
         day: String?,
         borrowId: String?
     ) {
-        val date = changeFormatDate(borrowNowTransaction.getDate())
-        val psd = if (borrowNowTransaction.getPaymentSentDate() > 0) SimpleDateFormat(
-            "MMM-dd-yyyy",
-            Locale.ENGLISH
-        ).format(java.util.Date(borrowNowTransaction.getPaymentSentDate())) else null
+        val dateLong = borrowNowTransaction.getDate()
+        val date = if (dateLong != null) SimpleDateFormat("MMM-dd-yyyy", Locale.getDefault()).format(java.util.Date(dateLong)) else ""
+        
+        val psdLong = borrowNowTransaction.getPaymentSentDate()
+        val psd = if (psdLong > 0) SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH).format(java.util.Date(psdLong)) else null
+        
         val bt = BorrowTransaction(
             date,
             borrowNowTransaction.getLender(),
-            borrowNowTransaction.getBorrowedAmountStr(),
+            borrowNowTransaction.getBorrowedAmount().toString(),
             borrowNowTransaction.getStatus()
         )
         bt.setPaymentSentDate(psd)
@@ -934,48 +902,32 @@ class MainActivity : AppCompatActivity() {
         callback: DebtNumCallback,
         actionListener: OnBorrowerActionListener?
     ) {
-        debtList.clear()
         if (selectedMonth == null || selectedMonth == "All") return
-        val uid = mAuth?.currentUserOrNull()?.id
-        DeclareDatabase.getDBRefBorrows().child(selectedMonth)
-            .addListenerForSingleValueEvent(object : ValueEventListener() {
-                override fun onDataChange(ds: DataSnapshot) {
-                    for (dayS in ds.children) {
-                        val d = dayS.key
-                        for (bs in dayS.children) {
-                            val bnt = bs.getValue(BorrowNowTransaction::class.java)
-                            if (bnt != null && bnt.getBorrowerID() == uid && bnt.getStatus() != "Removed" && bnt.getStatus() != "Payment Denied" && shouldIncludeForDebtStatus(
-                                    bnt.getStatus(),
-                                    selectedStatus
-                                )
-                            ) addDebtTransactionFromBorrowNow(bnt, selectedMonth, d, bs.key)
-                        }
+        lifecycleScope.launch {
+            try {
+                val uid = mAuth?.currentUserOrNull()?.id
+                val borrows = DeclareDatabase.borrowsTable.select {
+                    filter { eq("month_year", selectedMonth) }
+                }.decodeList<BorrowNowTransaction>()
+                
+                debtList.clear()
+                for (bnt in borrows) {
+                    if (bnt.getBorrowerID() == uid && bnt.getStatus() != "Removed" && bnt.getStatus() != "Payment Denied" && shouldIncludeForDebtStatus(
+                            bnt.getStatus(),
+                            selectedStatus
+                        )
+                    ) {
+                        addDebtTransactionFromBorrowNow(bnt, selectedMonth, null, bnt.getBorrowId())
                     }
-                    debtList.sortWith(Comparator { o1, o2 ->
-                        try {
-                            val f = SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH)
-                            return@Comparator f.parse(o2!!.getDate())!!.compareTo(f.parse(o1!!.getDate()))
-                        } catch (e: Exception) {
-                            return@Comparator 0
-                        }
-                    })
-                    val rv: RecyclerView? = findViewById(R.id.debtRecyclerList)
-                    if (rv != null) {
-                        rv.adapter = DebtTransactionAdapter(
-                                debtList,
-                                actionListener ?: object : OnBorrowerActionListener {
-                                    override fun onPayClicked(t: BorrowTransaction?, p: Int) {}
-                                    override fun onRemoveClicked(t: BorrowTransaction?, p: Int) {}
-                                    override fun onTryAgainClicked(t: BorrowTransaction?, p: Int) {}
-                                })
-                        rv.layoutManager = LinearLayoutManager(this@MainActivity)
-                    }
-                    debtNum = debtList.size
-                    callback.onDebtNumReceived(debtNum)
                 }
-
-                override fun onCancelled(e: DatabaseError) {}
-            })
+                
+                sortAndDisplayDebtList(actionListener)
+                debtNum = debtList.size
+                callback.onDebtNumReceived(debtNum)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error getting monthly debt list: ${e.message}")
+            }
+        }
     }
 
     fun getOwedList(
@@ -983,66 +935,67 @@ class MainActivity : AppCompatActivity() {
         callback: OwedNumCallback,
         actionListener: OnLenderActionListener?
     ) {
-        owedList.clear()
-        val uid = mAuth?.currentUserOrNull()?.id
-        DeclareDatabase.getDBRefBorrows()
-            .addListenerForSingleValueEvent(object : ValueEventListener() {
-                override fun onDataChange(ds: DataSnapshot) {
-                    for (ms in ds.children) {
-                        val my = ms.key
-                        for (days in ms.children) {
-                            val d = days.key
-                            for (bs in days.children) {
-                                val bnt = bs.getValue(BorrowNowTransaction::class.java)
-                                if (bnt != null && bnt.getLenderID() == uid && bnt.getStatus() != "Declined" && bnt.getStatus() != "Payment Denied" && bnt.getStatus() != "Removed" && shouldIncludeForStatus(
-                                        bnt.getStatus(),
-                                        selectedStatus
-                                    )
-                                ) addOwedTransactionFromBorrowNow(bnt, my, d, bs.key)
-                            }
-                        }
+        lifecycleScope.launch {
+            try {
+                val uid = mAuth?.currentUserOrNull()?.id
+                val borrows = DeclareDatabase.borrowsTable.select().decodeList<BorrowNowTransaction>()
+                
+                owedList.clear()
+                for (bnt in borrows) {
+                    if (bnt.getLenderID() == uid && bnt.getStatus() != "Declined" && bnt.getStatus() != "Payment Denied" && bnt.getStatus() != "Removed" && shouldIncludeForStatus(
+                            bnt.getStatus(),
+                            selectedStatus
+                        )
+                    ) {
+                        addOwedTransactionFromBorrowNow(bnt, bnt.getMonthYear(), null, bnt.getBorrowId())
                     }
-                    owedList.sortWith(Comparator { o1, o2 ->
-                        try {
-                            val f = SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH)
-                            return@Comparator f.parse(o2!!.getDate())!!.compareTo(f.parse(o1!!.getDate()))
-                        } catch (e: Exception) {
-                            return@Comparator 0
-                        }
-                    })
-                    val rv: RecyclerView? = findViewById(R.id.owedRecyclerList)
-                    if (rv != null) {
-                        rv.adapter = OwedTransactionAdapter(
-                                owedList,
-                                actionListener ?: object : OnLenderActionListener {
-                                    override fun onNotYetClicked(t: OwedTransaction?, p: Int) {}
-                                    override fun onReceivedClicked(t: OwedTransaction?, p: Int) {}
-                                    override fun onDeclineClicked(t: OwedTransaction?, p: Int) {}
-                                    override fun onApprovedClicked(t: OwedTransaction?, p: Int) {}
-                                })
-                        rv.layoutManager = LinearLayoutManager(this@MainActivity)
-                    }
-                    owedNum = owedList.size
-                    callback.onOwedNumReceived(owedNum)
                 }
+                
+                sortAndDisplayOwedList(actionListener)
+                owedNum = owedList.size
+                callback.onOwedNumReceived(owedNum)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error getting owed list: ${e.message}")
+            }
+        }
+    }
 
-                override fun onCancelled(e: DatabaseError) {}
-            })
+    private fun sortAndDisplayOwedList(actionListener: OnLenderActionListener?) {
+        owedList.sortWith { o1, o2 ->
+            try {
+                val f = SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH)
+                return@sortWith f.parse(o2!!.getDate())!!.compareTo(f.parse(o1!!.getDate()))
+            } catch (e: Exception) {
+                return@sortWith 0
+            }
+        }
+        val rv: RecyclerView? = findViewById(R.id.owedRecyclerList)
+        if (rv != null) {
+            rv.adapter = OwedTransactionAdapter(
+                    owedList,
+                    actionListener ?: object : OnLenderActionListener {
+                        override fun onNotYetClicked(t: OwedTransaction?, p: Int) {}
+                        override fun onReceivedClicked(t: OwedTransaction?, p: Int) {}
+                        override fun onDeclineClicked(t: OwedTransaction?, p: Int) {}
+                        override fun onApprovedClicked(t: OwedTransaction?, p: Int) {}
+                    })
+            rv.layoutManager = LinearLayoutManager(this@MainActivity)
+        }
     }
 
     fun getCurrentNickname(callback: (String?) -> Unit) {
         val uid = mAuth?.currentUserOrNull()?.id ?: return callback("")
-        FirebaseDatabase.getInstance().getReference("users").child(uid).child("username")
-            .addListenerForSingleValueEvent(object : ValueEventListener() {
-                override fun onDataChange(ds: DataSnapshot) {
-                    currentNickname = if (ds.exists()) ds.getValue(String::class.java) else ""
-                    callback(currentNickname)
-                }
-
-                override fun onCancelled(e: DatabaseError) {
-                    callback("")
-                }
-            })
+        lifecycleScope.launch {
+            try {
+                val user = DeclareDatabase.usersTable.select(Columns.list("username")) {
+                    filter { eq("id", uid) }
+                }.decodeSingleOrNull<User>()
+                currentNickname = user?.username ?: ""
+                callback(currentNickname)
+            } catch (e: Exception) {
+                callback("")
+            }
+        }
     }
 
     fun changeFormatDate(date: String): String? {
@@ -1072,16 +1025,17 @@ class MainActivity : AppCompatActivity() {
         d: String?,
         bid: String?
     ) {
-        val date = changeFormatDate(bnt.getDate())
-        val psd = if (bnt.getPaymentSentDate() > 0) SimpleDateFormat(
-            "MMM-dd-yyyy",
-            Locale.ENGLISH
-        ).format(java.util.Date(bnt.getPaymentSentDate())) else null
+        val dateLong = bnt.getDate()
+        val date = if (dateLong != null) SimpleDateFormat("MMM-dd-yyyy", Locale.getDefault()).format(java.util.Date(dateLong)) else ""
+        
+        val psdLong = bnt.getPaymentSentDate()
+        val psd = if (psdLong > 0) SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH).format(java.util.Date(psdLong)) else null
+        
         owedList.add(
             OwedTransaction(
                 date,
                 bnt.getBorrowerName() ?: "Unknown",
-                bnt.getBorrowedAmountStr(),
+                bnt.getBorrowedAmount().toString(),
                 bnt.getStatus(),
                 psd,
                 bid,
@@ -1097,48 +1051,31 @@ class MainActivity : AppCompatActivity() {
         callback: OwedNumCallback,
         actionListener: OnLenderActionListener?
     ) {
-        owedList.clear()
         if (sm == null || sm == "All") return
-        val uid = mAuth?.currentUserOrNull()?.id
-        DeclareDatabase.getDBRefBorrows().child(sm)
-            .addListenerForSingleValueEvent(object : ValueEventListener() {
-                override fun onDataChange(ds: DataSnapshot) {
-                    for (dayS in ds.children) {
-                        val d = dayS.key
-                        for (bs in dayS.children) {
-                            val bnt = bs.getValue(BorrowNowTransaction::class.java)
-                            if (bnt != null && bnt.getLenderID() == uid && bnt.getStatus() != "Declined" && bnt.getStatus() != "Payment Denied" && bnt.getStatus() != "Removed" && shouldIncludeForStatus(
-                                    bnt.getStatus(),
-                                    ss
-                                )
-                            ) addOwedTransactionFromBorrowNow(bnt, sm, d, bs.key)
-                        }
+        lifecycleScope.launch {
+            try {
+                val uid = mAuth?.currentUserOrNull()?.id
+                val borrows = DeclareDatabase.borrowsTable.select {
+                    filter { eq("month_year", sm) }
+                }.decodeList<BorrowNowTransaction>()
+                
+                owedList.clear()
+                for (bnt in borrows) {
+                    if (bnt.getLenderID() == uid && bnt.getStatus() != "Declined" && bnt.getStatus() != "Payment Denied" && bnt.getStatus() != "Removed" && shouldIncludeForStatus(
+                            bnt.getStatus(),
+                            ss
+                        )
+                    ) {
+                        addOwedTransactionFromBorrowNow(bnt, sm, null, bnt.getBorrowId())
                     }
-                    owedList.sortWith(Comparator { o1, o2 ->
-                        try {
-                            val f = SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH)
-                            return@Comparator f.parse(o2!!.getDate())!!.compareTo(f.parse(o1!!.getDate()))
-                        } catch (e: Exception) {
-                            return@Comparator 0
-                        }
-                    })
-                    val rv: RecyclerView? = findViewById(R.id.owedRecyclerList)
-                    if (rv != null) {
-                        rv.adapter = OwedTransactionAdapter(
-                                owedList,
-                                actionListener ?: object : OnLenderActionListener {
-                                    override fun onNotYetClicked(t: OwedTransaction?, p: Int) {}
-                                    override fun onReceivedClicked(t: OwedTransaction?, p: Int) {}
-                                    override fun onDeclineClicked(t: OwedTransaction?, p: Int) {}
-                                    override fun onApprovedClicked(t: OwedTransaction?, p: Int) {}
-                                })
-                        rv.layoutManager = LinearLayoutManager(this@MainActivity)
-                    }
-                    owedNum = owedList.size
-                    callback.onOwedNumReceived(owedNum)
                 }
-
-                override fun onCancelled(e: DatabaseError) {}
-            })
+                
+                sortAndDisplayOwedList(actionListener)
+                owedNum = owedList.size
+                callback.onOwedNumReceived(owedNum)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error getting monthly owed list: ${e.message}")
+            }
+        }
     }
 }

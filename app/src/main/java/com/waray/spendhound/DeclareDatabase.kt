@@ -1,7 +1,5 @@
 package com.waray.spendhound
 
-import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.FirebaseDatabase
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.gotrue.Auth
@@ -41,21 +39,23 @@ object DeclareDatabase {
     val transactionsTable get() = client.from("transactions")
     val groupsTable get() = client.from("groups")
     val borrowsTable get() = client.from("borrows")
+    val userBorrowsTable get() = client.from("userBorrows")
 
     // Storage Bucket Reference
     val profileImagesBucket get() = client.storage.from("profile_images")
 
-    // Compatibility getters (updated to return Supabase types where applicable or kept for reference)
+    // Compatibility getters (updated to return Supabase types)
     @JvmStatic fun getAuth() = auth
     @JvmStatic fun getUsersTable() = usersTable
     @JvmStatic fun getTransactionsTable() = transactionsTable
     @JvmStatic fun getGroupsTable() = groupsTable
     @JvmStatic fun getBorrowsTable() = borrowsTable
-    
-    // Firebase Realtime Database References
-    @JvmStatic fun getDBRefBorrows(): DatabaseReference = 
-        FirebaseDatabase.getInstance().reference.child("borrows")
-    
-    @JvmStatic fun getDBRefUserBorrows(): DatabaseReference = 
-        FirebaseDatabase.getInstance().reference.child("userBorrows")
+    @JvmStatic fun getUserBorrowsTable() = userBorrowsTable
+
+    // Legacy method names updated for Supabase compatibility
+    @JvmStatic fun getDatabaseReference() = usersTable
+    @JvmStatic fun getDBRefTransaction() = transactionsTable
+    @JvmStatic fun getDBRefGroups() = groupsTable
+    @JvmStatic fun getDBRefBorrows() = borrowsTable
+    @JvmStatic fun getDBRefUserBorrows() = userBorrowsTable
 }
