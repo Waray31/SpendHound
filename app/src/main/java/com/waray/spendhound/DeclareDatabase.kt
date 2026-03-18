@@ -1,5 +1,7 @@
 package com.waray.spendhound
 
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.FirebaseDatabase
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.gotrue.Auth
@@ -49,4 +51,11 @@ object DeclareDatabase {
     @JvmStatic fun getTransactionsTable() = transactionsTable
     @JvmStatic fun getGroupsTable() = groupsTable
     @JvmStatic fun getBorrowsTable() = borrowsTable
+    
+    // Firebase Realtime Database References
+    @JvmStatic fun getDBRefBorrows(): DatabaseReference = 
+        FirebaseDatabase.getInstance().reference.child("borrows")
+    
+    @JvmStatic fun getDBRefUserBorrows(): DatabaseReference = 
+        FirebaseDatabase.getInstance().reference.child("userBorrows")
 }

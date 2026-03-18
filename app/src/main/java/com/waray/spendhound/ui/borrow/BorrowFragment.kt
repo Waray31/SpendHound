@@ -12,8 +12,6 @@ import android.view.ViewGroup
 import android.view.Window
 import android.widget.AdapterView
 import android.widget.Button
-import android.widget.EditText
-import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
@@ -24,23 +22,13 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.SnapHelper
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.FirebaseDatabase
-import com.google.firebase.database.ValueEventListener
 import com.waray.spendhound.BalanceHelper
 import com.waray.spendhound.BorrowNowTransaction
 import com.waray.spendhound.BorrowTransaction
-import com.waray.spendhound.CurrencyUtils
 import com.waray.spendhound.DeclareDatabase
-import com.waray.spendhound.DebtNumCallback
 import com.waray.spendhound.DebtTransactionAdapter
 import com.waray.spendhound.LenderAdapter
 import com.waray.spendhound.MainActivity
-import com.waray.spendhound.OnBorrowerActionListener
-import com.waray.spendhound.OnLenderActionListener
-import com.waray.spendhound.OwedNumCallback
 import com.waray.spendhound.OwedTransaction
 import com.waray.spendhound.OwedTransactionAdapter
 import com.waray.spendhound.R
@@ -48,12 +36,13 @@ import com.waray.spendhound.SpinnerItemMonths
 import com.waray.spendhound.User
 import com.waray.spendhound.UserBalance
 import io.github.jan.supabase.gotrue.Auth
-import io.github.jan.supabase.gotrue.auth
-import java.text.SimpleDateFormat
-import java.util.Calendar
+import io.github.jan.supabase.postgrest.query.Columns
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.Collections
-import java.util.Locale
-import java.util.Objects
+import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.min
 
@@ -81,6 +70,8 @@ class BorrowFragment : Fragment() {
 
     private var globalLoadingOverlay: View? = null
     private var selectedLenderName = ""
+
+    private val uiScope = CoroutineScope(Dispatchers.Main)
 
     @SuppressLint("MissingInflatedId")
     override fun onCreateView(
@@ -184,58 +175,74 @@ class BorrowFragment : Fragment() {
 
         if (owedDebtClicked) {
             if (selectedMonth == "All") {
-                mainActivity.getOwedList(selectedStatusTab, { owedNum -> OwedSize(owedNum) }, lenderActionListener)
+                mainActivity.getOwedList(selectedStatusTab, object : MainActivity.OwedNumCallback {
+                    override fun onOwedNumReceived(owedNum: Int) {
+                        OwedSize(owedNum)
+                    }
+                }, lenderActionListener)
             } else {
-                mainActivity.getOwedListMonthly(selectedMonth, selectedStatusTab, { owedNum -> OwedSize(owedNum) }, lenderActionListener)
+                mainActivity.getOwedListMonthly(selectedMonth, selectedStatusTab, object : MainActivity.OwedNumCallback {
+                    override fun onOwedNumReceived(owedNum: Int) {
+                        OwedSize(owedNum)
+                    }
+                }, lenderActionListener)
             }
         } else {
             if (selectedMonth == "All") {
-                mainActivity.getDebtList(selectedStatusTab, { debtNum -> DebtSize(debtNum) }, borrowerActionListener)
+                mainActivity.getDebtList(selectedStatusTab, object : MainActivity.DebtNumCallback {
+                    override fun onDebtNumReceived(debtNum: Int) {
+                        DebtSize(debtNum)
+                    }
+                }, borrowerActionListener)
             } else {
-                mainActivity.getDebtListMonthly(selectedMonth, selectedStatusTab, { debtNum -> DebtSize(debtNum) }, borrowerActionListener)
+                mainActivity.getDebtListMonthly(selectedMonth, selectedStatusTab, object : MainActivity.DebtNumCallback {
+                    override fun onDebtNumReceived(debtNum: Int) {
+                        DebtSize(debtNum)
+                    }
+                }, borrowerActionListener)
             }
         }
     }
 
-    private val lenderActionListener: OnLenderActionListener
-        get() = object : OnLenderActionListener {
-            override fun onNotYetClicked(transaction: OwedTransaction, position: Int) {
+    private var lenderActionListener: OwedTransactionAdapter.OnLenderActionListener? = null
+        get() = field ?: object : OwedTransactionAdapter.OnLenderActionListener {
+            override fun onNotYetClicked(transaction: OwedTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_not_yet_title), getString(R.string.confirm_not_yet_message), R.color.grey) {
-                    updateTransactionStatus(transaction.getBorrowId(), transaction.getMonthYear(), transaction.getDay(), "Unpaid", null)
+                    updateTransactionStatus(transaction?.getBorrowId(), transaction?.getMonthYear(), transaction?.getDay(), "Unpaid", null)
                 }
             }
-            override fun onReceivedClicked(transaction: OwedTransaction, position: Int) {
+            override fun onReceivedClicked(transaction: OwedTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_received_title), getString(R.string.confirm_received_message), R.color.green) {
-                    updateTransactionStatus(transaction.getBorrowId(), transaction.getMonthYear(), transaction.getDay(), "Paid", null)
+                    updateTransactionStatus(transaction?.getBorrowId(), transaction?.getMonthYear(), transaction?.getDay(), "Paid", null)
                 }
             }
-            override fun onDeclineClicked(transaction: OwedTransaction, position: Int) {
+            override fun onDeclineClicked(transaction: OwedTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_decline_title), getString(R.string.confirm_decline_message), R.color.red) {
-                    updateTransactionStatus(transaction.getBorrowId(), transaction.getMonthYear(), transaction.getDay(), "Declined", null)
+                    updateTransactionStatus(transaction?.getBorrowId(), transaction?.getMonthYear(), transaction?.getDay(), "Declined", null)
                 }
             }
-            override fun onApprovedClicked(transaction: OwedTransaction, position: Int) {
+            override fun onApprovedClicked(transaction: OwedTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_approve_title), getString(R.string.confirm_approve_message), R.color.green) {
-                    updateTransactionStatus(transaction.getBorrowId(), transaction.getMonthYear(), transaction.getDay(), "Unpaid", null)
+                    updateTransactionStatus(transaction?.getBorrowId(), transaction?.getMonthYear(), transaction?.getDay(), "Unpaid", null)
                 }
             }
         }
 
-    private val borrowerActionListener: OnBorrowerActionListener
-        get() = object : OnBorrowerActionListener {
-            override fun onPayClicked(transaction: BorrowTransaction, position: Int) {
+    private var borrowerActionListener: DebtTransactionAdapter.OnBorrowerActionListener? = null
+        get() = field ?: object : DebtTransactionAdapter.OnBorrowerActionListener {
+            override fun onPayClicked(transaction: BorrowTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_pay_title), getString(R.string.confirm_pay_message), R.color.green) {
-                    updateTransactionStatusWithPaymentDate(transaction.getBorrowId(), transaction.getMonthYear(), transaction.getDay(), "Pending Payment", null)
+                    updateTransactionStatusWithPaymentDate(transaction?.getBorrowId(), transaction?.getMonthYear(), transaction?.getDay(), "Pending Payment", null)
                 }
             }
-            override fun onRemoveClicked(transaction: BorrowTransaction, position: Int) {
+            override fun onRemoveClicked(transaction: BorrowTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_remove_title), getString(R.string.confirm_remove_message), R.color.red) {
-                    updateTransactionStatus(transaction.getBorrowId(), transaction.getMonthYear(), transaction.getDay(), "Removed", null)
+                    updateTransactionStatus(transaction?.getBorrowId(), transaction?.getMonthYear(), transaction?.getDay(), "Removed", null)
                 }
             }
-            override fun onTryAgainClicked(transaction: BorrowTransaction, position: Int) {
+            override fun onTryAgainClicked(transaction: BorrowTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_try_again_title), getString(R.string.confirm_try_again_message), R.color.green) {
-                    updateTransactionStatus(transaction.getBorrowId(), transaction.getMonthYear(), transaction.getDay(), "For Lender Approval", null)
+                    updateTransactionStatus(transaction?.getBorrowId(), transaction?.getMonthYear(), transaction?.getDay(), "For Lender Approval", null)
                 }
             }
         }
@@ -270,91 +277,59 @@ class BorrowFragment : Fragment() {
     }
 
     fun DebtMonthlyFilterList() {
-        val transRef = DeclareDatabase.getDBRefBorrows()
-        val debtUniqueMonthYear = HashSet<String?>()
         val currentUserId = mAuth?.currentUserOrNull()?.id
-
-        transRef.addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
-                debtUniqueMonthYear.add("All")
-                for (monthSnapshot in dataSnapshot.children) {
-                    val monthYear = monthSnapshot.key
-                    for (daySnapshot in monthSnapshot.children) {
-                        for (borrowSnapshot in daySnapshot.children) {
-                            val borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction::class.java)
-                            if (borrowNowTransaction != null && borrowNowTransaction.getBorrowerID() == currentUserId) {
-                                debtUniqueMonthYear.add(monthYear)
-                            } else if (borrowSnapshot.key == currentNickname) {
-                                debtUniqueMonthYear.add(monthYear)
-                            }
-                        }
+        uiScope.launch {
+            val borrows = withContext(Dispatchers.IO) {
+                DeclareDatabase.borrowsTable.select(columns = Columns.list("month_year", "borrower_id")) {
+                    filter {
+                        eq("borrower_id", currentUserId ?: "")
                     }
-                }
-                debtSortedMonths = ArrayList(debtUniqueMonthYear)
-                Collections.sort(debtSortedMonths!!)
-                updateSpinnerAdapter(debtSortedMonths)
+                }.decodeList<BorrowNowTransaction>()
             }
-            override fun onCancelled(databaseError: DatabaseError) {
-                Log.e("FirebaseDatabase", "Database error: " + databaseError.message)
-            }
-        })
+            val months = borrows.mapNotNull { it.month_year }.toSet().toMutableList()
+            months.add(0, "All")
+            debtSortedMonths = months
+            Collections.sort(debtSortedMonths as MutableList<String>)
+            updateSpinnerAdapter(debtSortedMonths)
+        }
     }
 
     fun OwedMonthlyFilterList() {
-        val transRef = DeclareDatabase.borrowsTable
-        val owedUniqueMonthYear = HashSet<String?>()
         val currentUserId = mAuth?.currentUserOrNull()?.id
-
-        transRef.addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
-                owedUniqueMonthYear.add("All")
-                for (monthSnapshot in dataSnapshot.children) {
-                    val monthYear = monthSnapshot.key
-                    for (daySnapshot in monthSnapshot.children) {
-                        for (borrowSnapshot in daySnapshot.children) {
-                            val bnt = borrowSnapshot.getValue(BorrowNowTransaction::class.java)
-                            if (bnt != null && bnt.getLenderID() == currentUserId) {
-                                owedUniqueMonthYear.add(monthYear)
-                            } else if (borrowSnapshot.key != currentNickname) {
-                                for (timeSnapshot in borrowSnapshot.children) {
-                                    val bt = timeSnapshot.getValue(BorrowTransaction::class.java)
-                                    if (bt != null && bt.getBorrowee() == currentNickname) {
-                                        owedUniqueMonthYear.add(monthYear)
-                                    }
-                                }
-                            }
-                        }
+        uiScope.launch {
+            val borrows = withContext(Dispatchers.IO) {
+                DeclareDatabase.borrowsTable.select(columns = Columns.list("month_year", "lender_id")) {
+                    filter {
+                        eq("lender_id", currentUserId ?: "")
                     }
-                }
-                owedSortedMonths = ArrayList(owedUniqueMonthYear)
-                Collections.sort(owedSortedMonths!!)
-                updateSpinnerAdapter(owedSortedMonths)
+                }.decodeList<BorrowNowTransaction>()
             }
-            override fun onCancelled(databaseError: DatabaseError) {
-                Log.e("FirebaseDatabase", "Database error: " + databaseError.message)
-            }
-        })
+            val months = borrows.mapNotNull { it.month_year }.toSet().toMutableList()
+            months.add(0, "All")
+            owedSortedMonths = months
+            Collections.sort(owedSortedMonths as MutableList<String>)
+            updateSpinnerAdapter(owedSortedMonths)
+        }
     }
 
     private fun updateSpinnerAdapter(months: MutableList<String?>?) {
         monthYearSpinner?.setBackgroundResource(R.drawable.transparent_background)
-        val adapter = SpinnerItemMonths(activity, months)
+        val adapter = SpinnerItemMonths(requireContext(), months ?: mutableListOf())
         monthYearSpinner?.adapter = adapter
     }
 
     fun getCurrentNickname() {
         val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
-        val usersRef = DeclareDatabase.getDatabaseReference().child(currentUserId)
-        usersRef.child("username").addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
-                if (dataSnapshot.exists()) {
-                    currentNickname = dataSnapshot.getValue(String::class.java)
-                }
+        uiScope.launch {
+            val user = withContext(Dispatchers.IO) {
+                DeclareDatabase.usersTable.select(Columns.list("username")) {
+                    filter {
+                        eq("id", currentUserId)
+                    }
+                }.decodeSingleOrNull<User>()
             }
-            override fun onCancelled(databaseError: DatabaseError) {
-                Log.e("FirebaseDatabase", "Database error: " + databaseError.message)
-            }
-        })
+            currentNickname = user?.username
+        }
     }
 
     fun OwedSize(owedNum: Int) {
@@ -399,66 +374,66 @@ class BorrowFragment : Fragment() {
     }
 
     fun updateTransactionStatus(borrowId: String?, monthYear: String?, day: String?, newStatus: String?, onSuccess: Runnable?) {
-        val borrowRef = DeclareDatabase.getDBRefBorrows().child(monthYear!!).child(day!!).child(borrowId!!)
-
-        if ("Paid" == newStatus) {
-            borrowRef.addListenerForSingleValueEvent(object : ValueEventListener() {
-                override fun onDataChange(dataSnapshot: DataSnapshot) {
-                    val borrow = dataSnapshot.getValue(BorrowNowTransaction::class.java)
-                    if (borrow != null && borrow.getStatus() != "Paid") {
-                        try {
-                            val amount = borrow.getBorrowedAmountStr().toInt()
-                            borrow.getBorrowerID()?.let { BalanceHelper.updateTotaldebt(it, -amount, null) }
-                            borrow.getLenderID()?.let { BalanceHelper.updateTotalreceivable(it, -amount, null) }
-                        } catch (e: NumberFormatException) {}
-                    }
-                    borrowRef.child("status").setValue(newStatus).addOnSuccessListener {
-                        onSuccess?.run()
-                        showToast(getString(R.string.toast_status_updated))
-                        applyFilters()
+        if (borrowId == null) return
+        uiScope.launch {
+            try {
+                val currentBorrow = withContext(Dispatchers.IO) {
+                    DeclareDatabase.borrowsTable.select {
+                        filter {
+                            eq("id", borrowId)
+                        }
+                    }.decodeSingleOrNull<BorrowNowTransaction>()
+                }
+                if (newStatus == "Paid" && currentBorrow != null && currentBorrow.getStatus() != "Paid") {
+                    val amount = currentBorrow.getBorrowedAmount()?.toInt() ?: 0
+                    currentBorrow.getBorrowerID()?.let { BalanceHelper.updateTotaldebt(it, -amount, null) }
+                    currentBorrow.getLenderID()?.let { BalanceHelper.updateTotalreceivable(it, -amount, null) }
+                }
+                withContext(Dispatchers.IO) {
+                    DeclareDatabase.borrowsTable.update(mapOf("status" to newStatus)) {
+                        filter {
+                            eq("id", borrowId)
+                        }
                     }
                 }
-                override fun onCancelled(error: DatabaseError) {}
-            })
-        } else {
-            borrowRef.child("status").setValue(newStatus).addOnSuccessListener {
                 onSuccess?.run()
                 showToast(getString(R.string.toast_status_updated))
                 applyFilters()
+            } catch (e: Exception) {
+                Log.e("BorrowFragment", "Error updating transaction status: ${e.message}")
             }
         }
     }
 
     fun updateTransactionStatusWithPaymentDate(borrowId: String?, monthYear: String?, day: String?, newStatus: String?, onSuccess: Runnable?) {
-        val borrowRef = DeclareDatabase.getDBRefBorrows().child(monthYear!!).child(day!!).child(borrowId!!)
+        if (borrowId == null) return
         val paymentSentDate = System.currentTimeMillis()
-
-        if ("Paid" == newStatus) {
-            borrowRef.addListenerForSingleValueEvent(object : ValueEventListener() {
-                override fun onDataChange(dataSnapshot: DataSnapshot) {
-                    val borrow = dataSnapshot.getValue(BorrowNowTransaction::class.java)
-                    if (borrow != null && borrow.getStatus() != "Paid") {
-                        try {
-                            val amount = borrow.getBorrowedAmountStr().toInt()
-                            borrow.getBorrowerID()?.let { BalanceHelper.updateTotaldebt(it, -amount, null) }
-                            borrow.getLenderID()?.let { BalanceHelper.updateTotalreceivable(it, -amount, null) }
-                        } catch (e: NumberFormatException) {}
-                    }
-                    borrowRef.child("status").setValue(newStatus)
-                    borrowRef.child("paymentSentDate").setValue(paymentSentDate).addOnSuccessListener {
-                        onSuccess?.run()
-                        showToast(getString(R.string.toast_status_updated))
-                        applyFilters()
+        uiScope.launch {
+            try {
+                val currentBorrow = withContext(Dispatchers.IO) {
+                    DeclareDatabase.borrowsTable.select {
+                        filter {
+                            eq("id", borrowId)
+                        }
+                    }.decodeSingleOrNull<BorrowNowTransaction>()
+                }
+                if (newStatus == "Paid" && currentBorrow != null && currentBorrow.getStatus() != "Paid") {
+                    val amount = currentBorrow.getBorrowedAmount()?.toInt() ?: 0
+                    currentBorrow.getBorrowerID()?.let { BalanceHelper.updateTotaldebt(it, -amount, null) }
+                    currentBorrow.getLenderID()?.let { BalanceHelper.updateTotalreceivable(it, -amount, null) }
+                }
+                withContext(Dispatchers.IO) {
+                    DeclareDatabase.borrowsTable.update(mapOf("status" to newStatus, "paymentSentDate" to paymentSentDate)) {
+                        filter {
+                            eq("id", borrowId)
+                        }
                     }
                 }
-                override fun onCancelled(error: DatabaseError) {}
-            })
-        } else {
-            borrowRef.child("status").setValue(newStatus)
-            borrowRef.child("paymentSentDate").setValue(paymentSentDate).addOnSuccessListener {
                 onSuccess?.run()
                 showToast(getString(R.string.toast_status_updated))
                 applyFilters()
+            } catch (e: Exception) {
+                Log.e("BorrowFragment", "Error updating transaction status with payment date: ${e.message}")
             }
         }
     }
@@ -515,56 +490,52 @@ class BorrowFragment : Fragment() {
     }
 
     private fun loadLenders(adapter: LenderAdapter, lenders: MutableList<User?>, recyclerView: RecyclerView, dialogProgressBar: View) {
-        FirebaseDatabase.getInstance().getReference("users").addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
-                lenders.clear()
-                lenders.add(User("", "", "", UserBalance()))
-                lenders.add(User("", "", "", UserBalance()))
-                for (userSnapshot in dataSnapshot.children) {
-                    val user = userSnapshot.getValue(User::class.java)
-                    if (user != null && user.getUsername() != null && user.getUsername() != currentNickname) {
-                        lenders.add(user)
-                    }
+        uiScope.launch {
+            try {
+                val users = withContext(Dispatchers.IO) {
+                    DeclareDatabase.usersTable.select().decodeList<User>()
                 }
-                lenders.add(User("", "", "", UserBalance()))
-                lenders.add(User("", "", "", UserBalance()))
-                adapter.notifyDataSetChanged()
-                adapter.preloadAllImages(context) {
-                    activity?.runOnUiThread {
-                        dialogProgressBar.visibility = View.GONE
-                        if (lenders.size > 2) {
-                            recyclerView.scrollToPosition(2)
-                            recyclerView.post {
-                                adapter.getLenderAt(2)?.let { selectedLenderName = it.getUsername() ?: "" }
-                                updateLayoutEffect(recyclerView)
+                activity?.runOnUiThread {
+                    lenders.clear()
+                    lenders.add(User("", "", "", UserBalance()))
+                    lenders.add(User("", "", "", UserBalance()))
+                    for (user in users) {
+                        if (user != null && user.getUsername() != null && user.getUsername() != currentNickname) {
+                            lenders.add(user)
+                        }
+                    }
+                    lenders.add(User("", "", "", UserBalance()))
+                    lenders.add(User("", "", "", UserBalance()))
+                    adapter.notifyDataSetChanged()
+                    adapter.preloadAllImages(context) {
+                        activity?.runOnUiThread {
+                            dialogProgressBar.visibility = View.GONE
+                            if (lenders.size > 2) {
+                                recyclerView.scrollToPosition(2)
+                                recyclerView.post {
+                                    adapter.getLenderAt(2)?.let { selectedLenderName = it.getUsername() ?: "" }
+                                    updateLayoutEffect(recyclerView)
+                                }
                             }
                         }
                     }
                 }
+            } catch (e: Exception) {
+                Log.e("BorrowFragment", "Error loading lenders: ${e.message}")
+                activity?.runOnUiThread {
+                    dialogProgressBar.visibility = View.GONE
+                }
             }
-            override fun onCancelled(databaseError: DatabaseError) {
-                dialogProgressBar.visibility = View.GONE
-            }
-        })
+        }
     }
 
     private fun addBorrowTransaction(
         lender: String, borrowedAmountStr: String, currentDate: String?,
         dialog: Dialog, dialogProgressBar: View, borrowBtn: Button, cancelBtn: Button
     ) {
-        val calendar = Calendar.getInstance()
-        val cmy = SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(calendar.time)
-        val cd = SimpleDateFormat("dd", Locale.getDefault()).format(calendar.time)
         val timestamp = System.currentTimeMillis()
-
-        val dayRef = DeclareDatabase.getDBRefBorrows().child(cmy).child(cd)
-        val borrowId = dayRef.push().key ?: return run {
-            showToast(getString(R.string.toast_borrow_failed))
-            dialogProgressBar.visibility = View.GONE
-            borrowBtn.isEnabled = true
-            cancelBtn.isEnabled = true
-            hideGlobalLoading()
-        }
+        val borrowId = UUID.randomUUID().toString()
+        val borrowedAmount = borrowedAmountStr.toDoubleOrNull() ?: 0.0
 
         val currentUserId = mAuth?.currentUserOrNull()?.id
         if (currentUserId != null) {
@@ -579,25 +550,31 @@ class BorrowFragment : Fragment() {
                     }
                     return@getUserIDByName
                 }
-                val bnt = BorrowNowTransaction(borrowId, currentUserId, lenderID, currentNickname, currentDate, lender, borrowedAmountStr, "For Lender Approval", timestamp)
-                dayRef.child(borrowId).setValue(bnt).addOnSuccessListener {
-                    BalanceHelper.addBorrowerEntry(currentUserId, borrowId, null)
-                    BalanceHelper.addLenderEntry(lenderID, borrowId, null)
-                    val amount = borrowedAmountStr.toIntOrNull() ?: 0
-                    BalanceHelper.updateTotaldebt(currentUserId, amount, null)
-                    BalanceHelper.updateTotalreceivable(lenderID, amount, null)
-                    activity?.runOnUiThread {
-                        showToast(getString(R.string.toast_borrow_success))
-                        dialog.dismiss()
-                        applyFilters()
-                    }
-                }.addOnFailureListener {
-                    activity?.runOnUiThread {
-                        showToast(getString(R.string.toast_borrow_failed))
-                        dialogProgressBar.visibility = View.GONE
-                        borrowBtn.isEnabled = true
-                        cancelBtn.isEnabled = true
-                        hideGlobalLoading()
+                val bnt = BorrowNowTransaction(borrowId, currentUserId, lenderID, currentNickname, currentDate?.toLongOrNull(), lender, borrowedAmount, "For Lender Approval", timestamp)
+                uiScope.launch {
+                    try {
+                        withContext(Dispatchers.IO) {
+                            DeclareDatabase.borrowsTable.insert(bnt)
+                        }
+                        BalanceHelper.addBorrowerEntry(currentUserId, borrowId, null)
+                        BalanceHelper.addLenderEntry(lenderID, borrowId, null)
+                        val amount = borrowedAmountStr.toIntOrNull() ?: 0
+                        BalanceHelper.updateTotaldebt(currentUserId, amount, null)
+                        BalanceHelper.updateTotalreceivable(lenderID, amount, null)
+                        activity?.runOnUiThread {
+                            showToast(getString(R.string.toast_borrow_success))
+                            dialog.dismiss()
+                            applyFilters()
+                        }
+                    } catch (e: Exception) {
+                        Log.e("BorrowFragment", "Error adding borrow transaction: ${e.message}")
+                        activity?.runOnUiThread {
+                            showToast(getString(R.string.toast_borrow_failed))
+                            dialogProgressBar.visibility = View.GONE
+                            borrowBtn.isEnabled = true
+                            cancelBtn.isEnabled = true
+                            hideGlobalLoading()
+                        }
                     }
                 }
             }
@@ -605,20 +582,16 @@ class BorrowFragment : Fragment() {
     }
 
     private fun getUserIDByName(name: String, callback: (String?) -> Unit) {
-        FirebaseDatabase.getInstance().getReference("users").addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
-                for (userSnapshot in dataSnapshot.children) {
-                    if (name == userSnapshot.child("username").getValue(String::class.java)) {
-                        callback(userSnapshot.key)
-                        return
+        uiScope.launch {
+            val user = withContext(Dispatchers.IO) {
+                DeclareDatabase.usersTable.select(Columns.list("id")) {
+                    filter {
+                        eq("username", name)
                     }
-                }
-                callback(null)
+                }.decodeSingleOrNull<User>()
             }
-            override fun onCancelled(databaseError: DatabaseError) {
-                callback(null)
-            }
-        })
+            callback(user?.id)
+        }
     }
 
     fun showToast(message: String?) {

@@ -5,12 +5,13 @@ class BorrowNowTransaction {
     var borrowerID: String? = null
     var lenderID: String? = null
     var borrowerName: String? = null
-    var date: String? = null
+    var date: Long? = null // changed from String? to Long?
     var lender: String? = null
-    var borrowedAmountStr: String? = null
+    var borrowedAmount: Double? = null // changed from borrowedAmountStr: String?
     var status: String? = null
     var timestamp: Long = 0
     var paymentSentDate: Long = 0
+    var month_year: String? = null
 
     constructor()
 
@@ -19,9 +20,9 @@ class BorrowNowTransaction {
         borrowerID: String?,
         lenderID: String?,
         borrowerName: String?,
-        date: String?,
+        date: Long?,
         lender: String?,
-        borrowedAmountStr: String?,
+        borrowedAmount: Double?,
         status: String?,
         timestamp: Long
     ) {
@@ -29,9 +30,9 @@ class BorrowNowTransaction {
         this.borrowerID = borrowerID
         this.lenderID = lenderID
         this.borrowerName = borrowerName
-        this.date = date.toString()
+        this.date = date
         this.lender = lender
-        this.borrowedAmountStr = borrowedAmountStr
+        this.borrowedAmount = borrowedAmount
         this.status = status
         this.timestamp = timestamp
     }
@@ -40,16 +41,16 @@ class BorrowNowTransaction {
     constructor(
         borrowerID: String?,
         lenderID: String?,
-        date: String?,
+        date: Long?,
         borrowee: String?,
-        borrowedAmountStr: String?,
+        borrowedAmount: Double?,
         status: String?
     ) {
         this.borrowerID = borrowerID
         this.lenderID = lenderID
-        this.date = date.toString()
+        this.date = date
         this.lender = borrowee
-        this.borrowedAmountStr = borrowedAmountStr
+        this.borrowedAmount = borrowedAmount
         this.status = status
         this.timestamp = System.currentTimeMillis()
     }
@@ -59,12 +60,13 @@ class BorrowNowTransaction {
     fun getBorrowerID(): String? = borrowerID
     fun getLenderID(): String? = lenderID
     fun getBorrowerName(): String? = borrowerName
-    fun getDate(): String? = date
+    fun getDate(): Long? = date
     fun getLender(): String? = lender
-    fun getBorrowedAmountStr(): String? = borrowedAmountStr
+    fun getBorrowedAmount(): Double? = borrowedAmount
     fun getStatus(): String? = status
     fun getTimestamp(): Long = timestamp
     fun getPaymentSentDate(): Long = paymentSentDate
+    fun getMonthYear(): String? = month_year
 
     // Setters aligned with database schema
     fun setBorrowId(id: String?) {
@@ -79,14 +81,14 @@ class BorrowNowTransaction {
     fun setBorrowerName(name: String?) {
         this.borrowerName = name
     }
-    fun setDate(date: String?) {
-        this.date = date?.toString()
+    fun setDate(date: Long?) {
+        this.date = date
     }
     fun setLender(lender: String?) {
         this.lender = lender
     }
-    fun setBorrowedAmountStr(amount: String?) {
-        this.borrowedAmountStr = amount
+    fun setBorrowedAmount(amount: Double?) {
+        this.borrowedAmount = amount
     }
     fun setStatus(status: String?) {
         this.status = status
@@ -96,5 +98,8 @@ class BorrowNowTransaction {
     }
     fun setPaymentSentDate(date: Long) {
         this.paymentSentDate = date
+    }
+    fun setMonthYear(monthYear: String?) {
+        this.month_year = monthYear
     }
 }
