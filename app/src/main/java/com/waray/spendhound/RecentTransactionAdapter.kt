@@ -13,11 +13,18 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import io.github.jan.supabase.postgrest.from
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class RecentTransactionAdapter(
     private val recentTransactionList: ArrayList<RecentTransaction>?,
     private var clickListener: OnTransactionClickListener? = null
 ) : RecyclerView.Adapter<RecentTransactionAdapter.ViewHolder>() {
+
+    private val scope = CoroutineScope(Dispatchers.Main)
 
     fun interface OnTransactionClickListener {
         fun onTransactionClick(transaction: RecentTransaction?)
@@ -73,9 +80,9 @@ class RecentTransactionAdapter(
                 val payorAdapter = PayorAdapter(
                     payorsUids,
                     payorsNames,
-                    amountsPaid,
+                    amountsPaid ?: mutableListOf(),
                     individualPayment,
-                    object : OnPayorClickListener {
+                    object : PayorAdapter.OnPayorClickListener {
                         override fun onPayorClick(index: Int, paid: Double) {}
                         override fun onPartialClick(index: Int, currentPaid: Double) {
                             showEditAmountDialog(holder.itemView.context, { newAmount ->
@@ -84,11 +91,18 @@ class RecentTransactionAdapter(
                         }
                     })
 
-                payorAdapter.setOnLoadingCompleteListener { holder.loadingOverlay.visibility = View.GONE }
-                payorAdapter.setOnDataChangedListener { hasChanges ->
-                    holder.saveTransactionBtn.isEnabled = hasChanges
-                    holder.saveTransactionBtn.alpha = if (hasChanges) 1.0f else 0.5f
-                }
+                payorAdapter.setOnLoadingCompleteListener(object : PayorAdapter.OnLoadingCompleteListener {
+                    override fun onLoadingComplete() {
+                        holder.loadingOverlay.visibility = View.GONE
+                    }
+                })
+                
+                payorAdapter.setOnDataChangedListener(object : PayorAdapter.OnDataChangedListener {
+                    override fun onDataChanged(hasChanges: Boolean) {
+                        holder.saveTransactionBtn.isEnabled = hasChanges
+                        holder.saveTransactionBtn.alpha = if (hasChanges) 1.0f else 0.5f
+                    }
+                })
 
                 holder.payorsRecyclerView.layoutManager = LinearLayoutManager(holder.itemView.context, LinearLayoutManager.HORIZONTAL, false)
                 holder.payorsRecyclerView.adapter = payorAdapter
@@ -104,6 +118,7 @@ class RecentTransactionAdapter(
                         holder.cancelTransactionBtn.visibility = View.VISIBLE
                         holder.saveTransactionBtn.isEnabled = false
                         holder.saveTransactionBtn.alpha = 0.5f
+                        holder.loadingOverlay.visibility = View.GONE
                     }
 
                     holder.cancelTransactionBtn.setOnClickListener {
@@ -112,17 +127,21 @@ class RecentTransactionAdapter(
                         holder.editTransactionBtn.visibility = View.VISIBLE
                         holder.saveTransactionBtn.visibility = View.GONE
                         holder.cancelTransactionBtn.visibility = View.GONE
+                        holder.loadingOverlay.visibility = View.GONE
                     }
 
                     holder.saveTransactionBtn.setOnClickListener {
                         holder.loadingOverlay.visibility = View.VISIBLE
-                        val updatedAmounts = payorAdapter.getAmountsPaid()
-                        saveTransactionChanges(holder.itemView.context, transaction, updatedAmounts, holder.adapterPosition, {
-                            payorAdapter.saveChanges()
-                            holder.editTransactionBtn.visibility = View.VISIBLE
-                            holder.saveTransactionBtn.visibility = View.GONE
-                            holder.cancelTransactionBtn.visibility = View.GONE
-                        }, { holder.loadingOverlay.visibility = View.GONE })
+                        val updatedAmounts = payorAdapter.amountsPaid
+                        if (updatedAmounts != null) {
+                            saveTransactionChanges(holder.itemView.context, transaction, updatedAmounts, holder.adapterPosition, {
+                                payorAdapter.saveChanges()
+                                holder.editTransactionBtn.visibility = View.VISIBLE
+                                holder.saveTransactionBtn.visibility = View.GONE
+                                holder.cancelTransactionBtn.visibility = View.GONE
+                                holder.loadingOverlay.visibility = View.GONE
+                            }, { holder.loadingOverlay.visibility = View.GONE })
+                        }
                     }
                 } else {
                     holder.editTransactionBtn.visibility = View.GONE
@@ -171,35 +190,32 @@ class RecentTransactionAdapter(
             return
         }
 
-        // Note: For Supabase migration, this should be updated to a Postgrest call.
-        // For now, keeping the logic structure but this part might need more work if the table structure is different.
-        // Assuming we keep the existing structure for this specific update logic.
-        
-        /* 
-        lifecycleScope.launch {
+        scope.launch {
             try {
+                // Since we use my, d, tk as composite key in old Firebase, in Supabase we can filter by these
                 DeclareDatabase.transactionsTable.update({
+                    set("amountsPaidList", updatedAmounts)
+                }) {
                     filter {
                         eq("monthYear", my)
                         eq("day", d)
                         eq("timeKey", tk)
                     }
-                }) {
-                    set("amountsPaidList", updatedAmounts)
                 }
-                Toast.makeText(context, "Transaction updated", Toast.LENGTH_SHORT).show()
-                transaction.setAmountsPaidList(updatedAmounts)
-                onSuccess.run()
-                notifyItemChanged(position)
+                
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Transaction updated successfully", Toast.LENGTH_SHORT).show()
+                    transaction.setAmountsPaidList(updatedAmounts)
+                    onSuccess.run()
+                    notifyItemChanged(position)
+                }
             } catch (e: Exception) {
-                Toast.makeText(context, "Update failed", Toast.LENGTH_SHORT).show()
-                onComplete.run()
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Update failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                    onComplete.run()
+                }
             }
         }
-        */
-        
-        // This is a placeholder since we don't have lifecycleScope here easily without passing it.
-        onComplete.run()
     }
 
     override fun getItemCount(): Int = recentTransactionList?.size ?: 0

@@ -17,14 +17,10 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.XAxis
-import com.github.mikephil.charting.components.YAxis
 import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.ValueEventListener
 import com.waray.spendhound.DeclareDatabase
 import com.waray.spendhound.MainActivity
 import com.waray.spendhound.R
@@ -35,7 +31,6 @@ import io.github.jan.supabase.postgrest.from
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
-import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -260,17 +255,14 @@ class HomeFragment : Fragment() {
         val username = mainActivity.currentNickname
         if (username.isNullOrEmpty()) {
             mainActivity.getCurrentNickname { nickname ->
-                fetchMonthlyChartData(nickname, mainActivity)
+                fetchMonthlyChartData(nickname)
             }
         } else {
-            fetchMonthlyChartData(username, mainActivity)
+            fetchMonthlyChartData(username)
         }
     }
 
-    private fun fetchMonthlyChartData(username: String?, mainActivity: MainActivity) {
-        val monthYear = SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(currentMonth.time)
-
-        // Convert monthYear to start and end dates for the month
+    private fun fetchMonthlyChartData(username: String?) {
         val startOfMonth = currentMonth.clone() as Calendar
         startOfMonth.set(Calendar.DAY_OF_MONTH, 1)
         startOfMonth.set(Calendar.HOUR_OF_DAY, 0)
@@ -285,65 +277,49 @@ class HomeFragment : Fragment() {
         endOfMonth.set(Calendar.SECOND, 59)
         endOfMonth.set(Calendar.MILLISECOND, 999)
 
-        val startDate = startOfMonth.time
-        val endDate = endOfMonth.time
+        val startDate = startOfMonth.timeInMillis
+        val endDate = endOfMonth.timeInMillis
 
-        // Launch coroutine for Supabase query
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val response = DeclareDatabase.client.from("transactions").select {
+                // Fetch all transactions for the month
+                val transactions = DeclareDatabase.client.from("transactions").select {
                     filter {
-                        // Filter by date range for the current month
-                        gte("timestamp", startDate.time)
-                        lte("timestamp", endDate.time)
-                        // Filter by user involvement (assuming transactions have a user field)
-                        eq("user", username ?: "")
+                        gte("timestamp", startDate)
+                        lte("timestamp", endDate)
+                    }
+                }.decodeList<Transaction>()
+
+                val dailySpends = mutableMapOf<Int, Double>()
+                val labels = mutableListOf<String>()
+                val daysInMonth = endOfMonth.get(Calendar.DAY_OF_MONTH)
+                
+                for (day in 1..daysInMonth) {
+                    dailySpends[day] = 0.0
+                    labels.add(day.toString())
+                }
+
+                val mainActivity = activity as? MainActivity
+                for (transaction in transactions) {
+                    if (mainActivity?.isUserInvolved(transaction, username) == true) {
+                        val transactionDate = Calendar.getInstance().apply { timeInMillis = transaction.timestamp }
+                        val dayOfMonth = transactionDate.get(Calendar.DAY_OF_MONTH)
+                        dailySpends[dayOfMonth] = (dailySpends[dayOfMonth] ?: 0.0) + transaction.paymentAmount
                     }
                 }
 
-                if (response.data != null) {
-                    // Process the data to create chart entries
-                    val dailySpends = mutableMapOf<Int, Double>()
-                    val labels = mutableListOf<String>()
+                val entries = dailySpends.entries.sortedBy { it.key }.map { (day, amount) ->
+                    Entry((day - 1).toFloat(), amount.toFloat())
+                }
 
-                    // Initialize all days of the month with 0
-                    val daysInMonth = endOfMonth.get(Calendar.DAY_OF_MONTH)
-                    for (day in 1..daysInMonth) {
-                        dailySpends[day] = 0.0
-                        labels.add(day.toString())
-                    }
-
-                    // Aggregate spending by day
-                    for (transactionJson in response.data as List<Map<String, Any>>) {
-                        val timestamp = transactionJson["timestamp"] as? Long ?: continue
-                        val amount = transactionJson["amount"] as? Double ?: continue
-
-                        val transactionDate = Calendar.getInstance().apply { timeInMillis = timestamp }
-                        val dayOfMonth = transactionDate.get(Calendar.DAY_OF_MONTH)
-
-                        dailySpends[dayOfMonth] = (dailySpends[dayOfMonth] ?: 0.0) + amount
-                    }
-
-                    // Create chart entries
-                    val entries = dailySpends.entries.sortedBy { it.key }.map { (day, amount) ->
-                        Entry((day - 1).toFloat(), amount.toFloat())
-                    }
-
-                    // Update the chart on main thread
-                    withContext(Dispatchers.Main) {
-                        setupLineChart(entries, labels)
-                        hideLoading()
-                    }
-                } else {
-                    withContext(Dispatchers.Main) {
-                        hideLoading()
-                    }
+                withContext(Dispatchers.Main) {
+                    setupLineChart(entries, labels)
+                    hideLoading()
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     hideLoading()
                 }
-                e.printStackTrace()
             }
         }
     }

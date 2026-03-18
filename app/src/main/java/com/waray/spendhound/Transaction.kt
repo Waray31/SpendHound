@@ -1,9 +1,11 @@
 package com.waray.spendhound
 
 import kotlinx.serialization.Serializable
+import java.util.UUID
 
 @Serializable
 data class Transaction(
+    var id: String = UUID.randomUUID().toString(),
     var transactionType: String? = null,
     var paymentAmount: Double = 0.0,
     var multilineStr: String? = null,
@@ -17,7 +19,8 @@ data class Transaction(
     var posterDisplayName: String? = null,
     var monthYear: String? = null,
     var day: String? = null,
-    var timeKey: String? = null
+    var timeKey: String? = null,
+    var timestamp: Long = System.currentTimeMillis()
 ) {
     fun isUserInvolvedByUid(uid: String?): Boolean {
         if (uid.isNullOrEmpty()) return false
@@ -46,4 +49,9 @@ data class Transaction(
     fun getGroupName(): String? = groupName
     fun getPayorsDisplayNames(): MutableList<String?>? = payorsDisplayNames
     fun getPosterDisplayName(): String? = posterDisplayName
+    fun getMonthYear(): String? = monthYear
+    fun getDay(): String? = day
+    fun getTimeKey(): String? = timeKey
+    fun getTimestamp(): Long = timestamp
+    fun getId(): String = id
 }
