@@ -114,8 +114,7 @@ object BalanceHelper {
         
         scope.launch {
             try {
-                // In a real Supabase app, you'd use an RPC for atomic increments.
-                // For simplicity and matching the old logic, we fetch and update.
+                // Fetch current balances
                 val user = DeclareDatabase.usersTable.select(Columns.list("balances")) {
                     filter { eq("id", uid) }
                 }.decodeSingleOrNull<User>()
@@ -144,6 +143,44 @@ object BalanceHelper {
                     Log.e(TAG, "Failed to update $fieldName: ${e.message}")
                     callback?.onFailure(e.message)
                 }
+            }
+        }
+    }
+
+    /**
+     * Add a record to userBorrows table for the borrower
+     */
+    fun addBorrowerEntry(uid: String?, borrowId: String, callback: BalanceCallback?) {
+        if (uid == null) return
+        scope.launch {
+            try {
+                DeclareDatabase.userBorrowsTable.insert(mapOf(
+                    "user_id" to uid,
+                    "borrow_id" to borrowId,
+                    "type" to "borrower"
+                ))
+                withContext(Dispatchers.Main) { callback?.onSuccess() }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { callback?.onFailure(e.message) }
+            }
+        }
+    }
+
+    /**
+     * Add a record to userBorrows table for the lender
+     */
+    fun addLenderEntry(uid: String?, borrowId: String, callback: BalanceCallback?) {
+        if (uid == null) return
+        scope.launch {
+            try {
+                DeclareDatabase.userBorrowsTable.insert(mapOf(
+                    "user_id" to uid,
+                    "borrow_id" to borrowId,
+                    "type" to "lender"
+                ))
+                withContext(Dispatchers.Main) { callback?.onSuccess() }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) { callback?.onFailure(e.message) }
             }
         }
     }
