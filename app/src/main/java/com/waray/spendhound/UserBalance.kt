@@ -1,40 +1,15 @@
 package com.waray.spendhound
 
+import kotlinx.serialization.Serializable
+
 /**
- * Model class for user balance data stored under users/{uid}/balances
- * 
- * Field definitions:
- * - totalBillSpent: Sum of paymentAmount in all transactions where user is in payorsList
- * - totalBillPayment: Sum of user's individual amounts from amountsPaidList in all transactions
- * - totalIndividualSpent: Sum of totalIndividualPayment for each transaction user participated in
- * - totaldebt: Sum of borrow amounts where user is borrower with status != "Paid"
- * - totalreceivable: Sum of borrow amounts where user is lender with status != "Paid"
+ * Model class for user balance data
  */
-class UserBalance {
-    // Getters and Setters
-    var totalBillSpent: Double
-    var totalBillPayment: Double
-    var totalIndividualSpent: Double
-    var totaldebt: Double
-    var totalreceivable: Double
-
-    // Default constructor required for Firebase
-    constructor() {
-        this.totalBillSpent = 0.0
-        this.totalBillPayment = 0.0
-        this.totalIndividualSpent = 0.0
-        this.totaldebt = 0.0
-        this.totalreceivable = 0.0
-    }
-
-    constructor(
-        totalBillSpent: Double, totalBillPayment: Double, totalIndividualSpent: Double,
-        totaldebt: Double, totalreceivable: Double
-    ) {
-        this.totalBillSpent = totalBillSpent
-        this.totalBillPayment = totalBillPayment
-        this.totalIndividualSpent = totalIndividualSpent
-        this.totaldebt = totaldebt
-        this.totalreceivable = totalreceivable
-    }
-}
+@Serializable
+data class UserBalance(
+    var totalBillSpent: Double = 0.0,
+    var totalBillPayment: Double = 0.0,
+    var totalIndividualSpent: Double = 0.0,
+    var totaldebt: Double = 0.0,
+    var totalreceivable: Double = 0.0
+)

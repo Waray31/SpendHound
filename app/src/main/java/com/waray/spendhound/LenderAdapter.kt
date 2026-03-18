@@ -2,60 +2,69 @@ package com.waray.spendhound
 
 import android.content.Context
 import android.graphics.drawable.Drawable
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
+import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
-import com.google.firebase.storage.FirebaseStorage
+import com.google.android.material.imageview.ShapeableImageView
+import io.github.jan.supabase.storage.resumable.Resumable
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
 
-class LenderAdapter(private val lenders: MutableList<User>) :
-    RecyclerView.Adapter<LenderAdapter.ViewHolder?>() {
+class LenderAdapter(private val lenders: MutableList<User?>) :
+    RecyclerView.Adapter<LenderAdapter.ViewHolder>() {
+    
+    private val scope = CoroutineScope(Dispatchers.Main)
+
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val view: View = LayoutInflater.from(parent.getContext())
+        val view: View = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_lender_profile, parent, false)
-        var width: Int = parent.getMeasuredWidth() / 5
+        var width: Int = parent.measuredWidth / 5
         if (width <= 0) {
-            width = parent.getResources().getDisplayMetrics().widthPixels / 5
+            width = parent.resources.displayMetrics.widthPixels / 5
         }
-        view.setLayoutParams(
-            RecyclerView.LayoutParams(
-                width,
-                RecyclerView.LayoutParams.WRAP_CONTENT
-            )
-        )
+        view.layoutParams = RecyclerView.LayoutParams(width, RecyclerView.LayoutParams.WRAP_CONTENT)
         return ViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val lender = lenders.get(position)
+        val lender = lenders[position] ?: return
 
-        if (lender.getUsername() == null || lender.getUsername().isEmpty()) {
-            holder.profileImage.setVisibility(View.INVISIBLE)
-            holder.usernameText.setVisibility(View.INVISIBLE)
+        if (lender.username.isNullOrEmpty()) {
+            holder.profileImage.visibility = View.INVISIBLE
+            holder.usernameText.visibility = View.INVISIBLE
         } else {
-            holder.profileImage.setVisibility(View.VISIBLE)
-            holder.usernameText.setVisibility(View.VISIBLE)
-            holder.usernameText.setText(lender.getUsername())
+            holder.profileImage.visibility = View.VISIBLE
+            holder.usernameText.visibility = View.VISIBLE
+            holder.usernameText.text = lender.username
 
-            val uid = lender.getUid()
-            val cachedUrl: String? =
-                PayorAdapter.Companion.sDownloadUrlCache.get(if (uid != null) uid else "")
+            val uid = lender.id
+            val cachedUrl: String? = PayorAdapter.sDownloadUrlCache[uid ?: ""]
 
             if (cachedUrl != null) {
                 loadGlideImage(holder, cachedUrl)
-            } else if (lender.getProfileImageUrl() != null && !lender.getProfileImageUrl()
-                    .isEmpty()
-            ) {
-                loadGlideImage(holder, lender.getProfileImageUrl())
+            } else if (!lender.profileImageUrl.isNullOrEmpty() && lender.profileImageUrl!!.startsWith("http")) {
+                loadGlideImage(holder, lender.profileImageUrl)
             } else if (uid != null) {
-                FirebaseStorage.getInstance().getReference("profile_images").child(uid)
-                    .getDownloadUrl().addOnSuccessListener({ uri ->
-                        val url: String? = uri.toString()
-                        PayorAdapter.Companion.sDownloadUrlCache.put(uid, url)
+                scope.launch {
+                    try {
+                        val url = DeclareDatabase.profileImagesBucket.publicUrl("$uid.jpg")
+                        PayorAdapter.sDownloadUrlCache[uid] = url
                         loadGlideImage(holder, url)
-                    }).addOnFailureListener({ e ->
+                    } catch (e: Exception) {
                         holder.profileImage.setImageResource(R.drawable.placeholder_profile_image)
-                    })
+                    }
+                }
             } else {
                 holder.profileImage.setImageResource(R.drawable.placeholder_profile_image)
             }
@@ -63,7 +72,7 @@ class LenderAdapter(private val lenders: MutableList<User>) :
     }
 
     private fun loadGlideImage(holder: ViewHolder, url: String?) {
-        Glide.with(holder.itemView.getContext())
+        Glide.with(holder.itemView.context)
             .load(url)
             .diskCacheStrategy(DiskCacheStrategy.ALL)
             .placeholder(R.drawable.placeholder_profile_image)
@@ -72,29 +81,23 @@ class LenderAdapter(private val lenders: MutableList<User>) :
             .into(holder.profileImage)
     }
 
-    val itemCount: Int
-        get() = lenders.size
+    override fun getItemCount(): Int = lenders.size
 
     fun getLenderAt(position: Int): User? {
         if (position >= 0 && position < lenders.size) {
-            val user = lenders.get(position)
-            if (user.getUsername() != null && !user.getUsername().isEmpty()) {
+            val user = lenders[position]
+            if (!user?.username.isNullOrEmpty()) {
                 return user
             }
         }
         return null
     }
 
-    fun preloadAllImages(context: Context, onComplete: Runnable?) {
-        val usersToFetch: MutableList<User> = ArrayList<User>()
-        for (lender in lenders) {
-            if (lender.getUsername() != null && !lender.getUsername().isEmpty()) {
-                usersToFetch.add(lender)
-            }
-        }
+    fun preloadAllImages(context: Context?, onComplete: Runnable?) {
+        val usersToFetch = lenders.filter { !it?.username.isNullOrEmpty() }
 
         if (usersToFetch.isEmpty()) {
-            if (onComplete != null) onComplete.run()
+            onComplete?.run()
             return
         }
 
@@ -102,30 +105,28 @@ class LenderAdapter(private val lenders: MutableList<User>) :
         val total = usersToFetch.size
 
         for (lender in usersToFetch) {
-            val uid = lender.getUid()
-            val cachedUrl: String? =
-                PayorAdapter.Companion.sDownloadUrlCache.get(if (uid != null) uid else "")
+            val uid = lender?.id
+            val cachedUrl: String? = PayorAdapter.sDownloadUrlCache[uid ?: ""]
 
             if (cachedUrl != null) {
-                preloadUrl(context, cachedUrl, loadedCount, total, onComplete)
-            } else if (lender.getProfileImageUrl() != null && !lender.getProfileImageUrl()
-                    .isEmpty()
-            ) {
-                preloadUrl(context, lender.getProfileImageUrl(), loadedCount, total, onComplete)
+                preloadUrl(context!!, cachedUrl, loadedCount, total, onComplete)
+            } else if (!lender?.profileImageUrl.isNullOrEmpty() && lender!!.profileImageUrl!!.startsWith("http")) {
+                preloadUrl(context!!, lender.profileImageUrl, loadedCount, total, onComplete)
             } else if (uid != null) {
-                FirebaseStorage.getInstance().getReference("profile_images").child(uid)
-                    .getDownloadUrl().addOnSuccessListener({ uri ->
-                        val url: String? = uri.toString()
-                        PayorAdapter.Companion.sDownloadUrlCache.put(uid, url)
-                        preloadUrl(context, url, loadedCount, total, onComplete)
-                    }).addOnFailureListener({ e ->
+                scope.launch {
+                    try {
+                        val url = DeclareDatabase.profileImagesBucket.publicUrl("$uid.jpg")
+                        PayorAdapter.sDownloadUrlCache[uid] = url
+                        preloadUrl(context!!, url, loadedCount, total, onComplete)
+                    } catch (e: Exception) {
                         if (loadedCount.incrementAndGet() >= total) {
-                            if (onComplete != null) onComplete.run()
+                            onComplete?.run()
                         }
-                    })
+                    }
+                }
             } else {
                 if (loadedCount.incrementAndGet() >= total) {
-                    if (onComplete != null) onComplete.run()
+                    onComplete?.run()
                 }
             }
         }
@@ -142,30 +143,17 @@ class LenderAdapter(private val lenders: MutableList<User>) :
             .load(url)
             .diskCacheStrategy(DiskCacheStrategy.ALL)
             .listener(object : RequestListener<Drawable?> {
-                override fun onLoadFailed(
-                    e: GlideException?,
-                    model: Any?,
-                    target: Target<Drawable?>?,
-                    isFirstResource: Boolean
-                ): Boolean {
+                override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable?>?, isFirstResource: Boolean): Boolean {
                     checkComplete()
                     return false
                 }
-
-                override fun onResourceReady(
-                    resource: Drawable?,
-                    model: Any?,
-                    target: Target<Drawable?>?,
-                    dataSource: DataSource?,
-                    isFirstResource: Boolean
-                ): Boolean {
+                override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable?>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
                     checkComplete()
                     return false
                 }
-
                 fun checkComplete() {
                     if (loadedCount.incrementAndGet() >= total) {
-                        if (onComplete != null) onComplete.run()
+                        onComplete?.run()
                     }
                 }
             })
@@ -173,12 +161,7 @@ class LenderAdapter(private val lenders: MutableList<User>) :
     }
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        var profileImage: ShapeableImageView
-        var usernameText: TextView
-
-        init {
-            profileImage = itemView.findViewById<ShapeableImageView>(R.id.profileImage)
-            usernameText = itemView.findViewById<TextView>(R.id.usernameText)
-        }
+        val profileImage: ShapeableImageView = itemView.findViewById(R.id.profileImage)
+        val usernameText: TextView = itemView.findViewById(R.id.usernameText)
     }
 }

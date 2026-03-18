@@ -2,12 +2,25 @@ package com.waray.spendhound
 
 import android.content.Context
 import android.graphics.drawable.Drawable
+import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.Button
 import android.widget.ImageView
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.bumptech.glide.load.DataSource
+import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.bumptech.glide.load.engine.GlideException
+import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
-import com.google.firebase.storage.FirebaseStorage
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.storage.resumable.Resumable
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
 class PayorAdapter(
@@ -16,14 +29,15 @@ class PayorAdapter(
     amountsPaid: MutableList<Double?>,
     private val individualPayment: Double,
     private val onPayorClickListener: OnPayorClickListener?
-) : RecyclerView.Adapter<PayorViewHolder?>() {
-    var amountsPaid: MutableList<Double?>?
+) : RecyclerView.Adapter<PayorAdapter.PayorViewHolder>() {
+    var amountsPaid: MutableList<Double?>? = null
         private set
     private var originalAmountsPaid: MutableList<Double?>
     private var loadingCompleteListener: OnLoadingCompleteListener? = null
     private var dataChangedListener: OnDataChangedListener? = null
-    private val loadedPositions: MutableSet<Int?> = HashSet<Int?>()
+    private val loadedPositions: MutableSet<Int> = HashSet()
     private var isEditMode = false
+    private val scope = CoroutineScope(Dispatchers.Main)
 
     interface OnPayorClickListener {
         fun onPayorClick(index: Int, paid: Double)
@@ -40,7 +54,7 @@ class PayorAdapter(
 
     fun setOnLoadingCompleteListener(listener: OnLoadingCompleteListener?) {
         this.loadingCompleteListener = listener
-        if ((payorsUids == null || payorsUids.isEmpty()) && loadingCompleteListener != null) {
+        if (payorsUids.isNullOrEmpty() && loadingCompleteListener != null) {
             loadingCompleteListener!!.onLoadingComplete()
         }
     }
@@ -50,63 +64,47 @@ class PayorAdapter(
     }
 
     init {
-        this.amountsPaid = ArrayList<Double?>(amountsPaid)
-        this.originalAmountsPaid = ArrayList<Double?>(amountsPaid)
+        this.amountsPaid = ArrayList(amountsPaid)
+        this.originalAmountsPaid = ArrayList(amountsPaid)
     }
 
-    /**
-     * Proactively starts loading all images for this transaction.
-     * Ensures the loading overlay stays visible until all images are ready.
-     */
     fun startLoadingAllImages(context: Context) {
-        if (payorsUids == null || payorsUids.isEmpty()) {
-            if (loadingCompleteListener != null) loadingCompleteListener!!.onLoadingComplete()
+        if (payorsUids.isNullOrEmpty()) {
+            loadingCompleteListener?.onLoadingComplete()
             return
         }
 
-        // We don't clear loadedPositions here because onBindViewHolder might have already started/finished some loads
         for (i in payorsUids.indices) {
-            val pos = i
-            val uid = payorsUids.get(pos)
-            val cachedUrl: String? = sDownloadUrlCache.get(uid)
+            val uid = payorsUids[i] ?: continue
+            val cachedUrl = sDownloadUrlCache[uid]
 
             if (cachedUrl != null) {
-                preloadProfileImage(context, cachedUrl, pos)
+                preloadProfileImage(context, cachedUrl, i)
             } else {
-                val pStorageRef: StorageReference =
-                    FirebaseStorage.getInstance().getReference("profile_images").child(uid)
-                pStorageRef.getDownloadUrl().addOnSuccessListener({ uri ->
-                    val url: String? = uri.toString()
-                    sDownloadUrlCache.put(uid, url)
-                    preloadProfileImage(context, url, pos)
-                }).addOnFailureListener({ e -> checkLoadingComplete(pos) })
+                scope.launch {
+                    try {
+                        val url = DeclareDatabase.profileImagesBucket.publicUrl("$uid.jpg")
+                        sDownloadUrlCache[uid] = url
+                        preloadProfileImage(context, url, i)
+                    } catch (e: Exception) {
+                        checkLoadingComplete(i)
+                    }
+                }
             }
         }
     }
 
-    private fun preloadProfileImage(context: Context, url: String?, position: Int) {
+    private fun preloadProfileImage(context: Context, url: String, position: Int) {
         Glide.with(context)
             .load(url)
-            .circleCrop() // Consistent with onBindViewHolder for cache sharing
+            .circleCrop()
             .diskCacheStrategy(DiskCacheStrategy.ALL)
             .listener(object : RequestListener<Drawable?> {
-                override fun onLoadFailed(
-                    e: GlideException?,
-                    model: Any?,
-                    target: Target<Drawable?>?,
-                    isFirstResource: Boolean
-                ): Boolean {
+                override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable?>?, isFirstResource: Boolean): Boolean {
                     checkLoadingComplete(position)
                     return false
                 }
-
-                override fun onResourceReady(
-                    resource: Drawable?,
-                    model: Any?,
-                    target: Target<Drawable?>?,
-                    dataSource: DataSource?,
-                    isFirstResource: Boolean
-                ): Boolean {
+                override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable?>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
                     checkLoadingComplete(position)
                     return false
                 }
@@ -117,15 +115,15 @@ class PayorAdapter(
     fun setEditMode(editMode: Boolean) {
         this.isEditMode = editMode
         if (!editMode) {
-            this.amountsPaid = ArrayList<Double?>(originalAmountsPaid)
+            this.amountsPaid = ArrayList(originalAmountsPaid)
         }
-        loadedPositions.clear() // Reset loading state if re-binding everything
+        loadedPositions.clear()
         notifyDataSetChanged()
         notifyDataChanged()
     }
 
     fun saveChanges() {
-        this.originalAmountsPaid = ArrayList<Double?>(amountsPaid)
+        this.originalAmountsPaid = ArrayList(amountsPaid!!)
         this.isEditMode = false
         loadedPositions.clear()
         notifyDataSetChanged()
@@ -135,131 +133,93 @@ class PayorAdapter(
     fun hasChanges(): Boolean {
         if (amountsPaid!!.size != originalAmountsPaid.size) return true
         for (i in amountsPaid!!.indices) {
-            if (!amountsPaid!!.get(i)!!.equals(originalAmountsPaid.get(i))) {
-                return true
-            }
+            if (amountsPaid!![i] != originalAmountsPaid[i]) return true
         }
         return false
     }
 
     private fun notifyDataChanged() {
-        if (dataChangedListener != null) {
-            dataChangedListener!!.onDataChanged(hasChanges())
-        }
+        dataChangedListener?.onDataChanged(hasChanges())
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): PayorViewHolder {
-        val view: View = LayoutInflater.from(parent.getContext())
+        val view: View = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_payor_horizontal, parent, false)
         return PayorViewHolder(view)
     }
 
     override fun onBindViewHolder(holder: PayorViewHolder, position: Int) {
-        val uid = payorsUids!!.get(position)
-        val name =
-            if (payorsNames != null && position < payorsNames.size) payorsNames.get(position) else "User"
-        val paid =
-            (if (amountsPaid != null && position < amountsPaid.size) amountsPaid.get(position) else 0.0)!!
+        val uid = payorsUids?.get(position)
+        val name = if (payorsNames != null && position < payorsNames.size) payorsNames[position] else "User"
+        val paid = if (amountsPaid != null && position < amountsPaid!!.size) amountsPaid!![position] ?: 0.0 else 0.0
 
-        holder.payorName.setText(name)
-        holder.payorPayment.setText(
-            CurrencyUtils.formatAmount(paid) + "/" + CurrencyUtils.formatAmount(
-                individualPayment
-            )
-        )
+        holder.payorName.text = name
+        holder.payorPayment.text = "${CurrencyUtils.formatAmount(paid)}/${CurrencyUtils.formatAmount(individualPayment)}"
 
         updateStatusUI(holder, paid)
 
         if (isEditMode) {
-            holder.editButtonsLayout.setVisibility(View.VISIBLE)
+            holder.editButtonsLayout.visibility = View.VISIBLE
+            holder.unpaidBtn.visibility = if (paid > 0) View.VISIBLE else View.GONE
+            holder.paidBtn.visibility = if (paid < individualPayment) View.VISIBLE else View.GONE
+            holder.partialBtn.visibility = View.VISIBLE
 
-            if (paid <= 0) {
-                holder.unpaidBtn.setVisibility(View.GONE)
-                holder.paidBtn.setVisibility(View.VISIBLE)
-                holder.partialBtn.setVisibility(View.VISIBLE)
-            } else if (paid >= individualPayment) {
-                holder.unpaidBtn.setVisibility(View.VISIBLE)
-                holder.paidBtn.setVisibility(View.GONE)
-                holder.partialBtn.setVisibility(View.VISIBLE)
-            } else {
-                holder.unpaidBtn.setVisibility(View.VISIBLE)
-                holder.paidBtn.setVisibility(View.VISIBLE)
-                holder.partialBtn.setVisibility(View.VISIBLE)
+            holder.unpaidBtn.setOnClickListener {
+                amountsPaid!![position] = 0.0
+                notifyItemChanged(position)
+                notifyDataChanged()
             }
 
-            holder.unpaidBtn.setOnClickListener(View.OnClickListener { v: View? ->
-                amountsPaid!!.set(position, 0.0)
+            holder.paidBtn.setOnClickListener {
+                amountsPaid!![position] = individualPayment
                 notifyItemChanged(position)
                 notifyDataChanged()
-            })
+            }
 
-            holder.paidBtn.setOnClickListener(View.OnClickListener { v: View? ->
-                amountsPaid!!.set(position, individualPayment)
-                notifyItemChanged(position)
-                notifyDataChanged()
-            })
+            holder.partialBtn.setOnClickListener {
+                onPayorClickListener?.onPartialClick(position, amountsPaid!![position]!!)
+            }
+        } else {
+            holder.editButtonsLayout.visibility = View.GONE
+        }
 
-            holder.partialBtn.setOnClickListener(View.OnClickListener { v: View? ->
-                if (onPayorClickListener != null) {
-                    onPayorClickListener.onPartialClick(position, amountsPaid!!.get(position)!!)
+        if (uid != null) {
+            val cachedUrl = sDownloadUrlCache[uid]
+            if (cachedUrl != null) {
+                loadGlideImage(holder, cachedUrl, position)
+            } else {
+                scope.launch {
+                    try {
+                        val url = DeclareDatabase.profileImagesBucket.publicUrl("$uid.jpg")
+                        sDownloadUrlCache[uid] = url
+                        loadGlideImage(holder, url, position)
+                    } catch (e: Exception) {
+                        holder.payorImage.setImageResource(R.drawable.placeholder_profile_image)
+                        checkLoadingComplete(position)
+                    }
                 }
-            })
-        } else {
-            holder.editButtonsLayout.setVisibility(View.GONE)
+            }
         }
 
-        val cachedUrl: String? = sDownloadUrlCache.get(uid)
-        if (cachedUrl != null) {
-            loadGlideImage(holder, cachedUrl, position)
-        } else {
-            val pStorageRef: StorageReference =
-                FirebaseStorage.getInstance().getReference("profile_images").child(uid)
-            pStorageRef.getDownloadUrl().addOnSuccessListener({ uri ->
-                val url: String? = uri.toString()
-                sDownloadUrlCache.put(uid, url)
-                loadGlideImage(holder, url, position)
-            }).addOnFailureListener({ e ->
-                holder.payorImage.setImageResource(R.drawable.placeholder_profile_image)
-                checkLoadingComplete(position)
-            })
-        }
-
-        if (!isEditMode && onPayorClickListener != null) {
-            holder.itemView.setOnClickListener(View.OnClickListener { v: View? ->
-                onPayorClickListener.onPayorClick(
-                    position,
-                    paid
-                )
-            })
+        if (!isEditMode) {
+            holder.itemView.setOnClickListener { onPayorClickListener?.onPayorClick(position, paid) }
         } else {
             holder.itemView.setOnClickListener(null)
         }
     }
 
     private fun loadGlideImage(holder: PayorViewHolder, url: String?, position: Int) {
-        Glide.with(holder.itemView.getContext())
+        Glide.with(holder.itemView.context)
             .load(url)
             .placeholder(R.drawable.placeholder_profile_image)
             .diskCacheStrategy(DiskCacheStrategy.ALL)
             .circleCrop()
             .listener(object : RequestListener<Drawable?> {
-                override fun onLoadFailed(
-                    e: GlideException?,
-                    model: Any?,
-                    target: Target<Drawable?>?,
-                    isFirstResource: Boolean
-                ): Boolean {
+                override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable?>?, isFirstResource: Boolean): Boolean {
                     checkLoadingComplete(position)
                     return false
                 }
-
-                override fun onResourceReady(
-                    resource: Drawable?,
-                    model: Any?,
-                    target: Target<Drawable?>?,
-                    dataSource: DataSource?,
-                    isFirstResource: Boolean
-                ): Boolean {
+                override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable?>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
                     checkLoadingComplete(position)
                     return false
                 }
@@ -268,29 +228,26 @@ class PayorAdapter(
     }
 
     private fun updateStatusUI(holder: PayorViewHolder, paid: Double) {
-        if (paid <= 0) {
-            holder.payorStatus.setText("Unpaid")
-            holder.payorStatus.setTextColor(
-                holder.itemView.getContext().getResources().getColor(android.R.color.holo_red_dark)
-            )
-        } else if (paid < individualPayment) {
-            holder.payorStatus.setText("Paid Partially")
-            holder.payorStatus.setTextColor(
-                holder.itemView.getContext().getResources()
-                    .getColor(android.R.color.holo_orange_dark)
-            )
-        } else {
-            holder.payorStatus.setText("Paid")
-            holder.payorStatus.setTextColor(
-                holder.itemView.getContext().getResources()
-                    .getColor(android.R.color.holo_green_dark)
-            )
+        val context = holder.itemView.context
+        when {
+            paid <= 0 -> {
+                holder.payorStatus.text = "Unpaid"
+                holder.payorStatus.setTextColor(ContextCompat.getColor(context, android.R.color.holo_red_dark))
+            }
+            paid < individualPayment -> {
+                holder.payorStatus.text = "Paid Partially"
+                holder.payorStatus.setTextColor(ContextCompat.getColor(context, android.R.color.holo_orange_dark))
+            }
+            else -> {
+                holder.payorStatus.text = "Paid"
+                holder.payorStatus.setTextColor(ContextCompat.getColor(context, android.R.color.holo_green_dark))
+            }
         }
     }
 
     fun updatePartialAmount(index: Int, amount: Double) {
         if (index < amountsPaid!!.size) {
-            amountsPaid!!.set(index, amount)
+            amountsPaid!![index] = amount
             notifyItemChanged(index)
             notifyDataChanged()
         }
@@ -299,63 +256,47 @@ class PayorAdapter(
     @Synchronized
     private fun checkLoadingComplete(position: Int) {
         loadedPositions.add(position)
-        if (loadedPositions.size >= this.itemCount && loadingCompleteListener != null) {
-            loadingCompleteListener!!.onLoadingComplete()
+        if (loadedPositions.size >= itemCount) {
+            loadingCompleteListener?.onLoadingComplete()
         }
     }
 
-    val itemCount: Int
-        get() = if (payorsUids != null) payorsUids.size else 0
+    override fun getItemCount(): Int = payorsUids?.size ?: 0
 
-    internal class PayorViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        var payorImage: ImageView
-        var payorName: TextView
-        var payorPayment: TextView
-        var payorStatus: TextView
-        var editButtonsLayout: View
-        var unpaidBtn: Button
-        var paidBtn: Button
-        var partialBtn: Button
-
-        init {
-            payorImage = itemView.findViewById<ImageView>(R.id.payorProfileImage)
-            payorName = itemView.findViewById<TextView>(R.id.payorNameTextView)
-            payorPayment = itemView.findViewById<TextView>(R.id.payorPaymentTextView)
-            payorStatus = itemView.findViewById<TextView>(R.id.payorStatusTextView)
-            editButtonsLayout = itemView.findViewById<View>(R.id.editButtonsLayout)
-            unpaidBtn = itemView.findViewById<Button>(R.id.unpaid_btn)
-            paidBtn = itemView.findViewById<Button>(R.id.paid_btn)
-            partialBtn = itemView.findViewById<Button>(R.id.partial_btn)
-        }
+    class PayorViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val payorImage: ImageView = itemView.findViewById(R.id.payorProfileImage)
+        val payorName: TextView = itemView.findViewById(R.id.payorNameTextView)
+        val payorPayment: TextView = itemView.findViewById(R.id.payorPaymentTextView)
+        val payorStatus: TextView = itemView.findViewById(R.id.payorStatusTextView)
+        val editButtonsLayout: View = itemView.findViewById(R.id.editButtonsLayout)
+        val unpaidBtn: Button = itemView.findViewById(R.id.unpaid_btn)
+        val paidBtn: Button = itemView.findViewById(R.id.paid_btn)
+        val partialBtn: Button = itemView.findViewById(R.id.partial_btn)
     }
 
     companion object {
-        // Publicly accessible cache for download URLs to reduce Firebase Storage calls
-        val sDownloadUrlCache: MutableMap<String?, String?> = ConcurrentHashMap<String?, String?>()
+        val sDownloadUrlCache: MutableMap<String, String> = ConcurrentHashMap()
 
-        /**
-         * Pre-caches profile images for a list of UIDs.
-         * This can be called before the adapter is even created or expanded to reduce wait time.
-         */
-        fun preCacheUids(context: Context?, uids: MutableList<String?>?) {
-            if (uids == null || context == null) return
+        fun preCacheUids(context: Context, uids: MutableList<String?>) {
+            val scope = CoroutineScope(Dispatchers.IO)
             for (uid in uids) {
                 if (uid == null) continue
-                val cachedUrl: String? = sDownloadUrlCache.get(uid)
+                val cachedUrl = sDownloadUrlCache[uid]
                 if (cachedUrl != null) {
                     preloadOnly(context, cachedUrl)
                 } else {
-                    FirebaseStorage.getInstance().getReference("profile_images").child(uid)
-                        .getDownloadUrl().addOnSuccessListener({ uri ->
-                            val url: String? = uri.toString()
-                            sDownloadUrlCache.put(uid, url)
+                    scope.launch {
+                        try {
+                            val url = DeclareDatabase.profileImagesBucket.publicUrl("$uid.jpg")
+                            sDownloadUrlCache[uid] = url
                             preloadOnly(context, url)
-                        })
+                        } catch (e: Exception) {}
+                    }
                 }
             }
         }
 
-        private fun preloadOnly(context: Context, url: String?) {
+        private fun preloadOnly(context: Context, url: String) {
             Glide.with(context)
                 .load(url)
                 .circleCrop()

@@ -1,12 +1,29 @@
 package com.waray.spendhound
 
+import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Bundle
 import android.util.Log
 import android.view.MenuItem
+import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
-import com.google.firebase.auth.FirebaseAuth
+import android.widget.EditText
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.LinearSnapHelper
+import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.SnapHelper
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.FirebaseDatabase
+import com.google.firebase.database.ValueEventListener
+import io.github.jan.supabase.gotrue.Auth
+import io.github.jan.supabase.gotrue.auth
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -32,56 +49,50 @@ class BorrowNowActivity : AppCompatActivity() {
     private var usersRef: DatabaseReference? = null
     private var adapter: LenderAdapter? = null
     private var lenders: MutableList<User?>? = null
-
+    private var mAuth: Auth? = null
 
     @SuppressLint("MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.dialog_borrow_now)
-        lenderRecyclerView = findViewById<RecyclerView>(R.id.lenderRecyclerView)
-        date = findViewById<TextView>(R.id.dialogBorrowDate)
-        borrower = findViewById<TextView>(R.id.dialogBorrower)
-        dialogProgressBar = findViewById<View?>(R.id.dialogProgressBar)
-        borrowBtn = findViewById<Button>(R.id.dialogBorrowBtn)
-        cancelBtn = findViewById<Button?>(R.id.dialogCancelBtn)
+        
+        mAuth = DeclareDatabase.auth
+        
+        lenderRecyclerView = findViewById(R.id.lenderRecyclerView)
+        date = findViewById(R.id.dialogBorrowDate)
+        borrower = findViewById(R.id.dialogBorrower)
+        dialogProgressBar = findViewById(R.id.dialogProgressBar)
+        borrowBtn = findViewById(R.id.dialogBorrowBtn)
+        cancelBtn = findViewById(R.id.dialogCancelBtn)
         status = "For Lender Approval"
         usersRef = FirebaseDatabase.getInstance().getReference("users")
 
-        // Show progress bar initially
-        if (dialogProgressBar != null) {
-            dialogProgressBar!!.setVisibility(View.VISIBLE)
-        }
+        dialogProgressBar?.visibility = View.VISIBLE
 
         setDate()
         setupLenderRecyclerView()
-        borrowBtnClicked()
+        setupBorrowBtn()
 
-        if (cancelBtn != null) {
-            cancelBtn!!.setOnClickListener(View.OnClickListener { v: View? -> finish() })
-        }
+        cancelBtn?.setOnClickListener { finish() }
 
         exitEditText()
         loadNickname()
 
-        val actionBar = getSupportActionBar()
-        if (actionBar != null) {
-            actionBar.setDisplayHomeAsUpEnabled(true)
-        }
+        supportActionBar?.setDisplayHomeAsUpEnabled(true)
     }
 
     private fun setupLenderRecyclerView() {
-        val layoutManager: LinearLayoutManager =
-            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        lenderRecyclerView.setLayoutManager(layoutManager)
+        val layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        lenderRecyclerView?.layoutManager = layoutManager
 
-        lenders = ArrayList<User?>()
-        adapter = LenderAdapter(lenders)
-        lenderRecyclerView.setAdapter(adapter)
+        lenders = ArrayList()
+        adapter = LenderAdapter(lenders!!)
+        lenderRecyclerView?.adapter = adapter
 
         val snapHelper: SnapHelper = LinearSnapHelper()
         snapHelper.attachToRecyclerView(lenderRecyclerView)
 
-        lenderRecyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+        lenderRecyclerView?.addOnScrollListener(object : RecyclerView.OnScrollListener() {
             override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
                 super.onScrolled(recyclerView, dx, dy)
                 updateLayoutEffect(recyclerView)
@@ -90,23 +101,21 @@ class BorrowNowActivity : AppCompatActivity() {
             override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
                 super.onScrollStateChanged(recyclerView, newState)
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    val centerView: View? = snapHelper.findSnapView(layoutManager)
-                    if (centerView != null) {
-                        val pos: Int = layoutManager.getPosition(centerView)
-                        val selectedLender = adapter!!.getLenderAt(pos)
-                        if (selectedLender != null) {
-                            lender = selectedLender.getUsername()
-                        }
+                    val centerView = snapHelper.findSnapView(layoutManager)
+                    centerView?.let {
+                        val pos = layoutManager.getPosition(it)
+                        val selectedLender = adapter?.getLenderAt(pos)
+                        lender = selectedLender?.getUsername()
                     }
                 }
             }
         })
 
-        this.users
+        fetchLenders()
     }
 
     private fun updateLayoutEffect(recyclerView: RecyclerView) {
-        val midpoint: Float = recyclerView.getWidth() / 2f
+        val midpoint = recyclerView.width / 2f
         val d0 = 0f
         val d1 = 0.9f * midpoint
         val s0 = 1.6f
@@ -114,110 +123,86 @@ class BorrowNowActivity : AppCompatActivity() {
         val a0 = 1.0f
         val a1 = 0.5f
 
-        for (i in 0..<recyclerView.getChildCount()) {
-            val child: View = recyclerView.getChildAt(i)
-            val childMidpoint: Float = (recyclerView.getLayoutManager()
-                .getDecoratedRight(child) + recyclerView.getLayoutManager()
-                .getDecoratedLeft(child)) / 2f
-            val d = min(d1, abs(midpoint - childMidpoint))
-            val scale = s0 + (s1 - s0) * (d - d0) / (d1 - d0)
-            val alpha = a0 + (a1 - a0) * (d - d0) / (d1 - d0)
-            child.setScaleX(scale)
-            child.setScaleY(scale)
-            child.setAlpha(alpha)
+        for (i in 0 until recyclerView.childCount) {
+            val child = recyclerView.getChildAt(i)
+            recyclerView.layoutManager?.let { lm ->
+                val childMidpoint = (lm.getDecoratedRight(child) + lm.getDecoratedLeft(child)) / 2f
+                val d = min(d1, abs(midpoint - childMidpoint))
+                val scale = s0 + (s1 - s0) * (d - d0) / (d1 - d0)
+                val alpha = a0 + (a1 - a0) * (d - d0) / (d1 - d0)
+                child.scaleX = scale
+                child.scaleY = scale
+                child.alpha = alpha
+            }
         }
     }
 
     private fun loadNickname() {
-        val currentUserID: String? =
-            Objects.requireNonNull<T?>(FirebaseAuth.getInstance().getCurrentUser()).getUid()
-        val usersRef: DatabaseReference =
-            DeclareDatabase.getDatabaseReference().child(currentUserID)
+        val currentUserID = mAuth?.currentUserOrNull()?.id ?: return
+        val usersRef = DeclareDatabase.getDatabaseReference().child(currentUserID)
         usersRef.child("username").addListenerForSingleValueEvent(object : ValueEventListener() {
-            fun onDataChange(dataSnapshot: DataSnapshot) {
+            override fun onDataChange(dataSnapshot: DataSnapshot) {
                 if (dataSnapshot.exists()) {
                     currentNickname = dataSnapshot.getValue(String::class.java)
-                    borrower.setText(currentNickname)
+                    borrower?.text = currentNickname
                 }
             }
-
-            public override fun onCancelled(databaseError: DatabaseError) {
-                Log.e("FirebaseDatabase", "Database read error: " + databaseError.getMessage())
+            override fun onCancelled(databaseError: DatabaseError) {
+                Log.e("FirebaseDatabase", "Database read error: " + databaseError.message)
             }
         })
     }
 
-    val users: Unit
-        get() {
-            usersRef.addListenerForSingleValueEvent(object : ValueEventListener() {
-                public override fun onDataChange(dataSnapshot: DataSnapshot) {
-                    lenders!!.clear()
-                    lenders!!.add(User("", "", "", "", UserBalance()))
-                    lenders!!.add(User("", "", "", "", UserBalance()))
+    private fun fetchLenders() {
+        usersRef?.addListenerForSingleValueEvent(object : ValueEventListener() {
+            override fun onDataChange(dataSnapshot: DataSnapshot) {
+                lenders?.clear()
+                lenders?.add(User("", "", "", UserBalance()))
+                lenders?.add(User("", "", "", UserBalance()))
 
-                    for (userSnapshot in dataSnapshot.getChildren()) {
-                        val user: User? =
-                            userSnapshot.getValue(User::class.java)
-                        if (user != null && user.getUsername() != null && (user.getUsername() != currentNickname)) {
-                            user.setUid(userSnapshot.getKey())
-                            lenders!!.add(user)
+                for (userSnapshot in dataSnapshot.children) {
+                    val user = userSnapshot.getValue(User::class.java)
+                    if (user != null && user.username != null && user.username != currentNickname) {
+                        user.id = userSnapshot.key
+                        lenders?.add(user)
+                    }
+                }
+
+                lenders?.add(User("", "", "", UserBalance()))
+                lenders?.add(User("", "", "", UserBalance()))
+
+                adapter?.notifyDataSetChanged()
+
+                adapter?.preloadAllImages(this@BorrowNowActivity) {
+                    runOnUiThread {
+                        dialogProgressBar?.visibility = View.GONE
+                        if (lenders!!.size > 2) {
+                            lenderRecyclerView?.scrollToPosition(2)
+                            lenderRecyclerView?.post {
+                                val firstUser = adapter?.getLenderAt(2)
+                                lender = firstUser?.getUsername()
+                                lenderRecyclerView?.let { updateLayoutEffect(it) }
+                            }
                         }
                     }
-
-                    lenders!!.add(User("", "", "", "", UserBalance()))
-                    lenders!!.add(User("", "", "", "", UserBalance()))
-
-                    adapter!!.notifyDataSetChanged()
-
-
-                    // Preload all profile images before hiding progress bar
-                    adapter!!.preloadAllImages(this@BorrowNowActivity, Runnable {
-                        runOnUiThread(Runnable {
-                            if (dialogProgressBar != null) {
-                                dialogProgressBar!!.setVisibility(View.GONE)
-                            }
-                            // Initial selection and layout update
-                            if (lenders!!.size > 2) {
-                                lenderRecyclerView.scrollToPosition(2)
-                                lenderRecyclerView.post(Runnable {
-                                    val firstUser =
-                                        adapter!!.getLenderAt(2)
-                                    if (firstUser != null) {
-                                        lender = firstUser.getUsername()
-                                    }
-                                    updateLayoutEffect(lenderRecyclerView)
-                                })
-                            }
-                        })
-                    })
                 }
+            }
 
-                public override fun onCancelled(databaseError: DatabaseError) {
-                    Log.e(
-                        "FirebaseDatabase",
-                        "Database read error: " + databaseError.getMessage()
-                    )
-                    Toast.makeText(
-                        getApplicationContext(),
-                        "Failed to load users",
-                        Toast.LENGTH_LONG
-                    ).show()
-                    if (dialogProgressBar != null) {
-                        dialogProgressBar!!.setVisibility(View.GONE)
-                    }
-                }
-            })
-        }
+            override fun onCancelled(databaseError: DatabaseError) {
+                Log.e("FirebaseDatabase", "Database error: " + databaseError.message)
+                dialogProgressBar?.visibility = View.GONE
+            }
+        })
+    }
 
     private fun setDate() {
         val calendar = Calendar.getInstance()
-        val dateFormat = SimpleDateFormat("MMMM-dd-yyyy", Locale.getDefault())
-        currentDate = dateFormat.format(calendar.getTime())
-        date.setText(currentDate)
+        currentDate = SimpleDateFormat("MMMM-dd-yyyy", Locale.getDefault()).format(calendar.time)
+        date?.text = currentDate
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.getItemId() == android.R.id.home) {
+        if (item.itemId == android.R.id.home) {
             finish()
             return true
         }
@@ -226,175 +211,117 @@ class BorrowNowActivity : AppCompatActivity() {
 
     private fun addBorrowTransaction() {
         val calendar = Calendar.getInstance()
-        val dateFormat = SimpleDateFormat("MMMM-yyyy", Locale.getDefault())
-        val dayFormat = SimpleDateFormat("dd", Locale.getDefault())
-
-        val currentMonthYear = dateFormat.format(calendar.getTime())
-        val currentDay = dayFormat.format(calendar.getTime())
+        val currentMonthYear = SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(calendar.time)
+        val currentDay = SimpleDateFormat("dd", Locale.getDefault()).format(calendar.time)
         val timestamp = System.currentTimeMillis()
 
-        val databaseReference: DatabaseReference = DeclareDatabase.getDBRefBorrows()
-        val monthYearRef: DatabaseReference = databaseReference.child(currentMonthYear)
-        val dayRef: DatabaseReference = monthYearRef.child(currentDay)
+        val databaseReference = DeclareDatabase.getDBRefBorrows()
+        val dayRef = databaseReference.child(currentMonthYear).child(currentDay)
 
-        val borrowId: String? = dayRef.push().getKey()
-        if (borrowId == null) {
-            Toast.makeText(
-                this@BorrowNowActivity,
-                "Failed to generate borrow ID",
-                Toast.LENGTH_SHORT
-            ).show()
-            if (dialogProgressBar != null) dialogProgressBar!!.setVisibility(View.GONE)
-            return
+        val borrowId = dayRef.push().key ?: return run {
+            Toast.makeText(this, "Failed to generate borrow ID", Toast.LENGTH_SHORT).show()
+            dialogProgressBar?.visibility = View.GONE
         }
 
-        val borrowRef: DatabaseReference = dayRef.child(borrowId)
+        val borrowRef = dayRef.child(borrowId)
+        val currentUserId = mAuth?.currentUserOrNull()?.id
 
-        val currentUser: FirebaseUser? = FirebaseAuth.getInstance().getCurrentUser()
-        if (currentUser != null && lender != null && !lender!!.isEmpty()) {
-            borrowerID = currentUser.getUid()
+        if (currentUserId != null && !lender.isNullOrEmpty()) {
+            borrowerID = currentUserId
 
-            getUserIDByName(lender!!, object : UserIDCallback {
-                override fun onUserIDRetrieved(getLenderID: String?) {
-                    lenderID = getLenderID
+            getUserIDByName(lender!!) { getLenderID ->
+                lenderID = getLenderID
 
-                    val borrowNowTransaction = BorrowNowTransaction(
-                        borrowId,
-                        borrowerID,
-                        lenderID,
-                        currentNickname,
-                        currentDate,
-                        lender,
-                        borrowedAmountSTR,
-                        status,
-                        timestamp
-                    )
+                val borrowNowTransaction = BorrowNowTransaction(
+                    borrowId,
+                    borrowerID,
+                    lenderID,
+                    currentNickname,
+                    currentDate,
+                    lender,
+                    borrowedAmountSTR,
+                    status,
+                    timestamp
+                )
 
-                    borrowRef.setValue(borrowNowTransaction)
-                        .addOnSuccessListener(object : OnSuccessListener<Void?> {
-                            override fun onSuccess(unused: Void?) {
-                                BalanceHelper.addBorrowerEntry(borrowerID, borrowId, null)
-                                BalanceHelper.addLenderEntry(lenderID, borrowId, null)
+                borrowRef.setValue(borrowNowTransaction)
+                    .addOnSuccessListener {
+                        BalanceHelper.addBorrowerEntry(borrowerID, borrowId, null)
+                        BalanceHelper.addLenderEntry(lenderID, borrowId, null)
 
-                                val amount = borrowedAmountSTR!!.toInt()
-                                BalanceHelper.updateTotaldebt(borrowerID, amount, null)
-                                BalanceHelper.updateTotalreceivable(lenderID, amount, null)
+                        val amount = borrowedAmountSTR?.toIntOrNull() ?: 0
+                        BalanceHelper.updateTotaldebt(borrowerID, amount, null)
+                        BalanceHelper.updateTotalreceivable(lenderID, amount, null)
 
-                                Toast.makeText(
-                                    this@BorrowNowActivity,
-                                    "Borrowed successfully",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                                if (dialogProgressBar != null) dialogProgressBar!!.setVisibility(
-                                    View.GONE
-                                )
-                                finish()
-                            }
-                        }).addOnFailureListener(object : OnFailureListener {
-                            override fun onFailure(e: Exception) {
-                                if (dialogProgressBar != null) dialogProgressBar!!.setVisibility(
-                                    View.GONE
-                                )
-                                Toast.makeText(
-                                    this@BorrowNowActivity,
-                                    "Failed to Borrow",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        })
-                }
-            })
+                        Toast.makeText(this, "Borrowed successfully", Toast.LENGTH_SHORT).show()
+                        dialogProgressBar?.visibility = View.GONE
+                        finish()
+                    }.addOnFailureListener {
+                        dialogProgressBar?.visibility = View.GONE
+                        Toast.makeText(this, "Failed to Borrow", Toast.LENGTH_SHORT).show()
+                    }
+            }
         }
     }
 
-    private fun borrowBtnClicked() {
-        borrowBtn!!.setOnClickListener(object : View.OnClickListener {
-            override fun onClick(v: View?) {
-                val borrowEditText: EditText = findViewById<EditText>(R.id.dialogBorrowEditText)
-                val borrowedAmountStr = borrowEditText.getText().toString()
-                if (!borrowedAmountStr.isEmpty() && lender != null && !lender!!.isEmpty()) {
-                    try {
-                        borrowedAmount = borrowedAmountStr.toInt()
-                        borrowedAmountSTR = borrowedAmount.toString()
+    private fun setupBorrowBtn() {
+        borrowBtn?.setOnClickListener {
+            val borrowEditText: EditText = findViewById(R.id.dialogBorrowEditText)
+            val amountStr = borrowEditText.text.toString()
+            if (amountStr.isNotEmpty() && !lender.isNullOrEmpty()) {
+                try {
+                    borrowedAmount = amountStr.toInt()
+                    borrowedAmountSTR = borrowedAmount.toString()
 
-                        if (borrowedAmount <= 0) {
-                            Toast.makeText(
-                                this@BorrowNowActivity,
-                                "Please enter a valid amount",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                            return
-                        }
-
-                        if (dialogProgressBar != null) dialogProgressBar!!.setVisibility(View.VISIBLE)
-                        addBorrowTransaction()
-                    } catch (e: NumberFormatException) {
-                        Toast.makeText(this@BorrowNowActivity, "Invalid amount", Toast.LENGTH_SHORT)
-                            .show()
+                    if (borrowedAmount <= 0) {
+                        Toast.makeText(this, "Please enter a valid amount", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
                     }
-                } else {
-                    Toast.makeText(
-                        this@BorrowNowActivity,
-                        "Please select a lender and enter amount",
-                        Toast.LENGTH_SHORT
-                    ).show()
+
+                    dialogProgressBar?.visibility = View.VISIBLE
+                    addBorrowTransaction()
+                } catch (e: NumberFormatException) {
+                    Toast.makeText(this, "Invalid amount", Toast.LENGTH_SHORT).show()
                 }
+            } else {
+                Toast.makeText(this, "Please select a lender and enter amount", Toast.LENGTH_SHORT).show()
             }
-        })
+        }
     }
 
     @SuppressLint("ClickableViewAccessibility")
     fun exitEditText() {
-        val borrowEditText: EditText? = findViewById<EditText?>(R.id.dialogBorrowEditText)
-        if (borrowEditText != null) {
-            borrowEditText.setOnTouchListener(object : OnTouchListener {
-                override fun onTouch(v: View, event: MotionEvent?): Boolean {
-                    v.performClick()
-                    return false
-                }
-            })
+        val borrowEditText: EditText? = findViewById(R.id.dialogBorrowEditText)
+        borrowEditText?.setOnTouchListener { v, _ ->
+            v.performClick()
+            false
         }
 
-        val rootView = findViewById<View?>(android.R.id.content)
-        if (rootView != null) {
-            rootView.setOnTouchListener(object : OnTouchListener {
-                override fun onTouch(v: View?, event: MotionEvent?): Boolean {
-                    if (borrowEditText != null) hideKeyboard(borrowEditText)
-                    return false
-                }
-            })
+        findViewById<View>(android.R.id.content)?.setOnTouchListener { _, _ ->
+            borrowEditText?.let { hideKeyboard(it) }
+            false
         }
     }
 
-    fun getUserIDByName(name: String, callback: UserIDCallback) {
-        usersRef.addListenerForSingleValueEvent(object : ValueEventListener() {
-            public override fun onDataChange(dataSnapshot: DataSnapshot) {
-                for (userSnapshot in dataSnapshot.getChildren()) {
-                    val userName: String? =
-                        userSnapshot.child("username").getValue(String::class.java)
-                    if (name == userName) {
-                        callback.onUserIDRetrieved(userSnapshot.getKey())
+    fun getUserIDByName(name: String, callback: (String?) -> Unit) {
+        usersRef?.addListenerForSingleValueEvent(object : ValueEventListener() {
+            override fun onDataChange(dataSnapshot: DataSnapshot) {
+                for (userSnapshot in dataSnapshot.children) {
+                    if (name == userSnapshot.child("username").getValue(String::class.java)) {
+                        callback(userSnapshot.key)
                         return
                     }
                 }
-                callback.onUserIDRetrieved(null)
+                callback(null)
             }
-
-            public override fun onCancelled(databaseError: DatabaseError) {
-                Log.e("FirebaseDatabase", "Database error: " + databaseError.getMessage())
-                callback.onUserIDRetrieved(null)
+            override fun onCancelled(databaseError: DatabaseError) {
+                callback(null)
             }
         })
     }
 
-    interface UserIDCallback {
-        fun onUserIDRetrieved(getLenderID: String?)
-    }
-
     private fun hideKeyboard(editText: EditText) {
         val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager?
-        if (imm != null) {
-            imm.hideSoftInputFromWindow(editText.getWindowToken(), 0)
-        }
+        imm?.hideSoftInputFromWindow(editText.windowToken, 0)
     }
 }

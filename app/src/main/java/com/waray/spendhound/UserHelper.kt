@@ -1,20 +1,27 @@
 package com.waray.spendhound
 
 import android.util.Log
-import com.google.firebase.database.DataSnapshot
+import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Columns
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
- * Helper class for managing user UID to username mappings.
+ * Helper class for managing user UID to username mappings using Supabase.
  * Provides caching and lookup functionality to efficiently resolve UIDs to display names.
  */
 object UserHelper {
     private const val TAG = "UserHelper"
 
     // Cache for UID to username mappings
-    private val uidToUsernameCache: MutableMap<String?, String?> = HashMap<String?, String?>()
+    private val uidToUsernameCache: MutableMap<String, String> = HashMap()
 
     // Cache for username to UID mappings
-    private val usernameToUidCache: MutableMap<String?, String?> = HashMap<String?, String?>()
+    private val usernameToUidCache: MutableMap<String, String> = HashMap()
+
+    private val scope = CoroutineScope(Dispatchers.IO)
 
     /**
      * Get username for a given UID. Uses cache if available.
@@ -27,34 +34,35 @@ object UserHelper {
 
         // Check cache first
         if (uidToUsernameCache.containsKey(uid)) {
-            callback.onUsernameRetrieved(uidToUsernameCache.get(uid))
+            callback.onUsernameRetrieved(uidToUsernameCache[uid])
             return
         }
 
-        // Fetch from Firebase
-        val userRef: DatabaseReference = DeclareDatabase.getDatabaseReference().child(uid)
-        userRef.child("username").addListenerForSingleValueEvent(object : ValueEventListener() {
-            public override fun onDataChange(dataSnapshot: DataSnapshot) {
-                if (dataSnapshot.exists()) {
-                    val username: String? = dataSnapshot.getValue(String::class.java)
-                    if (username != null) {
-                        // Update both caches
-                        uidToUsernameCache.put(uid, username)
-                        usernameToUidCache.put(username, uid)
-                        callback.onUsernameRetrieved(username)
-                    } else {
-                        callback.onError("Username is null for UID: " + uid)
+        // Fetch from Supabase
+        scope.launch {
+            try {
+                val user = DeclareDatabase.usersTable.select(Columns.list("username")) {
+                    filter {
+                        eq("id", uid)
                     }
-                } else {
-                    callback.onError("User not found for UID: " + uid)
+                }.decodeSingleOrNull<User>()
+
+                withContext(Dispatchers.Main) {
+                    if (user?.username != null) {
+                        uidToUsernameCache[uid] = user.username
+                        usernameToUidCache[user.username] = uid
+                        callback.onUsernameRetrieved(user.username)
+                    } else {
+                        callback.onError("User not found for UID: $uid")
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Log.e(TAG, "Supabase error: ${e.message}")
+                    callback.onError(e.message)
                 }
             }
-
-            public override fun onCancelled(databaseError: DatabaseError) {
-                Log.e(TAG, "Database error: " + databaseError.getMessage())
-                callback.onError(databaseError.getMessage())
-            }
-        })
+        }
     }
 
     /**
@@ -68,34 +76,35 @@ object UserHelper {
 
         // Check cache first
         if (usernameToUidCache.containsKey(username)) {
-            callback.onUidRetrieved(usernameToUidCache.get(username))
+            callback.onUidRetrieved(usernameToUidCache[username])
             return
         }
 
-        // Fetch from Firebase - need to search all users
-        val usersRef: DatabaseReference = DeclareDatabase.getDatabaseReference()
-        usersRef.addListenerForSingleValueEvent(object : ValueEventListener() {
-            public override fun onDataChange(dataSnapshot: DataSnapshot) {
-                for (userSnapshot in dataSnapshot.getChildren()) {
-                    val userName: String? =
-                        userSnapshot.child("username").getValue(String::class.java)
-                    if (username == userName) {
-                        val uid: String? = userSnapshot.getKey()
-                        // Update both caches
-                        uidToUsernameCache.put(uid, username)
-                        usernameToUidCache.put(username, uid)
-                        callback.onUidRetrieved(uid)
-                        return
+        // Fetch from Supabase
+        scope.launch {
+            try {
+                val user = DeclareDatabase.usersTable.select(Columns.list("id")) {
+                    filter {
+                        eq("username", username)
+                    }
+                }.decodeSingleOrNull<User>()
+
+                withContext(Dispatchers.Main) {
+                    if (user?.id != null) {
+                        uidToUsernameCache[user.id] = username
+                        usernameToUidCache[username] = user.id
+                        callback.onUidRetrieved(user.id)
+                    } else {
+                        callback.onError("User not found with username: $username")
                     }
                 }
-                callback.onError("User not found with username: " + username)
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Log.e(TAG, "Supabase error: ${e.message}")
+                    callback.onError(e.message)
+                }
             }
-
-            public override fun onCancelled(databaseError: DatabaseError) {
-                Log.e(TAG, "Database error: " + databaseError.getMessage())
-                callback.onError(databaseError.getMessage())
-            }
-        })
+        }
     }
 
     /**
@@ -103,172 +112,85 @@ object UserHelper {
      */
     fun getUsernamesByUids(uids: MutableList<String?>?, callback: MultipleUsernamesCallback) {
         if (uids == null || uids.isEmpty()) {
-            callback.onUsernamesRetrieved(HashMap<String?, String?>())
+            callback.onUsernamesRetrieved(HashMap())
             return
         }
 
-        val result: MutableMap<String?, String?> = HashMap<String?, String?>()
-        val pendingCount = intArrayOf(0)
+        val result: MutableMap<String?, String?> = HashMap()
+        val missingUids = mutableListOf<String>()
 
         for (uid in uids) {
             if (uid == null || uid.isEmpty()) continue
-
-            // Check cache first
             if (uidToUsernameCache.containsKey(uid)) {
-                result.put(uid, uidToUsernameCache.get(uid))
+                result[uid] = uidToUsernameCache[uid]
             } else {
-                pendingCount[0]++
+                missingUids.add(uid)
             }
         }
 
-        // If all were cached, return immediately
-        if (pendingCount[0] == 0) {
+        if (missingUids.isEmpty()) {
             callback.onUsernamesRetrieved(result)
             return
         }
 
-        // Fetch missing from Firebase
-        val completedCount = intArrayOf(0)
-        for (uid in uids) {
-            if (uid == null || uid.isEmpty() || uidToUsernameCache.containsKey(uid)) continue
-
-            getUsernameByUid(uid, object : UsernameCallback {
-                override fun onUsernameRetrieved(username: String?) {
-                    result.put(uid, username)
-                    completedCount[0]++
-                    if (completedCount[0] == pendingCount[0]) {
-                        callback.onUsernamesRetrieved(result)
+        scope.launch {
+            try {
+                val users = DeclareDatabase.usersTable.select(Columns.list("id", "username")) {
+                    filter {
+                        isIn("id", missingUids)
                     }
-                }
+                }.decodeList<User>()
 
-                override fun onError(error: String?) {
-                    Log.e(TAG, "Error fetching username for UID " + uid + ": " + error)
-                    result.put(uid, "Unknown User")
-                    completedCount[0]++
-                    if (completedCount[0] == pendingCount[0]) {
-                        callback.onUsernamesRetrieved(result)
-                    }
-                }
-            })
-        }
-    }
-
-    /**
-     * Batch fetch UIDs for multiple usernames. Uses cache where available.
-     */
-    fun getUidsByUsernames(usernames: MutableList<String?>?, callback: MultipleUidsCallback) {
-        if (usernames == null || usernames.isEmpty()) {
-            callback.onUidsRetrieved(HashMap<String?, String?>())
-            return
-        }
-
-        val result: MutableMap<String?, String?> = HashMap<String?, String?>()
-        val pendingCount = intArrayOf(0)
-
-        for (username in usernames) {
-            if (username == null || username.isEmpty()) continue
-
-            // Check cache first
-            if (usernameToUidCache.containsKey(username)) {
-                result.put(username, usernameToUidCache.get(username))
-            } else {
-                pendingCount[0]++
-            }
-        }
-
-        // If all were cached, return immediately
-        if (pendingCount[0] == 0) {
-            callback.onUidsRetrieved(result)
-            return
-        }
-
-        // Fetch all users once and resolve
-        val usersRef: DatabaseReference = DeclareDatabase.getDatabaseReference()
-        usersRef.addListenerForSingleValueEvent(object : ValueEventListener() {
-            public override fun onDataChange(dataSnapshot: DataSnapshot) {
-                for (userSnapshot in dataSnapshot.getChildren()) {
-                    val userName: String? =
-                        userSnapshot.child("username").getValue(String::class.java)
-                    val uid: String? = userSnapshot.getKey()
-
-                    if (userName != null && uid != null) {
-                        // Update caches
-                        uidToUsernameCache.put(uid, userName)
-                        usernameToUidCache.put(userName, uid)
-
-
-                        // Add to result if it's one we're looking for
-                        if (usernames.contains(userName)) {
-                            result.put(userName, uid)
+                withContext(Dispatchers.Main) {
+                    for (user in users) {
+                        if (user.id != null && user.username != null) {
+                            uidToUsernameCache[user.id] = user.username
+                            usernameToUidCache[user.username] = user.id
+                            result[user.id] = user.username
                         }
                     }
+                    // Fill in "Unknown User" for any UIDs not found
+                    for (uid in missingUids) {
+                        if (!result.containsKey(uid)) {
+                            result[uid] = "Unknown User"
+                        }
+                    }
+                    callback.onUsernamesRetrieved(result)
                 }
-                callback.onUidsRetrieved(result)
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Log.e(TAG, "Error fetching usernames: ${e.message}")
+                    callback.onError(e.message)
+                }
             }
-
-            public override fun onCancelled(databaseError: DatabaseError) {
-                Log.e(TAG, "Database error: " + databaseError.getMessage())
-                callback.onError(databaseError.getMessage())
-            }
-        })
+        }
     }
 
     /**
      * Pre-load all users into cache. Call this on app startup for best performance.
      */
     fun preloadAllUsers() {
-        val usersRef: DatabaseReference = DeclareDatabase.getDatabaseReference()
-        usersRef.addListenerForSingleValueEvent(object : ValueEventListener() {
-            public override fun onDataChange(dataSnapshot: DataSnapshot) {
-                for (userSnapshot in dataSnapshot.getChildren()) {
-                    val userName: String? =
-                        userSnapshot.child("username").getValue(String::class.java)
-                    val uid: String? = userSnapshot.getKey()
-
-                    if (userName != null && uid != null) {
-                        uidToUsernameCache.put(uid, userName)
-                        usernameToUidCache.put(userName, uid)
+        scope.launch {
+            try {
+                val users = DeclareDatabase.usersTable.select(Columns.list("id", "username")).decodeList<User>()
+                for (user in users) {
+                    if (user.id != null && user.username != null) {
+                        uidToUsernameCache[user.id] = user.username
+                        usernameToUidCache[user.username] = user.id
                     }
                 }
-                Log.d(TAG, "Preloaded " + uidToUsernameCache.size + " users into cache")
+                Log.d(TAG, "Preloaded ${uidToUsernameCache.size} users into cache")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to preload users: ${e.message}")
             }
-
-            public override fun onCancelled(databaseError: DatabaseError) {
-                Log.e(TAG, "Failed to preload users: " + databaseError.getMessage())
-            }
-        })
+        }
     }
 
-    /**
-     * Get username from cache synchronously. Returns null if not cached.
-     */
-    fun getCachedUsername(uid: String?): String? {
-        return uidToUsernameCache.get(uid)
-    }
-
-    /**
-     * Get UID from cache synchronously. Returns null if not cached.
-     */
-    fun getCachedUid(username: String?): String? {
-        return usernameToUidCache.get(username)
-    }
-
-    /**
-     * Clear the cache. Call this when user data may have changed.
-     */
+    fun getCachedUsername(uid: String?): String? = uidToUsernameCache[uid]
+    fun getCachedUid(username: String?): String? = usernameToUidCache[username]
     fun clearCache() {
         uidToUsernameCache.clear()
         usernameToUidCache.clear()
-    }
-
-    /**
-     * Update cache with a known UID-username mapping.
-     */
-    fun updateCache(uid: String?, username: String?) {
-        if (uid != null && username != null) {
-            uidToUsernameCache.put(uid, username)
-            usernameToUidCache.put(username, uid)
-        }
     }
 
     interface UsernameCallback {
@@ -283,11 +205,6 @@ object UserHelper {
 
     interface MultipleUsernamesCallback {
         fun onUsernamesRetrieved(uidToUsernameMap: MutableMap<String?, String?>?)
-        fun onError(error: String?)
-    }
-
-    interface MultipleUidsCallback {
-        fun onUidsRetrieved(usernameToUidMap: MutableMap<String?, String?>?)
         fun onError(error: String?)
     }
 }

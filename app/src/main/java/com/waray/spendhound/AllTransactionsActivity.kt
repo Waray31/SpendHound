@@ -1,20 +1,43 @@
 package com.waray.spendhound
 
-import com.google.firebase.auth.FirebaseAuth
+import android.annotation.SuppressLint
+import android.os.Bundle
+import android.util.Log
+import android.view.View
+import android.widget.AdapterView
+import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.Spinner
+import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.ValueEventListener
+import io.github.jan.supabase.gotrue.Auth
+import io.github.jan.supabase.gotrue.auth
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Collections
+import java.util.Comparator
+import java.util.HashSet
+import java.util.Locale
 
 class AllTransactionsActivity : AppCompatActivity() {
     private var recyclerView: RecyclerView? = null
     private var adapter: RecentTransactionAdapter? = null
-    private var transactionList: java.util.ArrayList<RecentTransaction?>? = null
+    private var transactionList: ArrayList<RecentTransaction?>? = null
     private var monthSpinner: Spinner? = null
     private var currentMonthTextView: TextView? = null
     private var transactionCountTextView: TextView? = null
     private var loadingProgressBar: ProgressBar? = null
     private var emptyStateLayout: LinearLayout? = null
-    private var mAuth: FirebaseAuth? = null
-    private var currentNickname: kotlin.String? = ""
-    private var availableMonths: kotlin.collections.MutableList<kotlin.String>? = null
-    private var selectedMonth: kotlin.String? = null
+    private var mAuth: Auth? = null
+    private var currentNickname: String? = ""
+    private var availableMonths: MutableList<String>? = null
+    private var selectedMonth: String? = null
 
     // Status Tabs
     private var allTabTV: TextView? = null
@@ -27,84 +50,76 @@ class AllTransactionsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_all_transactions)
 
-        mAuth = DeclareDatabase.getAuth()
-        transactionList = java.util.ArrayList<RecentTransaction?>()
-        availableMonths = java.util.ArrayList<kotlin.String>()
+        mAuth = DeclareDatabase.auth
+        transactionList = ArrayList()
+        availableMonths = ArrayList()
 
         initViews()
         getCurrentNickname()
     }
 
     private fun initViews() {
-        recyclerView = findViewById<RecyclerView>(R.id.allTransactionsRecyclerView)
-        monthSpinner = findViewById<Spinner>(R.id.monthSpinner)
-        currentMonthTextView = findViewById<TextView>(R.id.currentMonthTextView)
-        transactionCountTextView = findViewById<TextView>(R.id.transactionCountTextView)
-        loadingProgressBar = findViewById<ProgressBar>(R.id.loadingProgressBar)
-        emptyStateLayout = findViewById<LinearLayout>(R.id.emptyStateLayout)
+        recyclerView = findViewById(R.id.allTransactionsRecyclerView)
+        monthSpinner = findViewById(R.id.monthSpinner)
+        currentMonthTextView = findViewById(R.id.currentMonthTextView)
+        transactionCountTextView = findViewById(R.id.transactionCountTextView)
+        loadingProgressBar = findViewById(R.id.loadingProgressBar)
+        emptyStateLayout = findViewById(R.id.emptyStateLayout)
 
-        // Status Tabs
-        allTabTV = findViewById<TextView>(R.id.allTabTV)
-        paidTabTV = findViewById<TextView>(R.id.paidTabTV)
-        unpaidTabTV = findViewById<TextView>(R.id.unpaidTabTV)
-        pendingTabTV = findViewById<TextView>(R.id.pendingTabTV)
+        allTabTV = findViewById(R.id.allTabTV)
+        paidTabTV = findViewById(R.id.paidTabTV)
+        unpaidTabTV = findViewById(R.id.unpaidTabTV)
+        pendingTabTV = findViewById(R.id.pendingTabTV)
 
         setupStatusTabs()
 
         adapter = RecentTransactionAdapter(
-            transactionList,
-            OnTransactionClickListener { transaction: RecentTransaction? ->
-                this.onTransactionTap(
-                    transaction
-                )
+            transactionList!!,
+            OnTransactionClickListener { transaction ->
+                onTransactionTap(transaction)
             })
-        recyclerView.setLayoutManager(LinearLayoutManager(this))
-        recyclerView.setAdapter(adapter)
+        recyclerView?.layoutManager = LinearLayoutManager(this)
+        recyclerView?.adapter = adapter
     }
 
     private fun setupStatusTabs() {
-        setStatusTabSelected(allTabTV)
+        allTabTV?.let { setStatusTabSelected(it) }
 
-        allTabTV.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? ->
+        allTabTV?.setOnClickListener {
             selectedStatusTab = "All"
-            setStatusTabSelected(allTabTV)
+            allTabTV?.let { setStatusTabSelected(it) }
             refreshTransactions()
-        })
+        }
 
-        paidTabTV.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? ->
+        paidTabTV?.setOnClickListener {
             selectedStatusTab = "Paid"
-            setStatusTabSelected(paidTabTV)
+            paidTabTV?.let { setStatusTabSelected(it) }
             refreshTransactions()
-        })
+        }
 
-        unpaidTabTV.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? ->
+        unpaidTabTV?.setOnClickListener {
             selectedStatusTab = "Unpaid"
-            setStatusTabSelected(unpaidTabTV)
+            unpaidTabTV?.let { setStatusTabSelected(it) }
             refreshTransactions()
-        })
+        }
 
-        pendingTabTV.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? ->
+        pendingTabTV?.setOnClickListener {
             selectedStatusTab = "Pending"
-            setStatusTabSelected(pendingTabTV)
+            pendingTabTV?.let { setStatusTabSelected(it) }
             refreshTransactions()
-        })
+        }
     }
 
     private fun setStatusTabSelected(selectedTab: TextView) {
-        // Reset all tabs
-        allTabTV.setBackgroundResource(0)
-        paidTabTV.setBackgroundResource(0)
-        unpaidTabTV.setBackgroundResource(0)
-        pendingTabTV.setBackgroundResource(0)
-
-        // Set selected tab background
+        allTabTV?.setBackgroundResource(0)
+        paidTabTV?.setBackgroundResource(0)
+        unpaidTabTV?.setBackgroundResource(0)
+        pendingTabTV?.setBackgroundResource(0)
         selectedTab.setBackgroundResource(R.drawable.bg_status_tab_selected)
     }
 
     private fun refreshTransactions() {
-        if (selectedMonth != null) {
-            fetchTransactionsForMonth(selectedMonth!!)
-        }
+        selectedMonth?.let { fetchTransactionsForMonth(it) }
     }
 
     private fun onTransactionTap(transaction: RecentTransaction?) {
@@ -112,52 +127,39 @@ class AllTransactionsActivity : AppCompatActivity() {
     }
 
     private fun getCurrentNickname() {
-        val userId: kotlin.String? =
-            java.util.Objects.requireNonNull<T?>(mAuth.getCurrentUser()).getUid()
-        val userRef: DatabaseReference = DeclareDatabase.getDatabaseReference().child(userId)
+        val userId = mAuth?.currentUserOrNull()?.id ?: return run { loadAvailableMonths() }
+        val userRef = DeclareDatabase.getDatabaseReference().child(userId)
 
         userRef.addListenerForSingleValueEvent(object : ValueEventListener() {
-            public override fun onDataChange(snapshot: DataSnapshot) {
+            override fun onDataChange(snapshot: DataSnapshot) {
                 if (snapshot.exists()) {
-                    currentNickname = snapshot.child("username").getValue(kotlin.String::class.java)
-                    if (currentNickname == null) {
-                        currentNickname = ""
-                    }
+                    currentNickname = snapshot.child("username").getValue(String::class.java) ?: ""
                 }
                 loadAvailableMonths()
             }
 
-            public override fun onCancelled(error: DatabaseError) {
-                android.util.Log.e(
-                    "AllTransactions",
-                    "Error getting nickname: " + error.getMessage()
-                )
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("AllTransactions", "Error getting nickname: " + error.message)
                 loadAvailableMonths()
             }
         })
     }
 
     private fun loadAvailableMonths() {
-        loadingProgressBar.setVisibility(android.view.View.VISIBLE)
+        loadingProgressBar?.visibility = View.VISIBLE
 
-        val transRef: DatabaseReference = DeclareDatabase.getDBRefTransaction()
+        val transRef = DeclareDatabase.getDBRefTransaction()
         transRef.addListenerForSingleValueEvent(object : ValueEventListener() {
-            public override fun onDataChange(dataSnapshot: DataSnapshot) {
-                val uniqueMonths: kotlin.collections.MutableSet<kotlin.String?> =
-                    java.util.HashSet<kotlin.String?>()
+            override fun onDataChange(dataSnapshot: DataSnapshot) {
+                val uniqueMonths = HashSet<String>()
 
-                for (monthSnapshot in dataSnapshot.getChildren()) {
-                    val monthYear: kotlin.String? = monthSnapshot.getKey()
-                    if (monthYear != null && !monthYear.isEmpty()) {
-                        for (daySnapshot in monthSnapshot.getChildren()) {
-                            for (timeSnapshot in daySnapshot.getChildren()) {
-                                val transaction: com.waray.spendhound.Transaction? =
-                                    timeSnapshot.getValue(com.waray.spendhound.Transaction::class.java)
-                                if (transaction != null && isUserInvolved(
-                                        transaction,
-                                        currentNickname
-                                    )
-                                ) {
+                for (monthSnapshot in dataSnapshot.children) {
+                    val monthYear = monthSnapshot.key
+                    if (!monthYear.isNullOrEmpty()) {
+                        for (daySnapshot in monthSnapshot.children) {
+                            for (timeSnapshot in daySnapshot.children) {
+                                val transaction = timeSnapshot.getValue(Transaction::class.java)
+                                if (transaction != null && isUserInvolved(transaction, currentNickname)) {
                                     uniqueMonths.add(monthYear)
                                     break
                                 }
@@ -167,128 +169,114 @@ class AllTransactionsActivity : AppCompatActivity() {
                     }
                 }
 
-                availableMonths = java.util.ArrayList<kotlin.String>(uniqueMonths)
-                java.util.Collections.sort<kotlin.String?>(
-                    availableMonths,
-                    java.util.Comparator { m1: kotlin.String?, m2: kotlin.String? ->
-                        try {
-                            val sdf = java.text.SimpleDateFormat(
-                                "MMMM-yyyy",
-                                java.util.Locale.getDefault()
-                            )
-                            return@sort sdf.parse(m2).compareTo(sdf.parse(m1))
-                        } catch (e: java.lang.Exception) {
-                            return@sort m2!!.compareTo(m1!!)
-                        }
-                    })
+                availableMonths = ArrayList(uniqueMonths)
+                Collections.sort(availableMonths!!) { m1, m2 ->
+                    try {
+                        val sdf = SimpleDateFormat("MMMM-yyyy", Locale.getDefault())
+                        return@sort sdf.parse(m2)!!.compareTo(sdf.parse(m1))
+                    } catch (e: Exception) {
+                        return@sort m2.compareTo(m1)
+                    }
+                }
 
                 setupMonthSpinner()
-                loadingProgressBar.setVisibility(android.view.View.GONE)
+                loadingProgressBar?.visibility = View.GONE
             }
 
-            public override fun onCancelled(error: DatabaseError) {
-                android.util.Log.e("AllTransactions", "Error loading months: " + error.getMessage())
-                loadingProgressBar.setVisibility(android.view.View.GONE)
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("AllTransactions", "Error loading months: " + error.message)
+                loadingProgressBar?.visibility = View.GONE
             }
         })
     }
 
     private fun setupMonthSpinner() {
-        if (availableMonths!!.isEmpty()) {
-            val calendar = java.util.Calendar.getInstance()
-            val dateFormat = java.text.SimpleDateFormat("MMMM-yyyy", java.util.Locale.getDefault())
-            availableMonths!!.add(dateFormat.format(calendar.getTime()))
+        if (availableMonths.isNullOrEmpty()) {
+            val calendar = Calendar.getInstance()
+            val dateFormat = SimpleDateFormat("MMMM-yyyy", Locale.getDefault())
+            availableMonths = arrayListOf(dateFormat.format(calendar.time))
         }
 
-        val spinnerAdapter = SpinnerItemMonths(this, availableMonths)
-        monthSpinner.setAdapter(spinnerAdapter)
+        val spinnerAdapter = SpinnerItemMonths(this, availableMonths!!)
+        monthSpinner?.adapter = spinnerAdapter
 
-        val calendar = java.util.Calendar.getInstance()
-        val dateFormat = java.text.SimpleDateFormat("MMMM-yyyy", java.util.Locale.getDefault())
-        val currentMonth = dateFormat.format(calendar.getTime())
+        val calendar = Calendar.getInstance()
+        val currentMonth = SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(calendar.time)
 
         var defaultPosition = 0
         for (i in availableMonths!!.indices) {
-            if (availableMonths!!.get(i) == currentMonth) {
+            if (availableMonths!![i] == currentMonth) {
                 defaultPosition = i
                 break
             }
         }
 
-        monthSpinner.setSelection(defaultPosition)
-        selectedMonth = availableMonths!!.get(defaultPosition)
-        updateMonthDisplay(selectedMonth!!)
-        fetchTransactionsForMonth(selectedMonth!!)
+        monthSpinner?.setSelection(defaultPosition)
+        selectedMonth = availableMonths!![defaultPosition]
+        selectedMonth?.let {
+            updateMonthDisplay(it)
+            fetchTransactionsForMonth(it)
+        }
 
-        monthSpinner.setOnItemSelectedListener(object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(
-                parent: AdapterView<*>?,
-                view: android.view.View?,
-                position: Int,
-                id: kotlin.Long
-            ) {
-                val month = availableMonths!!.get(position)
+        monthSpinner?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val month = availableMonths!![position]
                 if (month != selectedMonth) {
                     selectedMonth = month
-                    updateMonthDisplay(selectedMonth!!)
-                    fetchTransactionsForMonth(selectedMonth!!)
+                    selectedMonth?.let {
+                        updateMonthDisplay(it)
+                        fetchTransactionsForMonth(it)
+                    }
                 }
             }
-
             override fun onNothingSelected(parent: AdapterView<*>?) {}
-        })
+        }
     }
 
-    private fun updateMonthDisplay(monthYear: kotlin.String) {
+    private fun updateMonthDisplay(monthYear: String) {
         val displayMonth = monthYear.replace("-", " ")
-        currentMonthTextView.setText(displayMonth)
+        currentMonthTextView?.text = displayMonth
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    private fun fetchTransactionsForMonth(monthYear: kotlin.String) {
-        loadingProgressBar.setVisibility(android.view.View.VISIBLE)
-        emptyStateLayout.setVisibility(android.view.View.GONE)
-        transactionList!!.clear()
-        adapter!!.notifyDataSetChanged()
+    private fun fetchTransactionsForMonth(monthYear: String) {
+        loadingProgressBar?.visibility = View.VISIBLE
+        emptyStateLayout?.visibility = View.GONE
+        transactionList?.clear()
+        adapter?.notifyDataSetChanged()
 
-        val monthRef: DatabaseReference = DeclareDatabase.getDBRefTransaction().child(monthYear)
+        val monthRef = DeclareDatabase.getDBRefTransaction().child(monthYear)
 
         monthRef.addListenerForSingleValueEvent(object : ValueEventListener() {
             @SuppressLint("NotifyDataSetChanged")
-            public override fun onDataChange(dataSnapshot: DataSnapshot) {
-                for (daySnapshot in dataSnapshot.getChildren()) {
-                    val day: kotlin.String? = daySnapshot.getKey()
+            override fun onDataChange(dataSnapshot: DataSnapshot) {
+                for (daySnapshot in dataSnapshot.children) {
+                    val day = daySnapshot.key
 
-                    for (timeSnapshot in daySnapshot.getChildren()) {
-                        val transaction: com.waray.spendhound.Transaction? =
-                            timeSnapshot.getValue(com.waray.spendhound.Transaction::class.java)
-                        val timeKey: kotlin.String? = timeSnapshot.getKey()
+                    for (timeSnapshot in daySnapshot.children) {
+                        val transaction = timeSnapshot.getValue(Transaction::class.java)
+                        val timeKey = timeSnapshot.key
 
                         if (transaction != null && isUserInvolved(transaction, currentNickname)) {
-                            // Apply Status Filter
-
                             if (!matchesStatusFilter(transaction, selectedStatusTab)) {
                                 continue
                             }
 
-                            val parts: kotlin.Array<kotlin.String?> =
-                                monthYear.split("-".toRegex()).dropLastWhile { it.isEmpty() }
-                                    .toTypedArray()
+                            val parts = monthYear.split("-").toTypedArray()
                             val month = parts[0]
                             val year = if (parts.size > 1) parts[1] else ""
-                            val displayDate = month + " - " + day
-                            val fullDateWithYear = month + " " + day + ", " + year
-                            val sortDateTime = year + "-" + month + "-" + day + " " + timeKey
+                            val displayDate = "$month - $day"
+                            val fullDateWithYear = "$month $day, $year"
+                            val sortDateTime = "$year-$month-$day $timeKey"
 
                             val transactionType = transaction.getTransactionType()
                             val details = transaction.getMultilineStr()
                             val paymentAmount = transaction.getPaymentAmount()
-                            val paymentAmountStr =
-                                CurrencyUtils.formatAmountWithCurrency(paymentAmount)
+                            val paymentAmountStr = CurrencyUtils.formatAmountWithCurrency(paymentAmount)
                             val iconResource = getIconForTransactionType(transactionType)
 
                             var payorsList = transaction.getPayorsDisplayNames()
-                            if (payorsList == null || payorsList.isEmpty()) {
+                            if (payorsList.isNullOrEmpty()) {
                                 payorsList = transaction.getPayorsList()
                             }
                             val payorUids = transaction.getPayorsList()
@@ -296,7 +284,7 @@ class AllTransactionsActivity : AppCompatActivity() {
                             val totalIndividualPayment = transaction.getTotalIndividualPayment()
 
                             var createdBy = transaction.getPosterDisplayName()
-                            if (createdBy == null || createdBy.isEmpty()) {
+                            if (createdBy.isNullOrEmpty()) {
                                 createdBy = transaction.getUsernamePost()
                             }
                             val createdByUid = transaction.getUsernamePost()
@@ -305,62 +293,56 @@ class AllTransactionsActivity : AppCompatActivity() {
                                 displayDate, transactionType, details, paymentAmountStr,
                                 iconResource, sortDateTime, payorsList, payorUids,
                                 amountsPaidList, totalIndividualPayment, fullDateWithYear,
-                                createdBy, createdByUid, monthYear, day, timeKey
+                                createdBy, createdByUid, monthYear, day!!, timeKey
                             )
-                            transactionList!!.add(recentTrans)
+                            transactionList?.add(recentTrans)
                         }
                     }
                 }
 
-                java.util.Collections.sort<RecentTransaction?>(
-                    transactionList,
-                    java.util.Comparator { t1: RecentTransaction?, t2: RecentTransaction? ->
-                        val dateTime1 = t1!!.getSortDateTime()
-                        val dateTime2 = t2!!.getSortDateTime()
-                        if (dateTime1 != null && dateTime2 != null) {
-                            return@sort dateTime2.compareTo(dateTime1)
-                        }
-                        0
-                    })
+                Collections.sort(transactionList!!) { t1, t2 ->
+                    val dateTime1 = t1?.getSortDateTime()
+                    val dateTime2 = t2?.getSortDateTime()
+                    if (dateTime1 != null && dateTime2 != null) {
+                        return@sort dateTime2.compareTo(dateTime1)
+                    }
+                    0
+                }
 
-                adapter!!.notifyDataSetChanged()
-                // Preload images for all transactions
-                adapter!!.preloadAllImages(this@AllTransactionsActivity)
+                adapter?.notifyDataSetChanged()
+                adapter?.preloadAllImages(this@AllTransactionsActivity)
 
-                loadingProgressBar.setVisibility(android.view.View.GONE)
+                loadingProgressBar?.visibility = View.GONE
 
-                val count = transactionList!!.size
-                transactionCountTextView.setText(count.toString() + (if (count == 1) " transaction" else " transactions"))
+                val count = transactionList?.size ?: 0
+                transactionCountTextView?.text = "$count ${if (count == 1) "transaction" else "transactions"}"
 
-                if (transactionList!!.isEmpty()) {
-                    emptyStateLayout.setVisibility(android.view.View.VISIBLE)
-                    recyclerView.setVisibility(android.view.View.GONE)
+                if (transactionList.isNullOrEmpty()) {
+                    emptyStateLayout?.visibility = View.VISIBLE
+                    recyclerView?.visibility = View.GONE
                 } else {
-                    emptyStateLayout.setVisibility(android.view.View.GONE)
-                    recyclerView.setVisibility(android.view.View.VISIBLE)
+                    emptyStateLayout?.visibility = View.GONE
+                    recyclerView?.visibility = View.VISIBLE
                 }
             }
 
-            public override fun onCancelled(error: DatabaseError) {
-                android.util.Log.e(
-                    "AllTransactions",
-                    "Error loading transactions: " + error.getMessage()
-                )
-                loadingProgressBar.setVisibility(android.view.View.GONE)
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("AllTransactions", "Error loading transactions: " + error.message)
+                loadingProgressBar?.visibility = View.GONE
             }
         })
     }
 
     private fun matchesStatusFilter(
-        transaction: com.waray.spendhound.Transaction,
-        statusFilter: kotlin.String?
-    ): kotlin.Boolean {
+        transaction: Transaction,
+        statusFilter: String?
+    ): Boolean {
         if ("All".equals(statusFilter, ignoreCase = true)) return true
 
         val paidAmounts = transaction.getAmountsPaidList()
         val totalToPay = transaction.getTotalIndividualPayment()
 
-        if (paidAmounts == null || paidAmounts.isEmpty()) {
+        if (paidAmounts.isNullOrEmpty()) {
             return "Unpaid".equals(statusFilter, ignoreCase = true)
         }
 
@@ -368,7 +350,7 @@ class AllTransactionsActivity : AppCompatActivity() {
         var allUnpaid = true
 
         for (paid in paidAmounts) {
-            if (paid < totalToPay) {
+            if (paid!! < totalToPay) {
                 allPaid = false
             }
             if (paid > 0) {
@@ -376,39 +358,32 @@ class AllTransactionsActivity : AppCompatActivity() {
             }
         }
 
-        val status: kotlin.String?
-        if (allPaid) {
-            status = "Paid"
-        } else if (allUnpaid) {
-            status = "Unpaid"
-        } else {
-            status = "Pending"
-        }
-
+        val status = if (allPaid) "Paid" else if (allUnpaid) "Unpaid" else "Pending"
         return status.equals(statusFilter, ignoreCase = true)
     }
 
-    private fun getIconForTransactionType(transactionType: kotlin.String?): Int {
-        if ("Electricity" == transactionType) return R.drawable.lightning_bolt
-        if ("Water" == transactionType) return R.drawable.faucet
-        if ("Rent" == transactionType) return R.drawable.house
-        if ("Internet" == transactionType) return R.drawable.internet
-        if ("Online Shopping" == transactionType) return R.drawable.online_shopping
-        if ("Travel" == transactionType) return R.drawable.travel
-        if ("Groceries" == transactionType) return R.drawable.groceries
-        if ("Foods" == transactionType) return R.drawable.hamburger
-        if ("House Necessity" == transactionType) return R.drawable.necessities
-        if ("Transportation" == transactionType) return R.drawable.vehicles
-        return R.drawable.others
+    private fun getIconForTransactionType(transactionType: String?): Int {
+        return when (transactionType) {
+            "Electricity" -> R.drawable.lightning_bolt
+            "Water" -> R.drawable.faucet
+            "Rent" -> R.drawable.house
+            "Internet" -> R.drawable.internet
+            "Online Shopping" -> R.drawable.online_shopping
+            "Travel" -> R.drawable.travel
+            "Groceries" -> R.drawable.groceries
+            "Foods" -> R.drawable.hamburger
+            "House Necessity" -> R.drawable.necessities
+            "Transportation" -> R.drawable.vehicles
+            else -> R.drawable.others
+        }
     }
 
     private fun isUserInvolved(
-        transaction: com.waray.spendhound.Transaction?,
-        usernameOrUid: kotlin.String?
-    ): kotlin.Boolean {
-        if (transaction == null || usernameOrUid == null || usernameOrUid.isEmpty()) return false
-        val currentUid: kotlin.String? =
-            java.util.Objects.requireNonNull<T?>(mAuth.getCurrentUser()).getUid()
+        transaction: Transaction?,
+        usernameOrUid: String?
+    ): Boolean {
+        if (transaction == null || usernameOrUid.isNullOrEmpty()) return false
+        val currentUid = mAuth?.currentUserOrNull()?.id
         if (transaction.isUserInvolvedByUid(currentUid)) return true
         if (usernameOrUid == transaction.getUsernamePost()) return true
         if (usernameOrUid == transaction.getPosterDisplayName()) return true

@@ -1,15 +1,41 @@
 package com.waray.spendhound
 
+import android.annotation.SuppressLint
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Bundle
+import android.provider.MediaStore
+import android.text.TextUtils
+import android.view.MotionEvent
+import android.view.View
+import android.view.inputmethod.InputMethodManager
+import android.widget.Button
+import android.widget.EditText
+import android.widget.ProgressBar
+import android.widget.TextView
+import android.widget.Toast
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import io.github.jan.supabase.gotrue.Auth
+import io.github.jan.supabase.gotrue.providers.builtin.Email
+import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.storage.resumable.Resumable
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.ByteArrayOutputStream
+
 class SignUpActivity : AppCompatActivity() {
     private var emailEditText: EditText? = null
     private var passwordEditText: EditText? = null
     private var confirmPasswordEditText: EditText? = null
     private var usernameEditText: EditText? = null
-    private var signUpButton: android.widget.Button? = null
+    private var signUpButton: Button? = null
     private var progressBar: ProgressBar? = null
-    private var mAuth: FirebaseAuth? = null
-    private val profileImageUri: android.net.Uri? = null
-    private var userId: kotlin.String? = null
+    private var mAuth: Auth? = null
+    private var profileImageUri: Uri? = null
+    private var userId: String? = null
     private val balanced = 0
     private val unpaid = 0
     private val owed = 0
@@ -19,35 +45,41 @@ class SignUpActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.sign_up_layout)
 
-        usernameEditText = findViewById<EditText>(R.id.usernameSignUp)
-        emailEditText = findViewById<EditText>(R.id.emailSignup)
-        passwordEditText = findViewById<EditText>(R.id.passwordSignup)
-        confirmPasswordEditText = findViewById<EditText>(R.id.confirmPasswordSignup)
-        signUpButton = findViewById<android.widget.Button>(R.id.signUpButton)
-        progressBar = findViewById<ProgressBar>(R.id.progressBar)
+        usernameEditText = findViewById(R.id.usernameSignUp)
+        emailEditText = findViewById(R.id.emailSignup)
+        passwordEditText = findViewById(R.id.passwordSignup)
+        confirmPasswordEditText = findViewById(R.id.confirmPasswordSignup)
+        signUpButton = findViewById(R.id.signUpButton)
+        progressBar = findViewById(R.id.progressBar)
 
-        mAuth = FirebaseAuth.getInstance()
+        mAuth = DeclareDatabase.auth
 
         exitEditText()
 
-        signUpButton!!.setOnClickListener(object : android.view.View.OnClickListener {
-            override fun onClick(v: android.view.View?) {
-                signUp()
-            }
-        })
+        signUpButton?.setOnClickListener {
+            signUp()
+        }
     }
 
-    fun onAddProfileImageClicked(view: android.view.View?) {
-        val intent: Intent =
-            Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-        startActivityForResult(intent, SignUpActivity.Companion.PICK_IMAGE_REQUEST)
+    fun onAddProfileImageClicked(view: View?) {
+        val intent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+        startActivityForResult(intent, PICK_IMAGE_REQUEST)
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null && data.data != null) {
+            profileImageUri = data.data
+            // Optional: Update UI to show selected image
+            Toast.makeText(this, "Image selected", Toast.LENGTH_SHORT).show()
+        }
     }
 
     private fun signUp() {
-        val username = usernameEditText.getText().toString().trim { it <= ' ' }
-        val email = emailEditText.getText().toString().trim { it <= ' ' }
-        val password = passwordEditText.getText().toString().trim { it <= ' ' }
-        val confirmPassword = confirmPasswordEditText.getText().toString().trim { it <= ' ' }
+        val username = usernameEditText?.text.toString().trim()
+        val email = emailEditText?.text.toString().trim()
+        val password = passwordEditText?.text.toString().trim()
+        val confirmPassword = confirmPasswordEditText?.text.toString().trim()
 
         if (TextUtils.isEmpty(username) || TextUtils.isEmpty(password) || TextUtils.isEmpty(
                 confirmPassword
@@ -60,209 +92,136 @@ class SignUpActivity : AppCompatActivity() {
             Toast.makeText(this, "Password must be at least 6 characters long", Toast.LENGTH_SHORT)
                 .show()
         } else {
-            progressBar.setVisibility(android.view.View.VISIBLE)
+            progressBar?.visibility = View.VISIBLE
 
-            mAuth.createUserWithEmailAndPassword(email, password)
-                .addOnCompleteListener(this, object : OnCompleteListener<AuthResult?> {
-                    override fun onComplete(task: com.google.android.gms.tasks.Task<AuthResult?>) {
-                        if (task.isSuccessful()) {
-                            userId = mAuth.getCurrentUser().getUid()
-
-                            if (profileImageUri != null && profileImageUri.getPath() != null) {
-                                uploadProfileImage(userId)
-                            } else {
-                                val profileImageUrl =
-                                    "android.resource://" + getPackageName() + "/drawable/placeholder_profile_image"
-                                saveUserToDatabase(
-                                    username,
-                                    email,
-                                    profileImageUrl,
-                                    password,
-                                    balanced,
-                                    unpaid,
-                                    owed,
-                                    debt
-                                )
-                                signUpSuccess()
-                            }
-                        } else {
-                            if (task.getException() is FirebaseAuthUserCollisionException) {
-                                progressBar.setVisibility(android.view.View.GONE)
-                                Toast.makeText(
-                                    this@SignUpActivity,
-                                    "Email is already in use by another account",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            } else {
-                                progressBar.setVisibility(android.view.View.GONE)
-                                Toast.makeText(
-                                    this@SignUpActivity,
-                                    "Sign up failed",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            }
-                        }
+            lifecycleScope.launch {
+                try {
+                    val response = mAuth?.signUpWith(Email) {
+                        this.email = email
+                        this.password = password
                     }
-                })
+                    userId = mAuth?.currentUserOrNull()?.id
+
+                    if (userId != null) {
+                        if (profileImageUri != null) {
+                            uploadProfileImage(userId!!)
+                        } else {
+                            val profileImageUrl = "placeholder_profile_image" // Use a default or empty
+                            saveUserToDatabase(
+                                username,
+                                email,
+                                profileImageUrl,
+                                password
+                            )
+                        }
+                    } else {
+                        throw Exception("Failed to get user ID")
+                    }
+                } catch (e: Exception) {
+                    progressBar?.visibility = View.GONE
+                    Toast.makeText(
+                        this@SignUpActivity,
+                        "Sign up failed: ${e.message}",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+            }
         }
     }
 
-    private fun uploadProfileImage(userId: kotlin.String?) {
-        val storageRef: StorageReference =
-            FirebaseStorage.getInstance().getReference("profile_images/" + userId)
-
-        storageRef.putFile(profileImageUri)
-            .addOnSuccessListener(object : OnSuccessListener<UploadTask.TaskSnapshot?> {
-                override fun onSuccess(taskSnapshot: UploadTask.TaskSnapshot?) {
-                    storageRef.getDownloadUrl()
-                        .addOnSuccessListener(object : OnSuccessListener<android.net.Uri?> {
-                            override fun onSuccess(downloadUri: android.net.Uri) {
-                                saveUserToDatabase(
-                                    usernameEditText.getText().toString().trim { it <= ' ' },
-                                    emailEditText.getText().toString().trim { it <= ' ' },
-                                    downloadUri.toString(),
-                                    passwordEditText.getText().toString().trim { it <= ' ' },
-                                    0,
-                                    0,
-                                    0,
-                                    0
-                                )
-                            }
-                        })
-                }
-            })
-            .addOnFailureListener(object : OnFailureListener {
-                override fun onFailure(exception: java.lang.Exception) {
-                    progressBar.setVisibility(android.view.View.GONE)
-                    Toast.makeText(this@SignUpActivity, "Image upload failed", Toast.LENGTH_SHORT)
-                        .show()
-                }
-            })
+    private suspend fun uploadProfileImage(userId: String) {
+        try {
+            val bytes = withContext(Dispatchers.IO) {
+                contentResolver.openInputStream(profileImageUri!!)?.use { it.readBytes() }
+            }
+            
+            if (bytes != null) {
+                val bucket = DeclareDatabase.profileImagesBucket
+                val path = "$userId.jpg"
+                bucket.upload(path, bytes, upsert = true)
+                val publicUrl = bucket.publicUrl(path)
+                
+                saveUserToDatabase(
+                    usernameEditText?.text.toString().trim(),
+                    emailEditText?.text.toString().trim(),
+                    publicUrl,
+                    passwordEditText?.text.toString().trim()
+                )
+            } else {
+                throw Exception("Could not read image bytes")
+            }
+        } catch (e: Exception) {
+            withContext(Dispatchers.Main) {
+                progressBar?.visibility = View.GONE
+                Toast.makeText(this@SignUpActivity, "Image upload failed: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
-    private fun saveUserToDatabase(
-        username: kotlin.String?,
-        email: kotlin.String?,
-        profileImageUrl: kotlin.String?,
-        password: kotlin.String?,
-        balanced: Int,
-        unpaid: Int,
-        owed: Int,
-        debt: Int
+    private suspend fun saveUserToDatabase(
+        username: String,
+        email: String,
+        profileImageUrl: String,
+        password: String
     ) {
-        val usersRef: DatabaseReference = FirebaseDatabase.getInstance().getReference("users")
+        try {
+            val initialBalance = UserBalance(0.0, 0.0, 0.0, 0.0, 0.0)
+            val user = User(username, email, profileImageUrl, initialBalance, userId)
 
-        // Create UserBalance with initial values
-        val initialBalance = UserBalance(0.0, 0.0, 0.0, 0.0, 0.0)
-        val user =
-            com.waray.spendhound.User(username, email, profileImageUrl, password, initialBalance)
-
-        usersRef.child(userId).setValue(user)
-            .addOnCompleteListener(object : OnCompleteListener<java.lang.Void?> {
-                override fun onComplete(task: com.google.android.gms.tasks.Task<java.lang.Void?>) {
-                    if (task.isSuccessful()) {
-                        // Initialize balances node explicitly
-                        BalanceHelper.initializeBalancesForNewUser(
-                            userId,
-                            object : BalanceCallback {
-                                override fun onSuccess() {
-                                    // Initialize userBorrows node
-                                    BalanceHelper.initializeUserBorrowsForNewUser(
-                                        userId,
-                                        object : BalanceCallback {
-                                            override fun onSuccess() {
-                                                progressBar.setVisibility(android.view.View.GONE)
-                                                signUpSuccess()
-                                            }
-
-                                            override fun onFailure(error: kotlin.String?) {
-                                                progressBar.setVisibility(android.view.View.GONE)
-                                                // Still allow signup even if userBorrows init fails
-                                                signUpSuccess()
-                                            }
-                                        })
-                                }
-
-                                override fun onFailure(error: kotlin.String?) {
-                                    progressBar.setVisibility(android.view.View.GONE)
-                                    // Still allow signup even if balances init fails
-                                    signUpSuccess()
-                                }
-                            })
-                    } else {
-                        progressBar.setVisibility(android.view.View.GONE)
-                        Toast.makeText(this@SignUpActivity, "Sign up failed", Toast.LENGTH_SHORT)
-                            .show()
-                    }
-                }
-            })
+            DeclareDatabase.usersTable.insert(user)
+            
+            withContext(Dispatchers.Main) {
+                progressBar?.visibility = View.GONE
+                signUpSuccess()
+            }
+        } catch (e: Exception) {
+            withContext(Dispatchers.Main) {
+                progressBar?.visibility = View.GONE
+                Toast.makeText(this@SignUpActivity, "Failed to save user: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun signUpSuccess() {
         Toast.makeText(this@SignUpActivity, "Sign up successful", Toast.LENGTH_SHORT).show()
-        val intent: Intent = Intent(this@SignUpActivity, MainActivity::class.java)
+        val intent = Intent(this@SignUpActivity, MainActivity::class.java)
         startActivity(intent)
         finish()
     }
 
     @SuppressLint("ClickableViewAccessibility")
     fun exitEditText() {
-        val usernameSignUp: EditText = findViewById<EditText>(R.id.usernameSignUp)
-        val emailSignup: EditText = findViewById<EditText>(R.id.emailSignup)
-        val passwordSignup: EditText = findViewById<EditText>(R.id.passwordSignup)
-        val confirmPasswordSignup: EditText = findViewById<EditText>(R.id.confirmPasswordSignup)
-        usernameSignUp.setOnTouchListener(object : OnTouchListener {
-            override fun onTouch(v: android.view.View, event: MotionEvent?): kotlin.Boolean {
-                // Consume the touch event on the EditText to prevent it from being intercepted
-                v.performClick()
-                return false
-            }
-        })
+        val usernameSignUp: EditText = findViewById(R.id.usernameSignUp)
+        val emailSignup: EditText = findViewById(R.id.emailSignup)
+        val passwordSignup: EditText = findViewById(R.id.passwordSignup)
+        val confirmPasswordSignup: EditText = findViewById(R.id.confirmPasswordSignup)
+        
+        val touchListener = View.OnTouchListener { v, _ ->
+            v.performClick()
+            false
+        }
 
-        emailSignup.setOnTouchListener(object : OnTouchListener {
-            override fun onTouch(v: android.view.View, event: MotionEvent?): kotlin.Boolean {
-                // Consume the touch event on the EditText to prevent it from being intercepted
-                v.performClick()
-                return false
-            }
-        })
+        usernameSignUp.setOnTouchListener(touchListener)
+        emailSignup.setOnTouchListener(touchListener)
+        passwordSignup.setOnTouchListener(touchListener)
+        confirmPasswordSignup.setOnTouchListener(touchListener)
 
-        passwordSignup.setOnTouchListener(object : OnTouchListener {
-            override fun onTouch(v: android.view.View, event: MotionEvent?): kotlin.Boolean {
-                // Consume the touch event on the EditText to prevent it from being intercepted
-                v.performClick()
-                return false
-            }
-        })
-
-        confirmPasswordSignup.setOnTouchListener(object : OnTouchListener {
-            override fun onTouch(v: android.view.View, event: MotionEvent?): kotlin.Boolean {
-                // Consume the touch event on the EditText to prevent it from being intercepted
-                v.performClick()
-                return false
-            }
-        })
-
-        // Add an OnTouchListener to the root layout (or any other layout that covers the whole screen)
-        val rootView = findViewById<android.view.View>(android.R.id.content)
-        rootView.setOnTouchListener(object : OnTouchListener {
-            override fun onTouch(v: android.view.View?, event: MotionEvent?): kotlin.Boolean {
-                // Hide the keyboard when the user touches outside the EditText
-                hideKeyboard(usernameEditText)
-                hideKeyboard(passwordEditText)
-                return false
-            }
-        })
+        val rootView = findViewById<View>(android.R.id.content)
+        rootView.setOnTouchListener { _, _ ->
+            hideKeyboard(usernameEditText)
+            hideKeyboard(passwordEditText)
+            false
+        }
     }
 
-    private fun hideKeyboard(editText: EditText) {
-        val imm =
-            getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-        imm.hideSoftInputFromWindow(editText.getWindowToken(), 0)
+    private fun hideKeyboard(editText: EditText?) {
+        editText?.let {
+            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(it.windowToken, 0)
+        }
     }
 
     companion object {
         private const val PICK_IMAGE_REQUEST = 1
     }
 }
-

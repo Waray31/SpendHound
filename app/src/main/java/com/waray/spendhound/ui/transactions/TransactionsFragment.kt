@@ -1,25 +1,59 @@
 package com.waray.spendhound.ui.transactions
 
-import com.google.firebase.auth.FirebaseAuth
+import android.annotation.SuppressLint
+import android.os.Bundle
+import android.util.Log
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.AdapterView
+import android.widget.LinearLayout
+import android.widget.ProgressBar
+import android.widget.Spinner
+import android.widget.TextView
+import androidx.fragment.app.Fragment
+import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.google.firebase.database.DataSnapshot
+import com.google.firebase.database.DatabaseError
+import com.google.firebase.database.DatabaseReference
+import com.google.firebase.database.ValueEventListener
+import com.waray.spendhound.CurrencyUtils
+import com.waray.spendhound.DeclareDatabase
+import com.waray.spendhound.MainActivity
+import com.waray.spendhound.PayerGroup
+import com.waray.spendhound.R
+import com.waray.spendhound.RecentTransaction
+import com.waray.spendhound.RecentTransactionAdapter
+import com.waray.spendhound.RecentTransactionAdapter.OnTransactionClickListener
+import com.waray.spendhound.SpinnerItemMonths
+import com.waray.spendhound.Transaction
+import io.github.jan.supabase.gotrue.Auth
+import io.github.jan.supabase.gotrue.auth
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Collections
+import java.util.HashSet
+import java.util.Locale
 
-class TransactionsFragment : androidx.fragment.app.Fragment() {
+class TransactionsFragment : Fragment() {
     private var recyclerView: RecyclerView? = null
     private var adapter: RecentTransactionAdapter? = null
-    private var transactionList: java.util.ArrayList<RecentTransaction?>? = null
+    private var transactionList: ArrayList<RecentTransaction?>? = null
     private var monthSpinner: Spinner? = null
     private var groupSpinner: Spinner? = null
     private var currentMonthTextView: TextView? = null
     private var transactionCountTextView: TextView? = null
     private var loadingProgressBar: ProgressBar? = null
     private var emptyStateLayout: LinearLayout? = null
-    private var mAuth: FirebaseAuth? = null
-    private var currentNickname: kotlin.String? = ""
-    private var availableMonths: kotlin.collections.MutableList<kotlin.String>? = null
-    private var selectedMonth: kotlin.String? = null
+    private var mAuth: Auth? = null
+    private var currentNickname: String? = ""
+    private var availableMonths: MutableList<String>? = null
+    private var selectedMonth: String? = null
 
-    private var groupNames: kotlin.collections.MutableList<kotlin.String>? = null
-    private var groupIds: kotlin.collections.MutableList<kotlin.String?>? = null
-    private var selectedGroupId: kotlin.String? = "All"
+    private var groupNames: MutableList<String>? = null
+    private var groupIds: MutableList<String?>? = null
+    private var selectedGroupId: String? = "All"
     private var groupAdapter: SpinnerItemMonths? = null
 
     // Status Tabs
@@ -33,22 +67,19 @@ class TransactionsFragment : androidx.fragment.app.Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): android.view.View? {
-        val root: android.view.View =
-            inflater.inflate(R.layout.fragment_transactions, container, false)
+    ): View {
+        val root: View = inflater.inflate(R.layout.fragment_transactions, container, false)
 
-        mAuth = DeclareDatabase.getAuth()
-        transactionList = java.util.ArrayList<RecentTransaction?>()
-        availableMonths = java.util.ArrayList<kotlin.String>()
-        groupNames = java.util.ArrayList<kotlin.String>()
-        groupIds = java.util.ArrayList<kotlin.String?>()
+        mAuth = DeclareDatabase.auth
+        transactionList = ArrayList()
+        availableMonths = ArrayList()
+        groupNames = ArrayList()
+        groupIds = ArrayList()
 
         initViews(root)
 
-
-        // Initialize with default option immediately
-        groupNames!!.add("All group")
-        groupIds!!.add("All")
+        groupNames?.add("All group")
+        groupIds?.add("All")
         setupGroupSpinner()
 
         getCurrentNickname()
@@ -57,189 +88,150 @@ class TransactionsFragment : androidx.fragment.app.Fragment() {
         return root
     }
 
-    private fun initViews(root: android.view.View) {
-        recyclerView = root.findViewById<RecyclerView>(R.id.allTransactionsRecyclerView)
-        monthSpinner = root.findViewById<Spinner?>(R.id.monthSpinner)
-        groupSpinner = root.findViewById<Spinner?>(R.id.groupSpinner)
-        currentMonthTextView = root.findViewById<TextView>(R.id.currentMonthTextView)
-        transactionCountTextView = root.findViewById<TextView>(R.id.transactionCountTextView)
-        loadingProgressBar = root.findViewById<ProgressBar?>(R.id.loadingProgressBar)
-        emptyStateLayout = root.findViewById<LinearLayout?>(R.id.emptyStateLayout)
+    private fun initViews(root: View) {
+        recyclerView = root.findViewById(R.id.allTransactionsRecyclerView)
+        monthSpinner = root.findViewById(R.id.monthSpinner)
+        groupSpinner = root.findViewById(R.id.groupSpinner)
+        currentMonthTextView = root.findViewById(R.id.currentMonthTextView)
+        transactionCountTextView = root.findViewById(R.id.transactionCountTextView)
+        loadingProgressBar = root.findViewById(R.id.loadingProgressBar)
+        emptyStateLayout = root.findViewById(R.id.emptyStateLayout)
 
-        // Status Tabs
-        allTabTV = root.findViewById<TextView?>(R.id.allTabTV)
-        paidTabTV = root.findViewById<TextView?>(R.id.paidTabTV)
-        unpaidTabTV = root.findViewById<TextView?>(R.id.unpaidTabTV)
-        pendingTabTV = root.findViewById<TextView?>(R.id.pendingTabTV)
+        allTabTV = root.findViewById(R.id.allTabTV)
+        paidTabTV = root.findViewById(R.id.paidTabTV)
+        unpaidTabTV = root.findViewById(R.id.unpaidTabTV)
+        pendingTabTV = root.findViewById(R.id.pendingTabTV)
 
         setupStatusTabs()
 
         adapter = RecentTransactionAdapter(
-            transactionList,
-            OnTransactionClickListener { transaction: RecentTransaction? ->
-                if (!transaction.isExpanded()) {
-                    val mainActivity: MainActivity? = getActivity() as MainActivity?
-                    if (mainActivity != null) {
-                        mainActivity.unhideNavigation()
-                    }
+            transactionList!!,
+            OnTransactionClickListener { transaction ->
+                if (transaction?.isExpanded == false) {
+                    (activity as? MainActivity)?.unhideNavigation()
                 }
             })
-        recyclerView.setLayoutManager(LinearLayoutManager(getContext()))
-        recyclerView.setAdapter(adapter)
+        recyclerView?.layoutManager = LinearLayoutManager(context)
+        recyclerView?.adapter = adapter
     }
 
     private fun setupStatusTabs() {
-        setStatusTabSelected(allTabTV)
+        allTabTV?.let { setStatusTabSelected(it) }
 
-        allTabTV.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? ->
+        allTabTV?.setOnClickListener {
             selectedStatusTab = "All"
-            setStatusTabSelected(allTabTV)
+            allTabTV?.let { setStatusTabSelected(it) }
             refreshTransactions()
-        })
+        }
 
-        paidTabTV.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? ->
+        paidTabTV?.setOnClickListener {
             selectedStatusTab = "Paid"
-            setStatusTabSelected(paidTabTV)
+            paidTabTV?.let { setStatusTabSelected(it) }
             refreshTransactions()
-        })
+        }
 
-        unpaidTabTV.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? ->
+        unpaidTabTV?.setOnClickListener {
             selectedStatusTab = "Unpaid"
-            setStatusTabSelected(unpaidTabTV)
+            unpaidTabTV?.let { setStatusTabSelected(it) }
             refreshTransactions()
-        })
+        }
 
-        pendingTabTV.setOnClickListener(android.view.View.OnClickListener { v: android.view.View? ->
+        pendingTabTV?.setOnClickListener {
             selectedStatusTab = "Pending"
-            setStatusTabSelected(pendingTabTV)
+            pendingTabTV?.let { setStatusTabSelected(it) }
             refreshTransactions()
-        })
+        }
     }
 
     private fun setStatusTabSelected(selectedTab: TextView) {
-        if (allTabTV == null) return
-
-        // Reset all tabs
-        allTabTV.setBackgroundResource(0)
-        paidTabTV.setBackgroundResource(0)
-        unpaidTabTV.setBackgroundResource(0)
-        pendingTabTV.setBackgroundResource(0)
-
-        // Set selected tab background
+        allTabTV?.setBackgroundResource(0)
+        paidTabTV?.setBackgroundResource(0)
+        unpaidTabTV?.setBackgroundResource(0)
+        pendingTabTV?.setBackgroundResource(0)
         selectedTab.setBackgroundResource(R.drawable.bg_status_tab_selected)
     }
 
     private fun refreshTransactions() {
-        if (selectedMonth != null) {
-            fetchTransactionsForMonth(selectedMonth!!)
-        }
+        selectedMonth?.let { fetchTransactionsForMonth(it) }
     }
 
     private fun getCurrentNickname() {
-        val userId: kotlin.String? =
-            java.util.Objects.requireNonNull<T?>(mAuth.getCurrentUser()).getUid()
-        val userRef: DatabaseReference = DeclareDatabase.getDatabaseReference().child(userId)
+        val userId = mAuth?.currentUserOrNull()?.id ?: return run { loadAvailableMonths() }
+        val userRef = DeclareDatabase.getDatabaseReference().child(userId)
 
         userRef.addListenerForSingleValueEvent(object : ValueEventListener() {
-            public override fun onDataChange(snapshot: DataSnapshot) {
+            override fun onDataChange(snapshot: DataSnapshot) {
                 if (snapshot.exists()) {
-                    currentNickname = snapshot.child("username").getValue(kotlin.String::class.java)
-                    if (currentNickname == null) {
-                        currentNickname = ""
-                    }
+                    currentNickname = snapshot.child("username").getValue(String::class.java) ?: ""
                 }
                 loadAvailableMonths()
             }
-
-            public override fun onCancelled(error: DatabaseError) {
+            override fun onCancelled(error: DatabaseError) {
                 loadAvailableMonths()
             }
         })
     }
 
     private fun loadUserGroups() {
-        val currentUid: kotlin.String? =
-            java.util.Objects.requireNonNull<T?>(mAuth.getCurrentUser()).getUid()
-        val groupsRef: DatabaseReference = DeclareDatabase.getDBRefGroups()
+        val currentUid = mAuth?.currentUserOrNull()?.id ?: return
+        val groupsRef = DeclareDatabase.getDBRefGroups()
 
         groupsRef.addListenerForSingleValueEvent(object : ValueEventListener() {
             @SuppressLint("NotifyDataSetChanged")
-            public override fun onDataChange(snapshot: DataSnapshot) {
-                groupNames!!.clear()
-                groupIds!!.clear()
+            override fun onDataChange(snapshot: DataSnapshot) {
+                groupNames?.clear()
+                groupIds?.clear()
 
-                groupNames!!.add("All group")
-                groupIds!!.add("All")
+                groupNames?.add("All group")
+                groupIds?.add("All")
 
-                for (userSnapshot in snapshot.getChildren()) {
-                    for (groupSnapshot in userSnapshot.getChildren()) {
-                        val group: PayerGroup? = groupSnapshot.getValue(PayerGroup::class.java)
-                        if (group != null && group.getMembers() != null && group.getMembers()
-                                .contains(currentUid)
-                        ) {
-                            groupNames!!.add(group.getGroupName())
-                            groupIds!!.add(group.getGroupId())
+                for (userSnapshot in snapshot.children) {
+                    for (groupSnapshot in userSnapshot.children) {
+                        val group = groupSnapshot.getValue(PayerGroup::class.java)
+                        if (group != null && group.getMembers()?.contains(currentUid) == true) {
+                            groupNames?.add(group.getGroupName() ?: "")
+                            groupIds?.add(group.getGroupId())
                         }
                     }
                 }
-
-                if (groupAdapter != null) {
-                    groupAdapter.notifyDataSetChanged()
-                }
+                groupAdapter?.notifyDataSetChanged()
             }
-
-            public override fun onCancelled(error: DatabaseError) {
-                android.util.Log.e(
-                    "TransactionsFragment",
-                    "Error loading groups",
-                    error.toException()
-                )
+            override fun onCancelled(error: DatabaseError) {
+                Log.e("TransactionsFragment", "Error loading groups", error.toException())
             }
         })
     }
 
     private fun setupGroupSpinner() {
-        if (getContext() == null || groupSpinner == null) return
+        if (context == null || groupSpinner == null) return
 
-        groupAdapter = SpinnerItemMonths(getContext(), groupNames)
-        groupSpinner.setAdapter(groupAdapter)
+        groupAdapter = SpinnerItemMonths(requireContext(), groupNames!!)
+        groupSpinner?.adapter = groupAdapter
 
-        groupSpinner.setOnItemSelectedListener(object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(
-                parent: AdapterView<*>?,
-                view: android.view.View?,
-                position: Int,
-                id: kotlin.Long
-            ) {
-                selectedGroupId = groupIds!!.get(position)
+        groupSpinner?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                selectedGroupId = groupIds?.get(position)
                 refreshTransactions()
             }
-
             override fun onNothingSelected(parent: AdapterView<*>?) {}
-        })
+        }
     }
 
     private fun loadAvailableMonths() {
-        if (loadingProgressBar != null) loadingProgressBar.setVisibility(android.view.View.VISIBLE)
+        loadingProgressBar?.visibility = View.VISIBLE
 
-        val transRef: DatabaseReference = DeclareDatabase.getDBRefTransaction()
+        val transRef = DeclareDatabase.getDBRefTransaction()
         transRef.addListenerForSingleValueEvent(object : ValueEventListener() {
-            public override fun onDataChange(dataSnapshot: DataSnapshot) {
-                val uniqueMonths: kotlin.collections.MutableSet<kotlin.String?> =
-                    java.util.HashSet<kotlin.String?>()
+            override fun onDataChange(dataSnapshot: DataSnapshot) {
+                val uniqueMonths = HashSet<String>()
 
-                for (monthSnapshot in dataSnapshot.getChildren()) {
-                    val monthYear: kotlin.String? = monthSnapshot.getKey()
-                    if (monthYear != null && !monthYear.isEmpty()) {
-                        for (daySnapshot in monthSnapshot.getChildren()) {
-                            for (timeSnapshot in daySnapshot.getChildren()) {
-                                val transaction: com.waray.spendhound.Transaction? =
-                                    timeSnapshot.getValue(com.waray.spendhound.Transaction::class.java)
-                                if (transaction != null && isUserInvolved(
-                                        transaction,
-                                        currentNickname
-                                    )
-                                ) {
+                for (monthSnapshot in dataSnapshot.children) {
+                    val monthYear = monthSnapshot.key
+                    if (!monthYear.isNullOrEmpty()) {
+                        for (daySnapshot in monthSnapshot.children) {
+                            for (timeSnapshot in daySnapshot.children) {
+                                val transaction = timeSnapshot.getValue(Transaction::class.java)
+                                if (transaction != null && isUserInvolved(transaction, currentNickname)) {
                                     uniqueMonths.add(monthYear)
                                     break
                                 }
@@ -249,254 +241,196 @@ class TransactionsFragment : androidx.fragment.app.Fragment() {
                     }
                 }
 
-                availableMonths = java.util.ArrayList<kotlin.String>(uniqueMonths)
-                java.util.Collections.sort<kotlin.String?>(
-                    availableMonths,
-                    java.util.Comparator { m1: kotlin.String?, m2: kotlin.String? ->
-                        try {
-                            val sdf = java.text.SimpleDateFormat(
-                                "MMMM-yyyy",
-                                java.util.Locale.getDefault()
-                            )
-                            return@sort sdf.parse(m2).compareTo(sdf.parse(m1))
-                        } catch (e: java.lang.Exception) {
-                            return@sort m2!!.compareTo(m1!!)
-                        }
-                    })
+                availableMonths = ArrayList(uniqueMonths)
+                Collections.sort(availableMonths!!) { m1, m2 ->
+                    try {
+                        val sdf = SimpleDateFormat("MMMM-yyyy", Locale.getDefault())
+                        return@sort sdf.parse(m2)!!.compareTo(sdf.parse(m1))
+                    } catch (e: Exception) {
+                        return@sort m2.compareTo(m1)
+                    }
+                }
 
                 setupMonthSpinner()
-                if (loadingProgressBar != null) loadingProgressBar.setVisibility(android.view.View.GONE)
+                loadingProgressBar?.visibility = View.GONE
             }
-
-            public override fun onCancelled(error: DatabaseError) {
-                if (loadingProgressBar != null) loadingProgressBar.setVisibility(android.view.View.GONE)
+            override fun onCancelled(error: DatabaseError) {
+                loadingProgressBar?.visibility = View.GONE
             }
         })
     }
 
     private fun setupMonthSpinner() {
-        if (getContext() == null || monthSpinner == null) return
+        if (context == null || monthSpinner == null) return
 
-        if (availableMonths!!.isEmpty()) {
-            val calendar = java.util.Calendar.getInstance()
-            val dateFormat = java.text.SimpleDateFormat("MMMM-yyyy", java.util.Locale.getDefault())
-            availableMonths!!.add(dateFormat.format(calendar.getTime()))
+        if (availableMonths.isNullOrEmpty()) {
+            val calendar = Calendar.getInstance()
+            val dateFormat = SimpleDateFormat("MMMM-yyyy", Locale.getDefault())
+            availableMonths = arrayListOf(dateFormat.format(calendar.time))
         }
 
-        val spinnerAdapter: SpinnerItemMonths = SpinnerItemMonths(getContext(), availableMonths)
-        monthSpinner.setAdapter(spinnerAdapter)
+        val spinnerAdapter = SpinnerItemMonths(requireContext(), availableMonths!!)
+        monthSpinner?.adapter = spinnerAdapter
 
-        val calendar = java.util.Calendar.getInstance()
-        val dateFormat = java.text.SimpleDateFormat("MMMM-yyyy", java.util.Locale.getDefault())
-        val currentMonth = dateFormat.format(calendar.getTime())
+        val calendar = Calendar.getInstance()
+        val currentMonth = SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(calendar.time)
 
         var defaultPosition = 0
         for (i in availableMonths!!.indices) {
-            if (availableMonths!!.get(i) == currentMonth) {
+            if (availableMonths!![i] == currentMonth) {
                 defaultPosition = i
                 break
             }
         }
 
-        monthSpinner.setSelection(defaultPosition)
-        selectedMonth = availableMonths!!.get(defaultPosition)
-        updateMonthDisplay(selectedMonth!!)
-        fetchTransactionsForMonth(selectedMonth!!)
+        monthSpinner?.setSelection(defaultPosition)
+        selectedMonth = availableMonths!![defaultPosition]
+        selectedMonth?.let {
+            updateMonthDisplay(it)
+            fetchTransactionsForMonth(it)
+        }
 
-        monthSpinner.setOnItemSelectedListener(object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(
-                parent: AdapterView<*>?,
-                view: android.view.View?,
-                position: Int,
-                id: kotlin.Long
-            ) {
-                val month = availableMonths!!.get(position)
+        monthSpinner?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                val month = availableMonths!![position]
                 if (month != selectedMonth) {
                     selectedMonth = month
-                    updateMonthDisplay(selectedMonth!!)
-                    fetchTransactionsForMonth(selectedMonth!!)
+                    selectedMonth?.let {
+                        updateMonthDisplay(it)
+                        fetchTransactionsForMonth(it)
+                    }
                 }
             }
-
             override fun onNothingSelected(parent: AdapterView<*>?) {}
-        })
+        }
     }
 
-    private fun updateMonthDisplay(monthYear: kotlin.String) {
+    private fun updateMonthDisplay(monthYear: String) {
         val displayMonth = monthYear.replace("-", " ")
-        currentMonthTextView.setText(displayMonth)
+        currentMonthTextView?.text = displayMonth
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    private fun fetchTransactionsForMonth(monthYear: kotlin.String) {
-        if (loadingProgressBar != null) loadingProgressBar.setVisibility(android.view.View.VISIBLE)
-        if (emptyStateLayout != null) emptyStateLayout.setVisibility(android.view.View.GONE)
-        transactionList!!.clear()
-        adapter.notifyDataSetChanged()
+    private fun fetchTransactionsForMonth(monthYear: String) {
+        loadingProgressBar?.visibility = View.VISIBLE
+        emptyStateLayout?.visibility = View.GONE
+        transactionList?.clear()
+        adapter?.notifyDataSetChanged()
 
-        val monthRef: DatabaseReference = DeclareDatabase.getDBRefTransaction().child(monthYear)
+        val monthRef = DeclareDatabase.getDBRefTransaction().child(monthYear)
 
         monthRef.addListenerForSingleValueEvent(object : ValueEventListener() {
             @SuppressLint("NotifyDataSetChanged")
-            public override fun onDataChange(dataSnapshot: DataSnapshot) {
-                for (daySnapshot in dataSnapshot.getChildren()) {
-                    val day: kotlin.String? = daySnapshot.getKey()
+            override fun onDataChange(dataSnapshot: DataSnapshot) {
+                for (daySnapshot in dataSnapshot.children) {
+                    val day = daySnapshot.key
 
-                    for (timeSnapshot in daySnapshot.getChildren()) {
-                        val transaction: com.waray.spendhound.Transaction? =
-                            timeSnapshot.getValue(com.waray.spendhound.Transaction::class.java)
-                        val timeKey: kotlin.String? = timeSnapshot.getKey()
+                    for (timeSnapshot in daySnapshot.children) {
+                        val transaction = timeSnapshot.getValue(Transaction::class.java) ?: continue
+                        val timeKey = timeSnapshot.key
 
-                        if (transaction != null && isUserInvolved(transaction, currentNickname)) {
-                            // Apply Group Filter
+                        if (isUserInvolved(transaction, currentNickname)) {
+                            if (selectedGroupId != "All" && transaction.getGroupId() != selectedGroupId) continue
+                            if (!matchesStatusFilter(transaction, selectedStatusTab)) continue
 
-                            if ("All" != selectedGroupId) {
-                                if (transaction.getGroupId() == null || transaction.getGroupId() != selectedGroupId) {
-                                    continue
-                                }
-                            }
-
-                            // Apply Status Filter
-                            if (!matchesStatusFilter(transaction, selectedStatusTab)) {
-                                continue
-                            }
-
-                            val parts: kotlin.Array<kotlin.String?> =
-                                monthYear.split("-".toRegex()).dropLastWhile { it.isEmpty() }
-                                    .toTypedArray()
-                            val month = parts[0]
+                            val parts = monthYear.split("-").toTypedArray()
+                            val monthName = parts[0]
                             val year = if (parts.size > 1) parts[1] else ""
-                            val displayDate = month + " - " + day
-                            val fullDateWithYear = month + " " + day + ", " + year
-                            val sortDateTime = year + "-" + month + "-" + day + " " + timeKey
+                            val displayDate = "$monthName - $day"
+                            val fullDateWithYear = "$monthName $day, $year"
+                            val sortDateTime = "$year-$monthName-$day $timeKey"
 
                             val transactionType = transaction.getTransactionType()
                             val details = transaction.getMultilineStr()
                             val paymentAmount = transaction.getPaymentAmount()
-                            val paymentAmountStr: kotlin.String =
-                                CurrencyUtils.formatAmountWithCurrency(paymentAmount)
+                            val paymentAmountStr = CurrencyUtils.formatAmountWithCurrency(paymentAmount)
                             val iconResource = getIconForTransactionType(transactionType)
 
                             var payorsList = transaction.getPayorsDisplayNames()
-                            if (payorsList == null || payorsList.isEmpty()) {
-                                payorsList = transaction.getPayorsList()
-                            }
+                            if (payorsList.isNullOrEmpty()) payorsList = transaction.getPayorsList()
+                            
                             val payorUids = transaction.getPayorsList()
                             val amountsPaidList = transaction.getAmountsPaidList()
                             val totalIndividualPayment = transaction.getTotalIndividualPayment()
 
                             var createdBy = transaction.getPosterDisplayName()
-                            if (createdBy == null || createdBy.isEmpty()) {
-                                createdBy = transaction.getUsernamePost()
-                            }
+                            if (createdBy.isNullOrEmpty()) createdBy = transaction.getUsernamePost()
+                            
                             val createdByUid = transaction.getUsernamePost()
 
-                            val recentTrans: RecentTransaction = RecentTransaction(
+                            transactionList?.add(RecentTransaction(
                                 displayDate, transactionType, details, paymentAmountStr,
                                 iconResource, sortDateTime, payorsList, payorUids,
                                 amountsPaidList, totalIndividualPayment, fullDateWithYear,
-                                createdBy, createdByUid, monthYear, day, timeKey
-                            )
-                            transactionList!!.add(recentTrans)
+                                createdBy, createdByUid, monthYear, day!!, timeKey
+                            ))
                         }
                     }
                 }
 
-                java.util.Collections.sort<RecentTransaction?>(
-                    transactionList,
-                    java.util.Comparator { t1: RecentTransaction?, t2: RecentTransaction? ->
-                        val dateTime1: kotlin.String? = t1.getSortDateTime()
-                        val dateTime2: kotlin.String? = t2.getSortDateTime()
-                        if (dateTime1 != null && dateTime2 != null) {
-                            return@sort dateTime2.compareTo(dateTime1)
-                        }
-                        0
-                    })
-
-                adapter.notifyDataSetChanged()
-                // Preload images for the loaded transactions
-                if (getContext() != null) {
-                    adapter.preloadAllImages(getContext())
+                Collections.sort(transactionList!!) { t1, t2 ->
+                    val dateTime1 = t1?.getSortDateTime()
+                    val dateTime2 = t2?.getSortDateTime()
+                    if (dateTime1 != null && dateTime2 != null) return@sort dateTime2.compareTo(dateTime1)
+                    0
                 }
 
-                if (loadingProgressBar != null) loadingProgressBar.setVisibility(android.view.View.GONE)
+                adapter?.notifyDataSetChanged()
+                context?.let { adapter?.preloadAllImages(it) }
 
-                val count = transactionList!!.size
-                transactionCountTextView.setText(count.toString() + (if (count == 1) " transaction" else " transactions"))
+                loadingProgressBar?.visibility = View.GONE
+                val count = transactionList?.size ?: 0
+                transactionCountTextView?.text = "$count ${if (count == 1) "transaction" else "transactions"}"
 
-                if (transactionList!!.isEmpty()) {
-                    if (emptyStateLayout != null) emptyStateLayout.setVisibility(android.view.View.VISIBLE)
-                    recyclerView.setVisibility(android.view.View.GONE)
+                if (transactionList.isNullOrEmpty()) {
+                    emptyStateLayout?.visibility = View.VISIBLE
+                    recyclerView?.visibility = View.GONE
                 } else {
-                    if (emptyStateLayout != null) emptyStateLayout.setVisibility(android.view.View.GONE)
-                    recyclerView.setVisibility(android.view.View.VISIBLE)
+                    emptyStateLayout?.visibility = View.GONE
+                    recyclerView?.visibility = View.VISIBLE
                 }
             }
-
-            public override fun onCancelled(error: DatabaseError) {
-                if (loadingProgressBar != null) loadingProgressBar.setVisibility(android.view.View.GONE)
+            override fun onCancelled(error: DatabaseError) {
+                loadingProgressBar?.visibility = View.GONE
             }
         })
     }
 
-    private fun matchesStatusFilter(
-        transaction: com.waray.spendhound.Transaction,
-        statusFilter: kotlin.String?
-    ): kotlin.Boolean {
+    private fun matchesStatusFilter(transaction: Transaction, statusFilter: String?): Boolean {
         if ("All".equals(statusFilter, ignoreCase = true)) return true
-
         val paidAmounts = transaction.getAmountsPaidList()
         val totalToPay = transaction.getTotalIndividualPayment()
-
-        if (paidAmounts == null || paidAmounts.isEmpty()) {
-            return "Unpaid".equals(statusFilter, ignoreCase = true)
-        }
+        if (paidAmounts.isNullOrEmpty()) return "Unpaid".equals(statusFilter, ignoreCase = true)
 
         var allPaid = true
         var allUnpaid = true
-
         for (paid in paidAmounts) {
-            if (paid < totalToPay) {
-                allPaid = false
-            }
-            if (paid > 0) {
-                allUnpaid = false
-            }
+            if (paid!! < totalToPay) allPaid = false
+            if (paid > 0) allUnpaid = false
         }
-
-        val status: kotlin.String?
-        if (allPaid) {
-            status = "Paid"
-        } else if (allUnpaid) {
-            status = "Unpaid"
-        } else {
-            status = "Pending"
-        }
-
+        val status = if (allPaid) "Paid" else if (allUnpaid) "Unpaid" else "Pending"
         return status.equals(statusFilter, ignoreCase = true)
     }
 
-    private fun getIconForTransactionType(transactionType: kotlin.String?): Int {
-        if ("Electricity" == transactionType) return R.drawable.lightning_bolt
-        else if ("Water" == transactionType) return R.drawable.faucet
-        else if ("Rent" == transactionType) return R.drawable.house
-        else if ("Internet" == transactionType) return R.drawable.internet
-        else if ("Online Shopping" == transactionType) return R.drawable.online_shopping
-        else if ("Travel" == transactionType) return R.drawable.travel
-        else if ("Groceries" == transactionType) return R.drawable.groceries
-        else if ("Foods" == transactionType) return R.drawable.hamburger
-        else if ("House Necessity" == transactionType) return R.drawable.necessities
-        else if ("Transportation" == transactionType) return R.drawable.vehicles
-        else return R.drawable.others
+    private fun getIconForTransactionType(transactionType: String?): Int {
+        return when (transactionType) {
+            "Electricity" -> R.drawable.lightning_bolt
+            "Water" -> R.drawable.faucet
+            "Rent" -> R.drawable.house
+            "Internet" -> R.drawable.internet
+            "Online Shopping" -> R.drawable.online_shopping
+            "Travel" -> R.drawable.travel
+            "Groceries" -> R.drawable.groceries
+            "Foods" -> R.drawable.hamburger
+            "House Necessity" -> R.drawable.necessities
+            "Transportation" -> R.drawable.vehicles
+            else -> R.drawable.others
+        }
     }
 
-    private fun isUserInvolved(
-        transaction: com.waray.spendhound.Transaction?,
-        usernameOrUid: kotlin.String?
-    ): kotlin.Boolean {
-        if (transaction == null || usernameOrUid == null || usernameOrUid.isEmpty()) return false
-        val currentUid: kotlin.String? =
-            java.util.Objects.requireNonNull<T?>(mAuth.getCurrentUser()).getUid()
+    private fun isUserInvolved(transaction: Transaction?, usernameOrUid: String?): Boolean {
+        if (transaction == null || usernameOrUid.isNullOrEmpty()) return false
+        val currentUid = mAuth?.currentUserOrNull()?.id
         if (transaction.isUserInvolvedByUid(currentUid)) return true
         if (usernameOrUid == transaction.getUsernamePost()) return true
         if (usernameOrUid == transaction.getPosterDisplayName()) return true

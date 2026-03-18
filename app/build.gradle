@@ -1,10 +1,6 @@
 plugins {
     id 'com.android.application'
-
-    id 'com.google.gms.google-services'
-
-    // Add the Crashlytics Gradle plugin
-    id 'com.google.firebase.crashlytics'
+    id 'org.jetbrains.kotlin.android'
 }
 
 android {
@@ -36,6 +32,10 @@ android {
         targetCompatibility JavaVersion.VERSION_1_8
     }
 
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+
     buildFeatures {
         viewBinding true
     }
@@ -47,12 +47,14 @@ dependencies {
     implementation("io.github.jan-tennert.supabase:postgrest-kt")
     implementation("io.github.jan-tennert.supabase:realtime-kt")
     implementation("io.github.jan-tennert.supabase:storage-kt")
+    implementation("io.ktor:ktor-client-android:2.3.5")
 
+    implementation 'androidx.core:core-ktx:1.12.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'androidx.navigation:navigation-runtime:2.7.1'
-    implementation 'androidx.navigation:navigation-ui:2.7.1'
+    implementation 'androidx.navigation:navigation-runtime-ktx:2.7.1'
+    implementation 'androidx.navigation:navigation-ui-ktx:2.7.1'
     implementation 'com.google.android.material:material:1.9.0'
-    implementation 'androidx.navigation:navigation-fragment:2.7.1'
+    implementation 'androidx.navigation:navigation-fragment-ktx:2.7.1'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
     // RecyclerView
@@ -62,8 +64,12 @@ dependencies {
     implementation 'androidx.cardview:cardview:1.0.0'
 
     // ViewModel and LiveData
-    implementation 'androidx.lifecycle:lifecycle-viewmodel:2.6.1'
-    implementation 'androidx.lifecycle:lifecycle-livedata:2.6.1'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1'
+    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.6.1'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.1'
+
+    // Coroutines
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.3'
 
     // Gson
     implementation 'com.google.code.gson:gson:2.9.0'
@@ -78,8 +84,8 @@ dependencies {
     implementation 'com.google.firebase:firebase-storage:20.2.1'
     annotationProcessor 'com.github.bumptech.glide:compiler:4.12.0'
 
-    // Firebase Authentication
-    implementation 'com.google.firebase:firebase-auth:22.1.1'
+    // Firebase Authentication (Keeping for reference or removal if fully replaced)
+    // implementation 'com.google.firebase:firebase-auth:22.1.1'
 
     // Firebase Realtime Database
     implementation 'com.google.firebase:firebase-database:20.2.2'
@@ -93,21 +99,11 @@ dependencies {
     // Room
     implementation 'androidx.room:room-runtime:2.5.2'
     annotationProcessor 'androidx.room:room-compiler:2.5.2'
-    annotationProcessor 'com.github.bumptech.glide:compiler:4.12.0'
-
-    // Fix Duplicate class
-    implementation(platform("org.jetbrains.kotlin:kotlin-bom:1.8.0"))
 
     // MPAndroidChart for line graphs
     implementation 'com.github.PhilJay:MPAndroidChart:v3.1.0'
 
-    // Import the BoM for the Firebase platform
-    implementation(platform("com.google.firebase:firebase-bom:34.9.0"))
-
     // Add the dependencies for the Crashlytics and Analytics libraries
-    // When using the BoM, you don't specify versions in Firebase library dependencies
     implementation("com.google.firebase:firebase-crashlytics")
     implementation("com.google.firebase:firebase-analytics")
 }
-
-apply plugin: 'com.google.gms.google-services'
