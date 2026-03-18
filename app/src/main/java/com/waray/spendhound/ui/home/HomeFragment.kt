@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.cardview.widget.CardView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.components.YAxis
@@ -35,6 +36,9 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class HomeFragment : Fragment() {
     private var day7TextView: TextView? = null
@@ -265,20 +269,83 @@ class HomeFragment : Fragment() {
 
     private fun fetchMonthlyChartData(username: String?, mainActivity: MainActivity) {
         val monthYear = SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(currentMonth.time)
-        DeclareDatabase.client.from("transactions").select {
-            filter {
-                // This logic needs adjustment because Supabase doesn't use path-based access like Firebase
-                // For now, I'll keep the Firebase logic conceptually but it will likely fail 
-                // until the Supabase schema and query logic are fully implemented.
+
+        // Convert monthYear to start and end dates for the month
+        val startOfMonth = currentMonth.clone() as Calendar
+        startOfMonth.set(Calendar.DAY_OF_MONTH, 1)
+        startOfMonth.set(Calendar.HOUR_OF_DAY, 0)
+        startOfMonth.set(Calendar.MINUTE, 0)
+        startOfMonth.set(Calendar.SECOND, 0)
+        startOfMonth.set(Calendar.MILLISECOND, 0)
+
+        val endOfMonth = currentMonth.clone() as Calendar
+        endOfMonth.set(Calendar.DAY_OF_MONTH, endOfMonth.getActualMaximum(Calendar.DAY_OF_MONTH))
+        endOfMonth.set(Calendar.HOUR_OF_DAY, 23)
+        endOfMonth.set(Calendar.MINUTE, 59)
+        endOfMonth.set(Calendar.SECOND, 59)
+        endOfMonth.set(Calendar.MILLISECOND, 999)
+
+        val startDate = startOfMonth.time
+        val endDate = endOfMonth.time
+
+        // Launch coroutine for Supabase query
+        viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                val response = DeclareDatabase.client.from("transactions").select {
+                    filter {
+                        // Filter by date range for the current month
+                        gte("timestamp", startDate.time)
+                        lte("timestamp", endDate.time)
+                        // Filter by user involvement (assuming transactions have a user field)
+                        eq("user", username ?: "")
+                    }
+                }
+
+                if (response.data != null) {
+                    // Process the data to create chart entries
+                    val dailySpends = mutableMapOf<Int, Double>()
+                    val labels = mutableListOf<String>()
+
+                    // Initialize all days of the month with 0
+                    val daysInMonth = endOfMonth.get(Calendar.DAY_OF_MONTH)
+                    for (day in 1..daysInMonth) {
+                        dailySpends[day] = 0.0
+                        labels.add(day.toString())
+                    }
+
+                    // Aggregate spending by day
+                    for (transactionJson in response.data as List<Map<String, Any>>) {
+                        val timestamp = transactionJson["timestamp"] as? Long ?: continue
+                        val amount = transactionJson["amount"] as? Double ?: continue
+
+                        val transactionDate = Calendar.getInstance().apply { timeInMillis = timestamp }
+                        val dayOfMonth = transactionDate.get(Calendar.DAY_OF_MONTH)
+
+                        dailySpends[dayOfMonth] = (dailySpends[dayOfMonth] ?: 0.0) + amount
+                    }
+
+                    // Create chart entries
+                    val entries = dailySpends.entries.sortedBy { it.key }.map { (day, amount) ->
+                        Entry((day - 1).toFloat(), amount.toFloat())
+                    }
+
+                    // Update the chart on main thread
+                    withContext(Dispatchers.Main) {
+                        setupLineChart(entries, labels)
+                        hideLoading()
+                    }
+                } else {
+                    withContext(Dispatchers.Main) {
+                        hideLoading()
+                    }
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    hideLoading()
+                }
+                e.printStackTrace()
             }
         }
-        // NOTE: The previous code was using Firebase Realtime Database through DeclareDatabase.
-        // I need to check if DeclareDatabase still has Firebase references or if they should be replaced.
-        // Based on DeclareDatabase.kt, it's now Supabase. 
-        // But many files are still calling getDBRefTransaction() which is now missing.
-        
-        // I will re-examine DeclareDatabase.kt and the other files.
-        hideLoading()
     }
 
     private fun setupLineChart(entries: List<Entry>, labels: List<String>) {
