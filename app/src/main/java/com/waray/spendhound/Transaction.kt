@@ -120,4 +120,52 @@ class Transaction {
         }
         return false
     }
+
+    // Getters aligned with database schema
+    fun getTransactionType(): String? = transactionType
+    fun getPaymentAmount(): Double = paymentAmount
+    fun getMultilineStr(): String? = multilineStr
+    fun getPayorsList(): MutableList<String?>? = payorsList
+    fun getAmountsPaidList(): MutableList<Double?>? = amountsPaidList
+    fun getUsernamePost(): String? = usernamePost
+    fun getTotalIndividualPayment(): Double = totalIndividualPayment
+    fun getGroupId(): String? = groupId
+    fun getGroupName(): String? = groupName
+    fun getPayorsDisplayNames(): MutableList<String?>? = payorsDisplayNames
+    fun getPosterDisplayName(): String? = posterDisplayName
+
+    // Setters aligned with database schema
+    fun setTransactionType(type: String?) {
+        this.transactionType = type
+    }
+    fun setPaymentAmount(amount: Double) {
+        this.paymentAmount = amount
+    }
+    fun setMultilineStr(str: String?) {
+        this.multilineStr = str
+    }
+    fun setPayorsList(list: MutableList<String?>?) {
+        this.payorsList = list
+    }
+    fun setAmountsPaidList(list: MutableList<Double?>?) {
+        this.amountsPaidList = list
+    }
+    fun setUsernamePost(username: String?) {
+        this.usernamePost = username
+    }
+    fun setTotalIndividualPayment(amount: Double) {
+        this.totalIndividualPayment = amount
+    }
+    fun setGroupId(id: String?) {
+        this.groupId = id
+    }
+    fun setGroupName(name: String?) {
+        this.groupName = name
+    }
+    fun setPayorsDisplayNames(names: MutableList<String?>?) {
+        this.payorsDisplayNames = names
+    }
+    fun setPosterDisplayName(name: String?) {
+        this.posterDisplayName = name
+    }
 }

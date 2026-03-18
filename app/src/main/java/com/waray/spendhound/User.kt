@@ -10,4 +10,11 @@ data class User(
     val balances: UserBalance? = null,
     // Supabase often uses 'id' as the primary key
     val id: String? = null
-)
+) {
+    // Getters aligned with database schema
+    fun getUsername(): String? = username
+    fun getEmail(): String? = email
+    fun getProfileImageUrl(): String? = profileImageUrl
+    fun getBalances(): UserBalance? = balances
+    fun getId(): String? = id
+}

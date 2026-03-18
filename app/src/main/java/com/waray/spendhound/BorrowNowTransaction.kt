@@ -53,4 +53,48 @@ class BorrowNowTransaction {
         this.status = status
         this.timestamp = System.currentTimeMillis()
     }
+
+    // Getters aligned with database schema
+    fun getBorrowId(): String? = borrowId
+    fun getBorrowerID(): String? = borrowerID
+    fun getLenderID(): String? = lenderID
+    fun getBorrowerName(): String? = borrowerName
+    fun getDate(): String? = date
+    fun getLender(): String? = lender
+    fun getBorrowedAmountStr(): String? = borrowedAmountStr
+    fun getStatus(): String? = status
+    fun getTimestamp(): Long = timestamp
+    fun getPaymentSentDate(): Long = paymentSentDate
+
+    // Setters aligned with database schema
+    fun setBorrowId(id: String?) {
+        this.borrowId = id
+    }
+    fun setBorrowerID(id: String?) {
+        this.borrowerID = id
+    }
+    fun setLenderID(id: String?) {
+        this.lenderID = id
+    }
+    fun setBorrowerName(name: String?) {
+        this.borrowerName = name
+    }
+    fun setDate(date: String?) {
+        this.date = date?.toString()
+    }
+    fun setLender(lender: String?) {
+        this.lender = lender
+    }
+    fun setBorrowedAmountStr(amount: String?) {
+        this.borrowedAmountStr = amount
+    }
+    fun setStatus(status: String?) {
+        this.status = status
+    }
+    fun setTimestamp(timestamp: Long) {
+        this.timestamp = timestamp
+    }
+    fun setPaymentSentDate(date: Long) {
+        this.paymentSentDate = date
+    }
 }

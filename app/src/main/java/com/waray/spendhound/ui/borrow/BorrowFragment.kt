@@ -522,8 +522,7 @@ class BorrowFragment : Fragment() {
                 lenders.add(User("", "", "", UserBalance()))
                 for (userSnapshot in dataSnapshot.children) {
                     val user = userSnapshot.getValue(User::class.java)
-                    if (user != null && user.username != null && user.username != currentNickname) {
-                        user.id = userSnapshot.key
+                    if (user != null && user.getUsername() != null && user.getUsername() != currentNickname) {
                         lenders.add(user)
                     }
                 }
@@ -536,7 +535,7 @@ class BorrowFragment : Fragment() {
                         if (lenders.size > 2) {
                             recyclerView.scrollToPosition(2)
                             recyclerView.post {
-                                adapter.getLenderAt(2)?.let { selectedLenderName = it.username ?: "" }
+                                adapter.getLenderAt(2)?.let { selectedLenderName = it.getUsername() ?: "" }
                                 updateLayoutEffect(recyclerView)
                             }
                         }

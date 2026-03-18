@@ -30,6 +30,7 @@ import com.waray.spendhound.R
 import com.waray.spendhound.Transaction
 import com.waray.spendhound.databinding.FragmentHomeBinding
 import io.github.jan.supabase.gotrue.Auth
+import io.github.jan.supabase.postgrest.from
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
