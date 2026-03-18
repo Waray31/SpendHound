@@ -820,7 +820,7 @@ class MainActivity : AppCompatActivity() {
     fun getDebtList(
         selectedStatus: String?,
         callback: DebtNumCallback,
-        actionListener: OnBorrowerActionListener?
+        actionListener: DebtTransactionAdapter.OnBorrowerActionListener?
     ) {
         lifecycleScope.launch {
             try {
@@ -849,7 +849,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun sortAndDisplayDebtList(actionListener: OnBorrowerActionListener?) {
+    private fun sortAndDisplayDebtList(actionListener: DebtTransactionAdapter.OnBorrowerActionListener?) {
         debtList.sortWith { o1, o2 ->
             try {
                 val f = SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH)
@@ -862,7 +862,7 @@ class MainActivity : AppCompatActivity() {
         if (rv != null) {
             rv.adapter = DebtTransactionAdapter(
                     debtList,
-                    actionListener ?: object : OnBorrowerActionListener {
+                    actionListener ?: object : DebtTransactionAdapter.OnBorrowerActionListener {
                         override fun onPayClicked(t: BorrowTransaction?, p: Int) {}
                         override fun onRemoveClicked(t: BorrowTransaction?, p: Int) {}
                         override fun onTryAgainClicked(t: BorrowTransaction?, p: Int) {}
@@ -900,7 +900,7 @@ class MainActivity : AppCompatActivity() {
         selectedMonth: String?,
         selectedStatus: String?,
         callback: DebtNumCallback,
-        actionListener: OnBorrowerActionListener?
+        actionListener: DebtTransactionAdapter.OnBorrowerActionListener?
     ) {
         if (selectedMonth == null || selectedMonth == "All") return
         lifecycleScope.launch {
@@ -933,7 +933,7 @@ class MainActivity : AppCompatActivity() {
     fun getOwedList(
         selectedStatus: String?,
         callback: OwedNumCallback,
-        actionListener: OnLenderActionListener?
+        actionListener: OwedTransactionAdapter.OnLenderActionListener?
     ) {
         lifecycleScope.launch {
             try {
@@ -960,7 +960,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun sortAndDisplayOwedList(actionListener: OnLenderActionListener?) {
+    private fun sortAndDisplayOwedList(actionListener: OwedTransactionAdapter.OnLenderActionListener?) {
         owedList.sortWith { o1, o2 ->
             try {
                 val f = SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH)
@@ -973,7 +973,7 @@ class MainActivity : AppCompatActivity() {
         if (rv != null) {
             rv.adapter = OwedTransactionAdapter(
                     owedList,
-                    actionListener ?: object : OnLenderActionListener {
+                    actionListener ?: object : OwedTransactionAdapter.OnLenderActionListener {
                         override fun onNotYetClicked(t: OwedTransaction?, p: Int) {}
                         override fun onReceivedClicked(t: OwedTransaction?, p: Int) {}
                         override fun onDeclineClicked(t: OwedTransaction?, p: Int) {}
@@ -1049,7 +1049,7 @@ class MainActivity : AppCompatActivity() {
         sm: String?,
         ss: String?,
         callback: OwedNumCallback,
-        actionListener: OnLenderActionListener?
+        actionListener: OwedTransactionAdapter.OnLenderActionListener?
     ) {
         if (sm == null || sm == "All") return
         lifecycleScope.launch {

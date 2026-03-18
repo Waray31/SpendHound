@@ -1,5 +1,6 @@
 package com.waray.spendhound
 
+import android.annotation.SuppressLint
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -9,10 +10,12 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
 
-class OwedTransactionAdapter : RecyclerView.Adapter<OwedTransactionAdapter.ViewHolder?> {
-    private val owedTransactionList: ArrayList<OwedTransaction>
-    private var clickListener: OnItemClickListener? = null
+class OwedTransactionAdapter(
+    private val owedTransactionList: ArrayList<OwedTransaction>,
     private var lenderActionListener: OnLenderActionListener? = null
+) : RecyclerView.Adapter<OwedTransactionAdapter.ViewHolder>() {
+
+    private var clickListener: OnItemClickListener? = null
 
     interface OnItemClickListener {
         fun onItemClick(transaction: OwedTransaction?, position: Int)
@@ -25,24 +28,12 @@ class OwedTransactionAdapter : RecyclerView.Adapter<OwedTransactionAdapter.ViewH
         fun onApprovedClicked(transaction: OwedTransaction?, position: Int)
     }
 
-    constructor(owedTransactionList: ArrayList<OwedTransaction>) {
-        this.owedTransactionList = owedTransactionList
-    }
-
+    // Secondary constructor for backward compatibility
     constructor(
         owedTransactionList: ArrayList<OwedTransaction>,
         clickListener: OnItemClickListener?
-    ) {
-        this.owedTransactionList = owedTransactionList
+    ) : this(owedTransactionList) {
         this.clickListener = clickListener
-    }
-
-    constructor(
-        owedTransactionList: ArrayList<OwedTransaction>,
-        lenderActionListener: OnLenderActionListener?
-    ) {
-        this.owedTransactionList = owedTransactionList
-        this.lenderActionListener = lenderActionListener
     }
 
     fun setOnItemClickListener(listener: OnItemClickListener?) {
@@ -54,24 +45,24 @@ class OwedTransactionAdapter : RecyclerView.Adapter<OwedTransactionAdapter.ViewH
     }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val itemView = LayoutInflater.from(parent.getContext())
+        val itemView = LayoutInflater.from(parent.context)
             .inflate(R.layout.owed_row_layout, parent, false)
-        return OwedTransactionAdapter.ViewHolder(itemView)
+        return ViewHolder(itemView)
     }
 
-    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val transaction = owedTransactionList.get(position)
+    override fun onBindViewHolder(holder: ViewHolder, @SuppressLint("RecyclerView") position: Int) {
+        val transaction = owedTransactionList[position]
 
         // Bind data to the ViewHolder's views
-        holder.owedDateTV.setText(transaction.getDate())
-        holder.owedBorroweeTV.setText(transaction.getBorrower())
-        holder.owedAmountBorrowedTV.setText(CurrencyUtils.formatAmountWithCurrency(transaction.getBorrowedAmountStr()))
-        holder.owedStatusTV.setText(transaction.getStatus())
+        holder.owedDateTV.text = transaction.getDate()
+        holder.owedBorroweeTV.text = transaction.getBorrower()
+        holder.owedAmountBorrowedTV.text = CurrencyUtils.formatAmountWithCurrency(transaction.getBorrowedAmountStr() ?: "0")
+        holder.owedStatusTV.text = transaction.getStatus()
 
         // Hide all action layouts by default
-        holder.pendingPaymentActionsLayout.setVisibility(View.GONE)
-        holder.lenderApprovalActionsLayout.setVisibility(View.GONE)
-        holder.paymentSentDateTV.setVisibility(View.GONE)
+        holder.pendingPaymentActionsLayout.visibility = View.GONE
+        holder.lenderApprovalActionsLayout.visibility = View.GONE
+        holder.paymentSentDateTV.visibility = View.GONE
 
         // Set status color based on status value
         val status = transaction.getStatus()
@@ -80,154 +71,100 @@ class OwedTransactionAdapter : RecyclerView.Adapter<OwedTransactionAdapter.ViewH
         var isPendingPayment = false
         var isPaid = false
         var isUnpaid = false
-        if ("Paid".equals(status, ignoreCase = true)) {
-            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.green)
-            isPaid = true
-        } else if ("Pending".equals(status, ignoreCase = true)) {
-            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.yellow)
-        } else if ("Paid Partially".equals(status, ignoreCase = true)) {
-            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.yellow)
-        } else if ("Pending Payment".equals(status, ignoreCase = true)) {
-            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.yellow)
-            isPendingPayment = true
-        } else if ("For Lender Approval".equals(status, ignoreCase = true)) {
-            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.blue)
-            isPendingStatus = true
-        } else if ("Unpaid".equals(status, ignoreCase = true)) {
-            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.red)
-            isUnpaid = true
-        } else {
-            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.red)
+        
+        when {
+            "Paid".equals(status, ignoreCase = true) -> {
+                statusColor = ContextCompat.getColor(holder.itemView.context, R.color.green)
+                isPaid = true
+            }
+            "Pending".equals(status, ignoreCase = true) || 
+            "Paid Partially".equals(status, ignoreCase = true) || 
+            "Pending Payment".equals(status, ignoreCase = true) -> {
+                statusColor = ContextCompat.getColor(holder.itemView.context, R.color.yellow)
+                if ("Pending Payment".equals(status, ignoreCase = true)) isPendingPayment = true
+            }
+            "For Lender Approval".equals(status, ignoreCase = true) -> {
+                statusColor = ContextCompat.getColor(holder.itemView.context, R.color.blue)
+                isPendingStatus = true
+            }
+            "Unpaid".equals(status, ignoreCase = true) -> {
+                statusColor = ContextCompat.getColor(holder.itemView.context, R.color.red)
+                isUnpaid = true
+            }
+            else -> {
+                statusColor = ContextCompat.getColor(holder.itemView.context, R.color.red)
+            }
         }
         holder.owedStatusTV.setTextColor(statusColor)
 
         // Show action buttons based on status
         if (isPendingPayment) {
-            holder.pendingPaymentActionsLayout.setVisibility(View.VISIBLE)
+            holder.pendingPaymentActionsLayout.visibility = View.VISIBLE
         } else if (isPendingStatus) {
-            holder.lenderApprovalActionsLayout.setVisibility(View.VISIBLE)
+            holder.lenderApprovalActionsLayout.visibility = View.VISIBLE
         }
 
         // Show payment sent date for Paid status
-        if (isPaid && transaction.getPaymentSentDate() != null && !transaction.getPaymentSentDate()
-                .isEmpty()
-        ) {
-            holder.paymentSentDateTV.setVisibility(View.VISIBLE)
-            holder.paymentSentDateTV.setText(": " + transaction.getPaymentSentDate())
+        val paymentSentDate = transaction.getPaymentSentDate()
+        if (isPaid && !paymentSentDate.isNullOrEmpty()) {
+            holder.paymentSentDateTV.visibility = View.VISIBLE
+            holder.paymentSentDateTV.text = ": $paymentSentDate"
         }
 
         // Cast to MaterialCardView for elevation and background
         val cardView = holder.itemView as MaterialCardView
-        val density = holder.itemView.getContext().getResources().getDisplayMetrics().density
+        val density = holder.itemView.context.resources.displayMetrics.density
 
         // Set background tint and elevation based on status
-        if (isPaid) {
-            cardView.setCardBackgroundColor(
-                ContextCompat.getColor(
-                    holder.itemView.getContext(),
-                    R.color.paid_bg
-                )
-            )
-            cardView.setCardElevation(4 * density)
-        } else if (isUnpaid) {
-            cardView.setCardBackgroundColor(
-                ContextCompat.getColor(
-                    holder.itemView.getContext(),
-                    R.color.unpaid_bg
-                )
-            )
-            cardView.setCardElevation(4 * density)
-        } else if (isPendingPayment) {
-            cardView.setCardBackgroundColor(
-                ContextCompat.getColor(
-                    holder.itemView.getContext(),
-                    R.color.pending_payment_bg
-                )
-            )
-            cardView.setCardElevation(4 * density)
-        } else if (isPendingStatus) {
-            cardView.setCardBackgroundColor(
-                ContextCompat.getColor(
-                    holder.itemView.getContext(),
-                    R.color.pending_approval_bg
-                )
-            )
-            cardView.setCardElevation(4 * density)
-        } else {
-            cardView.setCardBackgroundColor(
-                ContextCompat.getColor(
-                    holder.itemView.getContext(),
-                    R.color.whitest
-                )
-            )
-            cardView.setCardElevation(4 * density)
+        val bgColorRes = when {
+            isPaid -> R.color.paid_bg
+            isUnpaid -> R.color.unpaid_bg
+            isPendingPayment -> R.color.pending_payment_bg
+            isPendingStatus -> R.color.pending_approval_bg
+            else -> R.color.whitest
         }
+        
+        cardView.setCardBackgroundColor(ContextCompat.getColor(holder.itemView.context, bgColorRes))
+        cardView.cardElevation = 4 * density
 
         // Set click listeners for action buttons
-        holder.notYetBtn.setOnClickListener(View.OnClickListener { v: View? ->
-            if (lenderActionListener != null) {
-                lenderActionListener!!.onNotYetClicked(transaction, holder.getAdapterPosition())
-            }
-        })
+        holder.notYetBtn.setOnClickListener {
+            lenderActionListener?.onNotYetClicked(transaction, holder.bindingAdapterPosition)
+        }
 
-        holder.receivedBtn.setOnClickListener(View.OnClickListener { v: View? ->
-            if (lenderActionListener != null) {
-                lenderActionListener!!.onReceivedClicked(transaction, holder.getAdapterPosition())
-            }
-        })
+        holder.receivedBtn.setOnClickListener {
+            lenderActionListener?.onReceivedClicked(transaction, holder.bindingAdapterPosition)
+        }
 
-        holder.declineBtn.setOnClickListener(View.OnClickListener { v: View? ->
-            if (lenderActionListener != null) {
-                lenderActionListener!!.onDeclineClicked(transaction, holder.getAdapterPosition())
-            }
-        })
+        holder.declineBtn.setOnClickListener {
+            lenderActionListener?.onDeclineClicked(transaction, holder.bindingAdapterPosition)
+        }
 
-        holder.approvedBtn.setOnClickListener(View.OnClickListener { v: View? ->
-            if (lenderActionListener != null) {
-                lenderActionListener!!.onApprovedClicked(transaction, holder.getAdapterPosition())
-            }
-        })
+        holder.approvedBtn.setOnClickListener {
+            lenderActionListener?.onApprovedClicked(transaction, holder.bindingAdapterPosition)
+        }
 
         // Set click listener for item
-        val finalIsPendingStatus = isPendingStatus
-        holder.itemView.setOnClickListener(View.OnClickListener { v: View? ->
-            if (clickListener != null && finalIsPendingStatus) {
-                clickListener!!.onItemClick(transaction, position)
+        holder.itemView.setOnClickListener {
+            if (clickListener != null && isPendingStatus) {
+                clickListener?.onItemClick(transaction, holder.bindingAdapterPosition)
             }
-        })
-    }
-
-    override fun getItemCount(): Int {
-        return owedTransactionList.size
-    }
-
-    inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        var owedDateTV: TextView
-        var owedBorroweeTV: TextView
-        var owedAmountBorrowedTV: TextView
-        var owedStatusTV: TextView
-        var paymentSentDateTV: TextView
-        var pendingPaymentActionsLayout: LinearLayout
-        var lenderApprovalActionsLayout: LinearLayout
-        var notYetBtn: TextView
-        var receivedBtn: TextView
-        var declineBtn: TextView
-        var approvedBtn: TextView
-
-        init {
-            owedDateTV = itemView.findViewById<TextView>(R.id.owedDateTV)
-            owedBorroweeTV = itemView.findViewById<TextView>(R.id.owedBorroweeTV)
-            owedAmountBorrowedTV = itemView.findViewById<TextView>(R.id.owedAmountBorrowedTV)
-            owedStatusTV = itemView.findViewById<TextView>(R.id.owedStatusTV)
-            paymentSentDateTV = itemView.findViewById<TextView>(R.id.owedPaymentSentDateTV)
-            pendingPaymentActionsLayout =
-                itemView.findViewById<LinearLayout>(R.id.pendingPaymentActionsLayout)
-            lenderApprovalActionsLayout =
-                itemView.findViewById<LinearLayout>(R.id.lenderApprovalActionsLayout)
-            notYetBtn = itemView.findViewById<TextView>(R.id.notYetBtn)
-            receivedBtn = itemView.findViewById<TextView>(R.id.receivedBtn)
-            declineBtn = itemView.findViewById<TextView>(R.id.declineBtn)
-            approvedBtn = itemView.findViewById<TextView>(R.id.approvedBtn)
         }
+    }
+
+    override fun getItemCount(): Int = owedTransactionList.size
+
+    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        val owedDateTV: TextView = itemView.findViewById(R.id.owedDateTV)
+        val owedBorroweeTV: TextView = itemView.findViewById(R.id.owedBorroweeTV)
+        val owedAmountBorrowedTV: TextView = itemView.findViewById(R.id.owedAmountBorrowedTV)
+        val owedStatusTV: TextView = itemView.findViewById(R.id.owedStatusTV)
+        val paymentSentDateTV: TextView = itemView.findViewById(R.id.owedPaymentSentDateTV)
+        val pendingPaymentActionsLayout: LinearLayout = itemView.findViewById(R.id.pendingPaymentActionsLayout)
+        val lenderApprovalActionsLayout: LinearLayout = itemView.findViewById(R.id.lenderApprovalActionsLayout)
+        val notYetBtn: TextView = itemView.findViewById(R.id.notYetBtn)
+        val receivedBtn: TextView = itemView.findViewById(R.id.receivedBtn)
+        val declineBtn: TextView = itemView.findViewById(R.id.declineBtn)
+        val approvedBtn: TextView = itemView.findViewById(R.id.approvedBtn)
     }
 }

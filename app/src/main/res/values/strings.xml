@@ -176,6 +176,7 @@
     <string name="status_for_lender_approval">For Lender Approval</string>
     <string name="status_pending_payment">Pending Payment</string>
     <string name="label_payment_sent">Sent: </string>
+    <string name="payment_sent_format">Sent: %1$s</string>
 
     <!-- Toast Messages -->
     <string name="toast_status_updated">Status updated successfully</string>
