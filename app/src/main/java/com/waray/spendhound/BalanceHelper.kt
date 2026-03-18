@@ -1,338 +1,327 @@
-package com.waray.spendhound;
+package com.waray.spendhound
 
-import android.util.Log;
-
-import androidx.annotation.NonNull;
-
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.MutableData;
-import com.google.firebase.database.Transaction;
-import com.google.firebase.database.ValueEventListener;
-
-import java.util.HashMap;
-import java.util.Map;
+import android.util.Log
+import com.google.firebase.database.DataSnapshot
 
 /**
  * Helper class for managing user balance operations in Firebase
  * Uses transactions for atomic updates to prevent race conditions
  */
-public class BalanceHelper {
-
-    private static final String TAG = "BalanceHelper";
-
-    public interface BalanceCallback {
-        void onSuccess();
-        void onFailure(String error);
-    }
+object BalanceHelper {
+    private const val TAG = "BalanceHelper"
 
     /**
      * Initialize balances node for new users during registration
      */
-    public static void initializeBalancesForNewUser(String uid, BalanceCallback callback) {
-        DatabaseReference userBalanceRef = DeclareDatabase.getDatabaseReference()
-                .child(uid)
-                .child("balances");
+    fun initializeBalancesForNewUser(uid: String?, callback: BalanceCallback?) {
+        val userBalanceRef: DatabaseReference = DeclareDatabase.getDatabaseReference()
+            .child(uid)
+            .child("balances")
 
-        UserBalance initialBalance = new UserBalance(0, 0, 0, 0, 0);
+        val initialBalance = UserBalance(0.0, 0.0, 0.0, 0.0, 0.0)
         userBalanceRef.setValue(initialBalance)
-                .addOnSuccessListener(aVoid -> {
-                    Log.d(TAG, "Balances initialized for user: " + uid);
-                    if (callback != null) callback.onSuccess();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Failed to initialize balances: " + e.getMessage());
-                    if (callback != null) callback.onFailure(e.getMessage());
-                });
+            .addOnSuccessListener({ aVoid ->
+                Log.d(TAG, "Balances initialized for user: " + uid)
+                if (callback != null) callback.onSuccess()
+            })
+            .addOnFailureListener({ e ->
+                Log.e(TAG, "Failed to initialize balances: " + e.getMessage())
+                if (callback != null) callback.onFailure(e.getMessage())
+            })
     }
 
     /**
      * Initialize userBorrows node for new users during registration
      */
-    public static void initializeUserBorrowsForNewUser(String uid, BalanceCallback callback) {
-        DatabaseReference userBorrowsRef = DeclareDatabase.getDBRefUserBorrows().child(uid);
+    fun initializeUserBorrowsForNewUser(uid: String?, callback: BalanceCallback?) {
+        val userBorrowsRef: DatabaseReference = DeclareDatabase.getDBRefUserBorrows().child(uid)
 
-        Map<String, Object> initialBorrows = new HashMap<>();
-        initialBorrows.put("asBorrower", new HashMap<String, Boolean>());
-        initialBorrows.put("asLender", new HashMap<String, Boolean>());
+        val initialBorrows: MutableMap<String?, Any?> = HashMap<String?, Any?>()
+        initialBorrows.put("asBorrower", HashMap<String?, Boolean?>())
+        initialBorrows.put("asLender", HashMap<String?, Boolean?>())
 
         userBorrowsRef.setValue(initialBorrows)
-                .addOnSuccessListener(aVoid -> {
-                    Log.d(TAG, "UserBorrows initialized for user: " + uid);
-                    if (callback != null) callback.onSuccess();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Failed to initialize userBorrows: " + e.getMessage());
-                    if (callback != null) callback.onFailure(e.getMessage());
-                });
+            .addOnSuccessListener({ aVoid ->
+                Log.d(TAG, "UserBorrows initialized for user: " + uid)
+                if (callback != null) callback.onSuccess()
+            })
+            .addOnFailureListener({ e ->
+                Log.e(TAG, "Failed to initialize userBorrows: " + e.getMessage())
+                if (callback != null) callback.onFailure(e.getMessage())
+            })
     }
 
     /**
      * Check if balances node exists for existing users, create if not (migration safety)
      */
-    public static void ensureBalancesExist(String uid, BalanceCallback callback) {
-        DatabaseReference userBalanceRef = DeclareDatabase.getDatabaseReference()
-                .child(uid)
-                .child("balances");
+    fun ensureBalancesExist(uid: String?, callback: BalanceCallback?) {
+        val userBalanceRef: DatabaseReference = DeclareDatabase.getDatabaseReference()
+            .child(uid)
+            .child("balances")
 
-        userBalanceRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
+        userBalanceRef.addListenerForSingleValueEvent(object : ValueEventListener() {
+            public override fun onDataChange(snapshot: DataSnapshot) {
                 if (!snapshot.exists()) {
                     // Balances don't exist, initialize them
-                    initializeBalancesForNewUser(uid, callback);
+                    initializeBalancesForNewUser(uid, callback)
                 } else {
                     // Balances already exist
-                    if (callback != null) callback.onSuccess();
+                    if (callback != null) callback.onSuccess()
                 }
             }
 
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                Log.e(TAG, "Failed to check balances: " + error.getMessage());
-                if (callback != null) callback.onFailure(error.getMessage());
+            public override fun onCancelled(error: DatabaseError) {
+                Log.e(TAG, "Failed to check balances: " + error.getMessage())
+                if (callback != null) callback.onFailure(error.getMessage())
             }
-        });
+        })
     }
 
     /**
      * Check if userBorrows node exists for existing users, create if not (migration safety)
      */
-    public static void ensureUserBorrowsExist(String uid, BalanceCallback callback) {
-        DatabaseReference userBorrowsRef = DeclareDatabase.getDBRefUserBorrows().child(uid);
+    fun ensureUserBorrowsExist(uid: String?, callback: BalanceCallback?) {
+        val userBorrowsRef: DatabaseReference = DeclareDatabase.getDBRefUserBorrows().child(uid)
 
-        userBorrowsRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
+        userBorrowsRef.addListenerForSingleValueEvent(object : ValueEventListener() {
+            public override fun onDataChange(snapshot: DataSnapshot) {
                 if (!snapshot.exists()) {
-                    initializeUserBorrowsForNewUser(uid, callback);
+                    initializeUserBorrowsForNewUser(uid, callback)
                 } else {
-                    if (callback != null) callback.onSuccess();
+                    if (callback != null) callback.onSuccess()
                 }
             }
 
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                Log.e(TAG, "Failed to check userBorrows: " + error.getMessage());
-                if (callback != null) callback.onFailure(error.getMessage());
+            public override fun onCancelled(error: DatabaseError) {
+                Log.e(TAG, "Failed to check userBorrows: " + error.getMessage())
+                if (callback != null) callback.onFailure(error.getMessage())
             }
-        });
+        })
     }
 
     /**
      * Update user's totalBillSpent atomically using Firebase transaction
      * totalBillSpent is the sum of paymentAmount in all transactions where user is in payorsList
      */
-    public static void updateTotalBillSpent(String uid, int amountChange, BalanceCallback callback) {
-        DatabaseReference billSpentRef = DeclareDatabase.getDatabaseReference()
-                .child(uid)
-                .child("balances")
-                .child("totalBillSpent");
+    fun updateTotalBillSpent(uid: String?, amountChange: Int, callback: BalanceCallback?) {
+        val billSpentRef: DatabaseReference = DeclareDatabase.getDatabaseReference()
+            .child(uid)
+            .child("balances")
+            .child("totalBillSpent")
 
-        billSpentRef.runTransaction(new Transaction.Handler() {
-            @NonNull
-            @Override
-            public Transaction.Result doTransaction(@NonNull MutableData mutableData) {
-                Integer currentValue = mutableData.getValue(Integer.class);
+        billSpentRef.runTransaction(object : Handler() {
+            public override fun doTransaction(mutableData: MutableData): Transaction.Result {
+                var currentValue: Int? = mutableData.getValue(Int::class.java)
                 if (currentValue == null) {
-                    currentValue = 0;
+                    currentValue = 0
                 }
-                mutableData.setValue(currentValue + amountChange);
-                return Transaction.success(mutableData);
+                mutableData.setValue(currentValue + amountChange)
+                return Transaction.success(mutableData)
             }
 
-            @Override
-            public void onComplete(DatabaseError error, boolean committed, DataSnapshot snapshot) {
+            public override fun onComplete(
+                error: DatabaseError?,
+                committed: Boolean,
+                snapshot: DataSnapshot?
+            ) {
                 if (error != null) {
-                    Log.e(TAG, "Failed to update totalBillSpent: " + error.getMessage());
-                    if (callback != null) callback.onFailure(error.getMessage());
+                    Log.e(TAG, "Failed to update totalBillSpent: " + error.getMessage())
+                    if (callback != null) callback.onFailure(error.getMessage())
                 } else if (committed) {
-                    Log.d(TAG, "TotalBillSpent updated for user: " + uid);
-                    if (callback != null) callback.onSuccess();
+                    Log.d(TAG, "TotalBillSpent updated for user: " + uid)
+                    if (callback != null) callback.onSuccess()
                 }
             }
-        });
+        })
     }
 
     /**
      * Update user's totalBillPayment atomically using Firebase transaction
      * totalBillPayment is the sum of user's individual amounts from amountsPaidList in all transactions
      */
-    public static void updateTotalBillPayment(String uid, int amountChange, BalanceCallback callback) {
-        DatabaseReference billPaymentRef = DeclareDatabase.getDatabaseReference()
-                .child(uid)
-                .child("balances")
-                .child("totalBillPayment");
+    fun updateTotalBillPayment(uid: String?, amountChange: Int, callback: BalanceCallback?) {
+        val billPaymentRef: DatabaseReference = DeclareDatabase.getDatabaseReference()
+            .child(uid)
+            .child("balances")
+            .child("totalBillPayment")
 
-        billPaymentRef.runTransaction(new Transaction.Handler() {
-            @NonNull
-            @Override
-            public Transaction.Result doTransaction(@NonNull MutableData mutableData) {
-                Integer currentValue = mutableData.getValue(Integer.class);
+        billPaymentRef.runTransaction(object : Handler() {
+            public override fun doTransaction(mutableData: MutableData): Transaction.Result {
+                var currentValue: Int? = mutableData.getValue(Int::class.java)
                 if (currentValue == null) {
-                    currentValue = 0;
+                    currentValue = 0
                 }
-                mutableData.setValue(currentValue + amountChange);
-                return Transaction.success(mutableData);
+                mutableData.setValue(currentValue + amountChange)
+                return Transaction.success(mutableData)
             }
 
-            @Override
-            public void onComplete(DatabaseError error, boolean committed, DataSnapshot snapshot) {
+            public override fun onComplete(
+                error: DatabaseError?,
+                committed: Boolean,
+                snapshot: DataSnapshot?
+            ) {
                 if (error != null) {
-                    Log.e(TAG, "Failed to update totalBillPayment: " + error.getMessage());
-                    if (callback != null) callback.onFailure(error.getMessage());
+                    Log.e(TAG, "Failed to update totalBillPayment: " + error.getMessage())
+                    if (callback != null) callback.onFailure(error.getMessage())
                 } else if (committed) {
-                    Log.d(TAG, "TotalBillPayment updated for user: " + uid);
-                    if (callback != null) callback.onSuccess();
+                    Log.d(TAG, "TotalBillPayment updated for user: " + uid)
+                    if (callback != null) callback.onSuccess()
                 }
             }
-        });
+        })
     }
 
     /**
      * Update user's totalIndividualSpent atomically using Firebase transaction
      * totalIndividualSpent is the sum of totalIndividualPayment for each transaction user participated in
      */
-    public static void updateTotalIndividualSpent(String uid, int amountChange, BalanceCallback callback) {
-        DatabaseReference individualSpentRef = DeclareDatabase.getDatabaseReference()
-                .child(uid)
-                .child("balances")
-                .child("totalIndividualSpent");
+    fun updateTotalIndividualSpent(uid: String?, amountChange: Int, callback: BalanceCallback?) {
+        val individualSpentRef: DatabaseReference = DeclareDatabase.getDatabaseReference()
+            .child(uid)
+            .child("balances")
+            .child("totalIndividualSpent")
 
-        individualSpentRef.runTransaction(new Transaction.Handler() {
-            @NonNull
-            @Override
-            public Transaction.Result doTransaction(@NonNull MutableData mutableData) {
-                Integer currentValue = mutableData.getValue(Integer.class);
+        individualSpentRef.runTransaction(object : Handler() {
+            public override fun doTransaction(mutableData: MutableData): Transaction.Result {
+                var currentValue: Int? = mutableData.getValue(Int::class.java)
                 if (currentValue == null) {
-                    currentValue = 0;
+                    currentValue = 0
                 }
-                mutableData.setValue(currentValue + amountChange);
-                return Transaction.success(mutableData);
+                mutableData.setValue(currentValue + amountChange)
+                return Transaction.success(mutableData)
             }
 
-            @Override
-            public void onComplete(DatabaseError error, boolean committed, DataSnapshot snapshot) {
+            public override fun onComplete(
+                error: DatabaseError?,
+                committed: Boolean,
+                snapshot: DataSnapshot?
+            ) {
                 if (error != null) {
-                    Log.e(TAG, "Failed to update totalIndividualSpent: " + error.getMessage());
-                    if (callback != null) callback.onFailure(error.getMessage());
+                    Log.e(TAG, "Failed to update totalIndividualSpent: " + error.getMessage())
+                    if (callback != null) callback.onFailure(error.getMessage())
                 } else if (committed) {
-                    Log.d(TAG, "TotalIndividualSpent updated for user: " + uid);
-                    if (callback != null) callback.onSuccess();
+                    Log.d(TAG, "TotalIndividualSpent updated for user: " + uid)
+                    if (callback != null) callback.onSuccess()
                 }
             }
-        });
+        })
     }
 
     /**
      * Update user's totaldebt atomically using Firebase transaction
      * totaldebt is the sum of borrow amounts where user is borrower with status != "Paid"
      */
-    public static void updateTotaldebt(String uid, int amountChange, BalanceCallback callback) {
-        DatabaseReference debtRef = DeclareDatabase.getDatabaseReference()
-                .child(uid)
-                .child("balances")
-                .child("totaldebt");
+    fun updateTotaldebt(uid: String?, amountChange: Int, callback: BalanceCallback?) {
+        val debtRef: DatabaseReference = DeclareDatabase.getDatabaseReference()
+            .child(uid)
+            .child("balances")
+            .child("totaldebt")
 
-        debtRef.runTransaction(new Transaction.Handler() {
-            @NonNull
-            @Override
-            public Transaction.Result doTransaction(@NonNull MutableData mutableData) {
-                Integer currentValue = mutableData.getValue(Integer.class);
+        debtRef.runTransaction(object : Handler() {
+            public override fun doTransaction(mutableData: MutableData): Transaction.Result {
+                var currentValue: Int? = mutableData.getValue(Int::class.java)
                 if (currentValue == null) {
-                    currentValue = 0;
+                    currentValue = 0
                 }
-                mutableData.setValue(currentValue + amountChange);
-                return Transaction.success(mutableData);
+                mutableData.setValue(currentValue + amountChange)
+                return Transaction.success(mutableData)
             }
 
-            @Override
-            public void onComplete(DatabaseError error, boolean committed, DataSnapshot snapshot) {
+            public override fun onComplete(
+                error: DatabaseError?,
+                committed: Boolean,
+                snapshot: DataSnapshot?
+            ) {
                 if (error != null) {
-                    Log.e(TAG, "Failed to update totaldebt: " + error.getMessage());
-                    if (callback != null) callback.onFailure(error.getMessage());
+                    Log.e(TAG, "Failed to update totaldebt: " + error.getMessage())
+                    if (callback != null) callback.onFailure(error.getMessage())
                 } else if (committed) {
-                    Log.d(TAG, "Totaldebt updated for user: " + uid);
-                    if (callback != null) callback.onSuccess();
+                    Log.d(TAG, "Totaldebt updated for user: " + uid)
+                    if (callback != null) callback.onSuccess()
                 }
             }
-        });
+        })
     }
 
     /**
      * Update user's totalreceivable atomically using Firebase transaction
      * totalreceivable is the sum of borrow amounts where user is lender with status != "Paid"
      */
-    public static void updateTotalreceivable(String uid, int amountChange, BalanceCallback callback) {
-        DatabaseReference receivableRef = DeclareDatabase.getDatabaseReference()
-                .child(uid)
-                .child("balances")
-                .child("totalreceivable");
+    fun updateTotalreceivable(uid: String?, amountChange: Int, callback: BalanceCallback?) {
+        val receivableRef: DatabaseReference = DeclareDatabase.getDatabaseReference()
+            .child(uid)
+            .child("balances")
+            .child("totalreceivable")
 
-        receivableRef.runTransaction(new Transaction.Handler() {
-            @NonNull
-            @Override
-            public Transaction.Result doTransaction(@NonNull MutableData mutableData) {
-                Integer currentValue = mutableData.getValue(Integer.class);
+        receivableRef.runTransaction(object : Handler() {
+            public override fun doTransaction(mutableData: MutableData): Transaction.Result {
+                var currentValue: Int? = mutableData.getValue(Int::class.java)
                 if (currentValue == null) {
-                    currentValue = 0;
+                    currentValue = 0
                 }
-                mutableData.setValue(currentValue + amountChange);
-                return Transaction.success(mutableData);
+                mutableData.setValue(currentValue + amountChange)
+                return Transaction.success(mutableData)
             }
 
-            @Override
-            public void onComplete(DatabaseError error, boolean committed, DataSnapshot snapshot) {
+            public override fun onComplete(
+                error: DatabaseError?,
+                committed: Boolean,
+                snapshot: DataSnapshot?
+            ) {
                 if (error != null) {
-                    Log.e(TAG, "Failed to update totalreceivable: " + error.getMessage());
-                    if (callback != null) callback.onFailure(error.getMessage());
+                    Log.e(TAG, "Failed to update totalreceivable: " + error.getMessage())
+                    if (callback != null) callback.onFailure(error.getMessage())
                 } else if (committed) {
-                    Log.d(TAG, "Totalreceivable updated for user: " + uid);
-                    if (callback != null) callback.onSuccess();
+                    Log.d(TAG, "Totalreceivable updated for user: " + uid)
+                    if (callback != null) callback.onSuccess()
                 }
             }
-        });
+        })
     }
 
     /**
      * Add borrow entry to userBorrows index
      */
-    public static void addBorrowerEntry(String borrowerUid, String borrowId, BalanceCallback callback) {
-        DatabaseReference borrowerRef = DeclareDatabase.getDBRefUserBorrows()
-                .child(borrowerUid)
-                .child("asBorrower")
-                .child(borrowId);
+    fun addBorrowerEntry(borrowerUid: String?, borrowId: String?, callback: BalanceCallback?) {
+        val borrowerRef: DatabaseReference = DeclareDatabase.getDBRefUserBorrows()
+            .child(borrowerUid)
+            .child("asBorrower")
+            .child(borrowId)
 
         borrowerRef.setValue(true)
-                .addOnSuccessListener(aVoid -> {
-                    Log.d(TAG, "Borrower entry added for: " + borrowerUid);
-                    if (callback != null) callback.onSuccess();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Failed to add borrower entry: " + e.getMessage());
-                    if (callback != null) callback.onFailure(e.getMessage());
-                });
+            .addOnSuccessListener({ aVoid ->
+                Log.d(TAG, "Borrower entry added for: " + borrowerUid)
+                if (callback != null) callback.onSuccess()
+            })
+            .addOnFailureListener({ e ->
+                Log.e(TAG, "Failed to add borrower entry: " + e.getMessage())
+                if (callback != null) callback.onFailure(e.getMessage())
+            })
     }
 
     /**
      * Add lender entry to userBorrows index
      */
-    public static void addLenderEntry(String lenderUid, String borrowId, BalanceCallback callback) {
-        DatabaseReference lenderRef = DeclareDatabase.getDBRefUserBorrows()
-                .child(lenderUid)
-                .child("asLender")
-                .child(borrowId);
+    fun addLenderEntry(lenderUid: String?, borrowId: String?, callback: BalanceCallback?) {
+        val lenderRef: DatabaseReference = DeclareDatabase.getDBRefUserBorrows()
+            .child(lenderUid)
+            .child("asLender")
+            .child(borrowId)
 
         lenderRef.setValue(true)
-                .addOnSuccessListener(aVoid -> {
-                    Log.d(TAG, "Lender entry added for: " + lenderUid);
-                    if (callback != null) callback.onSuccess();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Failed to add lender entry: " + e.getMessage());
-                    if (callback != null) callback.onFailure(e.getMessage());
-                });
+            .addOnSuccessListener({ aVoid ->
+                Log.d(TAG, "Lender entry added for: " + lenderUid)
+                if (callback != null) callback.onSuccess()
+            })
+            .addOnFailureListener({ e ->
+                Log.e(TAG, "Failed to add lender entry: " + e.getMessage())
+                if (callback != null) callback.onFailure(e.getMessage())
+            })
+    }
+
+    interface BalanceCallback {
+        fun onSuccess()
+        fun onFailure(error: String?)
     }
 }
 

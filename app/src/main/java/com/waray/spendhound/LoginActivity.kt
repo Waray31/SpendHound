@@ -1,167 +1,153 @@
-package com.waray.spendhound;
+package com.waray.spendhound
 
-import android.annotation.SuppressLint;
-import android.content.Context;
-import android.content.Intent;
-import android.os.Bundle;
-import android.view.MotionEvent;
-import android.view.View;
-import android.view.inputmethod.InputMethodManager;
-import android.widget.Button;
-import android.widget.CheckBox;
-import android.widget.CompoundButton;
-import android.widget.EditText;
-import android.widget.ProgressBar;
-import android.widget.TextView;
-import android.widget.Toast;
+import com.google.firebase.auth.AuthResult
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AppCompatActivity;
+class LoginActivity : AppCompatActivity() {
+    private var usernameEditText: EditText? = null
+    private var passwordEditText: EditText? = null
+    var mAuth: FirebaseAuth? = null
+    var rememberMeCheckbox: CheckBox? = null
+    private var progressBar: ProgressBar? = null
 
-import com.google.android.gms.tasks.OnCompleteListener;
-import com.google.android.gms.tasks.Task;
-import com.google.firebase.auth.AuthResult;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_login)
 
+        mAuth = DeclareDatabase.getAuth()
 
-public class LoginActivity extends AppCompatActivity {
+        rememberMeCheckbox = findViewById<CheckBox>(R.id.rememberMeCheckbox)
+        usernameEditText = findViewById<EditText>(R.id.usernameEditText)
+        passwordEditText = findViewById<EditText>(R.id.passwordEditText)
+        val loginButton = findViewById<android.widget.Button>(R.id.loginButton)
+        progressBar = findViewById<ProgressBar>(R.id.progressBar)
 
-    private EditText usernameEditText;
-    private EditText passwordEditText;
-    public FirebaseAuth mAuth;
-    public CheckBox rememberMeCheckbox;
-    private ProgressBar progressBar;
+        exitEditText()
 
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_login);
-
-        mAuth = DeclareDatabase.getAuth();
-
-        rememberMeCheckbox = findViewById(R.id.rememberMeCheckbox);
-        usernameEditText = findViewById(R.id.usernameEditText);
-        passwordEditText = findViewById(R.id.passwordEditText);
-        Button loginButton = findViewById(R.id.loginButton);
-        progressBar = findViewById(R.id.progressBar);
-
-        exitEditText();
-
-        loginButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                progressBar.setVisibility(View.VISIBLE);
-                String username = usernameEditText.getText().toString().trim();
-                String password = passwordEditText.getText().toString().trim();
+        loginButton.setOnClickListener(object : android.view.View.OnClickListener {
+            override fun onClick(v: android.view.View?) {
+                progressBar.setVisibility(android.view.View.VISIBLE)
+                val username = usernameEditText.getText().toString().trim { it <= ' ' }
+                val password = passwordEditText.getText().toString().trim { it <= ' ' }
 
                 if (username.isEmpty() || password.isEmpty()) {
-                    Toast.makeText(LoginActivity.this, "Please enter both username and password", Toast.LENGTH_SHORT).show();
-                    progressBar.setVisibility(View.GONE);
+                    Toast.makeText(
+                        this@LoginActivity,
+                        "Please enter both username and password",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                    progressBar.setVisibility(android.view.View.GONE)
                 } else {
                     mAuth.signInWithEmailAndPassword(username, password)
-                            .addOnCompleteListener(new OnCompleteListener<AuthResult>() {
-                                @Override
-                                public void onComplete(@NonNull Task<AuthResult> task) {
-                                    if (task.isSuccessful()) {
-                                        progressBar.setVisibility(View.GONE);
-                                        Toast.makeText(LoginActivity.this, "Login successful", Toast.LENGTH_SHORT).show();
-                                        // Transition to MainActivity
-                                        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
-                                        startActivity(intent);
-                                        finish(); // Optional: Finish the LoginActivity to prevent returning to it when pressing back
-                                    } else {
-                                        Toast.makeText(LoginActivity.this, "Invalid username or password", Toast.LENGTH_SHORT).show();
-                                        progressBar.setVisibility(View.GONE);
-                                    }
+                        .addOnCompleteListener(object : OnCompleteListener<AuthResult?> {
+                            override fun onComplete(task: com.google.android.gms.tasks.Task<AuthResult?>) {
+                                if (task.isSuccessful()) {
+                                    progressBar.setVisibility(android.view.View.GONE)
+                                    Toast.makeText(
+                                        this@LoginActivity,
+                                        "Login successful",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    // Transition to MainActivity
+                                    val intent: Intent =
+                                        Intent(this@LoginActivity, MainActivity::class.java)
+                                    startActivity(intent)
+                                    finish() // Optional: Finish the LoginActivity to prevent returning to it when pressing back
+                                } else {
+                                    Toast.makeText(
+                                        this@LoginActivity,
+                                        "Invalid username or password",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    progressBar.setVisibility(android.view.View.GONE)
                                 }
-                            });
-
+                            }
+                        })
                 }
             }
-        });
+        })
 
-        TextView signUpHereText = findViewById(R.id.signUpHere);
-        signUpHereText.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                signUpHere();
+        val signUpHereText: TextView = findViewById<TextView>(R.id.signUpHere)
+        signUpHereText.setOnClickListener(object : android.view.View.OnClickListener {
+            override fun onClick(v: android.view.View?) {
+                signUpHere()
             }
-        });
+        })
 
-        rememberMeCheckbox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
-            @Override
-            public void onCheckedChanged(CompoundButton buttonView, boolean isChecked) {
+        rememberMeCheckbox.setOnCheckedChangeListener(object :
+            CompoundButton.OnCheckedChangeListener {
+            override fun onCheckedChanged(buttonView: CompoundButton?, isChecked: kotlin.Boolean) {
                 if (isChecked) {
-                    Toast.makeText(LoginActivity.this, "Remember account", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this@LoginActivity, "Remember account", Toast.LENGTH_SHORT)
+                        .show()
                 } else {
-                    Toast.makeText(LoginActivity.this, "Do not remember account", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(
+                        this@LoginActivity,
+                        "Do not remember account",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
-        });
-
-
+        })
     }
 
-    private void signUpHere() {
+    private fun signUpHere() {
         // Handle "Sign up here" click event
-        Toast.makeText(this, "Please Sign Up", Toast.LENGTH_SHORT).show();
-        Intent intent = new Intent(LoginActivity.this, SignUpActivity.class);
-        startActivity(intent);
+        Toast.makeText(this, "Please Sign Up", Toast.LENGTH_SHORT).show()
+        val intent: Intent = Intent(this@LoginActivity, SignUpActivity::class.java)
+        startActivity(intent)
     }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        FirebaseUser currentUser = mAuth.getCurrentUser();
+    override fun onStart() {
+        super.onStart()
+        val currentUser: FirebaseUser? = mAuth.getCurrentUser()
         if (currentUser != null) {
             // User is already signed in, redirect to MainActivity
-            startActivity(new Intent(LoginActivity.this, MainActivity.class));
-            finish();
+            startActivity(Intent(this@LoginActivity, MainActivity::class.java))
+            finish()
         }
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    public void exitEditText(){
-        final EditText usernameEditText = findViewById(R.id.usernameEditText);
-        final EditText passwordEditText = findViewById(R.id.passwordEditText);
-        usernameEditText.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
+    fun exitEditText() {
+        val usernameEditText: EditText = findViewById<EditText>(R.id.usernameEditText)
+        val passwordEditText: EditText = findViewById<EditText>(R.id.passwordEditText)
+        usernameEditText.setOnTouchListener(object : OnTouchListener {
+            override fun onTouch(v: android.view.View, event: MotionEvent?): kotlin.Boolean {
                 // Consume the touch event on the EditText to prevent it from being intercepted
-                v.performClick();
-                return false;
+                v.performClick()
+                return false
             }
-        });
+        })
 
-        passwordEditText.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
+        passwordEditText.setOnTouchListener(object : OnTouchListener {
+            override fun onTouch(v: android.view.View, event: MotionEvent?): kotlin.Boolean {
                 // Consume the touch event on the EditText to prevent it from being intercepted
-                v.performClick();
-                return false;
+                v.performClick()
+                return false
             }
-        });
+        })
 
         // Add an OnTouchListener to the root layout (or any other layout that covers the whole screen)
-        View rootView = findViewById(android.R.id.content);
-        rootView.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
+        val rootView = findViewById<android.view.View>(android.R.id.content)
+        rootView.setOnTouchListener(object : OnTouchListener {
+            override fun onTouch(v: android.view.View?, event: MotionEvent?): kotlin.Boolean {
                 // Hide the keyboard when the user touches outside the EditText
-                hideKeyboard(usernameEditText);
-                hideKeyboard2(passwordEditText);
-                return false;
+                hideKeyboard(usernameEditText)
+                hideKeyboard2(passwordEditText)
+                return false
             }
-        });
+        })
     }
 
-    private void hideKeyboard(EditText editText) {
-        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.hideSoftInputFromWindow(editText.getWindowToken(), 0);
+    private fun hideKeyboard(editText: EditText) {
+        val imm =
+            getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+        imm.hideSoftInputFromWindow(editText.getWindowToken(), 0)
     }
-    private void hideKeyboard2(EditText editText) {
-        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.hideSoftInputFromWindow(editText.getWindowToken(), 0);
+
+    private fun hideKeyboard2(editText: EditText) {
+        val imm =
+            getSystemService(android.content.Context.INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+        imm.hideSoftInputFromWindow(editText.getWindowToken(), 0)
     }
 }

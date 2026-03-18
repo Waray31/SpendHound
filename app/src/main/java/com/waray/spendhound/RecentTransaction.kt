@@ -1,220 +1,117 @@
-package com.waray.spendhound;
+package com.waray.spendhound
 
-import java.util.List;
+class RecentTransaction {
+    var mostRecentDate: String?
+    var mostRecentTransactionType: String?
+    var mostRecentDetails: String?
+    var mostRecentPaymentAmountStr: String?
+    var iconResource: Int
+    var sortDateTime: String? = null // For sorting by date and time (format: "yyyy-MM-dd HH:mm:ss")
+    var payorsList: MutableList<String?>? = null // Display names
+    var payorUids: MutableList<String?>? = null // UIDs for profile images
+    var amountsPaidList: MutableList<Double?>? = null
+    var totalIndividualPayment: Double = 0.0
+    var fullDateWithYear: String? = null // Full date including year for details dialog
+    var createdBy: String? = null // Name of the person who created the transaction
+    var createdByUid: String? =
+        null // UID of the person who created the transaction (for profile image)
 
-public class RecentTransaction {
-    private String mostRecentDate;
-    private String mostRecentTransactionType;
-    private String mostRecentDetails;
-    private String mostRecentPaymentAmountStr;
-    private int iconResource;
-    private String sortDateTime; // For sorting by date and time (format: "yyyy-MM-dd HH:mm:ss")
-    private List<String> payorsList; // Display names
-    private List<String> payorUids;  // UIDs for profile images
-    private List<Double> amountsPaidList;
-    private double totalIndividualPayment;
-    private String fullDateWithYear; // Full date including year for details dialog
-    private String createdBy; // Name of the person who created the transaction
-    private String createdByUid; // UID of the person who created the transaction (for profile image)
-    
     // Database reference keys
-    private String monthYear;
-    private String day;
-    private String timeKey;
+    var monthYear: String? = null
+    var day: String? = null
+    var timeKey: String? = null
 
-    private boolean isExpanded = false;
+    var isExpanded: Boolean = false
 
-    public RecentTransaction(String mostRecentDate, String mostRecentTransactionType, String mostRecentDetails, String mostRecentPaymentAmountStr, int iconResource) {
-        this.mostRecentDate = mostRecentDate;
-        this.mostRecentTransactionType = mostRecentTransactionType;
-        this.mostRecentDetails = mostRecentDetails;
-        this.mostRecentPaymentAmountStr = mostRecentPaymentAmountStr;
-        this.iconResource = iconResource;
+    constructor(
+        mostRecentDate: String?,
+        mostRecentTransactionType: String?,
+        mostRecentDetails: String?,
+        mostRecentPaymentAmountStr: String?,
+        iconResource: Int
+    ) {
+        this.mostRecentDate = mostRecentDate
+        this.mostRecentTransactionType = mostRecentTransactionType
+        this.mostRecentDetails = mostRecentDetails
+        this.mostRecentPaymentAmountStr = mostRecentPaymentAmountStr
+        this.iconResource = iconResource
     }
 
-    public RecentTransaction(String mostRecentDate, String mostRecentTransactionType, String mostRecentDetails, String mostRecentPaymentAmountStr, int iconResource, String sortDateTime) {
-        this.mostRecentDate = mostRecentDate;
-        this.mostRecentTransactionType = mostRecentTransactionType;
-        this.mostRecentDetails = mostRecentDetails;
-        this.mostRecentPaymentAmountStr = mostRecentPaymentAmountStr;
-        this.iconResource = iconResource;
-        this.sortDateTime = sortDateTime;
+    constructor(
+        mostRecentDate: String?,
+        mostRecentTransactionType: String?,
+        mostRecentDetails: String?,
+        mostRecentPaymentAmountStr: String?,
+        iconResource: Int,
+        sortDateTime: String?
+    ) {
+        this.mostRecentDate = mostRecentDate
+        this.mostRecentTransactionType = mostRecentTransactionType
+        this.mostRecentDetails = mostRecentDetails
+        this.mostRecentPaymentAmountStr = mostRecentPaymentAmountStr
+        this.iconResource = iconResource
+        this.sortDateTime = sortDateTime
     }
 
-    public RecentTransaction(String mostRecentDate, String mostRecentTransactionType, String mostRecentDetails,
-                            String mostRecentPaymentAmountStr, int iconResource, String sortDateTime,
-                            List<String> payorsList, List<Double> amountsPaidList, String fullDateWithYear,
-                            String createdBy, String createdByUid) {
-        this.mostRecentDate = mostRecentDate;
-        this.mostRecentTransactionType = mostRecentTransactionType;
-        this.mostRecentDetails = mostRecentDetails;
-        this.mostRecentPaymentAmountStr = mostRecentPaymentAmountStr;
-        this.iconResource = iconResource;
-        this.sortDateTime = sortDateTime;
-        this.payorsList = payorsList;
-        this.amountsPaidList = amountsPaidList;
-        this.fullDateWithYear = fullDateWithYear;
-        this.createdBy = createdBy;
-        this.createdByUid = createdByUid;
+    constructor(
+        mostRecentDate: String?,
+        mostRecentTransactionType: String?,
+        mostRecentDetails: String?,
+        mostRecentPaymentAmountStr: String?,
+        iconResource: Int,
+        sortDateTime: String?,
+        payorsList: MutableList<String?>?,
+        amountsPaidList: MutableList<Double?>?,
+        fullDateWithYear: String?,
+        createdBy: String?,
+        createdByUid: String?
+    ) {
+        this.mostRecentDate = mostRecentDate
+        this.mostRecentTransactionType = mostRecentTransactionType
+        this.mostRecentDetails = mostRecentDetails
+        this.mostRecentPaymentAmountStr = mostRecentPaymentAmountStr
+        this.iconResource = iconResource
+        this.sortDateTime = sortDateTime
+        this.payorsList = payorsList
+        this.amountsPaidList = amountsPaidList
+        this.fullDateWithYear = fullDateWithYear
+        this.createdBy = createdBy
+        this.createdByUid = createdByUid
     }
 
-    public RecentTransaction(String mostRecentDate, String mostRecentTransactionType, String mostRecentDetails,
-                             String mostRecentPaymentAmountStr, int iconResource, String sortDateTime,
-                             List<String> payorsList, List<String> payorUids, List<Double> amountsPaidList,
-                             double totalIndividualPayment, String fullDateWithYear,
-                             String createdBy, String createdByUid,
-                             String monthYear, String day, String timeKey) {
-        this.mostRecentDate = mostRecentDate;
-        this.mostRecentTransactionType = mostRecentTransactionType;
-        this.mostRecentDetails = mostRecentDetails;
-        this.mostRecentPaymentAmountStr = mostRecentPaymentAmountStr;
-        this.iconResource = iconResource;
-        this.sortDateTime = sortDateTime;
-        this.payorsList = payorsList;
-        this.payorUids = payorUids;
-        this.amountsPaidList = amountsPaidList;
-        this.totalIndividualPayment = totalIndividualPayment;
-        this.fullDateWithYear = fullDateWithYear;
-        this.createdBy = createdBy;
-        this.createdByUid = createdByUid;
-        this.monthYear = monthYear;
-        this.day = day;
-        this.timeKey = timeKey;
-    }
-
-    public String getSortDateTime() {
-        return sortDateTime;
-    }
-
-    public void setSortDateTime(String sortDateTime) {
-        this.sortDateTime = sortDateTime;
-    }
-
-    public String getMostRecentDate() {
-        return mostRecentDate;
-    }
-
-    public void setMostRecentDate(String mostRecentDate) {
-        this.mostRecentDate = mostRecentDate;
-    }
-
-    public String getMostRecentTransactionType() {
-        return mostRecentTransactionType;
-    }
-
-    public void setMostRecentTransactionType(String mostRecentTransactionType) {
-        this.mostRecentTransactionType = mostRecentTransactionType;
-    }
-
-    public String getMostRecentDetails() {
-        return mostRecentDetails;
-    }
-
-    public void setMostRecentDetails(String mostRecentDetails) {
-        this.mostRecentDetails = mostRecentDetails;
-    }
-
-    public String getMostRecentPaymentAmountStr() {
-        return mostRecentPaymentAmountStr;
-    }
-
-    public void setMostRecentPaymentAmountStr(String mostRecentPaymentAmountStr) {
-        this.mostRecentPaymentAmountStr = mostRecentPaymentAmountStr;
-    }
-
-    public int getIconResource() {
-        return iconResource;
-    }
-
-    public void setIconResource(int iconResource) {
-        this.iconResource = iconResource;
-    }
-
-    public List<String> getPayorsList() {
-        return payorsList;
-    }
-
-    public void setPayorsList(List<String> payorsList) {
-        this.payorsList = payorsList;
-    }
-
-    public List<Double> getAmountsPaidList() {
-        return amountsPaidList;
-    }
-
-    public void setAmountsPaidList(List<Double> amountsPaidList) {
-        this.amountsPaidList = amountsPaidList;
-    }
-
-    public String getFullDateWithYear() {
-        return fullDateWithYear;
-    }
-
-    public void setFullDateWithYear(String fullDateWithYear) {
-        this.fullDateWithYear = fullDateWithYear;
-    }
-
-    public String getCreatedBy() {
-        return createdBy;
-    }
-
-    public void setCreatedBy(String createdBy) {
-        this.createdBy = createdBy;
-    }
-
-    public String getCreatedByUid() {
-        return createdByUid;
-    }
-
-    public void setCreatedByUid(String createdByUid) {
-        this.createdByUid = createdByUid;
-    }
-
-    public List<String> getPayorUids() {
-        return payorUids;
-    }
-
-    public void setPayorUids(List<String> payorUids) {
-        this.payorUids = payorUids;
-    }
-
-    public double getTotalIndividualPayment() {
-        return totalIndividualPayment;
-    }
-
-    public void setTotalIndividualPayment(double totalIndividualPayment) {
-        this.totalIndividualPayment = totalIndividualPayment;
-    }
-
-    public String getMonthYear() {
-        return monthYear;
-    }
-
-    public void setMonthYear(String monthYear) {
-        this.monthYear = monthYear;
-    }
-
-    public String getDay() {
-        return day;
-    }
-
-    public void setDay(String day) {
-        this.day = day;
-    }
-
-    public String getTimeKey() {
-        return timeKey;
-    }
-
-    public void setTimeKey(String timeKey) {
-        this.timeKey = timeKey;
-    }
-
-    public boolean isExpanded() {
-        return isExpanded;
-    }
-
-    public void setExpanded(boolean expanded) {
-        isExpanded = expanded;
+    constructor(
+        mostRecentDate: String?,
+        mostRecentTransactionType: String?,
+        mostRecentDetails: String?,
+        mostRecentPaymentAmountStr: String?,
+        iconResource: Int,
+        sortDateTime: String?,
+        payorsList: MutableList<String?>?,
+        payorUids: MutableList<String?>?,
+        amountsPaidList: MutableList<Double?>?,
+        totalIndividualPayment: Double,
+        fullDateWithYear: String?,
+        createdBy: String?,
+        createdByUid: String?,
+        monthYear: String?,
+        day: String?,
+        timeKey: String?
+    ) {
+        this.mostRecentDate = mostRecentDate
+        this.mostRecentTransactionType = mostRecentTransactionType
+        this.mostRecentDetails = mostRecentDetails
+        this.mostRecentPaymentAmountStr = mostRecentPaymentAmountStr
+        this.iconResource = iconResource
+        this.sortDateTime = sortDateTime
+        this.payorsList = payorsList
+        this.payorUids = payorUids
+        this.amountsPaidList = amountsPaidList
+        this.totalIndividualPayment = totalIndividualPayment
+        this.fullDateWithYear = fullDateWithYear
+        this.createdBy = createdBy
+        this.createdByUid = createdByUid
+        this.monthYear = monthYear
+        this.day = day
+        this.timeKey = timeKey
     }
 }

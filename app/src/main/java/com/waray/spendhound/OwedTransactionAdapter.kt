@@ -1,207 +1,233 @@
-package com.waray.spendhound;
+package com.waray.spendhound
 
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.LinearLayout;
-import android.widget.TextView;
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.card.MaterialCardView
 
-import androidx.annotation.NonNull;
-import androidx.core.content.ContextCompat;
-import androidx.recyclerview.widget.RecyclerView;
+class OwedTransactionAdapter : RecyclerView.Adapter<OwedTransactionAdapter.ViewHolder?> {
+    private val owedTransactionList: ArrayList<OwedTransaction>
+    private var clickListener: OnItemClickListener? = null
+    private var lenderActionListener: OnLenderActionListener? = null
 
-import com.google.android.material.card.MaterialCardView;
-
-import java.util.ArrayList;
-
-public class OwedTransactionAdapter extends RecyclerView.Adapter<OwedTransactionAdapter.ViewHolder> {
-    private final ArrayList<OwedTransaction> owedTransactionList;
-    private OnItemClickListener clickListener;
-    private OnLenderActionListener lenderActionListener;
-
-    public interface OnItemClickListener {
-        void onItemClick(OwedTransaction transaction, int position);
+    interface OnItemClickListener {
+        fun onItemClick(transaction: OwedTransaction?, position: Int)
     }
 
-    public interface OnLenderActionListener {
-        void onNotYetClicked(OwedTransaction transaction, int position);
-        void onReceivedClicked(OwedTransaction transaction, int position);
-        void onDeclineClicked(OwedTransaction transaction, int position);
-        void onApprovedClicked(OwedTransaction transaction, int position);
+    interface OnLenderActionListener {
+        fun onNotYetClicked(transaction: OwedTransaction?, position: Int)
+        fun onReceivedClicked(transaction: OwedTransaction?, position: Int)
+        fun onDeclineClicked(transaction: OwedTransaction?, position: Int)
+        fun onApprovedClicked(transaction: OwedTransaction?, position: Int)
     }
 
-    public OwedTransactionAdapter(ArrayList<OwedTransaction> owedTransactionList) {
-        this.owedTransactionList = owedTransactionList;
+    constructor(owedTransactionList: ArrayList<OwedTransaction>) {
+        this.owedTransactionList = owedTransactionList
     }
 
-    public OwedTransactionAdapter(ArrayList<OwedTransaction> owedTransactionList, OnItemClickListener clickListener) {
-        this.owedTransactionList = owedTransactionList;
-        this.clickListener = clickListener;
+    constructor(
+        owedTransactionList: ArrayList<OwedTransaction>,
+        clickListener: OnItemClickListener?
+    ) {
+        this.owedTransactionList = owedTransactionList
+        this.clickListener = clickListener
     }
 
-    public OwedTransactionAdapter(ArrayList<OwedTransaction> owedTransactionList, OnLenderActionListener lenderActionListener) {
-        this.owedTransactionList = owedTransactionList;
-        this.lenderActionListener = lenderActionListener;
+    constructor(
+        owedTransactionList: ArrayList<OwedTransaction>,
+        lenderActionListener: OnLenderActionListener?
+    ) {
+        this.owedTransactionList = owedTransactionList
+        this.lenderActionListener = lenderActionListener
     }
 
-    public void setOnItemClickListener(OnItemClickListener listener) {
-        this.clickListener = listener;
+    fun setOnItemClickListener(listener: OnItemClickListener?) {
+        this.clickListener = listener
     }
 
-    public void setOnLenderActionListener(OnLenderActionListener listener) {
-        this.lenderActionListener = listener;
+    fun setOnLenderActionListener(listener: OnLenderActionListener?) {
+        this.lenderActionListener = listener
     }
 
-    @NonNull
-    @Override
-    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View itemView = LayoutInflater.from(parent.getContext()).inflate(R.layout.owed_row_layout, parent, false);
-        return new ViewHolder(itemView);
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val itemView = LayoutInflater.from(parent.getContext())
+            .inflate(R.layout.owed_row_layout, parent, false)
+        return OwedTransactionAdapter.ViewHolder(itemView)
     }
 
-    @Override
-    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        OwedTransaction transaction = owedTransactionList.get(position);
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val transaction = owedTransactionList.get(position)
 
         // Bind data to the ViewHolder's views
-        holder.owedDateTV.setText(transaction.getDate());
-        holder.owedBorroweeTV.setText(transaction.getBorrower());
-        holder.owedAmountBorrowedTV.setText(CurrencyUtils.formatAmountWithCurrency(transaction.getBorrowedAmountStr()));
-        holder.owedStatusTV.setText(transaction.getStatus());
+        holder.owedDateTV.setText(transaction.getDate())
+        holder.owedBorroweeTV.setText(transaction.getBorrower())
+        holder.owedAmountBorrowedTV.setText(CurrencyUtils.formatAmountWithCurrency(transaction.getBorrowedAmountStr()))
+        holder.owedStatusTV.setText(transaction.getStatus())
 
         // Hide all action layouts by default
-        holder.pendingPaymentActionsLayout.setVisibility(View.GONE);
-        holder.lenderApprovalActionsLayout.setVisibility(View.GONE);
-        holder.paymentSentDateTV.setVisibility(View.GONE);
+        holder.pendingPaymentActionsLayout.setVisibility(View.GONE)
+        holder.lenderApprovalActionsLayout.setVisibility(View.GONE)
+        holder.paymentSentDateTV.setVisibility(View.GONE)
 
         // Set status color based on status value
-        String status = transaction.getStatus();
-        int statusColor;
-        boolean isPendingStatus = false;
-        boolean isPendingPayment = false;
-        boolean isPaid = false;
-        boolean isUnpaid = false;
-        if ("Paid".equalsIgnoreCase(status)) {
-            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.green);
-            isPaid = true;
-        } else if ("Pending".equalsIgnoreCase(status)) {
-            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.yellow);
-        } else if ("Paid Partially".equalsIgnoreCase(status)) {
-            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.yellow);
-        } else if ("Pending Payment".equalsIgnoreCase(status)) {
-            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.yellow);
-            isPendingPayment = true;
-        } else if ("For Lender Approval".equalsIgnoreCase(status)) {
-            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.blue);
-            isPendingStatus = true;
-        } else if ("Unpaid".equalsIgnoreCase(status)) {
-            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.red);
-            isUnpaid = true;
+        val status = transaction.getStatus()
+        val statusColor: Int
+        var isPendingStatus = false
+        var isPendingPayment = false
+        var isPaid = false
+        var isUnpaid = false
+        if ("Paid".equals(status, ignoreCase = true)) {
+            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.green)
+            isPaid = true
+        } else if ("Pending".equals(status, ignoreCase = true)) {
+            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.yellow)
+        } else if ("Paid Partially".equals(status, ignoreCase = true)) {
+            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.yellow)
+        } else if ("Pending Payment".equals(status, ignoreCase = true)) {
+            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.yellow)
+            isPendingPayment = true
+        } else if ("For Lender Approval".equals(status, ignoreCase = true)) {
+            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.blue)
+            isPendingStatus = true
+        } else if ("Unpaid".equals(status, ignoreCase = true)) {
+            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.red)
+            isUnpaid = true
         } else {
-            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.red);
+            statusColor = ContextCompat.getColor(holder.itemView.getContext(), R.color.red)
         }
-        holder.owedStatusTV.setTextColor(statusColor);
+        holder.owedStatusTV.setTextColor(statusColor)
 
         // Show action buttons based on status
         if (isPendingPayment) {
-            holder.pendingPaymentActionsLayout.setVisibility(View.VISIBLE);
+            holder.pendingPaymentActionsLayout.setVisibility(View.VISIBLE)
         } else if (isPendingStatus) {
-            holder.lenderApprovalActionsLayout.setVisibility(View.VISIBLE);
+            holder.lenderApprovalActionsLayout.setVisibility(View.VISIBLE)
         }
 
         // Show payment sent date for Paid status
-        if (isPaid && transaction.getPaymentSentDate() != null && !transaction.getPaymentSentDate().isEmpty()) {
-            holder.paymentSentDateTV.setVisibility(View.VISIBLE);
-            holder.paymentSentDateTV.setText(": " + transaction.getPaymentSentDate());
+        if (isPaid && transaction.getPaymentSentDate() != null && !transaction.getPaymentSentDate()
+                .isEmpty()
+        ) {
+            holder.paymentSentDateTV.setVisibility(View.VISIBLE)
+            holder.paymentSentDateTV.setText(": " + transaction.getPaymentSentDate())
         }
 
         // Cast to MaterialCardView for elevation and background
-        MaterialCardView cardView = (MaterialCardView) holder.itemView;
-        float density = holder.itemView.getContext().getResources().getDisplayMetrics().density;
+        val cardView = holder.itemView as MaterialCardView
+        val density = holder.itemView.getContext().getResources().getDisplayMetrics().density
 
         // Set background tint and elevation based on status
         if (isPaid) {
-            cardView.setCardBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.paid_bg));
-            cardView.setCardElevation(4 * density);
+            cardView.setCardBackgroundColor(
+                ContextCompat.getColor(
+                    holder.itemView.getContext(),
+                    R.color.paid_bg
+                )
+            )
+            cardView.setCardElevation(4 * density)
         } else if (isUnpaid) {
-            cardView.setCardBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.unpaid_bg));
-            cardView.setCardElevation(4 * density);
+            cardView.setCardBackgroundColor(
+                ContextCompat.getColor(
+                    holder.itemView.getContext(),
+                    R.color.unpaid_bg
+                )
+            )
+            cardView.setCardElevation(4 * density)
         } else if (isPendingPayment) {
-            cardView.setCardBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.pending_payment_bg));
-            cardView.setCardElevation(4 * density);
+            cardView.setCardBackgroundColor(
+                ContextCompat.getColor(
+                    holder.itemView.getContext(),
+                    R.color.pending_payment_bg
+                )
+            )
+            cardView.setCardElevation(4 * density)
         } else if (isPendingStatus) {
-            cardView.setCardBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.pending_approval_bg));
-            cardView.setCardElevation(4 * density);
+            cardView.setCardBackgroundColor(
+                ContextCompat.getColor(
+                    holder.itemView.getContext(),
+                    R.color.pending_approval_bg
+                )
+            )
+            cardView.setCardElevation(4 * density)
         } else {
-            cardView.setCardBackgroundColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.whitest));
-            cardView.setCardElevation(4 * density);
+            cardView.setCardBackgroundColor(
+                ContextCompat.getColor(
+                    holder.itemView.getContext(),
+                    R.color.whitest
+                )
+            )
+            cardView.setCardElevation(4 * density)
         }
 
         // Set click listeners for action buttons
-        holder.notYetBtn.setOnClickListener(v -> {
+        holder.notYetBtn.setOnClickListener(View.OnClickListener { v: View? ->
             if (lenderActionListener != null) {
-                lenderActionListener.onNotYetClicked(transaction, holder.getAdapterPosition());
+                lenderActionListener!!.onNotYetClicked(transaction, holder.getAdapterPosition())
             }
-        });
+        })
 
-        holder.receivedBtn.setOnClickListener(v -> {
+        holder.receivedBtn.setOnClickListener(View.OnClickListener { v: View? ->
             if (lenderActionListener != null) {
-                lenderActionListener.onReceivedClicked(transaction, holder.getAdapterPosition());
+                lenderActionListener!!.onReceivedClicked(transaction, holder.getAdapterPosition())
             }
-        });
+        })
 
-        holder.declineBtn.setOnClickListener(v -> {
+        holder.declineBtn.setOnClickListener(View.OnClickListener { v: View? ->
             if (lenderActionListener != null) {
-                lenderActionListener.onDeclineClicked(transaction, holder.getAdapterPosition());
+                lenderActionListener!!.onDeclineClicked(transaction, holder.getAdapterPosition())
             }
-        });
+        })
 
-        holder.approvedBtn.setOnClickListener(v -> {
+        holder.approvedBtn.setOnClickListener(View.OnClickListener { v: View? ->
             if (lenderActionListener != null) {
-                lenderActionListener.onApprovedClicked(transaction, holder.getAdapterPosition());
+                lenderActionListener!!.onApprovedClicked(transaction, holder.getAdapterPosition())
             }
-        });
+        })
 
         // Set click listener for item
-        final boolean finalIsPendingStatus = isPendingStatus;
-        holder.itemView.setOnClickListener(v -> {
+        val finalIsPendingStatus = isPendingStatus
+        holder.itemView.setOnClickListener(View.OnClickListener { v: View? ->
             if (clickListener != null && finalIsPendingStatus) {
-                clickListener.onItemClick(transaction, position);
+                clickListener!!.onItemClick(transaction, position)
             }
-        });
+        })
     }
 
-    @Override
-    public int getItemCount() {
-        return owedTransactionList.size();
+    override fun getItemCount(): Int {
+        return owedTransactionList.size
     }
 
-    public class ViewHolder extends RecyclerView.ViewHolder {
-        public TextView owedDateTV;
-        public TextView owedBorroweeTV;
-        public TextView owedAmountBorrowedTV;
-        public TextView owedStatusTV;
-        public TextView paymentSentDateTV;
-        public LinearLayout pendingPaymentActionsLayout;
-        public LinearLayout lenderApprovalActionsLayout;
-        public TextView notYetBtn;
-        public TextView receivedBtn;
-        public TextView declineBtn;
-        public TextView approvedBtn;
+    inner class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        var owedDateTV: TextView
+        var owedBorroweeTV: TextView
+        var owedAmountBorrowedTV: TextView
+        var owedStatusTV: TextView
+        var paymentSentDateTV: TextView
+        var pendingPaymentActionsLayout: LinearLayout
+        var lenderApprovalActionsLayout: LinearLayout
+        var notYetBtn: TextView
+        var receivedBtn: TextView
+        var declineBtn: TextView
+        var approvedBtn: TextView
 
-        public ViewHolder(View itemView) {
-            super(itemView);
-            owedDateTV = itemView.findViewById(R.id.owedDateTV);
-            owedBorroweeTV = itemView.findViewById(R.id.owedBorroweeTV);
-            owedAmountBorrowedTV = itemView.findViewById(R.id.owedAmountBorrowedTV);
-            owedStatusTV = itemView.findViewById(R.id.owedStatusTV);
-            paymentSentDateTV = itemView.findViewById(R.id.owedPaymentSentDateTV);
-            pendingPaymentActionsLayout = itemView.findViewById(R.id.pendingPaymentActionsLayout);
-            lenderApprovalActionsLayout = itemView.findViewById(R.id.lenderApprovalActionsLayout);
-            notYetBtn = itemView.findViewById(R.id.notYetBtn);
-            receivedBtn = itemView.findViewById(R.id.receivedBtn);
-            declineBtn = itemView.findViewById(R.id.declineBtn);
-            approvedBtn = itemView.findViewById(R.id.approvedBtn);
+        init {
+            owedDateTV = itemView.findViewById<TextView>(R.id.owedDateTV)
+            owedBorroweeTV = itemView.findViewById<TextView>(R.id.owedBorroweeTV)
+            owedAmountBorrowedTV = itemView.findViewById<TextView>(R.id.owedAmountBorrowedTV)
+            owedStatusTV = itemView.findViewById<TextView>(R.id.owedStatusTV)
+            paymentSentDateTV = itemView.findViewById<TextView>(R.id.owedPaymentSentDateTV)
+            pendingPaymentActionsLayout =
+                itemView.findViewById<LinearLayout>(R.id.pendingPaymentActionsLayout)
+            lenderApprovalActionsLayout =
+                itemView.findViewById<LinearLayout>(R.id.lenderApprovalActionsLayout)
+            notYetBtn = itemView.findViewById<TextView>(R.id.notYetBtn)
+            receivedBtn = itemView.findViewById<TextView>(R.id.receivedBtn)
+            declineBtn = itemView.findViewById<TextView>(R.id.declineBtn)
+            approvedBtn = itemView.findViewById<TextView>(R.id.approvedBtn)
         }
     }
 }

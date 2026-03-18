@@ -1,75 +1,31 @@
-package com.waray.spendhound;
+package com.waray.spendhound
 
-import com.google.firebase.database.Exclude;
+import com.google.firebase.database.Exclude
 
-public class User {
+class User {
+    var username: String? = null
+    var email: String? = null
+    var password: String? = null
+    var profileImageUrl: String? = null
+    var balances: UserBalance? = null
 
-    private String username;
-    private String email;
-    private String password;
-    private String profileImageUrl;
-    private UserBalance balances;
-    private String uid;
+    @get:Exclude
+    @set:Exclude
+    var uid: String? = null
 
-    public User(String username, String email, String profileImageUrl, String password, UserBalance balances) {
-        this.username = username;
-        this.email = email;
-        this.password = password;
-        this.profileImageUrl = profileImageUrl;
-        this.balances = balances;
+    constructor(
+        username: String?,
+        email: String?,
+        profileImageUrl: String?,
+        password: String?,
+        balances: UserBalance?
+    ) {
+        this.username = username
+        this.email = email
+        this.password = password
+        this.profileImageUrl = profileImageUrl
+        this.balances = balances
     }
 
-    public User() {
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public void setUsername(String username) {
-        this.username = username;
-    }
-
-    public String getEmail() {
-        return email;
-    }
-
-    public void setEmail(String email) {
-        this.email = email;
-    }
-
-    public String getPassword() {
-        return password;
-    }
-
-    public void setPassword(String password) {
-        this.password = password;
-    }
-
-    public String getProfileImageUrl() {
-        return profileImageUrl;
-    }
-
-    public void setProfileImageUrl(String profileImageUrl) {
-        this.profileImageUrl = profileImageUrl;
-    }
-
-
-    public UserBalance getBalances() {
-        return balances;
-    }
-
-    public void setBalances(UserBalance balances) {
-        this.balances = balances;
-    }
-
-    @Exclude
-    public String getUid() {
-        return uid;
-    }
-
-    @Exclude
-    public void setUid(String uid) {
-        this.uid = uid;
-    }
+    constructor()
 }

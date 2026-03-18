@@ -1,19 +1,17 @@
-package com.waray.spendhound.ui.profile;
+package com.waray.spendhound.ui.profile
 
-import androidx.lifecycle.LiveData;
-import androidx.lifecycle.MutableLiveData;
-import androidx.lifecycle.ViewModel;
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
+import androidx.lifecycle.ViewModel
 
-public class ProfileViewModel extends ViewModel {
+class ProfileViewModel : ViewModel() {
+    private val mText: MutableLiveData<String?>
 
-    private final MutableLiveData<String> mText;
-
-    public ProfileViewModel() {
-        mText = new MutableLiveData<>();
-        mText.setValue("This is notifications fragment");
+    init {
+        mText = MutableLiveData<String?>()
+        mText.setValue("This is notifications fragment")
     }
 
-    public LiveData<String> getText() {
-        return mText;
-    }
+    val text: LiveData<String?>
+        get() = mText
 }

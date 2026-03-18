@@ -1,1149 +1,1281 @@
-package com.waray.spendhound.ui.profile;
+package com.waray.spendhound.ui.profile
 
-import android.annotation.SuppressLint;
-import android.app.Activity;
-import android.app.ProgressDialog;
-import android.content.Context;
-import android.content.DialogInterface;
-import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.drawable.Drawable;
-import android.net.Uri;
-import android.os.Bundle;
-import android.provider.MediaStore;
-import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.MenuItem;
-import android.view.View;
-import android.view.ViewGroup;
-import android.view.inputmethod.InputMethodManager;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.ImageView;
-import android.widget.PopupMenu;
-import android.widget.ProgressBar;
-import android.widget.Spinner;
-import android.widget.TextView;
-import android.widget.Toast;
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.drawable.Drawable
+import android.net.Uri
+import android.util.Log
+import android.view.MenuItem
+import android.view.View
+import android.view.inputmethod.InputMethodManager
+import android.widget.Button
+import android.widget.ImageView
+import android.widget.PopupMenu
+import androidx.appcompat.app.AlertDialog
+import androidx.fragment.app.Fragment
+import com.bumptech.glide.load.DataSource
+import com.bumptech.glide.request.target.Target
+import com.google.firebase.auth.FirebaseAuth
+import com.waray.spendhound.BreakdownItem
+import com.waray.spendhound.Transaction
+import java.io.ByteArrayOutputStream
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+import java.util.Objects
+import kotlin.math.max
 
-import androidx.annotation.NonNull;
-import androidx.annotation.Nullable;
-import androidx.appcompat.app.AlertDialog;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.content.ContextCompat;
-import androidx.fragment.app.Fragment;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.RecyclerView;
+class ProfileFragment : Fragment() {
+    private var profileImageView: ImageView? = null
+    private var nicknameTextView: TextView? = null
+    private var totalBalancedTextView: TextView? = null
+    private var balanceTextView: TextView? = null
+    private var unpaidTextView: TextView? = null
+    private var oweTextView: TextView? = null
+    private var debtTextView: TextView? = null
+    private var totalTextView: TextView? = null
+    private var nicknameEditText: EditText? = null
+    private var editNickname: ImageView? = null
+    private var saveNickname: ImageView? = null
+    private val monthSpinner: Spinner? = null
+    var mAuth: FirebaseAuth? = null
+    var sortedMonths: MutableList<String?>? = null
+    private var currentNickname: String? = ""
+    var monthYear: String? = null
+    private var totalIndividualPayment = 0
+    private var totalPaymentList = 0
+    private var balance = 0
+    private var unpaid = 0
+    private val owe: Int
+        get() {
+            showLoading()
+            val databaseReference: DatabaseReference = DeclareDatabase.getDBRefBorrows()
+            val currentUserId: String? = FirebaseAuth.getInstance().getCurrentUser().getUid()
 
-import com.bumptech.glide.Glide;
-import com.bumptech.glide.load.DataSource;
-import com.bumptech.glide.load.engine.DiskCacheStrategy;
-import com.bumptech.glide.load.engine.GlideException;
-import com.bumptech.glide.request.RequestListener;
-import com.bumptech.glide.request.target.Target;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.UserProfileChangeRequest;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.ValueEventListener;
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageReference;
-import com.google.firebase.storage.UploadTask;
-import com.waray.spendhound.BorrowNowTransaction;
-import com.waray.spendhound.BorrowTransaction;
-import com.waray.spendhound.BreakdownAdapter;
-import com.waray.spendhound.BreakdownItem;
-import com.waray.spendhound.CurrencyUtils;
-import com.waray.spendhound.DeclareDatabase;
-import com.waray.spendhound.LoginActivity;
-import com.waray.spendhound.MigrationHelper;
-import com.waray.spendhound.PayorAdapter;
-import com.waray.spendhound.PendingStatusActivity;
-import com.waray.spendhound.R;
-import com.waray.spendhound.Transaction;
+            databaseReference.addListenerForSingleValueEvent(object : ValueEventListener() {
+                @SuppressLint("NotifyDataSetChanged")
+                public override fun onDataChange(dataSnapshot: DataSnapshot) {
+                    currentOwe = 0
+                    for (monthSnapshot in dataSnapshot.getChildren()) {
+                        for (daySnapshot in monthSnapshot.getChildren()) {
+                            for (borrowSnapshot in daySnapshot.getChildren()) {
+                                // Try new structure first: borrows/{month}/{day}/{borrowId}
+                                val borrowNowTransaction: BorrowNowTransaction? =
+                                    borrowSnapshot.getValue(BorrowNowTransaction::class.java)
 
-import java.io.ByteArrayOutputStream;
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
+                                if (borrowNowTransaction != null && borrowNowTransaction.getLenderID() != null) {
+                                    // New UID-based structure - check if current user is the lender
+                                    if (borrowNowTransaction.getLenderID() == currentUserId) {
+                                        try {
+                                            val borrowedAmount =
+                                                borrowNowTransaction.getBorrowedAmountStr().toInt()
+                                            currentOwe += borrowedAmount
+                                        } catch (e: NumberFormatException) {
+                                            Log.e(
+                                                "ProfileFragment",
+                                                "Error parsing amount: " + e.message
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    // Legacy structure: borrows/{month}/{day}/{username}/{time}
+                                    for (timeSnapshot in borrowSnapshot.getChildren()) {
+                                        try {
+                                            val borrowTransaction: BorrowTransaction? =
+                                                timeSnapshot.getValue(BorrowTransaction::class.java)
+                                            if (borrowTransaction != null) {
+                                                val borrowee: String? =
+                                                    borrowTransaction.getBorrowee()
+                                                val borrowedAmount =
+                                                    borrowTransaction.getBorrowedAmountStr().toInt()
+                                                if (currentNickname == borrowee) {
+                                                    currentOwe += borrowedAmount
+                                                }
+                                            }
+                                        } catch (e: Exception) {
+                                            Log.e(
+                                                "ProfileFragment",
+                                                "Error parsing legacy transaction: " + e.message
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    hideLoading()
+                }
 
-public class ProfileFragment extends Fragment {
+                public override fun onCancelled(databaseError: DatabaseError) {
+                    // Handle database read error
+                    val errorMessage =
+                        "Database read error occurred: " + databaseError.getMessage()
+                    Log.e("FirebaseDatabase", errorMessage)
+                    hideLoading()
+                }
+            })
+        }
+    private val debt: Int
+        get() {
+            showLoading()
+            val databaseReference: DatabaseReference = DeclareDatabase.getDBRefBorrows()
+            val currentUserId: String? = FirebaseAuth.getInstance().getCurrentUser().getUid()
 
-    private ImageView profileImageView;
-    private TextView nicknameTextView, totalBalancedTextView, balanceTextView, unpaidTextView, oweTextView, debtTextView, totalTextView;
-    private EditText nicknameEditText;
-    private ImageView editNickname;
-    private ImageView saveNickname;
-    private Spinner monthSpinner;
-    public FirebaseAuth mAuth;
-    public List<String> sortedMonths;
-    private String currentNickname = "";
-    public String monthYear;
-    private int totalIndividualPayment, totalPaymentList, balance, unpaid, owe, debt, i, e, o, currentBalance, currentUnpaid, currentOwe, currentDebt;
-    private View balanceUnpaidLayout, oweDebtLayout;
-    private Drawable balanceUnpaidDrawable, oweDebtDrawable, balanceUnpaidDrawableTransparent, oweDebtDrawableTransparent;
-    private Button profileLogout;
-    private Button btnAdminSettings;
-    private Button breakdownBtn;
+            databaseReference.addListenerForSingleValueEvent(object : ValueEventListener() {
+                @SuppressLint("NotifyDataSetChanged")
+                public override fun onDataChange(dataSnapshot: DataSnapshot) {
+                    currentDebt = 0
+                    for (monthSnapshot in dataSnapshot.getChildren()) {
+                        for (daySnapshot in monthSnapshot.getChildren()) {
+                            for (borrowSnapshot in daySnapshot.getChildren()) {
+                                // Try new structure first: borrows/{month}/{day}/{borrowId}
+                                val borrowNowTransaction: BorrowNowTransaction? =
+                                    borrowSnapshot.getValue(BorrowNowTransaction::class.java)
 
-    private static final int REQUEST_IMAGE_CAPTURE = 1;
-    private static final int REQUEST_IMAGE_PICK = 2;
-    private View loadingOverlay_profile;
-    private int pendingLoads = 0;
+                                if (borrowNowTransaction != null && borrowNowTransaction.getBorrowerID() != null) {
+                                    // New UID-based structure - check if current user is the borrower
+                                    if (borrowNowTransaction.getBorrowerID() == currentUserId) {
+                                        try {
+                                            val borrowedAmount =
+                                                borrowNowTransaction.getBorrowedAmountStr().toInt()
+                                            currentDebt += borrowedAmount
+                                        } catch (e: NumberFormatException) {
+                                            Log.e(
+                                                "ProfileFragment",
+                                                "Error parsing amount: " + e.message
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    // Legacy structure: borrows/{month}/{day}/{username}/{time}
+                                    val currentUserStr: String? = borrowSnapshot.getKey()
+                                    if (currentUserStr == currentNickname) {
+                                        for (timeSnapshot in borrowSnapshot.getChildren()) {
+                                            try {
+                                                val borrowTransaction: BorrowTransaction? =
+                                                    timeSnapshot.getValue(BorrowTransaction::class.java)
+                                                if (borrowTransaction != null) {
+                                                    val borrowedAmount =
+                                                        borrowTransaction.getBorrowedAmountStr()
+                                                            .toInt()
+                                                    currentDebt += borrowedAmount
+                                                }
+                                            } catch (e: Exception) {
+                                                Log.e(
+                                                    "ProfileFragment",
+                                                    "Error parsing legacy transaction: " + e.message
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    hideLoading()
+                }
+
+                public override fun onCancelled(databaseError: DatabaseError) {
+                    // Handle database read error
+                    val errorMessage =
+                        "Database read error occurred: " + databaseError.getMessage()
+                    Log.e("FirebaseDatabase", errorMessage)
+                    hideLoading()
+                }
+            })
+        }
+    private var i = 0
+    private var e = 0
+    private var o = 0
+    private val currentBalance = 0
+    private val currentUnpaid = 0
+    private var currentOwe = 0
+    private var currentDebt = 0
+    private var balanceUnpaidLayout: View? = null
+    private var oweDebtLayout: View? = null
+    private var balanceUnpaidDrawable: Drawable? = null
+    private var oweDebtDrawable: Drawable? = null
+    private var balanceUnpaidDrawableTransparent: Drawable? = null
+    private var oweDebtDrawableTransparent: Drawable? = null
+    private var profileLogout: Button? = null
+    private var btnAdminSettings: Button? = null
+    private var breakdownBtn: Button? = null
+
+    private var loadingOverlay_profile: View? = null
+    private var pendingLoads = 0
 
 
-    public View onCreateView(@NonNull LayoutInflater inflater,
-                             ViewGroup container, Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_profile, container, false);
+    override fun onCreateView(
+        inflater: LayoutInflater,
+        container: ViewGroup?, savedInstanceState: Bundle?
+    ): View {
+        val view: View = inflater.inflate(R.layout.fragment_profile, container, false)
 
-        loadingOverlay_profile = view.findViewById(R.id.loadingOverlay_profile);
+        loadingOverlay_profile = view.findViewById<View?>(R.id.loadingOverlay_profile)
         if (loadingOverlay_profile != null) {
-            loadingOverlay_profile.setVisibility(View.VISIBLE);
+            loadingOverlay_profile!!.setVisibility(View.VISIBLE)
         }
 
-        profileImageView = view.findViewById(R.id.profileImageView);
-        setProfileImage(profileImageView);
-        nicknameTextView = view.findViewById(R.id.nicknameTextView);
-        nicknameEditText = view.findViewById(R.id.nicknameEditText);
-        editNickname = view.findViewById(R.id.editNickname);
-        saveNickname = view.findViewById(R.id.saveNickname);
+        profileImageView = view.findViewById<ImageView>(R.id.profileImageView)
+        setProfileImage(profileImageView!!)
+        nicknameTextView = view.findViewById<TextView>(R.id.nicknameTextView)
+        nicknameEditText = view.findViewById<EditText>(R.id.nicknameEditText)
+        editNickname = view.findViewById<ImageView>(R.id.editNickname)
+        saveNickname = view.findViewById<ImageView>(R.id.saveNickname)
         //monthSpinner = view.findViewById(R.id.monthSpinner);
-        totalBalancedTextView = view.findViewById(R.id.totalBalancedTextView);
-        totalTextView = view.findViewById(R.id.totalTextView);
-        balanceTextView = view.findViewById(R.id.balanceTextView);
-        unpaidTextView = view.findViewById(R.id.unpaidTextView);
-        oweTextView = view.findViewById(R.id.oweTextView);
-        debtTextView = view.findViewById(R.id.debtTextView);
-        balanceUnpaidLayout = view.findViewById(R.id.balanceUnpaidLayout);
-        oweDebtLayout = view.findViewById(R.id.oweDebtLayout);
-        profileLogout = view.findViewById(R.id.profileLogout);
-        btnAdminSettings = view.findViewById(R.id.btnAdminSettings);
-        breakdownBtn = view.findViewById(R.id.breakdown_btn);
+        totalBalancedTextView = view.findViewById<TextView>(R.id.totalBalancedTextView)
+        totalTextView = view.findViewById<TextView>(R.id.totalTextView)
+        balanceTextView = view.findViewById<TextView>(R.id.balanceTextView)
+        unpaidTextView = view.findViewById<TextView>(R.id.unpaidTextView)
+        oweTextView = view.findViewById<TextView>(R.id.oweTextView)
+        debtTextView = view.findViewById<TextView>(R.id.debtTextView)
+        balanceUnpaidLayout = view.findViewById<View>(R.id.balanceUnpaidLayout)
+        oweDebtLayout = view.findViewById<View>(R.id.oweDebtLayout)
+        profileLogout = view.findViewById<Button>(R.id.profileLogout)
+        btnAdminSettings = view.findViewById<Button>(R.id.btnAdminSettings)
+        breakdownBtn = view.findViewById<Button>(R.id.breakdown_btn)
 
-        balanceUnpaidDrawable = ContextCompat.getDrawable(getContext(), R.drawable.round_border_glassy);
-        balanceUnpaidDrawableTransparent = ContextCompat.getDrawable(getContext(), R.drawable.transparent_background);
-        oweDebtDrawable = ContextCompat.getDrawable(getContext(), R.drawable.round_border_glassy);
-        oweDebtDrawableTransparent = ContextCompat.getDrawable(getContext(), R.drawable.transparent_background);
-        balanceUnpaidLayout.setForeground(balanceUnpaidDrawable);
+        balanceUnpaidDrawable =
+            ContextCompat.getDrawable(getContext(), R.drawable.round_border_glassy)
+        balanceUnpaidDrawableTransparent =
+            ContextCompat.getDrawable(getContext(), R.drawable.transparent_background)
+        oweDebtDrawable = ContextCompat.getDrawable(getContext(), R.drawable.round_border_glassy)
+        oweDebtDrawableTransparent =
+            ContextCompat.getDrawable(getContext(), R.drawable.transparent_background)
+        balanceUnpaidLayout!!.setForeground(balanceUnpaidDrawable)
 
-        balanceTextView.setBackgroundResource(R.drawable.button_background_visible);
-        balanceTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.yellow));
+        balanceTextView.setBackgroundResource(R.drawable.button_background_visible)
+        balanceTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.yellow))
 
-        mAuth = FirebaseAuth.getInstance();
+        mAuth = FirebaseAuth.getInstance()
 
-        loadNickname();
-        EditNickname();
-        SaveNickname();
+        loadNickname()
+        EditNickname()
+        SaveNickname()
         //MonthlyFilter();
-        TotalBalanceUnpaid();
-        UnpaidButton();
-        BalanceButton();
-        OweButton();
-        DebtButton();
-        getDebt();
-        getOwe();
-        profileImageViewButton();
-        ProfileLogoutButton();
-        AdminSettingsButton();
-        BreakdownButton();
-
+        TotalBalanceUnpaid()
+        UnpaidButton()
+        BalanceButton()
+        OweButton()
+        DebtButton()
+        this.debt
+        this.owe
+        profileImageViewButton()
+        ProfileLogoutButton()
+        AdminSettingsButton()
+        BreakdownButton()
 
 
         // Get the hosting Activity and remove the ActionBar
-        AppCompatActivity activity = (AppCompatActivity) getActivity();
+        val activity: AppCompatActivity? = getActivity() as AppCompatActivity?
         if (activity != null && activity.getSupportActionBar() != null) {
-            activity.getSupportActionBar().hide();
+            activity.getSupportActionBar().hide()
         }
 
 
 
-        return view;
+        return view
     }
 
-    public void setProfileImage(ImageView imageView) {
-        if (!isAdded()) return;
+    fun setProfileImage(imageView: ImageView) {
+        if (!isAdded()) return
 
-        showLoading();
-        String userId = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
-        
+        showLoading()
+        val userId: String? =
+            Objects.requireNonNull<T?>(FirebaseAuth.getInstance().getCurrentUser()).getUid()
+
+
         // Use the same static cache from PayorAdapter
-        String cachedUrl = PayorAdapter.sDownloadUrlCache.get(userId);
-        
+        val cachedUrl: String? = PayorAdapter.Companion.sDownloadUrlCache.get(userId)
+
         if (cachedUrl != null) {
-            loadGlideProfileImage(imageView, cachedUrl);
+            loadGlideProfileImage(imageView, cachedUrl)
         } else {
-            StorageReference storageRef = FirebaseStorage.getInstance().getReference("profile_images").child(userId);
-            storageRef.getDownloadUrl().addOnSuccessListener(uri -> {
+            val storageRef: StorageReference =
+                FirebaseStorage.getInstance().getReference("profile_images").child(userId)
+            storageRef.getDownloadUrl().addOnSuccessListener({ uri ->
                 if (isAdded()) {
-                    String url = uri.toString();
-                    PayorAdapter.sDownloadUrlCache.put(userId, url);
-                    loadGlideProfileImage(imageView, url);
+                    val url: String? = uri.toString()
+                    PayorAdapter.Companion.sDownloadUrlCache.put(userId, url)
+                    loadGlideProfileImage(imageView, url)
                 } else {
-                    hideLoading();
+                    hideLoading()
                 }
-            }).addOnFailureListener(e -> {
+            }).addOnFailureListener({ e ->
                 if (isAdded()) {
-                    imageView.setImageResource(R.drawable.placeholder_profile_image);
+                    imageView.setImageResource(R.drawable.placeholder_profile_image)
                 }
-                hideLoading();
-            });
+                hideLoading()
+            })
         }
     }
 
-    private void loadGlideProfileImage(ImageView imageView, String url) {
+    private fun loadGlideProfileImage(imageView: ImageView, url: String?) {
         if (!isAdded()) {
-            hideLoading();
-            return;
+            hideLoading()
+            return
         }
 
         Glide.with(requireContext())
-                .load(url)
-                .placeholder(R.drawable.placeholder_profile_image)
-                .diskCacheStrategy(DiskCacheStrategy.ALL)
-                .listener(new RequestListener<Drawable>() {
-                    @Override
-                    public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
-                        hideLoading();
-                        return false;
-                    }
+            .load(url)
+            .placeholder(R.drawable.placeholder_profile_image)
+            .diskCacheStrategy(DiskCacheStrategy.ALL)
+            .listener(object : RequestListener<Drawable?> {
+                override fun onLoadFailed(
+                    e: GlideException?,
+                    model: Any?,
+                    target: Target<Drawable?>?,
+                    isFirstResource: Boolean
+                ): Boolean {
+                    hideLoading()
+                    return false
+                }
 
-                    @Override
-                    public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
-                        hideLoading();
-                        return false;
-                    }
-                })
-                .into(imageView);
+                override fun onResourceReady(
+                    resource: Drawable?,
+                    model: Any?,
+                    target: Target<Drawable?>?,
+                    dataSource: DataSource?,
+                    isFirstResource: Boolean
+                ): Boolean {
+                    hideLoading()
+                    return false
+                }
+            })
+            .into(imageView)
     }
 
-    private void EditNickname(){
-        editNickname.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
+    private fun EditNickname() {
+        editNickname!!.setOnClickListener(object : View.OnClickListener {
+            override fun onClick(v: View?) {
                 // Switch to edit mode
-                switchToEditMode();
+                switchToEditMode()
 
                 // Request focus on the EditText where the user can input their new nickname
-                nicknameEditText.requestFocus();
+                nicknameEditText.requestFocus()
 
                 // Show the keyboard
-                InputMethodManager imm = (InputMethodManager) requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
-                imm.showSoftInput(nicknameEditText, InputMethodManager.SHOW_IMPLICIT);
+                val imm =
+                    requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.showSoftInput(nicknameEditText, InputMethodManager.SHOW_IMPLICIT)
             }
-        });
+        })
     }
 
-    private void SaveNickname(){
-        saveNickname.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
+    private fun SaveNickname() {
+        saveNickname!!.setOnClickListener(object : View.OnClickListener {
+            override fun onClick(v: View?) {
                 // Save the updated nickname to your data source
-                saveNickname();
+                saveNickname()
 
                 // Switch back to display mode
-                switchToDisplayMode();
+                switchToDisplayMode()
 
                 // Hide the keyboard
-                InputMethodManager imm = (InputMethodManager) requireContext().getSystemService(Context.INPUT_METHOD_SERVICE);
-                imm.hideSoftInputFromWindow(nicknameEditText.getWindowToken(), 0);
+                val imm =
+                    requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.hideSoftInputFromWindow(nicknameEditText.getWindowToken(), 0)
             }
-        });
+        })
     }
 
-    private void loadNickname() {
-        showLoading();
-        String currentUserID = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
-        DatabaseReference usersRef = DeclareDatabase.getDatabaseReference().child(currentUserID);
-        usersRef.child("username").addListenerForSingleValueEvent(new ValueEventListener() {
-            public void onDataChange(DataSnapshot dataSnapshot) {
+    private fun loadNickname() {
+        showLoading()
+        val currentUserID: String? =
+            Objects.requireNonNull<T?>(FirebaseAuth.getInstance().getCurrentUser()).getUid()
+        val usersRef: DatabaseReference =
+            DeclareDatabase.getDatabaseReference().child(currentUserID)
+        usersRef.child("username").addListenerForSingleValueEvent(object : ValueEventListener() {
+            fun onDataChange(dataSnapshot: DataSnapshot) {
                 if (dataSnapshot.exists()) {
                     // Get the username from the dataSnapshot and assign it to usernamePost
-                    currentNickname = dataSnapshot.getValue(String.class);
-                    Log.d("FirebaseDatabase", "Nickname loaded: " + currentNickname);
+                    currentNickname = dataSnapshot.getValue(String::class.java)
+                    Log.d("FirebaseDatabase", "Nickname loaded: " + currentNickname)
 
                     // Update the TextView with the loaded nickname
-                    nicknameTextView.setText(currentNickname);
+                    nicknameTextView.setText(currentNickname)
                 } else {
-                    Log.d("FirebaseDatabase", "Nickname not found in database.");
+                    Log.d("FirebaseDatabase", "Nickname not found in database.")
                 }
-                hideLoading();
+                hideLoading()
             }
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
+
+            public override fun onCancelled(databaseError: DatabaseError) {
                 // Handle database read error
-                String errorMessage = "Database read error occurred: " + databaseError.getMessage();
-                Log.e("FirebaseDatabase", errorMessage);
-                hideLoading();
+                val errorMessage = "Database read error occurred: " + databaseError.getMessage()
+                Log.e("FirebaseDatabase", errorMessage)
+                hideLoading()
             }
-        });
+        })
     }
 
-    private void switchToEditMode() {
+    private fun switchToEditMode() {
         // Hide the TextView and show the EditText for editing
-        nicknameTextView.setVisibility(View.GONE);
-        nicknameEditText.setVisibility(View.VISIBLE);
+        nicknameTextView.setVisibility(View.GONE)
+        nicknameEditText.setVisibility(View.VISIBLE)
 
         // Set the EditText text to the current nickname
-        nicknameEditText.setText(currentNickname);
+        nicknameEditText.setText(currentNickname)
 
         // Show the Save button and hide the Edit button
-        editNickname.setVisibility(View.GONE);
-        saveNickname.setVisibility(View.VISIBLE);
+        editNickname!!.setVisibility(View.GONE)
+        saveNickname!!.setVisibility(View.VISIBLE)
     }
 
-    private void switchToDisplayMode() {
+    private fun switchToDisplayMode() {
         // Show the TextView and hide the EditText
-        nicknameTextView.setVisibility(View.VISIBLE);
-        nicknameEditText.setVisibility(View.GONE);
+        nicknameTextView.setVisibility(View.VISIBLE)
+        nicknameEditText.setVisibility(View.GONE)
 
         // Update the TextView with the edited nickname
-        currentNickname = nicknameEditText.getText().toString();
-        nicknameTextView.setText(currentNickname);
+        currentNickname = nicknameEditText.getText().toString()
+        nicknameTextView.setText(currentNickname)
 
         // Show the Edit button and hide the Save button
-        editNickname.setVisibility(View.VISIBLE);
-        saveNickname.setVisibility(View.GONE);
+        editNickname!!.setVisibility(View.VISIBLE)
+        saveNickname!!.setVisibility(View.GONE)
     }
 
-    private void saveNickname() {
+    private fun saveNickname() {
         // Save the updated nickname to your data source (e.g., Firebase database)
         // Implement your database update logic here
-        String updatedNickname = nicknameEditText.getText().toString();
-        currentNickname = updatedNickname;
+        val updatedNickname = nicknameEditText.getText().toString()
+        currentNickname = updatedNickname
 
-        String userId = FirebaseAuth.getInstance().getCurrentUser().getUid();
-        DatabaseReference userRef = DeclareDatabase.getDatabaseReference().child(userId);
-        userRef.child("username").setValue(updatedNickname);
-
+        val userId: String? = FirebaseAuth.getInstance().getCurrentUser().getUid()
+        val userRef: DatabaseReference = DeclareDatabase.getDatabaseReference().child(userId)
+        userRef.child("username").setValue(updatedNickname)
     }
 
-    public void TotalBalanceUnpaid() {
-        showLoading();
-        DatabaseReference transRef = DeclareDatabase.getDBRefTransaction();
-        String currentYear = new SimpleDateFormat("yyyy", Locale.getDefault()).format(Calendar.getInstance().getTime());
+    fun TotalBalanceUnpaid() {
+        showLoading()
+        val transRef: DatabaseReference = DeclareDatabase.getDBRefTransaction()
+        val currentYear =
+            SimpleDateFormat("yyyy", Locale.getDefault()).format(Calendar.getInstance().getTime())
 
-        i = 0;
-        e = 1;
-        o = 0;
+        i = 0
+        e = 1
+        o = 0
 
-        transRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(DataSnapshot dataSnapshot) {
+        transRef.addListenerForSingleValueEvent(object : ValueEventListener() {
+            public override fun onDataChange(dataSnapshot: DataSnapshot) {
                 // Initialize variables to hold total balance and unpaid amounts
-                int totalBalance = 0;
-                int totalUnpaid = 0;
-                totalIndividualPayment = 0;
-                totalPaymentList = 0;
+                val totalBalance = 0
+                val totalUnpaid = 0
+                totalIndividualPayment = 0
+                totalPaymentList = 0
 
                 // Iterate over all months in the database
-                for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
-                    for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
-                        for (DataSnapshot timeSnapshot : daySnapshot.getChildren()) {
-                            Transaction transaction = timeSnapshot.getValue(Transaction.class);
+                for (monthSnapshot in dataSnapshot.getChildren()) {
+                    for (daySnapshot in monthSnapshot.getChildren()) {
+                        for (timeSnapshot in daySnapshot.getChildren()) {
+                            val transaction: Transaction? =
+                                timeSnapshot.getValue(Transaction::class.java)
                             if (transaction != null) {
-                                double individualPayment = transaction.getTotalIndividualPayment();
-                                totalIndividualPayment += individualPayment;
+                                val individualPayment = transaction.getTotalIndividualPayment()
+                                totalIndividualPayment =
+                                    (totalIndividualPayment + individualPayment).toInt()
                             }
-                            DataSnapshot payorsSnapshot = timeSnapshot.child("payorsList");
-                            for (DataSnapshot payorSnapshot : payorsSnapshot.getChildren()) {
-                                String payorUsername = payorSnapshot.getValue(String.class);
-                                if (payorUsername != null && payorUsername.equals(currentNickname)) {
-                                    i++;
-                                    o = i;
+                            val payorsSnapshot: DataSnapshot = timeSnapshot.child("payorsList")
+                            for (payorSnapshot in payorsSnapshot.getChildren()) {
+                                val payorUsername: String? =
+                                    payorSnapshot.getValue(String::class.java)
+                                if (payorUsername != null && payorUsername == currentNickname) {
+                                    i++
+                                    o = i
                                 } else {
-                                    i++;
+                                    i++
                                 }
                             }
-                            DataSnapshot amountsPaidListSnapshot = timeSnapshot.child("amountsPaidList");
-                            for (DataSnapshot amountSnapshot : amountsPaidListSnapshot.getChildren()) {
-                                Integer paymentAmount = amountSnapshot.getValue(Integer.class);
+                            val amountsPaidListSnapshot: DataSnapshot =
+                                timeSnapshot.child("amountsPaidList")
+                            for (amountSnapshot in amountsPaidListSnapshot.getChildren()) {
+                                val paymentAmount: Int = amountSnapshot.getValue(Int::class.java)
                                 if (e == o) {
-                                    totalPaymentList += paymentAmount;
-                                    e = 100;
-                                } else{
-                                    e++;
+                                    totalPaymentList += paymentAmount
+                                    e = 100
+                                } else {
+                                    e++
                                 }
                             }
-                            i = 0;
-                            e = 1;
-                            o = 0;
+                            i = 0
+                            e = 1
+                            o = 0
                         }
                     }
                 }
-                if (totalPaymentList == totalIndividualPayment ) {
-                    balance = 0;
-                    unpaid = 0;
-                } else if (totalIndividualPayment > totalPaymentList){
-                    unpaid = totalIndividualPayment - totalPaymentList;
-                    balance = 0;
-                } else if (totalIndividualPayment < totalPaymentList){
-                    balance = totalPaymentList - totalIndividualPayment;
-                    unpaid = 0;
+                if (totalPaymentList == totalIndividualPayment) {
+                    balance = 0
+                    unpaid = 0
+                } else if (totalIndividualPayment > totalPaymentList) {
+                    unpaid = totalIndividualPayment - totalPaymentList
+                    balance = 0
+                } else if (totalIndividualPayment < totalPaymentList) {
+                    balance = totalPaymentList - totalIndividualPayment
+                    unpaid = 0
                 } else {
-                    balance = 0;
-                    unpaid = 0;
+                    balance = 0
+                    unpaid = 0
                 }
 
-                totalBalancedTextView.setText(CurrencyUtils.formatAmountWithCurrency(balance));
-                totalTextView.setText("Total Balance:");
-                hideLoading();
+                totalBalancedTextView.setText(CurrencyUtils.formatAmountWithCurrency(balance.toDouble()))
+                totalTextView.setText("Total Balance:")
+                hideLoading()
             }
 
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
+            public override fun onCancelled(databaseError: DatabaseError) {
                 // Handle database read error
-                String errorMessage = "Database read error occurred: " + databaseError.getMessage();
-                Log.e("FirebaseDatabase", errorMessage);
-                hideLoading();
+                val errorMessage = "Database read error occurred: " + databaseError.getMessage()
+                Log.e("FirebaseDatabase", errorMessage)
+                hideLoading()
             }
-        });
+        })
     }
 
 
-    public void BalanceButton(){
-        balanceTextView.setOnClickListener(new View.OnClickListener() {
+    fun BalanceButton() {
+        balanceTextView.setOnClickListener(object : View.OnClickListener {
+            override fun onClick(v: View?) {
+                balanceUnpaidLayout!!.setForeground(balanceUnpaidDrawable)
+                oweDebtLayout!!.setForeground(oweDebtDrawableTransparent)
 
-            @Override
-            public void onClick(View v) {
-                balanceUnpaidLayout.setForeground(balanceUnpaidDrawable);
-                oweDebtLayout.setForeground(oweDebtDrawableTransparent);
+                balanceTextView.setBackgroundResource(R.drawable.button_background_visible)
+                balanceTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.yellow))
+                unpaidTextView.setBackgroundResource(R.drawable.button_background_invisible)
+                unpaidTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest))
+                oweTextView.setBackgroundResource(R.drawable.button_background_invisible)
+                oweTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest))
+                debtTextView.setBackgroundResource(R.drawable.button_background_invisible)
+                debtTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest))
 
-                balanceTextView.setBackgroundResource(R.drawable.button_background_visible);
-                balanceTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.yellow));
-                unpaidTextView.setBackgroundResource(R.drawable.button_background_invisible);
-                unpaidTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest));
-                oweTextView.setBackgroundResource(R.drawable.button_background_invisible);
-                oweTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest));
-                debtTextView.setBackgroundResource(R.drawable.button_background_invisible);
-                debtTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest));
-
-                totalBalancedTextView.setText(CurrencyUtils.formatAmountWithCurrency(balance));
-                totalTextView.setText("Total Balance:");
+                totalBalancedTextView.setText(CurrencyUtils.formatAmountWithCurrency(balance.toDouble()))
+                totalTextView.setText("Total Balance:")
             }
-        });
-
+        })
     }
 
-    private void UnpaidButton(){
-        unpaidTextView.setOnClickListener(new View.OnClickListener() {
+    private fun UnpaidButton() {
+        unpaidTextView.setOnClickListener(object : View.OnClickListener {
+            override fun onClick(v: View?) {
+                balanceUnpaidLayout!!.setForeground(balanceUnpaidDrawable)
+                oweDebtLayout!!.setForeground(oweDebtDrawableTransparent)
 
-            @Override
-            public void onClick(View v) {
-                balanceUnpaidLayout.setForeground(balanceUnpaidDrawable);
-                oweDebtLayout.setForeground(oweDebtDrawableTransparent);
+                balanceTextView.setBackgroundResource(R.drawable.button_background_invisible)
+                balanceTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest))
+                unpaidTextView.setBackgroundResource(R.drawable.button_background_visible)
+                unpaidTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.yellow))
+                oweTextView.setBackgroundResource(R.drawable.button_background_invisible)
+                oweTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest))
+                debtTextView.setBackgroundResource(R.drawable.button_background_invisible)
+                debtTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest))
 
-                balanceTextView.setBackgroundResource(R.drawable.button_background_invisible);
-                balanceTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest));
-                unpaidTextView.setBackgroundResource(R.drawable.button_background_visible);
-                unpaidTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.yellow));
-                oweTextView.setBackgroundResource(R.drawable.button_background_invisible);
-                oweTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest));
-                debtTextView.setBackgroundResource(R.drawable.button_background_invisible);
-                debtTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest));
-
-                totalBalancedTextView.setText(CurrencyUtils.formatAmountWithCurrency(unpaid));
-                totalTextView.setText("Total Unpaid Balance:");
+                totalBalancedTextView.setText(CurrencyUtils.formatAmountWithCurrency(unpaid.toDouble()))
+                totalTextView.setText("Total Unpaid Balance:")
             }
-        });
-
+        })
     }
 
-    private void OweButton(){
-        oweTextView.setOnClickListener(new View.OnClickListener() {
+    private fun OweButton() {
+        oweTextView.setOnClickListener(object : View.OnClickListener {
+            override fun onClick(v: View?) {
+                oweDebtLayout!!.setForeground(oweDebtDrawable)
+                balanceUnpaidLayout!!.setForeground(balanceUnpaidDrawableTransparent)
 
-            @Override
-            public void onClick(View v) {
-                oweDebtLayout.setForeground(oweDebtDrawable);
-                balanceUnpaidLayout.setForeground(balanceUnpaidDrawableTransparent);
+                balanceTextView.setBackgroundResource(R.drawable.button_background_invisible)
+                balanceTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest))
+                unpaidTextView.setBackgroundResource(R.drawable.button_background_invisible)
+                unpaidTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest))
+                oweTextView.setBackgroundResource(R.drawable.button_background_visible)
+                oweTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.yellow))
+                debtTextView.setBackgroundResource(R.drawable.button_background_invisible)
+                debtTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest))
 
-                balanceTextView.setBackgroundResource(R.drawable.button_background_invisible);
-                balanceTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest));
-                unpaidTextView.setBackgroundResource(R.drawable.button_background_invisible);
-                unpaidTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest));
-                oweTextView.setBackgroundResource(R.drawable.button_background_visible);
-                oweTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.yellow));
-                debtTextView.setBackgroundResource(R.drawable.button_background_invisible);
-                debtTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest));
-
-                totalBalancedTextView.setText(CurrencyUtils.formatAmountWithCurrency(currentOwe));
-                totalTextView.setText("Total Owed Balance:");
+                totalBalancedTextView.setText(CurrencyUtils.formatAmountWithCurrency(currentOwe.toDouble()))
+                totalTextView.setText("Total Owed Balance:")
             }
-        });
-
+        })
     }
 
-    private void DebtButton(){
-        debtTextView.setOnClickListener(new View.OnClickListener() {
+    private fun DebtButton() {
+        debtTextView.setOnClickListener(object : View.OnClickListener {
+            override fun onClick(v: View?) {
+                oweDebtLayout!!.setForeground(oweDebtDrawable)
+                balanceUnpaidLayout!!.setForeground(balanceUnpaidDrawableTransparent)
 
-            @Override
-            public void onClick(View v) {
-                oweDebtLayout.setForeground(oweDebtDrawable);
-                balanceUnpaidLayout.setForeground(balanceUnpaidDrawableTransparent);
+                balanceTextView.setBackgroundResource(R.drawable.button_background_invisible)
+                balanceTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest))
+                unpaidTextView.setBackgroundResource(R.drawable.button_background_invisible)
+                unpaidTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest))
+                oweTextView.setBackgroundResource(R.drawable.button_background_invisible)
+                oweTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest))
+                debtTextView.setBackgroundResource(R.drawable.button_background_visible)
+                debtTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.yellow))
 
-                balanceTextView.setBackgroundResource(R.drawable.button_background_invisible);
-                balanceTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest));
-                unpaidTextView.setBackgroundResource(R.drawable.button_background_invisible);
-                unpaidTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest));
-                oweTextView.setBackgroundResource(R.drawable.button_background_invisible);
-                oweTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.whitest));
-                debtTextView.setBackgroundResource(R.drawable.button_background_visible);
-                debtTextView.setTextColor(ContextCompat.getColor(getActivity(), R.color.yellow));
-
-                totalBalancedTextView.setText(CurrencyUtils.formatAmountWithCurrency(currentDebt));
-                totalTextView.setText("Total Debt:");
+                totalBalancedTextView.setText(CurrencyUtils.formatAmountWithCurrency(currentDebt.toDouble()))
+                totalTextView.setText("Total Debt:")
             }
-        });
-
+        })
     }
 
-    private void getDebt() {
-        showLoading();
-        DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
-        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
-
-        databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
-
-            @SuppressLint("NotifyDataSetChanged")
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                currentDebt = 0;
-                for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
-                    for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
-                        for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
-                            // Try new structure first: borrows/{month}/{day}/{borrowId}
-                            BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
-
-                            if (borrowNowTransaction != null && borrowNowTransaction.getBorrowerID() != null) {
-                                // New UID-based structure - check if current user is the borrower
-                                if (Objects.equals(borrowNowTransaction.getBorrowerID(), currentUserId)) {
-                                    try {
-                                        int borrowedAmount = Integer.parseInt(borrowNowTransaction.getBorrowedAmountStr());
-                                        currentDebt += borrowedAmount;
-                                    } catch (NumberFormatException e) {
-                                        Log.e("ProfileFragment", "Error parsing amount: " + e.getMessage());
-                                    }
-                                }
-                            } else {
-                                // Legacy structure: borrows/{month}/{day}/{username}/{time}
-                                String currentUserStr = borrowSnapshot.getKey();
-                                if (Objects.equals(currentUserStr, currentNickname)) {
-                                    for (DataSnapshot timeSnapshot : borrowSnapshot.getChildren()) {
-                                        try {
-                                            BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
-                                            if (borrowTransaction != null) {
-                                                int borrowedAmount = Integer.parseInt(borrowTransaction.getBorrowedAmountStr());
-                                                currentDebt += borrowedAmount;
-                                            }
-                                        } catch (Exception e) {
-                                            Log.e("ProfileFragment", "Error parsing legacy transaction: " + e.getMessage());
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                hideLoading();
+    private fun profileImageViewButton() {
+        profileImageView!!.setOnClickListener(object : View.OnClickListener {
+            override fun onClick(v: View?) {
+                showProfilePictureMenu()
             }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                // Handle database read error
-                String errorMessage = "Database read error occurred: " + databaseError.getMessage();
-                Log.e("FirebaseDatabase", errorMessage);
-                hideLoading();
-            }
-        });
+        })
     }
 
-    private void getOwe() {
-        showLoading();
-        DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
-        String currentUserId = FirebaseAuth.getInstance().getCurrentUser().getUid();
+    private fun showProfilePictureMenu() {
+        val popupMenu = PopupMenu(requireContext(), profileImageView)
+        popupMenu.getMenuInflater().inflate(R.menu.profile_picture_menu, popupMenu.getMenu())
 
-        databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
-
-            @SuppressLint("NotifyDataSetChanged")
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                currentOwe = 0;
-                for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
-                    for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
-                        for (DataSnapshot borrowSnapshot : daySnapshot.getChildren()) {
-                            // Try new structure first: borrows/{month}/{day}/{borrowId}
-                            BorrowNowTransaction borrowNowTransaction = borrowSnapshot.getValue(BorrowNowTransaction.class);
-
-                            if (borrowNowTransaction != null && borrowNowTransaction.getLenderID() != null) {
-                                // New UID-based structure - check if current user is the lender
-                                if (Objects.equals(borrowNowTransaction.getLenderID(), currentUserId)) {
-                                    try {
-                                        int borrowedAmount = Integer.parseInt(borrowNowTransaction.getBorrowedAmountStr());
-                                        currentOwe += borrowedAmount;
-                                    } catch (NumberFormatException e) {
-                                        Log.e("ProfileFragment", "Error parsing amount: " + e.getMessage());
-                                    }
-                                }
-                            } else {
-                                // Legacy structure: borrows/{month}/{day}/{username}/{time}
-                                for (DataSnapshot timeSnapshot : borrowSnapshot.getChildren()) {
-                                    try {
-                                        BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
-                                        if (borrowTransaction != null) {
-                                            String borrowee = borrowTransaction.getBorrowee();
-                                            int borrowedAmount = Integer.parseInt(borrowTransaction.getBorrowedAmountStr());
-                                            if (Objects.equals(currentNickname, borrowee)) {
-                                                currentOwe += borrowedAmount;
-                                            }
-                                        }
-                                    } catch (Exception e) {
-                                        Log.e("ProfileFragment", "Error parsing legacy transaction: " + e.getMessage());
-                                    }
-
-                                }
-                            }
-                        }
-                    }
-                }
-                hideLoading();
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                // Handle database read error
-                String errorMessage = "Database read error occurred: " + databaseError.getMessage();
-                Log.e("FirebaseDatabase", errorMessage);
-                hideLoading();
-            }
-        });
-    }
-
-    private void profileImageViewButton() {
-        profileImageView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showProfilePictureMenu();
-            }
-        });
-    }
-    private void showProfilePictureMenu() {
-        PopupMenu popupMenu = new PopupMenu(requireContext(), profileImageView);
-        popupMenu.getMenuInflater().inflate(R.menu.profile_picture_menu, popupMenu.getMenu());
-
-        popupMenu.setOnMenuItemClickListener(new PopupMenu.OnMenuItemClickListener() {
-            @Override
-            public boolean onMenuItemClick(MenuItem item) {
-                int itemId = item.getItemId();
+        popupMenu.setOnMenuItemClickListener(object : PopupMenu.OnMenuItemClickListener {
+            override fun onMenuItemClick(item: MenuItem): Boolean {
+                val itemId = item.getItemId()
                 if (itemId == R.id.action_view_profile_photo) {
-                    showLargeProfilePhoto();
-                    return true;
+                    showLargeProfilePhoto()
+                    return true
                 } else if (itemId == R.id.action_change_profile_photo) {
-                    showChangeProfilePhotoDialog();
-                    return true;
+                    showChangeProfilePhotoDialog()
+                    return true
                 } else {
-                    return false;
+                    return false
                 }
             }
-        });
+        })
 
-        popupMenu.show();
+        popupMenu.show()
     }
 
-    private void showLargeProfilePhoto() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_profile_photo, null);
-        ImageView imageView = dialogView.findViewById(R.id.dialog_profile_photo);
+    private fun showLargeProfilePhoto() {
+        val builder = AlertDialog.Builder(requireContext())
+        val dialogView: View = getLayoutInflater().inflate(R.layout.dialog_profile_photo, null)
+        val imageView = dialogView.findViewById<ImageView>(R.id.dialog_profile_photo)
 
         // Load the profile photo into the ImageView using the setProfileImage() method
-        setProfileImage(imageView);
+        setProfileImage(imageView)
 
-        builder.setView(dialogView);
+        builder.setView(dialogView)
 
         // Create and show the dialog
-        AlertDialog dialog = builder.create();
-        dialog.show();
+        val dialog = builder.create()
+        dialog.show()
 
         // Set a click listener on the dialog to dismiss it when clicked
-        imageView.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                dialog.dismiss();
+        imageView.setOnClickListener(object : View.OnClickListener {
+            override fun onClick(v: View?) {
+                dialog.dismiss()
             }
-        });
+        })
     }
 
-    private void selectNewProfilePhoto() {
+    private fun selectNewProfilePhoto() {
         // Create an intent to capture an image from the camera
-        Intent takePictureIntent = new Intent(MediaStore.ACTION_IMAGE_CAPTURE);
+        val takePictureIntent: Intent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
         if (takePictureIntent.resolveActivity(requireActivity().getPackageManager()) != null) {
-            startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE);
+            startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
         }
     }
 
-    @Override
-    public void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == REQUEST_IMAGE_CAPTURE && resultCode == Activity.RESULT_OK) {
             // The user captured a photo with the camera
             // Handle the captured image here
-            Bundle extras = data.getExtras();
-            Bitmap imageBitmap = (Bitmap) extras.get("data");
+            val extras: Bundle? = data.getExtras()
+            val imageBitmap = extras.get("data")
 
             // Convert the Bitmap image to a Uri
-            Uri imageUri = getImageUri(requireContext(), imageBitmap);
+            val imageUri = getImageUri(requireContext(), imageBitmap!!)
 
             // Update the profile photo with the captured image
-            updateProfilePhoto(imageUri);
+            updateProfilePhoto(imageUri)
         } else if (requestCode == REQUEST_IMAGE_PICK && resultCode == Activity.RESULT_OK) {
             // The user selected a photo from the gallery
-            Uri imageUri = data.getData();
+            val imageUri: Uri? = data.getData()
             // Update the profile photo with the selected image
-            updateProfilePhoto(imageUri);
+            updateProfilePhoto(imageUri)
         }
     }
 
     // Helper method to convert Bitmap image to Uri
-    private Uri getImageUri(Context context, Bitmap bitmap) {
-        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, bytes);
-        String path = MediaStore.Images.Media.insertImage(context.getContentResolver(), bitmap, "Title", null);
-        return Uri.parse(path);
+    private fun getImageUri(context: Context, bitmap: Bitmap): Uri? {
+        val bytes = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, bytes)
+        val path: String? =
+            MediaStore.Images.Media.insertImage(context.getContentResolver(), bitmap, "Title", null)
+        return Uri.parse(path)
     }
 
 
-    private void showChangeProfilePhotoDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
-        builder.setTitle("Change Profile Photo");
-        String[] options = {"Take Photo", "Choose from Gallery"};
+    private fun showChangeProfilePhotoDialog() {
+        val builder = AlertDialog.Builder(requireContext())
+        builder.setTitle("Change Profile Photo")
+        val options = arrayOf<String?>("Take Photo", "Choose from Gallery")
 
-        builder.setItems(options, new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                switch (which) {
-                    case 0:
-                        // Take photo option selected
-                        selectNewProfilePhoto();
-                        break;
-                    case 1:
+        builder.setItems(options, object : DialogInterface.OnClickListener {
+            override fun onClick(dialog: DialogInterface?, which: Int) {
+                when (which) {
+                    0 ->                         // Take photo option selected
+                        selectNewProfilePhoto()
+
+                    1 -> {
                         // Choose from gallery option selected
-                        Intent pickPhotoIntent = new Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI);
-                        startActivityForResult(pickPhotoIntent, REQUEST_IMAGE_PICK);
-                        break;
+                        val pickPhotoIntent: Intent =
+                            Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
+                        startActivityForResult(pickPhotoIntent, REQUEST_IMAGE_PICK)
+                    }
                 }
             }
-        });
+        })
 
-        builder.create().show();
+        builder.create().show()
     }
 
-    private void updateProfilePhoto(Uri imageUri) {
-        showLoading();
+    private fun updateProfilePhoto(imageUri: Uri?) {
+        showLoading()
         // Display the selected image in the ImageView
         Glide.with(requireContext())
-                .load(imageUri)
-                .diskCacheStrategy(DiskCacheStrategy.ALL)
-                .listener(new RequestListener<Drawable>() {
-                    @Override
-                    public boolean onLoadFailed(@Nullable GlideException e, Object model, Target<Drawable> target, boolean isFirstResource) {
-                        hideLoading();
-                        return false;
-                    }
+            .load(imageUri)
+            .diskCacheStrategy(DiskCacheStrategy.ALL)
+            .listener(object : RequestListener<Drawable?> {
+                override fun onLoadFailed(
+                    e: GlideException?,
+                    model: Any?,
+                    target: Target<Drawable?>?,
+                    isFirstResource: Boolean
+                ): Boolean {
+                    hideLoading()
+                    return false
+                }
 
-                    @Override
-                    public boolean onResourceReady(Drawable resource, Object model, Target<Drawable> target, DataSource dataSource, boolean isFirstResource) {
-                        hideLoading();
-                        return false;
-                    }
-                })
-                .into(profileImageView);
+                override fun onResourceReady(
+                    resource: Drawable?,
+                    model: Any?,
+                    target: Target<Drawable?>?,
+                    dataSource: DataSource?,
+                    isFirstResource: Boolean
+                ): Boolean {
+                    hideLoading()
+                    return false
+                }
+            })
+            .into(profileImageView)
 
         // Upload the new profile photo to Firebase Storage
-        uploadProfilePhoto(imageUri);
+        uploadProfilePhoto(imageUri)
     }
 
-    private void uploadProfilePhoto(Uri imageUri) {
-        String userId = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
-        StorageReference storageRef = FirebaseStorage.getInstance().getReference("profile_images").child(userId);
+    private fun uploadProfilePhoto(imageUri: Uri?) {
+        val userId: String? =
+            Objects.requireNonNull<T?>(FirebaseAuth.getInstance().getCurrentUser()).getUid()
+        val storageRef: StorageReference =
+            FirebaseStorage.getInstance().getReference("profile_images").child(userId)
 
         // Upload the image to Firebase Storage
-        UploadTask uploadTask = storageRef.putFile(imageUri);
-        uploadTask.addOnSuccessListener(taskSnapshot -> {
+        val uploadTask: UploadTask = storageRef.putFile(imageUri)
+        uploadTask.addOnSuccessListener({ taskSnapshot ->
             // Image upload successful, get the download URL
-            storageRef.getDownloadUrl().addOnSuccessListener(downloadUri -> {
-                String newUrl = downloadUri.toString();
+            storageRef.getDownloadUrl().addOnSuccessListener({ downloadUri ->
+                val newUrl: String? = downloadUri.toString()
                 // Update cache with new URL
-                PayorAdapter.sDownloadUrlCache.put(userId, newUrl);
+                PayorAdapter.Companion.sDownloadUrlCache.put(userId, newUrl)
                 // Update the user's profile with the new photo URL
-                updateProfileWithPhotoUrl(newUrl);
-            }).addOnFailureListener(e -> {
-                hideLoading();
-                Toast.makeText(getActivity(), "Failed to get download URL", Toast.LENGTH_SHORT).show();
-            });
-        }).addOnFailureListener(e -> {
-            hideLoading();
-            Toast.makeText(getActivity(), "Upload failed", Toast.LENGTH_SHORT).show();
-        });
+                updateProfileWithPhotoUrl(newUrl)
+            }).addOnFailureListener({ e ->
+                hideLoading()
+                Toast.makeText(getActivity(), "Failed to get download URL", Toast.LENGTH_SHORT)
+                    .show()
+            })
+        }).addOnFailureListener({ e ->
+            hideLoading()
+            Toast.makeText(getActivity(), "Upload failed", Toast.LENGTH_SHORT).show()
+        })
     }
 
-    private void updateProfileWithPhotoUrl(String photoUrl) {
+    private fun updateProfileWithPhotoUrl(photoUrl: String?) {
         // Update the user's profile with the new photo URL
-        UserProfileChangeRequest profileUpdates = new UserProfileChangeRequest.Builder()
-                .setPhotoUri(Uri.parse(photoUrl))
-                .build();
+        val profileUpdates: UserProfileChangeRequest? = Builder()
+            .setPhotoUri(Uri.parse(photoUrl))
+            .build()
 
         FirebaseAuth.getInstance().getCurrentUser().updateProfile(profileUpdates)
-                .addOnCompleteListener(task -> {
-                    hideLoading();
-                    if (task.isSuccessful()) {
-                        Toast.makeText(getActivity(), "Profile Photo Changed Successfully", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(getActivity(), "Profile Update Failed", Toast.LENGTH_SHORT).show();
-                    }
-                });
+            .addOnCompleteListener({ task ->
+                hideLoading()
+                if (task.isSuccessful()) {
+                    Toast.makeText(
+                        getActivity(),
+                        "Profile Photo Changed Successfully",
+                        Toast.LENGTH_SHORT
+                    ).show()
+                } else {
+                    Toast.makeText(getActivity(), "Profile Update Failed", Toast.LENGTH_SHORT)
+                        .show()
+                }
+            })
     }
 
-    private void ProfileLogoutButton(){
-        profileLogout.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                Toast.makeText(getActivity(), "Logout Successfully", Toast.LENGTH_SHORT).show();
-                Intent intent = new Intent(getActivity(), LoginActivity.class);
-                startActivity(intent);
+    private fun ProfileLogoutButton() {
+        profileLogout!!.setOnClickListener(object : View.OnClickListener {
+            override fun onClick(v: View?) {
+                Toast.makeText(getActivity(), "Logout Successfully", Toast.LENGTH_SHORT).show()
+                val intent: Intent = Intent(getActivity(), LoginActivity::class.java)
+                startActivity(intent)
                 if (mAuth != null) {
-                    mAuth.signOut(); // Call signOut() method
+                    mAuth.signOut() // Call signOut() method
                     // Add any additional code you want to execute after sign out, such as navigating to another activity or fragment
                 } else {
-                    Log.e("ProfileFragment", "FirebaseAuth instance is null");
+                    Log.e("ProfileFragment", "FirebaseAuth instance is null")
                 }
             }
-        });
+        })
     }
 
-    private void AdminSettingsButton() {
-        btnAdminSettings.setOnClickListener(v -> showAdminLoginDialog());
+    private fun AdminSettingsButton() {
+        btnAdminSettings!!.setOnClickListener(View.OnClickListener { v: View? -> showAdminLoginDialog() })
     }
 
-    private void showAdminLoginDialog() {
-        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_admin_login, null);
-        EditText etUsername = dialogView.findViewById(R.id.etAdminUsername);
-        EditText etPassword = dialogView.findViewById(R.id.etAdminPassword);
+    private fun showAdminLoginDialog() {
+        val dialogView: View =
+            LayoutInflater.from(getContext()).inflate(R.layout.dialog_admin_login, null)
+        val etUsername: EditText = dialogView.findViewById<EditText>(R.id.etAdminUsername)
+        val etPassword: EditText = dialogView.findViewById<EditText>(R.id.etAdminPassword)
 
-        new AlertDialog.Builder(requireContext())
-                .setTitle("Admin Access")
-                .setView(dialogView)
-                .setPositiveButton("Login", (dialog, which) -> {
-                    String username = etUsername.getText().toString().trim();
-                    String password = etPassword.getText().toString().trim();
-
-                    if (username.equals("admin") && password.equals("admin")) {
-                        Toast.makeText(getContext(), "Admin login successful", Toast.LENGTH_SHORT).show();
-                        showAdminPanelDialog();
+        AlertDialog.Builder(requireContext())
+            .setTitle("Admin Access")
+            .setView(dialogView)
+            .setPositiveButton(
+                "Login",
+                DialogInterface.OnClickListener { dialog: DialogInterface?, which: Int ->
+                    val username = etUsername.getText().toString().trim { it <= ' ' }
+                    val password = etPassword.getText().toString().trim { it <= ' ' }
+                    if (username == "admin" && password == "admin") {
+                        Toast.makeText(getContext(), "Admin login successful", Toast.LENGTH_SHORT)
+                            .show()
+                        showAdminPanelDialog()
                     } else {
-                        Toast.makeText(getContext(), "Invalid credentials", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), "Invalid credentials", Toast.LENGTH_SHORT)
+                            .show()
                     }
                 })
-                .setNegativeButton("Cancel", null)
-                .show();
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
-    private void showAdminPanelDialog() {
-        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_admin_panel, null);
-        Button btnRunMigration = dialogView.findViewById(R.id.btnRunMigration);
-        Button btnMigrateBalances = dialogView.findViewById(R.id.btnMigrateBalances);
-        Button btnMigrateBorrowIndex = dialogView.findViewById(R.id.btnMigrateBorrowIndex);
-        Button btnMigrateExistingUsers = dialogView.findViewById(R.id.btnMigrateExistingUsers);
-        TextView tvStatus = dialogView.findViewById(R.id.tvMigrationStatus);
+    private fun showAdminPanelDialog() {
+        val dialogView: View =
+            LayoutInflater.from(getContext()).inflate(R.layout.dialog_admin_panel, null)
+        val btnRunMigration = dialogView.findViewById<Button>(R.id.btnRunMigration)
+        val btnMigrateBalances = dialogView.findViewById<Button>(R.id.btnMigrateBalances)
+        val btnMigrateBorrowIndex = dialogView.findViewById<Button>(R.id.btnMigrateBorrowIndex)
+        val btnMigrateExistingUsers = dialogView.findViewById<Button>(R.id.btnMigrateExistingUsers)
+        val tvStatus: TextView = dialogView.findViewById<TextView>(R.id.tvMigrationStatus)
 
-        AlertDialog adminDialog = new AlertDialog.Builder(requireContext())
-                .setTitle("Admin Panel")
-                .setView(dialogView)
-                .setNegativeButton("Close", null)
-                .create();
+        val adminDialog = AlertDialog.Builder(requireContext())
+            .setTitle("Admin Panel")
+            .setView(dialogView)
+            .setNegativeButton("Close", null)
+            .create()
 
         // Run Full Migration
-        btnRunMigration.setOnClickListener(v -> {
-            ProgressDialog progressDialog = new ProgressDialog(getContext());
-            progressDialog.setMessage("Running full migration...");
-            progressDialog.setCancelable(false);
-            progressDialog.show();
-
-            MigrationHelper.runAllMigrations(new MigrationHelper.MigrationCallback() {
-                @Override
-                public void onComplete(int migratedCount) {
-                    progressDialog.dismiss();
-                    tvStatus.setText("Status: Migration complete! " + migratedCount + " records migrated.");
-                    Toast.makeText(getContext(), "Migration complete: " + migratedCount + " records", Toast.LENGTH_LONG).show();
+        btnRunMigration.setOnClickListener(View.OnClickListener { v: View? ->
+            val progressDialog: ProgressDialog = ProgressDialog(getContext())
+            progressDialog.setMessage("Running full migration...")
+            progressDialog.setCancelable(false)
+            progressDialog.show()
+            MigrationHelper.runAllMigrations(object : MigrationCallback {
+                override fun onComplete(migratedCount: Int) {
+                    progressDialog.dismiss()
+                    tvStatus.setText("Status: Migration complete! " + migratedCount + " records migrated.")
+                    Toast.makeText(
+                        getContext(),
+                        "Migration complete: " + migratedCount + " records",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
 
-                @Override
-                public void onError(String error) {
-                    progressDialog.dismiss();
-                    tvStatus.setText("Status: Error - " + error);
-                    Toast.makeText(getContext(), "Migration failed: " + error, Toast.LENGTH_LONG).show();
+                override fun onError(error: String?) {
+                    progressDialog.dismiss()
+                    tvStatus.setText("Status: Error - " + error)
+                    Toast.makeText(getContext(), "Migration failed: " + error, Toast.LENGTH_LONG)
+                        .show()
                 }
-            });
-        });
+            })
+        })
 
         // Migrate User Balances Only
-        btnMigrateBalances.setOnClickListener(v -> {
-            ProgressDialog progressDialog = new ProgressDialog(getContext());
-            progressDialog.setMessage("Migrating user balances...");
-            progressDialog.setCancelable(false);
-            progressDialog.show();
-
-            MigrationHelper.migrateUserBalances(new MigrationHelper.MigrationCallback() {
-                @Override
-                public void onComplete(int migratedCount) {
-                    progressDialog.dismiss();
-                    tvStatus.setText("Status: Balances migrated! " + migratedCount + " users.");
-                    Toast.makeText(getContext(), "Balances migrated: " + migratedCount + " users", Toast.LENGTH_LONG).show();
+        btnMigrateBalances.setOnClickListener(View.OnClickListener { v: View? ->
+            val progressDialog: ProgressDialog = ProgressDialog(getContext())
+            progressDialog.setMessage("Migrating user balances...")
+            progressDialog.setCancelable(false)
+            progressDialog.show()
+            MigrationHelper.migrateUserBalances(object : MigrationCallback {
+                override fun onComplete(migratedCount: Int) {
+                    progressDialog.dismiss()
+                    tvStatus.setText("Status: Balances migrated! " + migratedCount + " users.")
+                    Toast.makeText(
+                        getContext(),
+                        "Balances migrated: " + migratedCount + " users",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
 
-                @Override
-                public void onError(String error) {
-                    progressDialog.dismiss();
-                    tvStatus.setText("Status: Error - " + error);
-                    Toast.makeText(getContext(), "Migration failed: " + error, Toast.LENGTH_LONG).show();
+                override fun onError(error: String?) {
+                    progressDialog.dismiss()
+                    tvStatus.setText("Status: Error - " + error)
+                    Toast.makeText(getContext(), "Migration failed: " + error, Toast.LENGTH_LONG)
+                        .show()
                 }
-            });
-        });
+            })
+        })
 
         // Migrate Borrow Index Only
-        btnMigrateBorrowIndex.setOnClickListener(v -> {
-            ProgressDialog progressDialog = new ProgressDialog(getContext());
-            progressDialog.setMessage("Migrating borrow index...");
-            progressDialog.setCancelable(false);
-            progressDialog.show();
-
-            MigrationHelper.migrateUserBorrowsIndex(new MigrationHelper.MigrationCallback() {
-                @Override
-                public void onComplete(int migratedCount) {
-                    progressDialog.dismiss();
-                    tvStatus.setText("Status: Borrow index migrated! " + migratedCount + " records.");
-                    Toast.makeText(getContext(), "Borrow index migrated: " + migratedCount + " records", Toast.LENGTH_LONG).show();
+        btnMigrateBorrowIndex.setOnClickListener(View.OnClickListener { v: View? ->
+            val progressDialog: ProgressDialog = ProgressDialog(getContext())
+            progressDialog.setMessage("Migrating borrow index...")
+            progressDialog.setCancelable(false)
+            progressDialog.show()
+            MigrationHelper.migrateUserBorrowsIndex(object : MigrationCallback {
+                override fun onComplete(migratedCount: Int) {
+                    progressDialog.dismiss()
+                    tvStatus.setText("Status: Borrow index migrated! " + migratedCount + " records.")
+                    Toast.makeText(
+                        getContext(),
+                        "Borrow index migrated: " + migratedCount + " records",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
 
-                @Override
-                public void onError(String error) {
-                    progressDialog.dismiss();
-                    tvStatus.setText("Status: Error - " + error);
-                    Toast.makeText(getContext(), "Migration failed: " + error, Toast.LENGTH_LONG).show();
+                override fun onError(error: String?) {
+                    progressDialog.dismiss()
+                    tvStatus.setText("Status: Error - " + error)
+                    Toast.makeText(getContext(), "Migration failed: " + error, Toast.LENGTH_LONG)
+                        .show()
                 }
-            });
-        });
+            })
+        })
 
         // Migrate Existing Users (Old Structure)
-        btnMigrateExistingUsers.setOnClickListener(v -> {
-            ProgressDialog progressDialog = new ProgressDialog(getContext());
-            progressDialog.setMessage("Migrating existing users with old structure...\nThis includes:\n- Creating balances node\n- Initializing userBorrows");
-            progressDialog.setCancelable(false);
-            progressDialog.show();
-
-            MigrationHelper.migrateExistingUsers(new MigrationHelper.MigrationCallback() {
-                @Override
-                public void onComplete(int migratedCount) {
-                    progressDialog.dismiss();
-                    tvStatus.setText("Status: Existing users migrated! " + migratedCount + " users updated.");
-                    Toast.makeText(getContext(), "Existing users migrated: " + migratedCount + " users", Toast.LENGTH_LONG).show();
+        btnMigrateExistingUsers.setOnClickListener(View.OnClickListener { v: View? ->
+            val progressDialog: ProgressDialog = ProgressDialog(getContext())
+            progressDialog.setMessage("Migrating existing users with old structure...\nThis includes:\n- Creating balances node\n- Initializing userBorrows")
+            progressDialog.setCancelable(false)
+            progressDialog.show()
+            MigrationHelper.migrateExistingUsers(object : MigrationCallback {
+                override fun onComplete(migratedCount: Int) {
+                    progressDialog.dismiss()
+                    tvStatus.setText("Status: Existing users migrated! " + migratedCount + " users updated.")
+                    Toast.makeText(
+                        getContext(),
+                        "Existing users migrated: " + migratedCount + " users",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
 
-                @Override
-                public void onError(String error) {
-                    progressDialog.dismiss();
-                    tvStatus.setText("Status: Error - " + error);
-                    Toast.makeText(getContext(), "Migration failed: " + error, Toast.LENGTH_LONG).show();
+                override fun onError(error: String?) {
+                    progressDialog.dismiss()
+                    tvStatus.setText("Status: Error - " + error)
+                    Toast.makeText(getContext(), "Migration failed: " + error, Toast.LENGTH_LONG)
+                        .show()
                 }
-            });
-        });
+            })
+        })
 
-        adminDialog.show();
+        adminDialog.show()
     }
 
-    private void BreakdownButton() {
-        breakdownBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                showBreakdownDialog();
+    private fun BreakdownButton() {
+        breakdownBtn!!.setOnClickListener(object : View.OnClickListener {
+            override fun onClick(v: View?) {
+                showBreakdownDialog()
             }
-        });
+        })
     }
 
-    private void showBreakdownDialog() {
-        View dialogView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_breakdown, null);
+    private fun showBreakdownDialog() {
+        val dialogView: View =
+            LayoutInflater.from(getContext()).inflate(R.layout.dialog_breakdown, null)
 
         // Find views
-        ImageView btnClose = dialogView.findViewById(R.id.btnCloseBreakdown);
-        Button tabBalance = dialogView.findViewById(R.id.tabBalance);
-        Button tabUnpaid = dialogView.findViewById(R.id.tabUnpaid);
-        Button tabOwe = dialogView.findViewById(R.id.tabOwe);
-        Button tabDebt = dialogView.findViewById(R.id.tabDebt);
-        TextView categoryTitle = dialogView.findViewById(R.id.breakdownCategoryTitle);
-        TextView totalAmount = dialogView.findViewById(R.id.breakdownTotalAmount);
-        RecyclerView recyclerView = dialogView.findViewById(R.id.breakdownRecyclerView);
-        View emptyStateLayout = dialogView.findViewById(R.id.emptyStateLayout);
-        TextView emptyStateText = dialogView.findViewById(R.id.emptyStateText);
-        View progressBar = dialogView.findViewById(R.id.breakdownProgressBar);
+        val btnClose = dialogView.findViewById<ImageView>(R.id.btnCloseBreakdown)
+        val tabBalance = dialogView.findViewById<Button>(R.id.tabBalance)
+        val tabUnpaid = dialogView.findViewById<Button>(R.id.tabUnpaid)
+        val tabOwe = dialogView.findViewById<Button>(R.id.tabOwe)
+        val tabDebt = dialogView.findViewById<Button>(R.id.tabDebt)
+        val categoryTitle: TextView = dialogView.findViewById<TextView>(R.id.breakdownCategoryTitle)
+        val totalAmount: TextView = dialogView.findViewById<TextView>(R.id.breakdownTotalAmount)
+        val recyclerView: RecyclerView =
+            dialogView.findViewById<RecyclerView>(R.id.breakdownRecyclerView)
+        val emptyStateLayout = dialogView.findViewById<View>(R.id.emptyStateLayout)
+        val emptyStateText: TextView = dialogView.findViewById<TextView>(R.id.emptyStateText)
+        val progressBar = dialogView.findViewById<View>(R.id.breakdownProgressBar)
 
         // Setup RecyclerView
-        BreakdownAdapter adapter = new BreakdownAdapter(requireContext());
-        recyclerView.setLayoutManager(new LinearLayoutManager(requireContext()));
-        recyclerView.setAdapter(adapter);
+        val adapter: BreakdownAdapter = BreakdownAdapter(requireContext())
+        recyclerView.setLayoutManager(LinearLayoutManager(requireContext()))
+        recyclerView.setAdapter(adapter)
 
         // Create dialog
-        AlertDialog breakdownDialog = new AlertDialog.Builder(requireContext())
-                .setView(dialogView)
-                .create();
+        val breakdownDialog = AlertDialog.Builder(requireContext())
+            .setView(dialogView)
+            .create()
 
         // Close button
-        btnClose.setOnClickListener(v -> breakdownDialog.dismiss());
+        btnClose.setOnClickListener(View.OnClickListener { v: View? -> breakdownDialog.dismiss() })
 
         // Tab click listeners
-        View.OnClickListener tabClickListener = new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
+        val tabClickListener: View.OnClickListener = object : View.OnClickListener {
+            override fun onClick(v: View) {
                 // Reset all tabs to default style
-                tabBalance.setBackgroundTintList(ContextCompat.getColorStateList(requireContext(), R.color.grey));
-                tabBalance.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest));
-                tabUnpaid.setBackgroundTintList(ContextCompat.getColorStateList(requireContext(), R.color.grey));
-                tabUnpaid.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest));
-                tabOwe.setBackgroundTintList(ContextCompat.getColorStateList(requireContext(), R.color.grey));
-                tabOwe.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest));
-                tabDebt.setBackgroundTintList(ContextCompat.getColorStateList(requireContext(), R.color.grey));
-                tabDebt.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest));
+                tabBalance.setBackgroundTintList(
+                    ContextCompat.getColorStateList(
+                        requireContext(),
+                        R.color.grey
+                    )
+                )
+                tabBalance.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
+                tabUnpaid.setBackgroundTintList(
+                    ContextCompat.getColorStateList(
+                        requireContext(),
+                        R.color.grey
+                    )
+                )
+                tabUnpaid.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
+                tabOwe.setBackgroundTintList(
+                    ContextCompat.getColorStateList(
+                        requireContext(),
+                        R.color.grey
+                    )
+                )
+                tabOwe.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
+                tabDebt.setBackgroundTintList(
+                    ContextCompat.getColorStateList(
+                        requireContext(),
+                        R.color.grey
+                    )
+                )
+                tabDebt.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
 
                 // Highlight selected tab
-                Button selectedTab = (Button) v;
-                selectedTab.setBackgroundTintList(ContextCompat.getColorStateList(requireContext(), R.color.yellow));
-                selectedTab.setTextColor(ContextCompat.getColor(requireContext(), R.color.darkBlue));
+                val selectedTab = v as Button
+                selectedTab.setBackgroundTintList(
+                    ContextCompat.getColorStateList(
+                        requireContext(),
+                        R.color.yellow
+                    )
+                )
+                selectedTab.setTextColor(ContextCompat.getColor(requireContext(), R.color.darkBlue))
 
                 // Load data based on selected tab
                 if (v.getId() == R.id.tabBalance) {
-                    loadBreakdownData(BreakdownItem.Category.BALANCE, categoryTitle, totalAmount, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
+                    loadBreakdownData(
+                        BreakdownItem.Category.BALANCE,
+                        categoryTitle,
+                        totalAmount,
+                        adapter,
+                        recyclerView,
+                        emptyStateLayout,
+                        emptyStateText,
+                        progressBar
+                    )
                 } else if (v.getId() == R.id.tabUnpaid) {
-                    loadBreakdownData(BreakdownItem.Category.UNPAID, categoryTitle, totalAmount, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
+                    loadBreakdownData(
+                        BreakdownItem.Category.UNPAID,
+                        categoryTitle,
+                        totalAmount,
+                        adapter,
+                        recyclerView,
+                        emptyStateLayout,
+                        emptyStateText,
+                        progressBar
+                    )
                 } else if (v.getId() == R.id.tabOwe) {
-                    loadBreakdownData(BreakdownItem.Category.OWE, categoryTitle, totalAmount, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
+                    loadBreakdownData(
+                        BreakdownItem.Category.OWE,
+                        categoryTitle,
+                        totalAmount,
+                        adapter,
+                        recyclerView,
+                        emptyStateLayout,
+                        emptyStateText,
+                        progressBar
+                    )
                 } else if (v.getId() == R.id.tabDebt) {
-                    loadBreakdownData(BreakdownItem.Category.DEBT, categoryTitle, totalAmount, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
+                    loadBreakdownData(
+                        BreakdownItem.Category.DEBT,
+                        categoryTitle,
+                        totalAmount,
+                        adapter,
+                        recyclerView,
+                        emptyStateLayout,
+                        emptyStateText,
+                        progressBar
+                    )
                 }
             }
-        };
+        }
 
-        tabBalance.setOnClickListener(tabClickListener);
-        tabUnpaid.setOnClickListener(tabClickListener);
-        tabOwe.setOnClickListener(tabClickListener);
-        tabDebt.setOnClickListener(tabClickListener);
+        tabBalance.setOnClickListener(tabClickListener)
+        tabUnpaid.setOnClickListener(tabClickListener)
+        tabOwe.setOnClickListener(tabClickListener)
+        tabDebt.setOnClickListener(tabClickListener)
 
         // Load Balance data by default
-        loadBreakdownData(BreakdownItem.Category.BALANCE, categoryTitle, totalAmount, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
+        loadBreakdownData(
+            BreakdownItem.Category.BALANCE,
+            categoryTitle,
+            totalAmount,
+            adapter,
+            recyclerView,
+            emptyStateLayout,
+            emptyStateText,
+            progressBar
+        )
 
-        breakdownDialog.show();
+        breakdownDialog.show()
     }
 
-    private void loadBreakdownData(BreakdownItem.Category category, TextView categoryTitle, TextView totalAmount,
-                                   BreakdownAdapter adapter, RecyclerView recyclerView, View emptyStateLayout,
-                                   TextView emptyStateText, View progressBar) {
+    private fun loadBreakdownData(
+        category: BreakdownItem.Category, categoryTitle: TextView, totalAmount: TextView,
+        adapter: BreakdownAdapter, recyclerView: RecyclerView, emptyStateLayout: View,
+        emptyStateText: TextView, progressBar: View
+    ) {
         // Show loading
-        progressBar.setVisibility(View.VISIBLE);
-        recyclerView.setVisibility(View.GONE);
-        emptyStateLayout.setVisibility(View.GONE);
+        progressBar.setVisibility(View.VISIBLE)
+        recyclerView.setVisibility(View.GONE)
+        emptyStateLayout.setVisibility(View.GONE)
 
-        ArrayList<BreakdownItem> items = new ArrayList<>();
+        val items: ArrayList<BreakdownItem?> = ArrayList<BreakdownItem?>()
 
-        switch (category) {
-            case BALANCE:
-                categoryTitle.setText("Total Balance");
-                totalAmount.setText(CurrencyUtils.formatAmountWithCurrency(balance));
-                loadBalanceBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
-                break;
-            case UNPAID:
-                categoryTitle.setText("Total Unpaid");
-                totalAmount.setText(CurrencyUtils.formatAmountWithCurrency(unpaid));
-                loadUnpaidBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
-                break;
-            case OWE:
-                categoryTitle.setText("Total Owed");
-                totalAmount.setText(CurrencyUtils.formatAmountWithCurrency(currentOwe));
-                loadOweBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
-                break;
-            case DEBT:
-                categoryTitle.setText("Total Debt");
-                totalAmount.setText(CurrencyUtils.formatAmountWithCurrency(currentDebt));
-                loadDebtBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar);
-                break;
+        when (category) {
+            BreakdownItem.Category.BALANCE -> {
+                categoryTitle.setText("Total Balance")
+                totalAmount.setText(CurrencyUtils.formatAmountWithCurrency(balance.toDouble()))
+                loadBalanceBreakdown(
+                    items,
+                    adapter,
+                    recyclerView,
+                    emptyStateLayout,
+                    emptyStateText,
+                    progressBar
+                )
+            }
+
+            BreakdownItem.Category.UNPAID -> {
+                categoryTitle.setText("Total Unpaid")
+                totalAmount.setText(CurrencyUtils.formatAmountWithCurrency(unpaid.toDouble()))
+                loadUnpaidBreakdown(
+                    items,
+                    adapter,
+                    recyclerView,
+                    emptyStateLayout,
+                    emptyStateText,
+                    progressBar
+                )
+            }
+
+            BreakdownItem.Category.OWE -> {
+                categoryTitle.setText("Total Owed")
+                totalAmount.setText(CurrencyUtils.formatAmountWithCurrency(currentOwe.toDouble()))
+                loadOweBreakdown(
+                    items,
+                    adapter,
+                    recyclerView,
+                    emptyStateLayout,
+                    emptyStateText,
+                    progressBar
+                )
+            }
+
+            BreakdownItem.Category.DEBT -> {
+                categoryTitle.setText("Total Debt")
+                totalAmount.setText(CurrencyUtils.formatAmountWithCurrency(currentDebt.toDouble()))
+                loadDebtBreakdown(
+                    items,
+                    adapter,
+                    recyclerView,
+                    emptyStateLayout,
+                    emptyStateText,
+                    progressBar
+                )
+            }
         }
     }
 
-    private void loadBalanceBreakdown(ArrayList<BreakdownItem> items, BreakdownAdapter adapter,
-                                       RecyclerView recyclerView, View emptyStateLayout,
-                                       TextView emptyStateText, View progressBar) {
-        DatabaseReference transRef = DeclareDatabase.getDBRefTransaction();
+    private fun loadBalanceBreakdown(
+        items: ArrayList<BreakdownItem?>, adapter: BreakdownAdapter,
+        recyclerView: RecyclerView, emptyStateLayout: View,
+        emptyStateText: TextView, progressBar: View
+    ) {
+        val transRef: DatabaseReference = DeclareDatabase.getDBRefTransaction()
 
-        transRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                items.clear();
-                int tempI = 0, tempE = 1, tempO = 0;
+        transRef.addListenerForSingleValueEvent(object : ValueEventListener() {
+            public override fun onDataChange(dataSnapshot: DataSnapshot) {
+                items.clear()
+                val tempI = 0
+                val tempE = 1
+                val tempO = 0
 
-                for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
-                    String monthKey = monthSnapshot.getKey(); // e.g., "January-2024"
-                    for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
-                        String dayKey = daySnapshot.getKey(); // e.g., "15"
-                        String dateStr = (dayKey != null && monthKey != null) ? monthKey + " " + dayKey : "Unknown Date";
+                for (monthSnapshot in dataSnapshot.getChildren()) {
+                    val monthKey: String? = monthSnapshot.getKey() // e.g., "January-2024"
+                    for (daySnapshot in monthSnapshot.getChildren()) {
+                        val dayKey: String? = daySnapshot.getKey() // e.g., "15"
+                        val dateStr =
+                            if (dayKey != null && monthKey != null) monthKey + " " + dayKey else "Unknown Date"
 
-                        for (DataSnapshot timeSnapshot : daySnapshot.getChildren()) {
-                            Transaction transaction = timeSnapshot.getValue(Transaction.class);
+                        for (timeSnapshot in daySnapshot.getChildren()) {
+                            val transaction: Transaction? =
+                                timeSnapshot.getValue(Transaction::class.java)
                             if (transaction != null) {
-                                double individualPayment = transaction.getTotalIndividualPayment();
-                                double userPayment = 0;
+                                val individualPayment = transaction.getTotalIndividualPayment()
+                                var userPayment = 0.0
 
                                 // Find user's position in payors list
-                                DataSnapshot payorsSnapshot = timeSnapshot.child("payorsList");
-                                int userIndex = -1;
-                                int index = 0;
-                                for (DataSnapshot payorSnapshot : payorsSnapshot.getChildren()) {
-                                    String payorUsername = payorSnapshot.getValue(String.class);
-                                    if (payorUsername != null && payorUsername.equals(currentNickname)) {
-                                        userIndex = index;
-                                        break;
+                                val payorsSnapshot: DataSnapshot = timeSnapshot.child("payorsList")
+                                var userIndex = -1
+                                var index = 0
+                                for (payorSnapshot in payorsSnapshot.getChildren()) {
+                                    val payorUsername: String? =
+                                        payorSnapshot.getValue(String::class.java)
+                                    if (payorUsername != null && payorUsername == currentNickname) {
+                                        userIndex = index
+                                        break
                                     }
-                                    index++;
+                                    index++
                                 }
 
                                 // Get user's payment amount
                                 if (userIndex >= 0) {
-                                    DataSnapshot amountsSnapshot = timeSnapshot.child("amountsPaidList");
-                                    index = 0;
-                                    for (DataSnapshot amountSnapshot : amountsSnapshot.getChildren()) {
+                                    val amountsSnapshot: DataSnapshot =
+                                        timeSnapshot.child("amountsPaidList")
+                                    index = 0
+                                    for (amountSnapshot in amountsSnapshot.getChildren()) {
                                         if (index == userIndex) {
-                                            Integer amount = amountSnapshot.getValue(Integer.class);
+                                            val amount: Int? =
+                                                amountSnapshot.getValue(Int::class.java)
                                             if (amount != null) {
-                                                userPayment = amount;
+                                                userPayment = amount.toDouble()
                                             }
-                                            break;
+                                            break
                                         }
-                                        index++;
+                                        index++
                                     }
 
                                     // Calculate balance for this transaction
-                                    double transactionBalance = userPayment - individualPayment;
+                                    val transactionBalance = userPayment - individualPayment
                                     if (transactionBalance > 0) {
-                                        String description = transaction.getTransactionType() != null ? transaction.getTransactionType() : "";
+                                        val description =
+                                            if (transaction.getTransactionType() != null) transaction.getTransactionType() else ""
 
-                                        BreakdownItem item = new BreakdownItem(
-                                                BreakdownItem.Category.BALANCE,
-                                                dateStr,
-                                                "Transaction",
-                                                transactionBalance,
-                                                "Completed",
-                                                description
-                                        );
-                                        items.add(item);
+                                        val item: BreakdownItem = BreakdownItem(
+                                            BreakdownItem.Category.BALANCE,
+                                            dateStr,
+                                            "Transaction",
+                                            transactionBalance,
+                                            "Completed",
+                                            description
+                                        )
+                                        items.add(item)
                                     }
                                 }
                             }
@@ -1151,82 +1283,96 @@ public class ProfileFragment extends Fragment {
                     }
                 }
 
-                updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No balance transactions found");
+                updateBreakdownUI(
+                    items,
+                    adapter,
+                    recyclerView,
+                    emptyStateLayout,
+                    emptyStateText,
+                    progressBar,
+                    "No balance transactions found"
+                )
             }
 
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                progressBar.setVisibility(View.GONE);
-                emptyStateLayout.setVisibility(View.VISIBLE);
-                emptyStateText.setText("Error loading data");
+            public override fun onCancelled(databaseError: DatabaseError) {
+                progressBar.setVisibility(View.GONE)
+                emptyStateLayout.setVisibility(View.VISIBLE)
+                emptyStateText.setText("Error loading data")
             }
-        });
+        })
     }
 
-    private void loadUnpaidBreakdown(ArrayList<BreakdownItem> items, BreakdownAdapter adapter,
-                                      RecyclerView recyclerView, View emptyStateLayout,
-                                      TextView emptyStateText, View progressBar) {
-        DatabaseReference transRef = DeclareDatabase.getDBRefTransaction();
+    private fun loadUnpaidBreakdown(
+        items: ArrayList<BreakdownItem?>, adapter: BreakdownAdapter,
+        recyclerView: RecyclerView, emptyStateLayout: View,
+        emptyStateText: TextView, progressBar: View
+    ) {
+        val transRef: DatabaseReference = DeclareDatabase.getDBRefTransaction()
 
-        transRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                items.clear();
+        transRef.addListenerForSingleValueEvent(object : ValueEventListener() {
+            public override fun onDataChange(dataSnapshot: DataSnapshot) {
+                items.clear()
 
-                for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
-                    String monthKey = monthSnapshot.getKey(); // e.g., "January-2024"
-                    for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
-                        String dayKey = daySnapshot.getKey(); // e.g., "15"
-                        String dateStr = (dayKey != null && monthKey != null) ? monthKey + " " + dayKey : "Unknown Date";
+                for (monthSnapshot in dataSnapshot.getChildren()) {
+                    val monthKey: String? = monthSnapshot.getKey() // e.g., "January-2024"
+                    for (daySnapshot in monthSnapshot.getChildren()) {
+                        val dayKey: String? = daySnapshot.getKey() // e.g., "15"
+                        val dateStr =
+                            if (dayKey != null && monthKey != null) monthKey + " " + dayKey else "Unknown Date"
 
-                        for (DataSnapshot timeSnapshot : daySnapshot.getChildren()) {
-                            Transaction transaction = timeSnapshot.getValue(Transaction.class);
+                        for (timeSnapshot in daySnapshot.getChildren()) {
+                            val transaction: Transaction? =
+                                timeSnapshot.getValue(Transaction::class.java)
                             if (transaction != null) {
-                                double individualPayment = transaction.getTotalIndividualPayment();
+                                val individualPayment = transaction.getTotalIndividualPayment()
 
                                 // Find user's position in payors list
-                                DataSnapshot payorsSnapshot = timeSnapshot.child("payorsList");
-                                int userIndex = -1;
-                                int index = 0;
-                                for (DataSnapshot payorSnapshot : payorsSnapshot.getChildren()) {
-                                    String payorUsername = payorSnapshot.getValue(String.class);
-                                    if (payorUsername != null && payorUsername.equals(currentNickname)) {
-                                        userIndex = index;
-                                        break;
+                                val payorsSnapshot: DataSnapshot = timeSnapshot.child("payorsList")
+                                var userIndex = -1
+                                var index = 0
+                                for (payorSnapshot in payorsSnapshot.getChildren()) {
+                                    val payorUsername: String? =
+                                        payorSnapshot.getValue(String::class.java)
+                                    if (payorUsername != null && payorUsername == currentNickname) {
+                                        userIndex = index
+                                        break
                                     }
-                                    index++;
+                                    index++
                                 }
 
                                 // Get user's payment amount
                                 if (userIndex >= 0) {
-                                    DataSnapshot amountsSnapshot = timeSnapshot.child("amountsPaidList");
-                                    index = 0;
-                                    int userPayment = 0;
-                                    for (DataSnapshot amountSnapshot : amountsSnapshot.getChildren()) {
+                                    val amountsSnapshot: DataSnapshot =
+                                        timeSnapshot.child("amountsPaidList")
+                                    index = 0
+                                    var userPayment = 0
+                                    for (amountSnapshot in amountsSnapshot.getChildren()) {
                                         if (index == userIndex) {
-                                            Integer amount = amountSnapshot.getValue(Integer.class);
+                                            val amount: Int? =
+                                                amountSnapshot.getValue(Int::class.java)
                                             if (amount != null) {
-                                                userPayment = amount;
+                                                userPayment = amount
                                             }
-                                            break;
+                                            break
                                         }
-                                        index++;
+                                        index++
                                     }
 
                                     // Calculate unpaid for this transaction
-                                    double transactionUnpaid = individualPayment - userPayment;
+                                    val transactionUnpaid = individualPayment - userPayment
                                     if (transactionUnpaid > 0) {
-                                        String description = transaction.getTransactionType() != null ? transaction.getTransactionType() : "";
+                                        val description =
+                                            if (transaction.getTransactionType() != null) transaction.getTransactionType() else ""
 
-                                        BreakdownItem item = new BreakdownItem(
-                                                BreakdownItem.Category.UNPAID,
-                                                dateStr,
-                                                "Transaction",
-                                                transactionUnpaid,
-                                                "Pending",
-                                                description
-                                        );
-                                        items.add(item);
+                                        val item: BreakdownItem = BreakdownItem(
+                                            BreakdownItem.Category.UNPAID,
+                                            dateStr,
+                                            "Transaction",
+                                            transactionUnpaid,
+                                            "Pending",
+                                            description
+                                        )
+                                        items.add(item)
                                     }
                                 }
                             }
@@ -1234,49 +1380,62 @@ public class ProfileFragment extends Fragment {
                     }
                 }
 
-                updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No unpaid transactions found");
+                updateBreakdownUI(
+                    items,
+                    adapter,
+                    recyclerView,
+                    emptyStateLayout,
+                    emptyStateText,
+                    progressBar,
+                    "No unpaid transactions found"
+                )
             }
 
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                progressBar.setVisibility(View.GONE);
-                emptyStateLayout.setVisibility(View.VISIBLE);
-                emptyStateText.setText("Error loading data");
+            public override fun onCancelled(databaseError: DatabaseError) {
+                progressBar.setVisibility(View.GONE)
+                emptyStateLayout.setVisibility(View.VISIBLE)
+                emptyStateText.setText("Error loading data")
             }
-        });
+        })
     }
 
-    private void loadOweBreakdown(ArrayList<BreakdownItem> items, BreakdownAdapter adapter,
-                                   RecyclerView recyclerView, View emptyStateLayout,
-                                   TextView emptyStateText, View progressBar) {
-        DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
+    private fun loadOweBreakdown(
+        items: ArrayList<BreakdownItem?>, adapter: BreakdownAdapter,
+        recyclerView: RecyclerView, emptyStateLayout: View,
+        emptyStateText: TextView, progressBar: View
+    ) {
+        val databaseReference: DatabaseReference = DeclareDatabase.getDBRefBorrows()
 
-        databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                items.clear();
+        databaseReference.addListenerForSingleValueEvent(object : ValueEventListener() {
+            public override fun onDataChange(dataSnapshot: DataSnapshot) {
+                items.clear()
 
-                for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
-                    for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
-                        for (DataSnapshot currentUserRef : daySnapshot.getChildren()) {
-                            for (DataSnapshot timeSnapshot : currentUserRef.getChildren()) {
-                                BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
+                for (monthSnapshot in dataSnapshot.getChildren()) {
+                    for (daySnapshot in monthSnapshot.getChildren()) {
+                        for (currentUserRef in daySnapshot.getChildren()) {
+                            for (timeSnapshot in currentUserRef.getChildren()) {
+                                val borrowTransaction: BorrowTransaction? =
+                                    timeSnapshot.getValue(BorrowTransaction::class.java)
                                 if (borrowTransaction != null) {
-                                    String borrowee = borrowTransaction.getBorrowee();
-                                    if (Objects.equals(currentNickname, borrowee)) {
-                                        double borrowedAmount = Double.parseDouble(borrowTransaction.getBorrowedAmountStr());
-                                        String date = borrowTransaction.getDate() != null ? borrowTransaction.getDate() : "Unknown Date";
-                                        String borrower = currentUserRef.getKey() != null ? currentUserRef.getKey() : "Unknown";
-                                        String status = borrowTransaction.getStatus() != null ? borrowTransaction.getStatus() : "Pending";
+                                    val borrowee: String? = borrowTransaction.getBorrowee()
+                                    if (currentNickname == borrowee) {
+                                        val borrowedAmount =
+                                            borrowTransaction.getBorrowedAmountStr().toDouble()
+                                        val date: String? =
+                                            if (borrowTransaction.getDate() != null) borrowTransaction.getDate() else "Unknown Date"
+                                        val borrower: String? =
+                                            if (currentUserRef.getKey() != null) currentUserRef.getKey() else "Unknown"
+                                        val status: String? =
+                                            if (borrowTransaction.getStatus() != null) borrowTransaction.getStatus() else "Pending"
 
-                                        BreakdownItem item = new BreakdownItem(
-                                                BreakdownItem.Category.OWE,
-                                                date,
-                                                "From: " + borrower,
-                                                borrowedAmount,
-                                                status
-                                        );
-                                        items.add(item);
+                                        val item: BreakdownItem = BreakdownItem(
+                                            BreakdownItem.Category.OWE,
+                                            date,
+                                            "From: " + borrower,
+                                            borrowedAmount,
+                                            status
+                                        )
+                                        items.add(item)
                                     }
                                 }
                             }
@@ -1284,49 +1443,62 @@ public class ProfileFragment extends Fragment {
                     }
                 }
 
-                updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No owed amounts found");
+                updateBreakdownUI(
+                    items,
+                    adapter,
+                    recyclerView,
+                    emptyStateLayout,
+                    emptyStateText,
+                    progressBar,
+                    "No owed amounts found"
+                )
             }
 
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                progressBar.setVisibility(View.GONE);
-                emptyStateLayout.setVisibility(View.VISIBLE);
-                emptyStateText.setText("Error loading data");
+            public override fun onCancelled(databaseError: DatabaseError) {
+                progressBar.setVisibility(View.GONE)
+                emptyStateLayout.setVisibility(View.VISIBLE)
+                emptyStateText.setText("Error loading data")
             }
-        });
+        })
     }
 
-    private void loadDebtBreakdown(ArrayList<BreakdownItem> items, BreakdownAdapter adapter,
-                                    RecyclerView recyclerView, View emptyStateLayout,
-                                    TextView emptyStateText, View progressBar) {
-        DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
+    private fun loadDebtBreakdown(
+        items: ArrayList<BreakdownItem?>, adapter: BreakdownAdapter,
+        recyclerView: RecyclerView, emptyStateLayout: View,
+        emptyStateText: TextView, progressBar: View
+    ) {
+        val databaseReference: DatabaseReference = DeclareDatabase.getDBRefBorrows()
 
-        databaseReference.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                items.clear();
+        databaseReference.addListenerForSingleValueEvent(object : ValueEventListener() {
+            public override fun onDataChange(dataSnapshot: DataSnapshot) {
+                items.clear()
 
-                for (DataSnapshot monthSnapshot : dataSnapshot.getChildren()) {
-                    for (DataSnapshot daySnapshot : monthSnapshot.getChildren()) {
-                        for (DataSnapshot currentUserRef : daySnapshot.getChildren()) {
-                            String currentUserStr = currentUserRef.getKey();
-                            if (Objects.equals(currentUserStr, currentNickname)) {
-                                for (DataSnapshot timeSnapshot : currentUserRef.getChildren()) {
-                                    BorrowTransaction borrowTransaction = timeSnapshot.getValue(BorrowTransaction.class);
+                for (monthSnapshot in dataSnapshot.getChildren()) {
+                    for (daySnapshot in monthSnapshot.getChildren()) {
+                        for (currentUserRef in daySnapshot.getChildren()) {
+                            val currentUserStr: String? = currentUserRef.getKey()
+                            if (currentUserStr == currentNickname) {
+                                for (timeSnapshot in currentUserRef.getChildren()) {
+                                    val borrowTransaction: BorrowTransaction? =
+                                        timeSnapshot.getValue(BorrowTransaction::class.java)
                                     if (borrowTransaction != null) {
-                                        double borrowedAmount = Double.parseDouble(borrowTransaction.getBorrowedAmountStr());
-                                        String date = borrowTransaction.getDate() != null ? borrowTransaction.getDate() : "Unknown Date";
-                                        String borrowee = borrowTransaction.getBorrowee() != null ? borrowTransaction.getBorrowee() : "Unknown";
-                                        String status = borrowTransaction.getStatus() != null ? borrowTransaction.getStatus() : "Pending";
+                                        val borrowedAmount =
+                                            borrowTransaction.getBorrowedAmountStr().toDouble()
+                                        val date: String? =
+                                            if (borrowTransaction.getDate() != null) borrowTransaction.getDate() else "Unknown Date"
+                                        val borrowee: String? =
+                                            if (borrowTransaction.getBorrowee() != null) borrowTransaction.getBorrowee() else "Unknown"
+                                        val status: String? =
+                                            if (borrowTransaction.getStatus() != null) borrowTransaction.getStatus() else "Pending"
 
-                                        BreakdownItem item = new BreakdownItem(
-                                                BreakdownItem.Category.DEBT,
-                                                date,
-                                                "To: " + borrowee,
-                                                borrowedAmount,
-                                                status
-                                        );
-                                        items.add(item);
+                                        val item: BreakdownItem = BreakdownItem(
+                                            BreakdownItem.Category.DEBT,
+                                            date,
+                                            "To: " + borrowee,
+                                            borrowedAmount,
+                                            status
+                                        )
+                                        items.add(item)
                                     }
                                 }
                             }
@@ -1334,46 +1506,59 @@ public class ProfileFragment extends Fragment {
                     }
                 }
 
-                updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No debt found");
+                updateBreakdownUI(
+                    items,
+                    adapter,
+                    recyclerView,
+                    emptyStateLayout,
+                    emptyStateText,
+                    progressBar,
+                    "No debt found"
+                )
             }
 
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                progressBar.setVisibility(View.GONE);
-                emptyStateLayout.setVisibility(View.VISIBLE);
-                emptyStateText.setText("Error loading data");
+            public override fun onCancelled(databaseError: DatabaseError) {
+                progressBar.setVisibility(View.GONE)
+                emptyStateLayout.setVisibility(View.VISIBLE)
+                emptyStateText.setText("Error loading data")
             }
-        });
+        })
     }
 
-    private void updateBreakdownUI(ArrayList<BreakdownItem> items, BreakdownAdapter adapter,
-                                    RecyclerView recyclerView, View emptyStateLayout,
-                                    TextView emptyStateText, View progressBar, String emptyMessage) {
-        progressBar.setVisibility(View.GONE);
+    private fun updateBreakdownUI(
+        items: ArrayList<BreakdownItem?>, adapter: BreakdownAdapter,
+        recyclerView: RecyclerView, emptyStateLayout: View,
+        emptyStateText: TextView, progressBar: View, emptyMessage: String?
+    ) {
+        progressBar.setVisibility(View.GONE)
 
         if (items.isEmpty()) {
-            recyclerView.setVisibility(View.GONE);
-            emptyStateLayout.setVisibility(View.VISIBLE);
-            emptyStateText.setText(emptyMessage);
+            recyclerView.setVisibility(View.GONE)
+            emptyStateLayout.setVisibility(View.VISIBLE)
+            emptyStateText.setText(emptyMessage)
         } else {
-            recyclerView.setVisibility(View.VISIBLE);
-            emptyStateLayout.setVisibility(View.GONE);
-            adapter.updateData(items);
+            recyclerView.setVisibility(View.VISIBLE)
+            emptyStateLayout.setVisibility(View.GONE)
+            adapter.updateData(items)
         }
     }
 
-    private void showLoading() {
-        pendingLoads++;
+    private fun showLoading() {
+        pendingLoads++
         if (loadingOverlay_profile != null) {
-            loadingOverlay_profile.setVisibility(View.VISIBLE);
+            loadingOverlay_profile!!.setVisibility(View.VISIBLE)
         }
     }
 
-    private void hideLoading() {
-        pendingLoads = Math.max(0, pendingLoads - 1);
+    private fun hideLoading() {
+        pendingLoads = max(0, pendingLoads - 1)
         if (pendingLoads == 0 && loadingOverlay_profile != null) {
-            loadingOverlay_profile.setVisibility(View.GONE);
+            loadingOverlay_profile!!.setVisibility(View.GONE)
         }
     }
 
+    companion object {
+        private const val REQUEST_IMAGE_CAPTURE = 1
+        private const val REQUEST_IMAGE_PICK = 2
+    }
 }

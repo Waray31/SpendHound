@@ -1,295 +1,336 @@
-package com.waray.spendhound;
+package com.waray.spendhound
 
-import android.annotation.SuppressLint;
-import android.content.Context;
-import android.util.Log;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.Button;
-import android.widget.ImageView;
-import android.widget.TextView;
-import android.widget.Toast;
+import android.content.Context
+import android.util.Log
+import android.view.View
+import android.widget.Button
+import android.widget.ImageView
+import androidx.appcompat.app.AlertDialog
+import com.google.firebase.database.DataSnapshot
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
-import androidx.recyclerview.widget.RecyclerView;
-
-import com.bumptech.glide.Glide;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.Query;
-import com.google.firebase.database.ValueEventListener;
-import com.google.firebase.storage.FirebaseStorage;
-import com.google.firebase.storage.StorageReference;
-
-import java.util.List;
-
-public class PayerListTransactionAdapter extends RecyclerView.Adapter<PayerListTransactionAdapter.ViewHolder> {
-    private List<BorrowerListTransaction> transactionList;
-    private final List<String[]> pathList;
-    private Context context;
-    private OnTransactionStatusUpdatedListener statusUpdatedListener;
-
-    public interface OnTransactionStatusUpdatedListener {
-        void onTransactionStatusUpdated();
+class PayerListTransactionAdapter(
+    private val context: Context?,
+    private val transactionList: MutableList<BorrowerListTransaction>,
+    private val pathList: MutableList<Array<String?>?>,
+    private val statusUpdatedListener: OnTransactionStatusUpdatedListener?,
+    confirmAllPayerBtn: Button,
+    denyAllPayerBtn: Button
+) : RecyclerView.Adapter<PayerListTransactionAdapter.ViewHolder?>() {
+    interface OnTransactionStatusUpdatedListener {
+        fun onTransactionStatusUpdated()
     }
 
-    public PayerListTransactionAdapter(Context context, List<BorrowerListTransaction> transactionList, List<String[]> pathList, OnTransactionStatusUpdatedListener statusUpdatedListener, Button confirmAllPayerBtn, Button denyAllPayerBtn) {
-        this.context = context;
-        this.transactionList = transactionList;
-        this.pathList = pathList;
-        this.statusUpdatedListener = statusUpdatedListener;
-
-        confirmAllPayerBtn.setOnClickListener(v -> handleAllTransactions("Confirm"));
-        denyAllPayerBtn.setOnClickListener(v -> handleAllTransactions("Deny"));
+    init {
+        confirmAllPayerBtn.setOnClickListener(View.OnClickListener { v: View? ->
+            handleAllTransactions(
+                "Confirm"
+            )
+        })
+        denyAllPayerBtn.setOnClickListener(View.OnClickListener { v: View? ->
+            handleAllTransactions(
+                "Deny"
+            )
+        })
     }
 
-    public BorrowerListTransaction getBorrowerListTransaction(int position) {
-        return transactionList.get(position);
+    fun getBorrowerListTransaction(position: Int): BorrowerListTransaction? {
+        return transactionList.get(position)
     }
 
-    @NonNull
-    @Override
-    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View itemView = LayoutInflater.from(context).inflate(R.layout.payer_row_layout, parent, false);
-        return new ViewHolder(itemView);
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val itemView: View =
+            LayoutInflater.from(context).inflate(R.layout.payer_row_layout, parent, false)
+        return ViewHolder(itemView)
     }
 
-    @Override
-    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        BorrowerListTransaction transaction = transactionList.get(position);
-        holder.hoursAgoTV.setText(transaction.getDate());
-        holder.payerNameTV.setText(transaction.getBorrowee());
-        holder.amountPaidTV.setText(CurrencyUtils.formatAmountWithCurrency(transaction.getBorrowedAmountStr()));
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val transaction = transactionList.get(position)
+        holder.hoursAgoTV.setText(transaction.getDate())
+        holder.payerNameTV.setText(transaction.getBorrowee())
+        holder.amountPaidTV.setText(CurrencyUtils.formatAmountWithCurrency(transaction.getBorrowedAmountStr()))
 
         // Set a placeholder image and a tag for the ImageView
-        holder.payerImg.setImageResource(R.drawable.placeholder_profile_image);
-        holder.payerImg.setTag(transaction.getBorrowee());
+        holder.payerImg.setImageResource(R.drawable.placeholder_profile_image)
+        holder.payerImg.setTag(transaction.getBorrowee())
 
         // Load the profile image asynchronously
-        setProfileImage(holder.payerImg, transaction.getBorrowee());
+        setProfileImage(holder.payerImg, transaction.getBorrowee())
 
-        holder.confirmPayerBtn.setOnClickListener(v -> showConfirmationDialog("Confirm", transaction, pathList.get(position), position));
-        holder.denyPayerBtn.setOnClickListener(v -> showConfirmationDialog("Deny", transaction, pathList.get(position), position));
+        holder.confirmPayerBtn.setOnClickListener(View.OnClickListener { v: View? ->
+            showConfirmationDialog(
+                "Confirm",
+                transaction,
+                pathList.get(position)!!,
+                position
+            )
+        })
+        holder.denyPayerBtn.setOnClickListener(View.OnClickListener { v: View? ->
+            showConfirmationDialog(
+                "Deny",
+                transaction,
+                pathList.get(position)!!,
+                position
+            )
+        })
     }
 
-    @Override
-    public int getItemCount() {
-        return transactionList.size();
-    }
+    val itemCount: Int
+        get() = transactionList.size
 
-    private void showConfirmationDialog(String action, BorrowerListTransaction transaction, String[] path, int position) {
-        LayoutInflater inflater = LayoutInflater.from(context);
-        View dialogView = inflater.inflate(R.layout.dialog_borrowerlistconfirmation, null);
+    private fun showConfirmationDialog(
+        action: String?,
+        transaction: BorrowerListTransaction,
+        path: Array<String?>,
+        position: Int
+    ) {
+        val inflater: LayoutInflater = LayoutInflater.from(context)
+        val dialogView: View = inflater.inflate(R.layout.dialog_borrowerlistconfirmation, null)
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setView(dialogView);
+        val builder = AlertDialog.Builder(context!!)
+        builder.setView(dialogView)
 
-        TextView confirmAction = dialogView.findViewById(R.id.confirmAction);
-        Button payNowConfirmBtn = dialogView.findViewById(R.id.payNowConfirmBtn);
-        Button closeButton = dialogView.findViewById(R.id.closeButton);
+        val confirmAction: TextView = dialogView.findViewById<TextView>(R.id.confirmAction)
+        val payNowConfirmBtn = dialogView.findViewById<Button>(R.id.payNowConfirmBtn)
+        val closeButton = dialogView.findViewById<Button>(R.id.closeButton)
 
-        confirmAction.setText(action);
+        confirmAction.setText(action)
 
-        AlertDialog dialog = builder.create();
+        val dialog = builder.create()
 
-        payNowConfirmBtn.setOnClickListener(v -> {
-            if ("Confirm".equalsIgnoreCase(action)) {
-                updateTransactionStatus(transaction, path, position, "Paid");
-            } else if ("Deny".equalsIgnoreCase(action)) {
-                updateTransactionStatus(transaction, path, position, "Payment Denied");
+        payNowConfirmBtn.setOnClickListener(View.OnClickListener { v: View? ->
+            if ("Confirm".equals(action, ignoreCase = true)) {
+                updateTransactionStatus(transaction, path, position, "Paid")
+            } else if ("Deny".equals(action, ignoreCase = true)) {
+                updateTransactionStatus(transaction, path, position, "Payment Denied")
             }
-            dialog.dismiss();
-        });
+            dialog.dismiss()
+        })
 
-        closeButton.setOnClickListener(v -> dialog.dismiss());
+        closeButton.setOnClickListener(View.OnClickListener { v: View? -> dialog.dismiss() })
 
-        dialog.show();
+        dialog.show()
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    private void updateTransactionStatus(BorrowerListTransaction transaction, String[] path, int position, String status) {
-        DatabaseReference borrowRef = FirebaseDatabase.getInstance().getReference("borrows")
-                .child(path[0]).child(path[1]).child(path[2]).child(path[3]);
+    private fun updateTransactionStatus(
+        transaction: BorrowerListTransaction,
+        path: Array<String?>,
+        position: Int,
+        status: String?
+    ) {
+        val borrowRef: DatabaseReference = FirebaseDatabase.getInstance().getReference("borrows")
+            .child(path[0]).child(path[1]).child(path[2]).child(path[3])
 
         // If status is being changed to "Paid", decrement balance fields
-        if ("Paid".equals(status)) {
-            borrowRef.addListenerForSingleValueEvent(new com.google.firebase.database.ValueEventListener() {
-                @Override
-                public void onDataChange(@NonNull com.google.firebase.database.DataSnapshot dataSnapshot) {
-                    BorrowNowTransaction borrow = dataSnapshot.getValue(BorrowNowTransaction.class);
-                    if (borrow != null && !("Paid".equals(borrow.getStatus()))) {
+        if ("Paid" == status) {
+            borrowRef.addListenerForSingleValueEvent(object : ValueEventListener() {
+                public override fun onDataChange(dataSnapshot: com.google.firebase.database.DataSnapshot) {
+                    val borrow: BorrowNowTransaction? =
+                        dataSnapshot.getValue(BorrowNowTransaction::class.java)
+                    if (borrow != null && !("Paid" == borrow.getStatus())) {
                         // Only decrement if it wasn't already paid
                         try {
-                            int amount = Integer.parseInt(borrow.getBorrowedAmountStr());
-                            String borrowerID = borrow.getBorrowerID();
-                            String lenderID = borrow.getLenderID();
+                            val amount = borrow.getBorrowedAmountStr().toInt()
+                            val borrowerID = borrow.getBorrowerID()
+                            val lenderID = borrow.getLenderID()
 
                             // Decrement balances (negative amount to subtract)
                             if (borrowerID != null) {
-                                BalanceHelper.updateTotaldebt(borrowerID, -amount, null);
+                                BalanceHelper.updateTotaldebt(borrowerID, -amount, null)
                             }
                             if (lenderID != null) {
-                                BalanceHelper.updateTotalreceivable(lenderID, -amount, null);
+                                BalanceHelper.updateTotalreceivable(lenderID, -amount, null)
                             }
-                        } catch (NumberFormatException e) {
-                            Log.e("PayerListTransactionAdapter", "Error parsing borrow amount: " + e.getMessage());
+                        } catch (e: NumberFormatException) {
+                            Log.e(
+                                "PayerListTransactionAdapter",
+                                "Error parsing borrow amount: " + e.message
+                            )
                         }
                     }
 
                     // Update status
-                    transaction.setStatus(status);
+                    transaction.setStatus(status)
                     borrowRef.child("status").setValue(status)
-                            .addOnSuccessListener(aVoid -> {
-                                transactionList.set(position, transaction);
-                                notifyDataSetChanged();
-                                if (statusUpdatedListener != null) {
-                                    statusUpdatedListener.onTransactionStatusUpdated();
-                                }
-                            })
-                            .addOnFailureListener(e -> Toast.makeText(context, "Failed to update status: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                        .addOnSuccessListener({ aVoid ->
+                            transactionList.set(position, transaction)
+                            notifyDataSetChanged()
+                            if (statusUpdatedListener != null) {
+                                statusUpdatedListener.onTransactionStatusUpdated()
+                            }
+                        })
+                        .addOnFailureListener({ e ->
+                            Toast.makeText(
+                                context,
+                                "Failed to update status: " + e.getMessage(),
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        })
                 }
 
-                @Override
-                public void onCancelled(@NonNull com.google.firebase.database.DatabaseError error) {
-                    Log.e("PayerListTransactionAdapter", "Failed to read borrow data: " + error.getMessage());
-                    Toast.makeText(context, "Failed to update status", Toast.LENGTH_SHORT).show();
+                public override fun onCancelled(error: com.google.firebase.database.DatabaseError) {
+                    Log.e(
+                        "PayerListTransactionAdapter",
+                        "Failed to read borrow data: " + error.getMessage()
+                    )
+                    Toast.makeText(context, "Failed to update status", Toast.LENGTH_SHORT).show()
                 }
-            });
+            })
         } else {
             // If not changing to "Paid", just update the status
-            transaction.setStatus(status);
+            transaction.setStatus(status)
             borrowRef.child("status").setValue(status)
-                    .addOnSuccessListener(aVoid -> {
-                        transactionList.set(position, transaction);
-                        notifyDataSetChanged();
-                        if (statusUpdatedListener != null) {
-                            statusUpdatedListener.onTransactionStatusUpdated();
-                        }
-                    })
-                    .addOnFailureListener(e -> Toast.makeText(context, "Failed to update status: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                .addOnSuccessListener({ aVoid ->
+                    transactionList.set(position, transaction)
+                    notifyDataSetChanged()
+                    if (statusUpdatedListener != null) {
+                        statusUpdatedListener.onTransactionStatusUpdated()
+                    }
+                })
+                .addOnFailureListener({ e ->
+                    Toast.makeText(
+                        context,
+                        "Failed to update status: " + e.getMessage(),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                })
         }
     }
 
-    public static class ViewHolder extends RecyclerView.ViewHolder {
-        public ImageView payerImg;
-        public TextView hoursAgoTV;
-        public TextView payerNameTV;
-        public TextView amountPaidTV;
-        public Button confirmPayerBtn, denyPayerBtn;
+    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        var payerImg: ImageView
+        var hoursAgoTV: TextView
+        var payerNameTV: TextView
+        var amountPaidTV: TextView
+        var confirmPayerBtn: Button
+        var denyPayerBtn: Button
 
-        public ViewHolder(View itemView) {
-            super(itemView);
-            payerImg = itemView.findViewById(R.id.payerImg);
-            hoursAgoTV = itemView.findViewById(R.id.hoursAgoTV);
-            payerNameTV = itemView.findViewById(R.id.payerNameTV);
-            amountPaidTV = itemView.findViewById(R.id.amountPaidTV);
-            confirmPayerBtn = itemView.findViewById(R.id.confirmPayerBtn);
-            denyPayerBtn = itemView.findViewById(R.id.denyPayerBtn);
+        init {
+            payerImg = itemView.findViewById<ImageView>(R.id.payerImg)
+            hoursAgoTV = itemView.findViewById<TextView>(R.id.hoursAgoTV)
+            payerNameTV = itemView.findViewById<TextView>(R.id.payerNameTV)
+            amountPaidTV = itemView.findViewById<TextView>(R.id.amountPaidTV)
+            confirmPayerBtn = itemView.findViewById<Button>(R.id.confirmPayerBtn)
+            denyPayerBtn = itemView.findViewById<Button>(R.id.denyPayerBtn)
         }
     }
 
-    private void handleAllTransactions(String action) {
-        showAllConfirmationDialog(action);
+    private fun handleAllTransactions(action: String) {
+        showAllConfirmationDialog(action)
     }
 
-    private void showAllConfirmationDialog(String action) {
-        LayoutInflater inflater = LayoutInflater.from(context);
-        View dialogView = inflater.inflate(R.layout.dialog_borrowerlistconfirmation, null);
+    private fun showAllConfirmationDialog(action: String) {
+        val inflater: LayoutInflater = LayoutInflater.from(context)
+        val dialogView: View = inflater.inflate(R.layout.dialog_borrowerlistconfirmation, null)
 
-        AlertDialog.Builder builder = new AlertDialog.Builder(context);
-        builder.setView(dialogView);
+        val builder = AlertDialog.Builder(context!!)
+        builder.setView(dialogView)
 
-        TextView confirmAction = dialogView.findViewById(R.id.confirmAction);
-        Button payNowConfirmBtn = dialogView.findViewById(R.id.payNowConfirmBtn);
-        Button closeButton = dialogView.findViewById(R.id.closeButton);
+        val confirmAction: TextView = dialogView.findViewById<TextView>(R.id.confirmAction)
+        val payNowConfirmBtn = dialogView.findViewById<Button>(R.id.payNowConfirmBtn)
+        val closeButton = dialogView.findViewById<Button>(R.id.closeButton)
 
-        confirmAction.setText(action);
+        confirmAction.setText(action)
 
-        AlertDialog dialog = builder.create();
+        val dialog = builder.create()
 
-        payNowConfirmBtn.setOnClickListener(v -> {
-            updateAllTransactionStatus(action.equals("Confirm") ? "Paid" : "Payment Denied");
-            dialog.dismiss();
-        });
+        payNowConfirmBtn.setOnClickListener(View.OnClickListener { v: View? ->
+            updateAllTransactionStatus(if (action == "Confirm") "Paid" else "Payment Denied")
+            dialog.dismiss()
+        })
 
-        closeButton.setOnClickListener(v -> dialog.dismiss());
+        closeButton.setOnClickListener(View.OnClickListener { v: View? -> dialog.dismiss() })
 
-        dialog.show();
+        dialog.show()
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    private void updateAllTransactionStatus(String status) {
-        for (int i = 0; i < transactionList.size(); i++) {
-            BorrowerListTransaction transaction = transactionList.get(i);
-            String[] path = pathList.get(i);
-            final int index = i;
-            DatabaseReference userRef = FirebaseDatabase.getInstance().getReference("borrows")
-                    .child(path[0]).child(path[1]).child(path[2]).child(path[3]);
+    private fun updateAllTransactionStatus(status: String?) {
+        for (i in transactionList.indices) {
+            val transaction = transactionList.get(i)
+            val path = pathList.get(i)!!
+            val index = i
+            val userRef: DatabaseReference = FirebaseDatabase.getInstance().getReference("borrows")
+                .child(path[0]).child(path[1]).child(path[2]).child(path[3])
 
-            transaction.setStatus(status);
+            transaction.setStatus(status)
             userRef.child("status").setValue(status)
-                    .addOnSuccessListener(aVoid -> {
-                        transactionList.set(index, transaction);
-                        if (index == transactionList.size() - 1) {
-                            notifyDataSetChanged();
-                            if (statusUpdatedListener != null) {
-                                statusUpdatedListener.onTransactionStatusUpdated();
-                            }
+                .addOnSuccessListener({ aVoid ->
+                    transactionList.set(index, transaction)
+                    if (index == transactionList.size - 1) {
+                        notifyDataSetChanged()
+                        if (statusUpdatedListener != null) {
+                            statusUpdatedListener.onTransactionStatusUpdated()
                         }
-                    })
-                    .addOnFailureListener(e -> Toast.makeText(context, "Failed to update status: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                    }
+                })
+                .addOnFailureListener({ e ->
+                    Toast.makeText(
+                        context,
+                        "Failed to update status: " + e.getMessage(),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                })
         }
     }
 
-    private void setProfileImage(ImageView imageView, String payerNameTV) {
+    private fun setProfileImage(imageView: ImageView?, payerNameTV: String?) {
         if (imageView == null || payerNameTV == null) {
-            Log.e("PayerListTransactionAdapter", "ImageView or payerNameTV is null.");
-            return;
+            Log.e("PayerListTransactionAdapter", "ImageView or payerNameTV is null.")
+            return
         }
 
-        DatabaseReference usersRef = FirebaseDatabase.getInstance().getReference("users");
-        Query query = usersRef.orderByChild("username").equalTo(payerNameTV);
+        val usersRef: DatabaseReference = FirebaseDatabase.getInstance().getReference("users")
+        val query: Query = usersRef.orderByChild("username").equalTo(payerNameTV)
 
-        query.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
+        query.addListenerForSingleValueEvent(object : ValueEventListener() {
+            public override fun onDataChange(dataSnapshot: DataSnapshot) {
                 if (dataSnapshot.exists()) {
-                    for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
-                        String userId = userSnapshot.getKey(); // Assuming the key is the userId
+                    for (userSnapshot in dataSnapshot.getChildren()) {
+                        val userId: String? =
+                            userSnapshot.getKey() // Assuming the key is the userId
                         if (userId != null) {
-                            StorageReference storageRef = FirebaseStorage.getInstance().getReference("profile_images").child(userId);
-                            storageRef.getDownloadUrl().addOnSuccessListener(uri -> {
+                            val storageRef: StorageReference =
+                                FirebaseStorage.getInstance().getReference("profile_images")
+                                    .child(userId)
+                            storageRef.getDownloadUrl().addOnSuccessListener({ uri ->
                                 // Check if the tag is still valid before loading the image
-                                if (payerNameTV.equals(imageView.getTag()) && context != null) {
-                                    Glide.with(context).load(uri).placeholder(R.drawable.placeholder_profile_image).into(imageView);
+                                if (payerNameTV == imageView.getTag() && context != null) {
+                                    Glide.with(context).load(uri)
+                                        .placeholder(R.drawable.placeholder_profile_image)
+                                        .into(imageView)
                                 }
-                            }).addOnFailureListener(e -> {
-                                Log.e("FirebaseStorage", "Failed to get download URL: " + e.getMessage());
-                                if (payerNameTV.equals(imageView.getTag())) {
-                                    imageView.setImageResource(R.drawable.placeholder_profile_image); // default image
+                            }).addOnFailureListener({ e ->
+                                Log.e(
+                                    "FirebaseStorage",
+                                    "Failed to get download URL: " + e.getMessage()
+                                )
+                                if (payerNameTV == imageView.getTag()) {
+                                    imageView.setImageResource(R.drawable.placeholder_profile_image) // default image
                                 }
-                            });
+                            })
                         }
                     }
                 } else {
-                    Log.e("PayerListTransactionAdapter", "No user found with username: " + payerNameTV);
-                    if (payerNameTV.equals(imageView.getTag())) {
-                        imageView.setImageResource(R.drawable.placeholder_profile_image); // default image
+                    Log.e(
+                        "PayerListTransactionAdapter",
+                        "No user found with username: " + payerNameTV
+                    )
+                    if (payerNameTV == imageView.getTag()) {
+                        imageView.setImageResource(R.drawable.placeholder_profile_image) // default image
                     }
                 }
             }
 
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                Log.e("FirebaseDatabase", "Profile image query cancelled: " + databaseError.getMessage());
-                if (payerNameTV.equals(imageView.getTag())) {
-                    imageView.setImageResource(R.drawable.placeholder_profile_image); // default image
+            public override fun onCancelled(databaseError: DatabaseError) {
+                Log.e(
+                    "FirebaseDatabase",
+                    "Profile image query cancelled: " + databaseError.getMessage()
+                )
+                if (payerNameTV == imageView.getTag()) {
+                    imageView.setImageResource(R.drawable.placeholder_profile_image) // default image
                 }
             }
-        });
+        })
     }
 }

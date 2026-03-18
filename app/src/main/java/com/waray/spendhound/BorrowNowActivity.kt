@@ -1,386 +1,400 @@
-package com.waray.spendhound;
+package com.waray.spendhound
 
-import android.annotation.SuppressLint;
-import android.content.Context;
-import android.os.Bundle;
-import android.util.Log;
-import android.view.MenuItem;
-import android.view.MotionEvent;
-import android.view.View;
-import android.view.inputmethod.InputMethodManager;
-import android.widget.Button;
-import android.widget.EditText;
-import android.widget.TextView;
-import android.widget.Toast;
+import android.content.Context
+import android.util.Log
+import android.view.MenuItem
+import android.view.View
+import android.view.inputmethod.InputMethodManager
+import android.widget.Button
+import com.google.firebase.auth.FirebaseAuth
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
+import java.util.Objects
+import kotlin.math.abs
+import kotlin.math.min
 
-import androidx.annotation.NonNull;
-import androidx.appcompat.app.ActionBar;
-import androidx.appcompat.app.AppCompatActivity;
-import androidx.recyclerview.widget.LinearLayoutManager;
-import androidx.recyclerview.widget.LinearSnapHelper;
-import androidx.recyclerview.widget.RecyclerView;
-import androidx.recyclerview.widget.SnapHelper;
-
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
-
-import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Calendar;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
-
-public class BorrowNowActivity extends AppCompatActivity {
-    private RecyclerView lenderRecyclerView;
-    private TextView date, borrower;
-    public String currentNickname, lender, currentDate, status, borrowedAmountSTR, borrowerID, lenderID;
-    private Integer borrowedAmount = 0;
-    private View dialogProgressBar;
-    private Button borrowBtn, cancelBtn;
-    private DatabaseReference usersRef;
-    private LenderAdapter adapter;
-    private List<User> lenders;
+class BorrowNowActivity : AppCompatActivity() {
+    private var lenderRecyclerView: RecyclerView? = null
+    private var date: TextView? = null
+    private var borrower: TextView? = null
+    var currentNickname: String? = null
+    var lender: String? = null
+    var currentDate: String? = null
+    var status: String? = null
+    var borrowedAmountSTR: String? = null
+    var borrowerID: String? = null
+    var lenderID: String? = null
+    private var borrowedAmount = 0
+    private var dialogProgressBar: View? = null
+    private var borrowBtn: Button? = null
+    private var cancelBtn: Button? = null
+    private var usersRef: DatabaseReference? = null
+    private var adapter: LenderAdapter? = null
+    private var lenders: MutableList<User?>? = null
 
 
     @SuppressLint("MissingInflatedId")
-    @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.dialog_borrow_now);
-        lenderRecyclerView = findViewById(R.id.lenderRecyclerView);
-        date = findViewById(R.id.dialogBorrowDate);
-        borrower = findViewById(R.id.dialogBorrower);
-        dialogProgressBar = findViewById(R.id.dialogProgressBar);
-        borrowBtn = findViewById(R.id.dialogBorrowBtn);
-        cancelBtn = findViewById(R.id.dialogCancelBtn);
-        status = "For Lender Approval";
-        usersRef = FirebaseDatabase.getInstance().getReference("users");
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.dialog_borrow_now)
+        lenderRecyclerView = findViewById<RecyclerView>(R.id.lenderRecyclerView)
+        date = findViewById<TextView>(R.id.dialogBorrowDate)
+        borrower = findViewById<TextView>(R.id.dialogBorrower)
+        dialogProgressBar = findViewById<View?>(R.id.dialogProgressBar)
+        borrowBtn = findViewById<Button>(R.id.dialogBorrowBtn)
+        cancelBtn = findViewById<Button?>(R.id.dialogCancelBtn)
+        status = "For Lender Approval"
+        usersRef = FirebaseDatabase.getInstance().getReference("users")
 
         // Show progress bar initially
         if (dialogProgressBar != null) {
-            dialogProgressBar.setVisibility(View.VISIBLE);
+            dialogProgressBar!!.setVisibility(View.VISIBLE)
         }
 
-        setDate();
-        setupLenderRecyclerView();
-        borrowBtnClicked();
-        
+        setDate()
+        setupLenderRecyclerView()
+        borrowBtnClicked()
+
         if (cancelBtn != null) {
-            cancelBtn.setOnClickListener(v -> finish());
+            cancelBtn!!.setOnClickListener(View.OnClickListener { v: View? -> finish() })
         }
-        
-        exitEditText();
-        loadNickname();
 
-        ActionBar actionBar = getSupportActionBar();
+        exitEditText()
+        loadNickname()
+
+        val actionBar = getSupportActionBar()
         if (actionBar != null) {
-            actionBar.setDisplayHomeAsUpEnabled(true);
+            actionBar.setDisplayHomeAsUpEnabled(true)
         }
     }
 
-    private void setupLenderRecyclerView() {
-        LinearLayoutManager layoutManager = new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false);
-        lenderRecyclerView.setLayoutManager(layoutManager);
-        
-        lenders = new ArrayList<>();
-        adapter = new LenderAdapter(lenders);
-        lenderRecyclerView.setAdapter(adapter);
+    private fun setupLenderRecyclerView() {
+        val layoutManager: LinearLayoutManager =
+            LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
+        lenderRecyclerView.setLayoutManager(layoutManager)
 
-        SnapHelper snapHelper = new LinearSnapHelper();
-        snapHelper.attachToRecyclerView(lenderRecyclerView);
+        lenders = ArrayList<User?>()
+        adapter = LenderAdapter(lenders)
+        lenderRecyclerView.setAdapter(adapter)
 
-        lenderRecyclerView.addOnScrollListener(new RecyclerView.OnScrollListener() {
-            @Override
-            public void onScrolled(@NonNull RecyclerView recyclerView, int dx, int dy) {
-                super.onScrolled(recyclerView, dx, dy);
-                updateLayoutEffect(recyclerView);
+        val snapHelper: SnapHelper = LinearSnapHelper()
+        snapHelper.attachToRecyclerView(lenderRecyclerView)
+
+        lenderRecyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
+            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
+                super.onScrolled(recyclerView, dx, dy)
+                updateLayoutEffect(recyclerView)
             }
 
-            @Override
-            public void onScrollStateChanged(@NonNull RecyclerView recyclerView, int newState) {
-                super.onScrollStateChanged(recyclerView, newState);
+            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
+                super.onScrollStateChanged(recyclerView, newState)
                 if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    View centerView = snapHelper.findSnapView(layoutManager);
+                    val centerView: View? = snapHelper.findSnapView(layoutManager)
                     if (centerView != null) {
-                        int pos = layoutManager.getPosition(centerView);
-                        User selectedLender = adapter.getLenderAt(pos);
+                        val pos: Int = layoutManager.getPosition(centerView)
+                        val selectedLender = adapter!!.getLenderAt(pos)
                         if (selectedLender != null) {
-                            lender = selectedLender.getUsername();
+                            lender = selectedLender.getUsername()
                         }
                     }
                 }
             }
-        });
+        })
 
-        getUsers();
+        this.users
     }
 
-    private void updateLayoutEffect(RecyclerView recyclerView) {
-        float midpoint = recyclerView.getWidth() / 2f;
-        float d0 = 0f;
-        float d1 = 0.9f * midpoint;
-        float s0 = 1.6f; 
-        float s1 = 1.0f;
-        float a0 = 1.0f;
-        float a1 = 0.5f;
+    private fun updateLayoutEffect(recyclerView: RecyclerView) {
+        val midpoint: Float = recyclerView.getWidth() / 2f
+        val d0 = 0f
+        val d1 = 0.9f * midpoint
+        val s0 = 1.6f
+        val s1 = 1.0f
+        val a0 = 1.0f
+        val a1 = 0.5f
 
-        for (int i = 0; i < recyclerView.getChildCount(); i++) {
-            View child = recyclerView.getChildAt(i);
-            float childMidpoint = (recyclerView.getLayoutManager().getDecoratedRight(child) + recyclerView.getLayoutManager().getDecoratedLeft(child)) / 2f;
-            float d = Math.min(d1, Math.abs(midpoint - childMidpoint));
-            float scale = s0 + (s1 - s0) * (d - d0) / (d1 - d0);
-            float alpha = a0 + (a1 - a0) * (d - d0) / (d1 - d0);
-            child.setScaleX(scale);
-            child.setScaleY(scale);
-            child.setAlpha(alpha);
+        for (i in 0..<recyclerView.getChildCount()) {
+            val child: View = recyclerView.getChildAt(i)
+            val childMidpoint: Float = (recyclerView.getLayoutManager()
+                .getDecoratedRight(child) + recyclerView.getLayoutManager()
+                .getDecoratedLeft(child)) / 2f
+            val d = min(d1, abs(midpoint - childMidpoint))
+            val scale = s0 + (s1 - s0) * (d - d0) / (d1 - d0)
+            val alpha = a0 + (a1 - a0) * (d - d0) / (d1 - d0)
+            child.setScaleX(scale)
+            child.setScaleY(scale)
+            child.setAlpha(alpha)
         }
     }
 
-    private void loadNickname() {
-        String currentUserID = Objects.requireNonNull(FirebaseAuth.getInstance().getCurrentUser()).getUid();
-        DatabaseReference usersRef = DeclareDatabase.getDatabaseReference().child(currentUserID);
-        usersRef.child("username").addListenerForSingleValueEvent(new ValueEventListener() {
-            public void onDataChange(DataSnapshot dataSnapshot) {
+    private fun loadNickname() {
+        val currentUserID: String? =
+            Objects.requireNonNull<T?>(FirebaseAuth.getInstance().getCurrentUser()).getUid()
+        val usersRef: DatabaseReference =
+            DeclareDatabase.getDatabaseReference().child(currentUserID)
+        usersRef.child("username").addListenerForSingleValueEvent(object : ValueEventListener() {
+            fun onDataChange(dataSnapshot: DataSnapshot) {
                 if (dataSnapshot.exists()) {
-                    currentNickname = dataSnapshot.getValue(String.class);
-                    borrower.setText(currentNickname);
+                    currentNickname = dataSnapshot.getValue(String::class.java)
+                    borrower.setText(currentNickname)
                 }
             }
-            @Override
-            public void onCancelled(DatabaseError databaseError) {
-                Log.e("FirebaseDatabase", "Database read error: " + databaseError.getMessage());
+
+            public override fun onCancelled(databaseError: DatabaseError) {
+                Log.e("FirebaseDatabase", "Database read error: " + databaseError.getMessage())
             }
-        });
+        })
     }
 
-    public void getUsers() {
-        usersRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                lenders.clear();
-                lenders.add(new User("", "", "", "", new UserBalance()));
-                lenders.add(new User("", "", "", "", new UserBalance()));
+    val users: Unit
+        get() {
+            usersRef.addListenerForSingleValueEvent(object : ValueEventListener() {
+                public override fun onDataChange(dataSnapshot: DataSnapshot) {
+                    lenders!!.clear()
+                    lenders!!.add(User("", "", "", "", UserBalance()))
+                    lenders!!.add(User("", "", "", "", UserBalance()))
 
-                for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
-                    User user = userSnapshot.getValue(User.class);
-                    if (user != null && user.getUsername() != null && !user.getUsername().equals(currentNickname)) {
-                        user.setUid(userSnapshot.getKey());
-                        lenders.add(user);
+                    for (userSnapshot in dataSnapshot.getChildren()) {
+                        val user: User? =
+                            userSnapshot.getValue(User::class.java)
+                        if (user != null && user.getUsername() != null && (user.getUsername() != currentNickname)) {
+                            user.setUid(userSnapshot.getKey())
+                            lenders!!.add(user)
+                        }
+                    }
+
+                    lenders!!.add(User("", "", "", "", UserBalance()))
+                    lenders!!.add(User("", "", "", "", UserBalance()))
+
+                    adapter!!.notifyDataSetChanged()
+
+
+                    // Preload all profile images before hiding progress bar
+                    adapter!!.preloadAllImages(this@BorrowNowActivity, Runnable {
+                        runOnUiThread(Runnable {
+                            if (dialogProgressBar != null) {
+                                dialogProgressBar!!.setVisibility(View.GONE)
+                            }
+                            // Initial selection and layout update
+                            if (lenders!!.size > 2) {
+                                lenderRecyclerView.scrollToPosition(2)
+                                lenderRecyclerView.post(Runnable {
+                                    val firstUser =
+                                        adapter!!.getLenderAt(2)
+                                    if (firstUser != null) {
+                                        lender = firstUser.getUsername()
+                                    }
+                                    updateLayoutEffect(lenderRecyclerView)
+                                })
+                            }
+                        })
+                    })
+                }
+
+                public override fun onCancelled(databaseError: DatabaseError) {
+                    Log.e(
+                        "FirebaseDatabase",
+                        "Database read error: " + databaseError.getMessage()
+                    )
+                    Toast.makeText(
+                        getApplicationContext(),
+                        "Failed to load users",
+                        Toast.LENGTH_LONG
+                    ).show()
+                    if (dialogProgressBar != null) {
+                        dialogProgressBar!!.setVisibility(View.GONE)
                     }
                 }
+            })
+        }
 
-                lenders.add(new User("", "", "", "", new UserBalance()));
-                lenders.add(new User("", "", "", "", new UserBalance()));
-
-                adapter.notifyDataSetChanged();
-                
-                // Preload all profile images before hiding progress bar
-                adapter.preloadAllImages(BorrowNowActivity.this, () -> {
-                    runOnUiThread(() -> {
-                        if (dialogProgressBar != null) {
-                            dialogProgressBar.setVisibility(View.GONE);
-                        }
-                        // Initial selection and layout update
-                        if (lenders.size() > 2) {
-                            lenderRecyclerView.scrollToPosition(2);
-                            lenderRecyclerView.post(() -> {
-                                User firstUser = adapter.getLenderAt(2);
-                                if (firstUser != null) {
-                                    lender = firstUser.getUsername();
-                                }
-                                updateLayoutEffect(lenderRecyclerView);
-                            });
-                        }
-                    });
-                });
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                Log.e("FirebaseDatabase", "Database read error: " + databaseError.getMessage());
-                Toast.makeText(getApplicationContext(), "Failed to load users", Toast.LENGTH_LONG).show();
-                if (dialogProgressBar != null) {
-                    dialogProgressBar.setVisibility(View.GONE);
-                }
-            }
-        });
+    private fun setDate() {
+        val calendar = Calendar.getInstance()
+        val dateFormat = SimpleDateFormat("MMMM-dd-yyyy", Locale.getDefault())
+        currentDate = dateFormat.format(calendar.getTime())
+        date.setText(currentDate)
     }
 
-    private void setDate() {
-        Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("MMMM-dd-yyyy", Locale.getDefault());
-        currentDate = dateFormat.format(calendar.getTime());
-        date.setText(currentDate);
-    }
-
-    public boolean onOptionsItemSelected(MenuItem item) {
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
         if (item.getItemId() == android.R.id.home) {
-            finish();
-            return true;
+            finish()
+            return true
         }
-        return super.onOptionsItemSelected(item);
+        return super.onOptionsItemSelected(item)
     }
 
-    private void addBorrowTransaction() {
-        Calendar calendar = Calendar.getInstance();
-        SimpleDateFormat dateFormat = new SimpleDateFormat("MMMM-yyyy", Locale.getDefault());
-        SimpleDateFormat dayFormat = new SimpleDateFormat("dd", Locale.getDefault());
+    private fun addBorrowTransaction() {
+        val calendar = Calendar.getInstance()
+        val dateFormat = SimpleDateFormat("MMMM-yyyy", Locale.getDefault())
+        val dayFormat = SimpleDateFormat("dd", Locale.getDefault())
 
-        String currentMonthYear = dateFormat.format(calendar.getTime());
-        String currentDay = dayFormat.format(calendar.getTime());
-        long timestamp = System.currentTimeMillis();
+        val currentMonthYear = dateFormat.format(calendar.getTime())
+        val currentDay = dayFormat.format(calendar.getTime())
+        val timestamp = System.currentTimeMillis()
 
-        DatabaseReference databaseReference = DeclareDatabase.getDBRefBorrows();
-        DatabaseReference monthYearRef = databaseReference.child(currentMonthYear);
-        DatabaseReference dayRef = monthYearRef.child(currentDay);
+        val databaseReference: DatabaseReference = DeclareDatabase.getDBRefBorrows()
+        val monthYearRef: DatabaseReference = databaseReference.child(currentMonthYear)
+        val dayRef: DatabaseReference = monthYearRef.child(currentDay)
 
-        String borrowId = dayRef.push().getKey();
+        val borrowId: String? = dayRef.push().getKey()
         if (borrowId == null) {
-            Toast.makeText(BorrowNowActivity.this, "Failed to generate borrow ID", Toast.LENGTH_SHORT).show();
-            if (dialogProgressBar != null) dialogProgressBar.setVisibility(View.GONE);
-            return;
+            Toast.makeText(
+                this@BorrowNowActivity,
+                "Failed to generate borrow ID",
+                Toast.LENGTH_SHORT
+            ).show()
+            if (dialogProgressBar != null) dialogProgressBar!!.setVisibility(View.GONE)
+            return
         }
 
-        DatabaseReference borrowRef = dayRef.child(borrowId);
+        val borrowRef: DatabaseReference = dayRef.child(borrowId)
 
-        FirebaseUser currentUser = FirebaseAuth.getInstance().getCurrentUser();
-        if (currentUser != null && lender != null && !lender.isEmpty()) {
-            borrowerID = currentUser.getUid();
+        val currentUser: FirebaseUser? = FirebaseAuth.getInstance().getCurrentUser()
+        if (currentUser != null && lender != null && !lender!!.isEmpty()) {
+            borrowerID = currentUser.getUid()
 
-            getUserIDByName(lender, new UserIDCallback() {
-                @Override
-                public void onUserIDRetrieved(String getLenderID) {
-                    lenderID = getLenderID;
+            getUserIDByName(lender!!, object : UserIDCallback {
+                override fun onUserIDRetrieved(getLenderID: String?) {
+                    lenderID = getLenderID
 
-                    BorrowNowTransaction borrowNowTransaction = new BorrowNowTransaction(
-                            borrowId,
-                            borrowerID,
-                            lenderID,
-                            currentNickname,
-                            currentDate,
-                            lender,
-                            borrowedAmountSTR,
-                            status,
-                            timestamp
-                    );
+                    val borrowNowTransaction = BorrowNowTransaction(
+                        borrowId,
+                        borrowerID,
+                        lenderID,
+                        currentNickname,
+                        currentDate,
+                        lender,
+                        borrowedAmountSTR,
+                        status,
+                        timestamp
+                    )
 
-                    borrowRef.setValue(borrowNowTransaction).addOnSuccessListener(new OnSuccessListener<Void>() {
-                        @Override
-                        public void onSuccess(Void unused) {
-                            BalanceHelper.addBorrowerEntry(borrowerID, borrowId, null);
-                            BalanceHelper.addLenderEntry(lenderID, borrowId, null);
+                    borrowRef.setValue(borrowNowTransaction)
+                        .addOnSuccessListener(object : OnSuccessListener<Void?> {
+                            override fun onSuccess(unused: Void?) {
+                                BalanceHelper.addBorrowerEntry(borrowerID, borrowId, null)
+                                BalanceHelper.addLenderEntry(lenderID, borrowId, null)
 
-                            int amount = Integer.parseInt(borrowedAmountSTR);
-                            BalanceHelper.updateTotaldebt(borrowerID, amount, null);
-                            BalanceHelper.updateTotalreceivable(lenderID, amount, null);
+                                val amount = borrowedAmountSTR!!.toInt()
+                                BalanceHelper.updateTotaldebt(borrowerID, amount, null)
+                                BalanceHelper.updateTotalreceivable(lenderID, amount, null)
 
-                            Toast.makeText(BorrowNowActivity.this, "Borrowed successfully", Toast.LENGTH_SHORT).show();
-                            if (dialogProgressBar != null) dialogProgressBar.setVisibility(View.GONE);
-                            finish();
-                        }
-                    }).addOnFailureListener(new OnFailureListener() {
-                        @Override
-                        public void onFailure(@NonNull Exception e) {
-                            if (dialogProgressBar != null) dialogProgressBar.setVisibility(View.GONE);
-                            Toast.makeText(BorrowNowActivity.this, "Failed to Borrow", Toast.LENGTH_SHORT).show();
-                        }
-                    });
+                                Toast.makeText(
+                                    this@BorrowNowActivity,
+                                    "Borrowed successfully",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                                if (dialogProgressBar != null) dialogProgressBar!!.setVisibility(
+                                    View.GONE
+                                )
+                                finish()
+                            }
+                        }).addOnFailureListener(object : OnFailureListener {
+                            override fun onFailure(e: Exception) {
+                                if (dialogProgressBar != null) dialogProgressBar!!.setVisibility(
+                                    View.GONE
+                                )
+                                Toast.makeText(
+                                    this@BorrowNowActivity,
+                                    "Failed to Borrow",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        })
                 }
-            });
+            })
         }
     }
 
-    private void borrowBtnClicked() {
-        borrowBtn.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                EditText borrowEditText = findViewById(R.id.dialogBorrowEditText);
-                String borrowedAmountStr = borrowEditText.getText().toString();
-                if (!borrowedAmountStr.isEmpty() && lender != null && !lender.isEmpty()) {
+    private fun borrowBtnClicked() {
+        borrowBtn!!.setOnClickListener(object : View.OnClickListener {
+            override fun onClick(v: View?) {
+                val borrowEditText: EditText = findViewById<EditText>(R.id.dialogBorrowEditText)
+                val borrowedAmountStr = borrowEditText.getText().toString()
+                if (!borrowedAmountStr.isEmpty() && lender != null && !lender!!.isEmpty()) {
                     try {
-                        borrowedAmount = Integer.parseInt(borrowedAmountStr);
-                        borrowedAmountSTR = String.valueOf(borrowedAmount);
-                        
+                        borrowedAmount = borrowedAmountStr.toInt()
+                        borrowedAmountSTR = borrowedAmount.toString()
+
                         if (borrowedAmount <= 0) {
-                            Toast.makeText(BorrowNowActivity.this, "Please enter a valid amount", Toast.LENGTH_SHORT).show();
-                            return;
+                            Toast.makeText(
+                                this@BorrowNowActivity,
+                                "Please enter a valid amount",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            return
                         }
-                        
-                        if (dialogProgressBar != null) dialogProgressBar.setVisibility(View.VISIBLE);
-                        addBorrowTransaction();
-                    } catch (NumberFormatException e) {
-                        Toast.makeText(BorrowNowActivity.this, "Invalid amount", Toast.LENGTH_SHORT).show();
+
+                        if (dialogProgressBar != null) dialogProgressBar!!.setVisibility(View.VISIBLE)
+                        addBorrowTransaction()
+                    } catch (e: NumberFormatException) {
+                        Toast.makeText(this@BorrowNowActivity, "Invalid amount", Toast.LENGTH_SHORT)
+                            .show()
                     }
                 } else {
-                    Toast.makeText(BorrowNowActivity.this, "Please select a lender and enter amount", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(
+                        this@BorrowNowActivity,
+                        "Please select a lender and enter amount",
+                        Toast.LENGTH_SHORT
+                    ).show()
                 }
             }
-        });
+        })
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    public void exitEditText(){
-        final EditText borrowEditText = findViewById(R.id.dialogBorrowEditText);
+    fun exitEditText() {
+        val borrowEditText: EditText? = findViewById<EditText?>(R.id.dialogBorrowEditText)
         if (borrowEditText != null) {
-            borrowEditText.setOnTouchListener(new View.OnTouchListener() {
-                @Override
-                public boolean onTouch(View v, MotionEvent event) {
-                    v.performClick();
-                    return false;
+            borrowEditText.setOnTouchListener(object : OnTouchListener {
+                override fun onTouch(v: View, event: MotionEvent?): Boolean {
+                    v.performClick()
+                    return false
                 }
-            });
+            })
         }
 
-        View rootView = findViewById(android.R.id.content);
+        val rootView = findViewById<View?>(android.R.id.content)
         if (rootView != null) {
-            rootView.setOnTouchListener(new View.OnTouchListener() {
-                @Override
-                public boolean onTouch(View v, MotionEvent event) {
-                    if (borrowEditText != null) hideKeyboard(borrowEditText);
-                    return false;
+            rootView.setOnTouchListener(object : OnTouchListener {
+                override fun onTouch(v: View?, event: MotionEvent?): Boolean {
+                    if (borrowEditText != null) hideKeyboard(borrowEditText)
+                    return false
                 }
-            });
+            })
         }
     }
 
-    public void getUserIDByName(String name, UserIDCallback callback) {
-        usersRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot dataSnapshot) {
-                for (DataSnapshot userSnapshot : dataSnapshot.getChildren()) {
-                    String userName = userSnapshot.child("username").getValue(String.class);
-                    if (name.equals(userName)) {
-                        callback.onUserIDRetrieved(userSnapshot.getKey());
-                        return;
+    fun getUserIDByName(name: String, callback: UserIDCallback) {
+        usersRef.addListenerForSingleValueEvent(object : ValueEventListener() {
+            public override fun onDataChange(dataSnapshot: DataSnapshot) {
+                for (userSnapshot in dataSnapshot.getChildren()) {
+                    val userName: String? =
+                        userSnapshot.child("username").getValue(String::class.java)
+                    if (name == userName) {
+                        callback.onUserIDRetrieved(userSnapshot.getKey())
+                        return
                     }
                 }
-                callback.onUserIDRetrieved(null);
+                callback.onUserIDRetrieved(null)
             }
 
-            @Override
-            public void onCancelled(@NonNull DatabaseError databaseError) {
-                Log.e("FirebaseDatabase", "Database error: " + databaseError.getMessage());
-                callback.onUserIDRetrieved(null);
+            public override fun onCancelled(databaseError: DatabaseError) {
+                Log.e("FirebaseDatabase", "Database error: " + databaseError.getMessage())
+                callback.onUserIDRetrieved(null)
             }
-        });
+        })
     }
 
-    public interface UserIDCallback {
-        void onUserIDRetrieved(String getLenderID);
+    interface UserIDCallback {
+        fun onUserIDRetrieved(getLenderID: String?)
     }
 
-    private void hideKeyboard(EditText editText) {
-        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+    private fun hideKeyboard(editText: EditText) {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager?
         if (imm != null) {
-            imm.hideSoftInputFromWindow(editText.getWindowToken(), 0);
+            imm.hideSoftInputFromWindow(editText.getWindowToken(), 0)
         }
     }
 }

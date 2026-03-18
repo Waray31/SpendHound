@@ -1,158 +1,160 @@
-package com.waray.spendhound;
+package com.waray.spendhound
 
-import android.content.Context;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.TextView;
-
-import androidx.annotation.NonNull;
-import androidx.core.content.ContextCompat;
-import androidx.recyclerview.widget.RecyclerView;
-
-import java.util.ArrayList;
-import java.util.List;
+import android.content.Context
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
+import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.RecyclerView
+import com.waray.spendhound.BreakdownAdapter.BreakdownViewHolder
+import java.util.Locale
 
 /**
  * RecyclerView Adapter for displaying breakdown items in the financial breakdown dialog.
  */
-public class BreakdownAdapter extends RecyclerView.Adapter<BreakdownAdapter.BreakdownViewHolder> {
+class BreakdownAdapter : RecyclerView.Adapter<BreakdownViewHolder?> {
+    private val breakdownItems: MutableList<BreakdownItem>
+    private val context: Context
 
-    private List<BreakdownItem> breakdownItems;
-    private Context context;
-
-    public BreakdownAdapter(Context context) {
-        this.context = context;
-        this.breakdownItems = new ArrayList<>();
+    constructor(context: Context) {
+        this.context = context
+        this.breakdownItems = ArrayList<BreakdownItem>()
     }
 
-    public BreakdownAdapter(Context context, List<BreakdownItem> breakdownItems) {
-        this.context = context;
-        this.breakdownItems = breakdownItems != null ? breakdownItems : new ArrayList<>();
+    constructor(context: Context, breakdownItems: MutableList<BreakdownItem?>?) {
+        this.context = context
+        this.breakdownItems =
+            if (breakdownItems != null) breakdownItems else ArrayList<BreakdownItem>()
     }
 
-    @NonNull
-    @Override
-    public BreakdownViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_breakdown, parent, false);
-        return new BreakdownViewHolder(view);
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): BreakdownViewHolder {
+        val view = LayoutInflater.from(parent.getContext())
+            .inflate(R.layout.item_breakdown, parent, false)
+        return BreakdownViewHolder(view)
     }
 
-    @Override
-    public void onBindViewHolder(@NonNull BreakdownViewHolder holder, int position) {
-        BreakdownItem item = breakdownItems.get(position);
+    override fun onBindViewHolder(holder: BreakdownViewHolder, position: Int) {
+        val item = breakdownItems.get(position)
 
         // Set person name
-        holder.personName.setText(item.getPersonName());
+        holder.personName.setText(item.getPersonName())
 
         // Set date
-        holder.date.setText(item.getDate());
+        holder.date.setText(item.getDate())
 
         // Set amount with peso sign
-        holder.amount.setText(CurrencyUtils.formatAmountWithCurrency(item.getAmount()));
+        holder.amount.setText(CurrencyUtils.formatAmountWithCurrency(item.getAmount()))
 
         // Set status
-        String status = item.getStatus();
-        holder.status.setText(status != null ? status : "");
+        val status = item.getStatus()
+        holder.status.setText(if (status != null) status else "")
 
         // Set description if available
         if (item.getDescription() != null && !item.getDescription().isEmpty()) {
-            holder.description.setText(item.getDescription());
-            holder.description.setVisibility(View.VISIBLE);
+            holder.description.setText(item.getDescription())
+            holder.description.setVisibility(View.VISIBLE)
         } else {
-            holder.description.setVisibility(View.GONE);
+            holder.description.setVisibility(View.GONE)
         }
 
         // Set status indicator color based on status
-        int indicatorColor;
-        int statusTextColor;
+        val indicatorColor: Int
+        val statusTextColor: Int
 
         if (status != null) {
-            switch (status.toLowerCase()) {
-                case "paid":
-                case "completed":
-                case "settled":
-                    indicatorColor = ContextCompat.getColor(context, R.color.green);
-                    statusTextColor = ContextCompat.getColor(context, R.color.green);
-                    break;
-                case "pending":
-                case "awaiting":
-                    indicatorColor = ContextCompat.getColor(context, R.color.yellow);
-                    statusTextColor = ContextCompat.getColor(context, R.color.yellow);
-                    break;
-                case "overdue":
-                case "rejected":
-                    indicatorColor = ContextCompat.getColor(context, R.color.red);
-                    statusTextColor = ContextCompat.getColor(context, R.color.red);
-                    break;
-                default:
-                    indicatorColor = ContextCompat.getColor(context, R.color.grey);
-                    statusTextColor = ContextCompat.getColor(context, R.color.grey);
-                    break;
+            when (status.lowercase(Locale.getDefault())) {
+                "paid", "completed", "settled" -> {
+                    indicatorColor = ContextCompat.getColor(context, R.color.green)
+                    statusTextColor = ContextCompat.getColor(context, R.color.green)
+                }
+
+                "pending", "awaiting" -> {
+                    indicatorColor = ContextCompat.getColor(context, R.color.yellow)
+                    statusTextColor = ContextCompat.getColor(context, R.color.yellow)
+                }
+
+                "overdue", "rejected" -> {
+                    indicatorColor = ContextCompat.getColor(context, R.color.red)
+                    statusTextColor = ContextCompat.getColor(context, R.color.red)
+                }
+
+                else -> {
+                    indicatorColor = ContextCompat.getColor(context, R.color.grey)
+                    statusTextColor = ContextCompat.getColor(context, R.color.grey)
+                }
             }
         } else {
-            indicatorColor = ContextCompat.getColor(context, R.color.grey);
-            statusTextColor = ContextCompat.getColor(context, R.color.grey);
+            indicatorColor = ContextCompat.getColor(context, R.color.grey)
+            statusTextColor = ContextCompat.getColor(context, R.color.grey)
         }
 
-        holder.statusIndicator.setBackgroundColor(indicatorColor);
-        holder.status.setTextColor(statusTextColor);
+        holder.statusIndicator.setBackgroundColor(indicatorColor)
+        holder.status.setTextColor(statusTextColor)
 
         // Set amount color based on category
         if (item.getCategory() != null) {
-            switch (item.getCategory()) {
-                case BALANCE:
-                    holder.amount.setTextColor(ContextCompat.getColor(context, R.color.green));
-                    break;
-                case UNPAID:
-                case DEBT:
-                    holder.amount.setTextColor(ContextCompat.getColor(context, R.color.red));
-                    break;
-                case OWE:
-                    holder.amount.setTextColor(ContextCompat.getColor(context, R.color.yellow));
-                    break;
-                default:
-                    holder.amount.setTextColor(ContextCompat.getColor(context, R.color.darkBlue));
-                    break;
+            when (item.getCategory()) {
+                BreakdownItem.Category.BALANCE -> holder.amount.setTextColor(
+                    ContextCompat.getColor(
+                        context,
+                        R.color.green
+                    )
+                )
+
+                BreakdownItem.Category.UNPAID, BreakdownItem.Category.DEBT -> holder.amount.setTextColor(
+                    ContextCompat.getColor(context, R.color.red)
+                )
+
+                BreakdownItem.Category.OWE -> holder.amount.setTextColor(
+                    ContextCompat.getColor(
+                        context,
+                        R.color.yellow
+                    )
+                )
+
+                else -> holder.amount.setTextColor(
+                    ContextCompat.getColor(
+                        context,
+                        R.color.darkBlue
+                    )
+                )
             }
         }
     }
 
-    @Override
-    public int getItemCount() {
-        return breakdownItems.size();
+    override fun getItemCount(): Int {
+        return breakdownItems.size
     }
 
-    public void updateData(List<BreakdownItem> newItems) {
-        this.breakdownItems.clear();
+    fun updateData(newItems: MutableList<BreakdownItem?>?) {
+        this.breakdownItems.clear()
         if (newItems != null) {
-            this.breakdownItems.addAll(newItems);
+            this.breakdownItems.addAll(newItems)
         }
-        notifyDataSetChanged();
+        notifyDataSetChanged()
     }
 
-    public void clearData() {
-        this.breakdownItems.clear();
-        notifyDataSetChanged();
+    fun clearData() {
+        this.breakdownItems.clear()
+        notifyDataSetChanged()
     }
 
-    static class BreakdownViewHolder extends RecyclerView.ViewHolder {
-        View statusIndicator;
-        TextView personName;
-        TextView date;
-        TextView description;
-        TextView amount;
-        TextView status;
+    internal class BreakdownViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        var statusIndicator: View
+        var personName: TextView
+        var date: TextView
+        var description: TextView
+        var amount: TextView
+        var status: TextView
 
-        BreakdownViewHolder(@NonNull View itemView) {
-            super(itemView);
-            statusIndicator = itemView.findViewById(R.id.statusIndicator);
-            personName = itemView.findViewById(R.id.breakdownPersonName);
-            date = itemView.findViewById(R.id.breakdownDate);
-            description = itemView.findViewById(R.id.breakdownDescription);
-            amount = itemView.findViewById(R.id.breakdownAmount);
-            status = itemView.findViewById(R.id.breakdownStatus);
+        init {
+            statusIndicator = itemView.findViewById<View>(R.id.statusIndicator)
+            personName = itemView.findViewById<TextView>(R.id.breakdownPersonName)
+            date = itemView.findViewById<TextView>(R.id.breakdownDate)
+            description = itemView.findViewById<TextView>(R.id.breakdownDescription)
+            amount = itemView.findViewById<TextView>(R.id.breakdownAmount)
+            status = itemView.findViewById<TextView>(R.id.breakdownStatus)
         }
     }
 }

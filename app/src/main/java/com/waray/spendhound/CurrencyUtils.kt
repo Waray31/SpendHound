@@ -1,26 +1,28 @@
-package com.waray.spendhound;
+package com.waray.spendhound
 
-import java.util.Locale;
+import java.util.Locale
 
-public class CurrencyUtils {
-    public static String formatAmount(double amount) {
-        if (amount == (long) amount) {
-            return String.format(Locale.getDefault(), "%,d", (long) amount);
+object CurrencyUtils {
+    fun formatAmount(amount: Double): String {
+        if (amount == amount.toLong().toDouble()) {
+            return String.format(Locale.getDefault(), "%,d", amount.toLong())
         } else {
-            return String.format(Locale.getDefault(), "%,.2f", amount);
+            return String.format(Locale.getDefault(), "%,.2f", amount)
         }
     }
 
-    public static String formatAmountWithCurrency(double amount) {
-        return "₱ " + formatAmount(amount);
+    fun formatAmountWithCurrency(amount: Double): String {
+        return "₱ " + formatAmount(amount)
     }
 
-    public static String formatAmountWithCurrency(String amountStr) {
+    fun formatAmountWithCurrency(amountStr: String): String {
         try {
-            double amount = Double.parseDouble(amountStr);
-            return formatAmountWithCurrency(amount);
-        } catch (NumberFormatException | NullPointerException e) {
-            return "₱ 0";
+            val amount = amountStr.toDouble()
+            return formatAmountWithCurrency(amount)
+        } catch (e: NumberFormatException) {
+            return "₱ 0"
+        } catch (e: NullPointerException) {
+            return "₱ 0"
         }
     }
 }

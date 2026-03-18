@@ -1,42 +1,38 @@
-package com.waray.spendhound;
+package com.waray.spendhound
 
-import android.content.Context;
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.ArrayAdapter;
-import android.widget.TextView;
+import android.content.Context
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.ArrayAdapter
+import android.widget.TextView
 
-import java.util.List;
+class SpinnerItem(context: Context, items: MutableList<String?>) :
+    ArrayAdapter<String?>(context, R.layout.spinner_item, items) {
+    private val mInflater: LayoutInflater
 
-public class SpinnerItem extends ArrayAdapter<String> {
-
-    private final LayoutInflater mInflater;
-
-    public SpinnerItem(Context context, List<String> items) {
-        super(context, R.layout.spinner_item, items);
-        mInflater = LayoutInflater.from(context);
+    init {
+        mInflater = LayoutInflater.from(context)
     }
 
-    @Override
-    public View getView(int position, View convertView, ViewGroup parent) {
-        return createItemView(position, convertView, parent);
+    override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
+        return createItemView(position, convertView, parent)
     }
 
-    @Override
-    public View getDropDownView(int position, View convertView, ViewGroup parent) {
-        return createItemView(position, convertView, parent);
+    override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup?): View {
+        return createItemView(position, convertView, parent)
     }
 
-    private View createItemView(int position, View convertView, ViewGroup parent) {
+    private fun createItemView(position: Int, convertView: View?, parent: ViewGroup?): View {
+        var convertView = convertView
         if (convertView == null) {
-            convertView = mInflater.inflate(R.layout.spinner_item, parent, false);
+            convertView = mInflater.inflate(R.layout.spinner_item, parent, false)
         }
 
-        TextView textView = convertView.findViewById(android.R.id.text1);
-        textView.setText(getItem(position));
+        val textView = convertView.findViewById<TextView>(android.R.id.text1)
+        textView.setText(getItem(position))
 
-        return convertView;
+        return convertView
     }
 }
 

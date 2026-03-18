@@ -1,54 +1,42 @@
-package com.waray.spendhound;
+package com.waray.spendhound
 
-import android.view.LayoutInflater;
-import android.view.View;
-import android.view.ViewGroup;
-import android.widget.TextView;
-import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.RecyclerView;
-import java.util.ArrayList;
+import android.view.LayoutInflater
+import android.view.View
+import android.view.ViewGroup
+import android.widget.TextView
+import androidx.recyclerview.widget.RecyclerView
 
-
-public class CheckedTransactionsAdapter extends RecyclerView.Adapter<CheckedTransactionsAdapter.ViewHolder> {
-    private final ArrayList<BorrowTransaction> checkedTransactions;
-
-    public CheckedTransactionsAdapter(ArrayList<BorrowTransaction> checkedTransactions) {
-        this.checkedTransactions = checkedTransactions;
+class CheckedTransactionsAdapter(private val checkedTransactions: ArrayList<BorrowTransaction>) :
+    RecyclerView.Adapter<CheckedTransactionsAdapter.ViewHolder?>() {
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+        val itemView = LayoutInflater.from(parent.getContext())
+            .inflate(R.layout.item_checked_transaction, parent, false)
+        return ViewHolder(itemView)
     }
 
-    @NonNull
-    @Override
-    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View itemView = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_checked_transaction, parent, false);
-        return new ViewHolder(itemView);
+    override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+        val transaction = checkedTransactions.get(position)
+        holder.dateTextView.setText(transaction.getDate())
+        holder.borroweeTextView.setText(transaction.getBorrowee())
+        holder.amountTextView.setText(transaction.getBorrowedAmountStr())
+        holder.statusTextView.setText(transaction.getStatus())
     }
 
-    @Override
-    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        BorrowTransaction transaction = checkedTransactions.get(position);
-        holder.dateTextView.setText(transaction.getDate());
-        holder.borroweeTextView.setText(transaction.getBorrowee());
-        holder.amountTextView.setText(transaction.getBorrowedAmountStr());
-        holder.statusTextView.setText(transaction.getStatus());
+    override fun getItemCount(): Int {
+        return checkedTransactions.size
     }
 
-    @Override
-    public int getItemCount() {
-        return checkedTransactions.size();
-    }
+    class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
+        var dateTextView: TextView
+        var borroweeTextView: TextView
+        var amountTextView: TextView
+        var statusTextView: TextView
 
-    public static class ViewHolder extends RecyclerView.ViewHolder {
-        public TextView dateTextView;
-        public TextView borroweeTextView;
-        public TextView amountTextView;
-        public TextView statusTextView;
-
-        public ViewHolder(View itemView) {
-            super(itemView);
-            dateTextView = itemView.findViewById(R.id.dateTextView);
-            borroweeTextView = itemView.findViewById(R.id.borroweeTextView);
-            amountTextView = itemView.findViewById(R.id.amountTextView);
-            statusTextView = itemView.findViewById(R.id.statusTextView);
+        init {
+            dateTextView = itemView.findViewById<TextView>(R.id.dateTextView)
+            borroweeTextView = itemView.findViewById<TextView>(R.id.borroweeTextView)
+            amountTextView = itemView.findViewById<TextView>(R.id.amountTextView)
+            statusTextView = itemView.findViewById<TextView>(R.id.statusTextView)
         }
     }
 }
