@@ -401,7 +401,7 @@ class BorrowFragment : Fragment() {
                     }.decodeSingleOrNull<BorrowNowTransaction>()
                 }
                 if (newStatus == "Paid" && currentBorrow != null && currentBorrow.getStatus() != "Paid") {
-                    val amount = currentBorrow.getBorrowedAmount()?.toInt() ?: 0
+                    val amount = currentBorrow.getBorrowedAmount() ?: 0.0
                     currentBorrow.getBorrowerID()?.let { BalanceHelper.updateTotaldebt(it, -amount, null) }
                     currentBorrow.getLenderID()?.let { BalanceHelper.updateTotalreceivable(it, -amount, null) }
                 }
@@ -434,7 +434,7 @@ class BorrowFragment : Fragment() {
                     }.decodeSingleOrNull<BorrowNowTransaction>()
                 }
                 if (newStatus == "Paid" && currentBorrow != null && currentBorrow.getStatus() != "Paid") {
-                    val amount = currentBorrow.getBorrowedAmount()?.toInt() ?: 0
+                    val amount = currentBorrow.getBorrowedAmount() ?: 0.0
                     currentBorrow.getBorrowerID()?.let { BalanceHelper.updateTotaldebt(it, -amount, null) }
                     currentBorrow.getLenderID()?.let { BalanceHelper.updateTotalreceivable(it, -amount, null) }
                 }
@@ -574,9 +574,8 @@ class BorrowFragment : Fragment() {
                         }
                         BalanceHelper.addBorrowerEntry(currentUserId, borrowId, null)
                         BalanceHelper.addLenderEntry(lenderID, borrowId, null)
-                        val amount = borrowedAmountStr.toIntOrNull() ?: 0
-                        BalanceHelper.updateTotaldebt(currentUserId, amount, null)
-                        BalanceHelper.updateTotalreceivable(lenderID, amount, null)
+                        BalanceHelper.updateTotaldebt(currentUserId, borrowedAmount, null)
+                        BalanceHelper.updateTotalreceivable(lenderID, borrowedAmount, null)
                         activity?.runOnUiThread {
                             showToast(getString(R.string.toast_borrow_success))
                             dialog.dismiss()
