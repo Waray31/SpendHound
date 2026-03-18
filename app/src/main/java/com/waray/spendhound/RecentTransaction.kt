@@ -1,27 +1,27 @@
 package com.waray.spendhound
 
 class RecentTransaction {
-    var mostRecentDate: String?
-    var mostRecentTransactionType: String?
-    var mostRecentDetails: String?
-    var mostRecentPaymentAmountStr: String?
-    var iconResource: Int
-    var sortDateTime: String? = null // For sorting by date and time (format: "yyyy-MM-dd HH:mm:ss")
-    var payorsList: MutableList<String?>? = null // Display names
-    var payorUids: MutableList<String?>? = null // UIDs for profile images
+    var mostRecentDate: String? = null
+    var mostRecentTransactionType: String? = null
+    var mostRecentDetails: String? = null
+    var mostRecentPaymentAmountStr: String? = null
+    var iconResource: Int = 0
+    var sortDateTime: String? = null
+    var payorsList: MutableList<String?>? = null
+    var payorUids: MutableList<String?>? = null
     var amountsPaidList: MutableList<Double?>? = null
     var totalIndividualPayment: Double = 0.0
-    var fullDateWithYear: String? = null // Full date including year for details dialog
-    var createdBy: String? = null // Name of the person who created the transaction
-    var createdByUid: String? =
-        null // UID of the person who created the transaction (for profile image)
+    var fullDateWithYear: String? = null
+    var createdBy: String? = null
+    var createdByUid: String? = null
 
-    // Database reference keys
     var monthYear: String? = null
     var day: String? = null
     var timeKey: String? = null
 
     var isExpanded: Boolean = false
+
+    constructor()
 
     constructor(
         mostRecentDate: String?,
@@ -113,5 +113,32 @@ class RecentTransaction {
         this.monthYear = monthYear
         this.day = day
         this.timeKey = timeKey
+    }
+
+    // Explicitly named getters for Java/Kotlin compatibility
+    fun getMostRecentDate(): String? = mostRecentDate
+    fun getMostRecentTransactionType(): String? = mostRecentTransactionType
+    fun getMostRecentDetails(): String? = mostRecentDetails
+    fun getMostRecentPaymentAmountStr(): String? = mostRecentPaymentAmountStr
+    fun getIconResource(): Int = iconResource
+    fun getSortDateTime(): String? = sortDateTime
+    fun getPayorsList(): MutableList<String?>? = payorsList
+    fun getPayorUids(): MutableList<String?>? = payorUids
+    fun getAmountsPaidList(): MutableList<Double?>? = amountsPaidList
+    fun getTotalIndividualPayment(): Double = totalIndividualPayment
+    fun getFullDateWithYear(): String? = fullDateWithYear
+    fun getCreatedBy(): String? = createdBy
+    fun getCreatedByUid(): String? = createdByUid
+    fun getMonthYear(): String? = monthYear
+    fun getDay(): String? = day
+    fun getTimeKey(): String? = timeKey
+    fun isExpanded(): Boolean = isExpanded
+
+    fun setExpanded(expanded: Boolean) {
+        this.isExpanded = expanded
+    }
+
+    fun setAmountsPaidList(list: MutableList<Double?>?) {
+        this.amountsPaidList = list
     }
 }

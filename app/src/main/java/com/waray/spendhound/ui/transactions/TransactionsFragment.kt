@@ -12,12 +12,9 @@ import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.TextView
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.google.firebase.database.DataSnapshot
-import com.google.firebase.database.DatabaseError
-import com.google.firebase.database.DatabaseReference
-import com.google.firebase.database.ValueEventListener
 import com.waray.spendhound.CurrencyUtils
 import com.waray.spendhound.DeclareDatabase
 import com.waray.spendhound.MainActivity
@@ -25,11 +22,11 @@ import com.waray.spendhound.PayerGroup
 import com.waray.spendhound.R
 import com.waray.spendhound.RecentTransaction
 import com.waray.spendhound.RecentTransactionAdapter
-import com.waray.spendhound.RecentTransactionAdapter.OnTransactionClickListener
 import com.waray.spendhound.SpinnerItemMonths
 import com.waray.spendhound.Transaction
+import com.waray.spendhound.User
 import io.github.jan.supabase.gotrue.Auth
-import io.github.jan.supabase.gotrue.auth
+import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Collections
@@ -39,7 +36,7 @@ import java.util.Locale
 class TransactionsFragment : Fragment() {
     private var recyclerView: RecyclerView? = null
     private var adapter: RecentTransactionAdapter? = null
-    private var transactionList: ArrayList<RecentTransaction?>? = null
+    private var transactionList: ArrayList<RecentTransaction>? = null
     private var monthSpinner: Spinner? = null
     private var groupSpinner: Spinner? = null
     private var currentMonthTextView: TextView? = null
@@ -48,10 +45,10 @@ class TransactionsFragment : Fragment() {
     private var emptyStateLayout: LinearLayout? = null
     private var mAuth: Auth? = null
     private var currentNickname: String? = ""
-    private var availableMonths: MutableList<String>? = null
+    private var availableMonths: MutableList<String?>? = null
     private var selectedMonth: String? = null
 
-    private var groupNames: MutableList<String>? = null
+    private var groupNames: MutableList<String?>? = null
     private var groupIds: MutableList<String?>? = null
     private var selectedGroupId: String? = "All"
     private var groupAdapter: SpinnerItemMonths? = null
@@ -105,8 +102,8 @@ class TransactionsFragment : Fragment() {
         setupStatusTabs()
 
         adapter = RecentTransactionAdapter(
-            transactionList!!,
-            OnTransactionClickListener { transaction ->
+            transactionList,
+            RecentTransactionAdapter.OnTransactionClickListener { transaction ->
                 if (transaction?.isExpanded == false) {
                     (activity as? MainActivity)?.unhideNavigation()
                 }
@@ -157,49 +154,50 @@ class TransactionsFragment : Fragment() {
 
     private fun getCurrentNickname() {
         val userId = mAuth?.currentUserOrNull()?.id ?: return run { loadAvailableMonths() }
-        val userRef = DeclareDatabase.getDatabaseReference().child(userId)
-
-        userRef.addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(snapshot: DataSnapshot) {
-                if (snapshot.exists()) {
-                    currentNickname = snapshot.child("username").getValue(String::class.java) ?: ""
+        
+        lifecycleScope.launch {
+            try {
+                val user = DeclareDatabase.usersTable.select {
+                    filter {
+                        eq("id", userId)
+                    }
+                }.decodeSingleOrNull<User>()
+                
+                if (user != null) {
+                    currentNickname = user.username ?: ""
                 }
                 loadAvailableMonths()
-            }
-            override fun onCancelled(error: DatabaseError) {
+            } catch (e: Exception) {
+                Log.e("TransactionsFragment", "Error getting nickname", e)
                 loadAvailableMonths()
             }
-        })
+        }
     }
 
     private fun loadUserGroups() {
         val currentUid = mAuth?.currentUserOrNull()?.id ?: return
-        val groupsRef = DeclareDatabase.getDBRefGroups()
-
-        groupsRef.addListenerForSingleValueEvent(object : ValueEventListener() {
-            @SuppressLint("NotifyDataSetChanged")
-            override fun onDataChange(snapshot: DataSnapshot) {
+        
+        lifecycleScope.launch {
+            try {
+                val groups = DeclareDatabase.groupsTable.select().decodeList<PayerGroup>()
+                
                 groupNames?.clear()
                 groupIds?.clear()
 
                 groupNames?.add("All group")
                 groupIds?.add("All")
 
-                for (userSnapshot in snapshot.children) {
-                    for (groupSnapshot in userSnapshot.children) {
-                        val group = groupSnapshot.getValue(PayerGroup::class.java)
-                        if (group != null && group.getMembers()?.contains(currentUid) == true) {
-                            groupNames?.add(group.getGroupName() ?: "")
-                            groupIds?.add(group.getGroupId())
-                        }
+                for (group in groups) {
+                    if (group.members?.contains(currentUid) == true) {
+                        groupNames?.add(group.groupName ?: "")
+                        groupIds?.add(group.groupId)
                     }
                 }
                 groupAdapter?.notifyDataSetChanged()
+            } catch (e: Exception) {
+                Log.e("TransactionsFragment", "Error loading groups", e)
             }
-            override fun onCancelled(error: DatabaseError) {
-                Log.e("TransactionsFragment", "Error loading groups", error.toException())
-            }
-        })
+        }
     }
 
     private fun setupGroupSpinner() {
@@ -220,44 +218,36 @@ class TransactionsFragment : Fragment() {
     private fun loadAvailableMonths() {
         loadingProgressBar?.visibility = View.VISIBLE
 
-        val transRef = DeclareDatabase.getDBRefTransaction()
-        transRef.addListenerForSingleValueEvent(object : ValueEventListener() {
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
+        lifecycleScope.launch {
+            try {
+                val transactions = DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
                 val uniqueMonths = HashSet<String>()
 
-                for (monthSnapshot in dataSnapshot.children) {
-                    val monthYear = monthSnapshot.key
-                    if (!monthYear.isNullOrEmpty()) {
-                        for (daySnapshot in monthSnapshot.children) {
-                            for (timeSnapshot in daySnapshot.children) {
-                                val transaction = timeSnapshot.getValue(Transaction::class.java)
-                                if (transaction != null && isUserInvolved(transaction, currentNickname)) {
-                                    uniqueMonths.add(monthYear)
-                                    break
-                                }
-                            }
-                            if (uniqueMonths.contains(monthYear)) break
-                        }
+                for (transaction in transactions) {
+                    if (isUserInvolved(transaction, currentNickname)) {
+                        transaction.monthYear?.let { uniqueMonths.add(it) }
                     }
                 }
 
                 availableMonths = ArrayList(uniqueMonths)
-                Collections.sort(availableMonths!!) { m1, m2 ->
-                    try {
-                        val sdf = SimpleDateFormat("MMMM-yyyy", Locale.getDefault())
-                        return@sort sdf.parse(m2)!!.compareTo(sdf.parse(m1))
-                    } catch (e: Exception) {
-                        return@sort m2.compareTo(m1)
+                availableMonths?.let { months ->
+                    Collections.sort(months) { m1, m2 ->
+                        try {
+                            val sdf = SimpleDateFormat("MMMM-yyyy", Locale.getDefault())
+                            return@sort sdf.parse(m2!!)!!.compareTo(sdf.parse(m1!!))
+                        } catch (e: Exception) {
+                            return@sort m2?.compareTo(m1 ?: "") ?: 0
+                        }
                     }
                 }
 
                 setupMonthSpinner()
                 loadingProgressBar?.visibility = View.GONE
-            }
-            override fun onCancelled(error: DatabaseError) {
+            } catch (e: Exception) {
+                Log.e("TransactionsFragment", "Error loading months", e)
                 loadingProgressBar?.visibility = View.GONE
             }
-        })
+        }
     }
 
     private fun setupMonthSpinner() {
@@ -276,15 +266,17 @@ class TransactionsFragment : Fragment() {
         val currentMonth = SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(calendar.time)
 
         var defaultPosition = 0
-        for (i in availableMonths!!.indices) {
-            if (availableMonths!![i] == currentMonth) {
-                defaultPosition = i
-                break
+        availableMonths?.let { months ->
+            for (i in months.indices) {
+                if (months[i] == currentMonth) {
+                    defaultPosition = i
+                    break
+                }
             }
         }
 
         monthSpinner?.setSelection(defaultPosition)
-        selectedMonth = availableMonths!![defaultPosition]
+        selectedMonth = availableMonths?.get(defaultPosition)
         selectedMonth?.let {
             updateMonthDisplay(it)
             fetchTransactionsForMonth(it)
@@ -292,7 +284,7 @@ class TransactionsFragment : Fragment() {
 
         monthSpinner?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val month = availableMonths!![position]
+                val month = availableMonths?.get(position)
                 if (month != selectedMonth) {
                     selectedMonth = month
                     selectedMonth?.let {
@@ -317,62 +309,63 @@ class TransactionsFragment : Fragment() {
         transactionList?.clear()
         adapter?.notifyDataSetChanged()
 
-        val monthRef = DeclareDatabase.getDBRefTransaction().child(monthYear)
+        lifecycleScope.launch {
+            try {
+                val transactions = DeclareDatabase.transactionsTable.select {
+                    filter {
+                        eq("monthYear", monthYear)
+                    }
+                }.decodeList<Transaction>()
 
-        monthRef.addListenerForSingleValueEvent(object : ValueEventListener() {
-            @SuppressLint("NotifyDataSetChanged")
-            override fun onDataChange(dataSnapshot: DataSnapshot) {
-                for (daySnapshot in dataSnapshot.children) {
-                    val day = daySnapshot.key
+                for (transaction in transactions) {
+                    val day = transaction.day
+                    val timeKey = transaction.timeKey
 
-                    for (timeSnapshot in daySnapshot.children) {
-                        val transaction = timeSnapshot.getValue(Transaction::class.java) ?: continue
-                        val timeKey = timeSnapshot.key
+                    if (isUserInvolved(transaction, currentNickname)) {
+                        if (selectedGroupId != "All" && transaction.groupId != selectedGroupId) continue
+                        if (!matchesStatusFilter(transaction, selectedStatusTab)) continue
 
-                        if (isUserInvolved(transaction, currentNickname)) {
-                            if (selectedGroupId != "All" && transaction.getGroupId() != selectedGroupId) continue
-                            if (!matchesStatusFilter(transaction, selectedStatusTab)) continue
+                        val parts = monthYear.split("-").toTypedArray()
+                        val monthName = parts[0]
+                        val year = if (parts.size > 1) parts[1] else ""
+                        val displayDate = "$monthName - $day"
+                        val fullDateWithYear = "$monthName $day, $year"
+                        val sortDateTime = "$year-$monthName-$day $timeKey"
 
-                            val parts = monthYear.split("-").toTypedArray()
-                            val monthName = parts[0]
-                            val year = if (parts.size > 1) parts[1] else ""
-                            val displayDate = "$monthName - $day"
-                            val fullDateWithYear = "$monthName $day, $year"
-                            val sortDateTime = "$year-$monthName-$day $timeKey"
+                        val transactionType = transaction.transactionType
+                        val details = transaction.multilineStr
+                        val paymentAmount = transaction.paymentAmount
+                        val paymentAmountStr = CurrencyUtils.formatAmountWithCurrency(paymentAmount)
+                        val iconResource = getIconForTransactionType(transactionType)
 
-                            val transactionType = transaction.getTransactionType()
-                            val details = transaction.getMultilineStr()
-                            val paymentAmount = transaction.getPaymentAmount()
-                            val paymentAmountStr = CurrencyUtils.formatAmountWithCurrency(paymentAmount)
-                            val iconResource = getIconForTransactionType(transactionType)
+                        var payorsList = transaction.payorsDisplayNames
+                        if (payorsList.isNullOrEmpty()) payorsList = transaction.payorsList
+                        
+                        val payorUids = transaction.payorsList
+                        val amountsPaidList = transaction.amountsPaidList
+                        val totalIndividualPayment = transaction.totalIndividualPayment
 
-                            var payorsList = transaction.getPayorsDisplayNames()
-                            if (payorsList.isNullOrEmpty()) payorsList = transaction.getPayorsList()
-                            
-                            val payorUids = transaction.getPayorsList()
-                            val amountsPaidList = transaction.getAmountsPaidList()
-                            val totalIndividualPayment = transaction.getTotalIndividualPayment()
+                        var createdBy = transaction.posterDisplayName
+                        if (createdBy.isNullOrEmpty()) createdBy = transaction.usernamePost
+                        
+                        val createdByUid = transaction.usernamePost
 
-                            var createdBy = transaction.getPosterDisplayName()
-                            if (createdBy.isNullOrEmpty()) createdBy = transaction.getUsernamePost()
-                            
-                            val createdByUid = transaction.getUsernamePost()
-
-                            transactionList?.add(RecentTransaction(
-                                displayDate, transactionType, details, paymentAmountStr,
-                                iconResource, sortDateTime, payorsList, payorUids,
-                                amountsPaidList, totalIndividualPayment, fullDateWithYear,
-                                createdBy, createdByUid, monthYear, day!!, timeKey
-                            ))
-                        }
+                        transactionList?.add(RecentTransaction(
+                            displayDate, transactionType, details, paymentAmountStr,
+                            iconResource, sortDateTime, payorsList, payorUids,
+                            amountsPaidList, totalIndividualPayment, fullDateWithYear,
+                            createdBy, createdByUid, monthYear, day ?: "", timeKey ?: ""
+                        ))
                     }
                 }
 
-                Collections.sort(transactionList!!) { t1, t2 ->
-                    val dateTime1 = t1?.getSortDateTime()
-                    val dateTime2 = t2?.getSortDateTime()
-                    if (dateTime1 != null && dateTime2 != null) return@sort dateTime2.compareTo(dateTime1)
-                    0
+                transactionList?.let { list ->
+                    Collections.sort(list) { t1, t2 ->
+                        val dateTime1 = t1?.getSortDateTime()
+                        val dateTime2 = t2?.getSortDateTime()
+                        if (dateTime1 != null && dateTime2 != null) return@sort dateTime2.compareTo(dateTime1)
+                        0
+                    }
                 }
 
                 adapter?.notifyDataSetChanged()
@@ -389,24 +382,24 @@ class TransactionsFragment : Fragment() {
                     emptyStateLayout?.visibility = View.GONE
                     recyclerView?.visibility = View.VISIBLE
                 }
-            }
-            override fun onCancelled(error: DatabaseError) {
+            } catch (e: Exception) {
+                Log.e("TransactionsFragment", "Error fetching transactions", e)
                 loadingProgressBar?.visibility = View.GONE
             }
-        })
+        }
     }
 
     private fun matchesStatusFilter(transaction: Transaction, statusFilter: String?): Boolean {
         if ("All".equals(statusFilter, ignoreCase = true)) return true
-        val paidAmounts = transaction.getAmountsPaidList()
-        val totalToPay = transaction.getTotalIndividualPayment()
+        val paidAmounts = transaction.amountsPaidList
+        val totalToPay = transaction.totalIndividualPayment
         if (paidAmounts.isNullOrEmpty()) return "Unpaid".equals(statusFilter, ignoreCase = true)
 
         var allPaid = true
         var allUnpaid = true
         for (paid in paidAmounts) {
-            if (paid!! < totalToPay) allPaid = false
-            if (paid > 0) allUnpaid = false
+            if (paid == null || paid < totalToPay) allPaid = false
+            if (paid != null && paid > 0) allUnpaid = false
         }
         val status = if (allPaid) "Paid" else if (allUnpaid) "Unpaid" else "Pending"
         return status.equals(statusFilter, ignoreCase = true)
@@ -432,11 +425,11 @@ class TransactionsFragment : Fragment() {
         if (transaction == null || usernameOrUid.isNullOrEmpty()) return false
         val currentUid = mAuth?.currentUserOrNull()?.id
         if (transaction.isUserInvolvedByUid(currentUid)) return true
-        if (usernameOrUid == transaction.getUsernamePost()) return true
-        if (usernameOrUid == transaction.getPosterDisplayName()) return true
-        val payorsList = transaction.getPayorsList()
+        if (usernameOrUid == transaction.usernamePost) return true
+        if (usernameOrUid == transaction.posterDisplayName) return true
+        val payorsList = transaction.payorsList
         if (payorsList != null && payorsList.contains(usernameOrUid)) return true
-        val payorsDisplayNames = transaction.getPayorsDisplayNames()
+        val payorsDisplayNames = transaction.payorsDisplayNames
         return payorsDisplayNames != null && payorsDisplayNames.contains(usernameOrUid)
     }
 }
