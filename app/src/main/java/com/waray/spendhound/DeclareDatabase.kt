@@ -1,40 +1,52 @@
 package com.waray.spendhound
 
-import com.google.firebase.auth.FirebaseAuth
+import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.createSupabaseClient
+import io.github.jan.supabase.gotrue.Auth
+import io.github.jan.supabase.gotrue.auth
+import io.github.jan.supabase.postgrest.Postgrest
+import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.postgrest
+import io.github.jan.supabase.realtime.Realtime
+import io.github.jan.supabase.realtime.realtime
+import io.github.jan.supabase.storage.Storage
+import io.github.jan.supabase.storage.storage
 
 object DeclareDatabase {
-    private val mAuth: FirebaseAuth?
-    private val mDatabase: FirebaseDatabase?
-    private val mStorage: FirebaseStorage
+    private const val SUPABASE_URL = "https://xgcitilgtmxtfcxpmfiz.supabase.co"
+    private const val SUPABASE_KEY = "sb_publishable_8VI_opH_alc_Inj3QkASuw_PLnJ1vUc"
 
-
-    // Initialize Firebase components in a static block
-    init {
-        mAuth = FirebaseAuth.getInstance()
-        mDatabase = FirebaseDatabase.getInstance()
-        mStorage = FirebaseStorage.getInstance()
+    val client: SupabaseClient by lazy {
+        createSupabaseClient(
+            supabaseUrl = SUPABASE_URL,
+            supabaseKey = SUPABASE_KEY
+        ) {
+            install(Auth)
+            install(Postgrest)
+            install(Realtime)
+            install(Storage)
+        }
     }
 
-    val auth: FirebaseAuth?
-        // Get the Firebase Authentication instance
-        get() = mAuth
+    // Supabase Module Helpers
+    val auth: Auth get() = client.auth
+    val postgrest: Postgrest get() = client.postgrest
+    val storage: Storage get() = client.storage
+    val realtime: Realtime get() = client.realtime
 
-    val databaseReference: DatabaseReference
-        // Get a reference to the Firebase Realtime Database
-        get() = FirebaseDatabase.getInstance().getReference("users")
-    val dBRefTransaction: DatabaseReference
-        get() = FirebaseDatabase.getInstance().getReference("transactions")
-    val dBRefBorrows: DatabaseReference
-        get() = FirebaseDatabase.getInstance().getReference("borrows")
+    // Table References
+    val usersTable get() = client.from("users")
+    val transactionsTable get() = client.from("transactions")
+    val groupsTable get() = client.from("groups")
+    val borrowsTable get() = client.from("borrows")
 
-    val dBRefGroups: DatabaseReference
-        get() = FirebaseDatabase.getInstance().getReference("payerGroups")
+    // Storage Bucket Reference
+    val profileImagesBucket get() = client.storage.from("profile_images")
 
-    val dBRefUserBorrows: DatabaseReference
-        get() = FirebaseDatabase.getInstance().getReference("userBorrows")
-
-    val storageReference: StorageReference
-        // Get a reference to the Firebase Storage
-        get() = mStorage.getReference()
+    // Compatibility getters (updated to return Supabase types where applicable or kept for reference)
+    @JvmStatic fun getAuth() = auth
+    @JvmStatic fun getUsersTable() = usersTable
+    @JvmStatic fun getTransactionsTable() = transactionsTable
+    @JvmStatic fun getGroupsTable() = groupsTable
+    @JvmStatic fun getBorrowsTable() = borrowsTable
 }
-
