@@ -92,11 +92,6 @@ class PendingStatusActivity : AppCompatActivity(),
         setupPayerListTVClicked()
         setupBackButtonCLicked()
 
-        val mainActivity = MainActivity()
-        mainActivity.getCurrentNickname { nickname ->
-            currentNickname2 = nickname
-        }
-
         fetchBorrowerList()
         fetchPayerList()
     }
@@ -138,15 +133,15 @@ class PendingStatusActivity : AppCompatActivity(),
     }
 
     private fun fetchBorrowerList() {
-        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
+        val currentUserId = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return
         
         lifecycleScope.launch {
             try {
                 val results = withContext(Dispatchers.IO) {
                     DeclareDatabase.borrowsTable.select {
                         filter {
-                            eq("lenderID", currentUserId)
-                            eq("status", "For Lender Approval")
+                            eq("lender_id", currentUserId)
+                            eq("status", 1) // 1 = For Lender Approval
                         }
                     }.decodeList<BorrowNowTransaction>()
                 }
@@ -155,12 +150,12 @@ class PendingStatusActivity : AppCompatActivity(),
                 borrowerListPath.clear()
 
                 for (bnt in results) {
-                    val borrowId = bnt.borrowId ?: ""
+                    val borrowId = bnt.id?.toString() ?: ""
                     val borrowerName = bnt.borrowerName ?: "Unknown"
                     val borrowedAmountStr = CurrencyUtils.formatAmountWithCurrency(bnt.borrowedAmount ?: 0.0)
                     val timeDifferenceStr = calculateTimeDifference(bnt.timestamp)
 
-                    borrowerListTransactions.add(BorrowerListTransaction(timeDifferenceStr, borrowerName, borrowedAmountStr, bnt.status))
+                    borrowerListTransactions.add(BorrowerListTransaction(timeDifferenceStr, borrowerName, borrowedAmountStr, bnt.getStatus()))
                     borrowerListPath.add(arrayOf("", "", borrowId, ""))
                 }
 
@@ -201,15 +196,15 @@ class PendingStatusActivity : AppCompatActivity(),
     }
 
     private fun fetchPayerList() {
-        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
+        val currentUserId = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return
 
         lifecycleScope.launch {
             try {
                 val results = withContext(Dispatchers.IO) {
                     DeclareDatabase.borrowsTable.select {
                         filter {
-                            eq("lenderID", currentUserId)
-                            eq("status", "Payment Pending")
+                            eq("lender_id", currentUserId)
+                            eq("status", 2) // 2 = Pending Payment
                         }
                     }.decodeList<BorrowNowTransaction>()
                 }
@@ -218,12 +213,12 @@ class PendingStatusActivity : AppCompatActivity(),
                 payerListPath.clear()
 
                 for (bnt in results) {
-                    val borrowId = bnt.borrowId ?: ""
+                    val borrowId = bnt.id?.toString() ?: ""
                     val borrowerName = bnt.borrowerName ?: "Unknown"
                     val borrowedAmountStr = CurrencyUtils.formatAmountWithCurrency(bnt.borrowedAmount ?: 0.0)
                     val timeDifferenceStr = calculateTimeDifference(bnt.timestamp)
 
-                    payerListTransactions.add(BorrowerListTransaction(timeDifferenceStr, borrowerName, borrowedAmountStr, bnt.status))
+                    payerListTransactions.add(BorrowerListTransaction(timeDifferenceStr, borrowerName, borrowedAmountStr, bnt.getStatus()))
                     payerListPath.add(arrayOf("", "", borrowId, ""))
                 }
 

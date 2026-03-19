@@ -8,7 +8,7 @@ import java.util.Locale
 
 /**
  * Data model for the 'borrows' table, exactly aligned with the Supabase schema.
- * Database Types (as per image):
+ * Database Types:
  * id: int8 (Primary Key, Auto-increment)
  * created_at: timestamptz
  * borrowed_amount: float8
@@ -41,7 +41,6 @@ class BorrowNowTransaction(
     var statusInt: Int? = null,
 
     // App-specific transient fields for UI and legacy logic
-    // These are not columns in the 'borrows' table
     @kotlinx.serialization.Transient
     var borrowerName: String? = null,
     @kotlinx.serialization.Transient
@@ -51,7 +50,7 @@ class BorrowNowTransaction(
     @kotlinx.serialization.Transient
     var timestamp: Long = System.currentTimeMillis(),
     @kotlinx.serialization.Transient
-    var status: String? = null
+    private var statusStr: String? = null
 ) {
     constructor() : this(null)
 
@@ -69,12 +68,8 @@ class BorrowNowTransaction(
         timestamp: Long
     ) : this() {
         this.id = borrowId?.toLongOrNull()
-        // Note: These might be numeric IDs or UIDs depending on caller.
-        // If they are UIDs (Strings), toLongOrNull will be null.
-        // We handle the mapping in the DAO/Repository level if needed.
         this.borrowerId = borrowerID?.toLongOrNull()
         this.lenderId = lenderID?.toLongOrNull()
-        
         this.borrowerName = borrowerName
         this.lender = lender
         this.borrowedAmount = borrowedAmount
@@ -87,16 +82,15 @@ class BorrowNowTransaction(
         }
     }
 
-    // Getters for compatibility with existing app logic
+    // Compatibility methods for existing app logic
     fun getBorrowId(): String? = id?.toString()
     fun getBorrowerID(): String? = borrowerId?.toString()
     fun getLenderID(): String? = lenderId?.toString()
-    fun getBorrowerName(): String? = borrowerName
-    fun getLender(): String? = lender
-    fun getBorrowedAmount(): Double? = borrowedAmount
-    fun getMonthYear(): String? = monthYear
-    fun getTimestamp(): Long = timestamp
     
+    // borrowedAmount, borrowerName, lender, monthYear, timestamp 
+    // are already accessible via generated accessors in Kotlin.
+    // If Java calls them, it uses getBorrowedAmount(), etc.
+
     fun getDate(): Long {
         if (createdAt == null) return timestamp
         return try {
@@ -106,7 +100,7 @@ class BorrowNowTransaction(
     }
     
     fun getStatus(): String? {
-        if (status != null) return status
+        if (statusStr != null) return statusStr
         return when (statusInt) {
             1 -> "For Lender Approval"
             2 -> "Pending Payment"
@@ -127,18 +121,12 @@ class BorrowNowTransaction(
         } catch (e: Exception) { 0 }
     }
 
-    // Setters for compatibility with existing app logic
     fun setBorrowId(id: String?) { this.id = id?.toLongOrNull() }
     fun setBorrowerID(id: String?) { this.borrowerId = id?.toLongOrNull() }
     fun setLenderID(id: String?) { this.lenderId = id?.toLongOrNull() }
-    fun setBorrowerName(name: String?) { this.borrowerName = name }
-    fun setLender(lender: String?) { this.lender = lender }
-    fun setBorrowedAmount(amount: Double?) { this.borrowedAmount = amount }
-    fun setMonthYear(monthYear: String?) { this.monthYear = monthYear }
-    fun setTimestamp(timestamp: Long) { this.timestamp = timestamp }
     
     fun setStatus(statusStr: String?) {
-        this.status = statusStr
+        this.statusStr = statusStr
         this.statusInt = when (statusStr) {
             "For Lender Approval" -> 1
             "Pending Payment" -> 2

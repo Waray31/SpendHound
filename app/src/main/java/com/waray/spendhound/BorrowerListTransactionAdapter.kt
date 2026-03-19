@@ -87,8 +87,8 @@ class BorrowerListTransactionAdapter(
         val dialog = builder.create()
 
         payNowConfirmBtn.setOnClickListener {
-            val status = if ("Accept".equals(action, ignoreCase = true)) "Unpaid" else "Declined"
-            updateTransactionStatus(transaction, path, position, status)
+            val statusInt = if ("Accept".equals(action, ignoreCase = true)) 2 else 4 // 2=Pending Payment, 4=Declined
+            updateTransactionStatus(transaction, path, position, statusInt)
             dialog.dismiss()
         }
 
@@ -101,19 +101,25 @@ class BorrowerListTransactionAdapter(
         transaction: BorrowerListTransaction,
         path: Array<String?>,
         position: Int,
-        status: String?
+        statusInt: Int
     ) {
         val borrowId = path[2] ?: return
         adapterScope.launch {
             try {
                 withContext(Dispatchers.IO) {
                     DeclareDatabase.borrowsTable.update({
-                        set("status", status)
+                        set("status", statusInt)
                     }) {
-                        filter { eq("borrowId", borrowId) }
+                        filter { eq("id", borrowId.toLong()) }
                     }
                 }
-                transaction.setStatus(status)
+                // Update local status string for UI (mapping back)
+                val statusStr = when(statusInt) {
+                    2 -> "Pending Payment"
+                    4 -> "Declined"
+                    else -> "Unknown"
+                }
+                transaction.setStatus(statusStr)
                 transactionList[position] = transaction
                 notifyDataSetChanged()
                 statusUpdatedListener?.onTransactionStatusUpdated()
@@ -142,8 +148,8 @@ class BorrowerListTransactionAdapter(
         val dialog = builder.create()
 
         payNowConfirmBtn.setOnClickListener {
-            val status = if (action == "Accept") "Unpaid" else "Declined"
-            updateAllTransactionStatus(status)
+            val statusInt = if (action == "Accept") 2 else 4
+            updateAllTransactionStatus(statusInt)
             dialog.dismiss()
         }
 
@@ -152,20 +158,25 @@ class BorrowerListTransactionAdapter(
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    private fun updateAllTransactionStatus(status: String?) {
+    private fun updateAllTransactionStatus(statusInt: Int) {
         adapterScope.launch {
             try {
                 withContext(Dispatchers.IO) {
                     transactionList.indices.forEach { i ->
                         val borrowId = pathList[i]?.get(2) ?: return@forEach
                         DeclareDatabase.borrowsTable.update({
-                            set("status", status)
+                            set("status", statusInt)
                         }) {
-                            filter { eq("borrowId", borrowId) }
+                            filter { eq("id", borrowId.toLong()) }
                         }
                     }
                 }
-                transactionList.forEach { it.setStatus(status) }
+                val statusStr = when(statusInt) {
+                    2 -> "Pending Payment"
+                    4 -> "Declined"
+                    else -> "Unknown"
+                }
+                transactionList.forEach { it.setStatus(statusStr) }
                 notifyDataSetChanged()
                 statusUpdatedListener?.onTransactionStatusUpdated()
             } catch (e: Exception) {
@@ -189,7 +200,7 @@ class BorrowerListTransactionAdapter(
         adapterScope.launch {
             try {
                 val user = withContext(Dispatchers.IO) {
-                    DeclareDatabase.usersTable.select(Columns.list("profileImageUrl")) {
+                    DeclareDatabase.usersTable.select(Columns.list("profile_image_url")) {
                         filter { eq("username", borrowerName) }
                     }.decodeSingleOrNull<User>()
                 }

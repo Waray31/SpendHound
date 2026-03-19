@@ -87,11 +87,8 @@ class PayerListTransactionAdapter(
         val dialog = builder.create()
 
         payNowConfirmBtn.setOnClickListener {
-            if ("Confirm".equals(action, ignoreCase = true)) {
-                updateTransactionStatus(transaction, path, position, "Paid")
-            } else if ("Deny".equals(action, ignoreCase = true)) {
-                updateTransactionStatus(transaction, path, position, "Payment Denied")
-            }
+            val statusInt = if ("Confirm".equals(action, ignoreCase = true)) 3 else 5 // 3=Paid, 5=Payment Denied
+            updateTransactionStatus(transaction, path, position, statusInt)
             dialog.dismiss()
         }
 
@@ -99,27 +96,40 @@ class PayerListTransactionAdapter(
         dialog.show()
     }
 
+    private fun getStatusStr(statusInt: Int): String {
+        return when (statusInt) {
+            1 -> "For Lender Approval"
+            2 -> "Pending Payment"
+            3 -> "Paid"
+            4 -> "Declined"
+            5 -> "Payment Denied"
+            6 -> "Removed"
+            7 -> "Paid Partially"
+            else -> "Unpaid"
+        }
+    }
+
     @SuppressLint("NotifyDataSetChanged")
     private fun updateTransactionStatus(
         transaction: BorrowerListTransaction,
         path: Array<String?>,
         position: Int,
-        status: String?
+        statusInt: Int
     ) {
         val borrowId = path[2] ?: return
         adapterScope.launch {
             try {
-                if ("Paid" == status) {
+                if (statusInt == 3) { // Paid
                     val borrow = withContext(Dispatchers.IO) {
                         DeclareDatabase.borrowsTable.select {
-                            filter { eq("borrowId", borrowId) }
+                            filter { eq("id", borrowId.toLong()) }
                         }.decodeSingleOrNull<BorrowNowTransaction>()
                     }
 
-                    if (borrow != null && borrow.status != "Paid") {
+                    if (borrow != null && borrow.getStatus() != "Paid") {
                         val amount = borrow.borrowedAmount ?: 0.0
-                        val borrowerID = borrow.borrowerID
-                        val lenderID = borrow.lenderID
+                        val borrowerID = borrow.getBorrowerID()
+                        val lenderID = borrow.getLenderID()
 
                         if (borrowerID != null) {
                             BalanceHelper.updateTotaldebt(borrowerID, -amount, null)
@@ -132,13 +142,13 @@ class PayerListTransactionAdapter(
 
                 withContext(Dispatchers.IO) {
                     DeclareDatabase.borrowsTable.update({
-                        set("status", status)
+                        set("status", statusInt)
                     }) {
-                        filter { eq("borrowId", borrowId) }
+                        filter { eq("id", borrowId.toLong()) }
                     }
                 }
 
-                transaction.setStatus(status)
+                transaction.setStatus(getStatusStr(statusInt))
                 transactionList[position] = transaction
                 notifyDataSetChanged()
                 statusUpdatedListener?.onTransactionStatusUpdated()
@@ -176,7 +186,8 @@ class PayerListTransactionAdapter(
         val dialog = builder.create()
 
         payNowConfirmBtn.setOnClickListener {
-            updateAllTransactionStatus(if (action == "Confirm") "Paid" else "Payment Denied")
+            val statusInt = if (action == "Confirm") 3 else 5
+            updateAllTransactionStatus(statusInt)
             dialog.dismiss()
         }
 
@@ -185,22 +196,22 @@ class PayerListTransactionAdapter(
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    private fun updateAllTransactionStatus(status: String?) {
+    private fun updateAllTransactionStatus(statusInt: Int) {
         adapterScope.launch {
             try {
                 withContext(Dispatchers.IO) {
                     transactionList.indices.forEach { i ->
                         val borrowId = pathList[i]?.get(2) ?: return@forEach
                         
-                        if ("Paid" == status) {
+                        if (statusInt == 3) {
                             val borrow = DeclareDatabase.borrowsTable.select {
-                                filter { eq("borrowId", borrowId) }
+                                filter { eq("id", borrowId.toLong()) }
                             }.decodeSingleOrNull<BorrowNowTransaction>()
 
-                            if (borrow != null && borrow.status != "Paid") {
+                            if (borrow != null && borrow.getStatus() != "Paid") {
                                 val amount = borrow.borrowedAmount ?: 0.0
-                                val borrowerID = borrow.borrowerID
-                                val lenderID = borrow.lenderID
+                                val borrowerID = borrow.getBorrowerID()
+                                val lenderID = borrow.getLenderID()
 
                                 if (borrowerID != null) {
                                     BalanceHelper.updateTotaldebt(borrowerID, -amount, null)
@@ -212,13 +223,13 @@ class PayerListTransactionAdapter(
                         }
 
                         DeclareDatabase.borrowsTable.update({
-                            set("status", status)
+                            set("status", statusInt)
                         }) {
-                            filter { eq("borrowId", borrowId) }
+                            filter { eq("id", borrowId.toLong()) }
                         }
                     }
                 }
-                transactionList.forEach { it.setStatus(status) }
+                transactionList.forEach { it.setStatus(getStatusStr(statusInt)) }
                 notifyDataSetChanged()
                 statusUpdatedListener?.onTransactionStatusUpdated()
             } catch (e: Exception) {
@@ -233,11 +244,11 @@ class PayerListTransactionAdapter(
         adapterScope.launch {
             try {
                 val user = withContext(Dispatchers.IO) {
-                    DeclareDatabase.usersTable.select(Columns.list("profileImageUrl")) {
+                    DeclareDatabase.usersTable.select(Columns.list("profile_image_url")) {
                         filter { eq("username", payerName) }
                     }.decodeSingleOrNull<User>()
                 }
-                val imageUrl = user?.profileImageUrl
+                val imageUrl = user?.getProfileImageUrl()
                 if (imageUrl != null && payerName == imageView.tag && context != null) {
                     Glide.with(context).load(imageUrl).placeholder(R.drawable.placeholder_profile_image).into(imageView)
                 }

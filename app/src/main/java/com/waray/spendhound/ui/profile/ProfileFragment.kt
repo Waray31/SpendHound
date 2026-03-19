@@ -17,7 +17,6 @@ import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.PopupMenu
-import android.widget.Spinner
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -33,6 +32,7 @@ import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.bumptech.glide.load.engine.GlideException
 import com.bumptech.glide.request.RequestListener
 import com.bumptech.glide.request.target.Target
+import com.waray.spendhound.BorrowNowTransaction
 import com.waray.spendhound.BreakdownAdapter
 import com.waray.spendhound.BreakdownItem
 import com.waray.spendhound.CurrencyUtils
@@ -40,7 +40,10 @@ import com.waray.spendhound.DeclareDatabase
 import com.waray.spendhound.LoginActivity
 import com.waray.spendhound.PayorAdapter
 import com.waray.spendhound.R
+import com.waray.spendhound.Transaction
+import com.waray.spendhound.User
 import io.github.jan.supabase.gotrue.Auth
+import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -61,13 +64,11 @@ class ProfileFragment : Fragment() {
     private var saveNickname: ImageView? = null
     var mAuth: Auth? = null
     private var currentNickname: String? = ""
-    private var totalIndividualPayment = 0
-    private var totalPaymentList = 0
-    private var balance = 0
-    private var unpaid = 0
+    private var balance = 0.0
+    private var unpaid = 0.0
     
-    private var currentOwe = 0
-    private var currentDebt = 0
+    private var currentOwe = 0.0
+    private var currentDebt = 0.0
     private var balanceUnpaidLayout: View? = null
     private var oweDebtLayout: View? = null
     private var balanceUnpaidDrawable: Drawable? = null
@@ -216,17 +217,17 @@ class ProfileFragment : Fragment() {
 
     private fun loadNicknameAndData() {
         showLoading()
-        val currentUserID = mAuth?.currentUserOrNull()?.id ?: return hideLoading()
+        val currentUserID = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return hideLoading()
         lifecycleScope.launch {
             try {
-                val users = DeclareDatabase.usersTable.select {
-                    filter { eq("id", currentUserID) }
-                }.decodeList<Map<String, Any>>()
-                val user = users.singleOrNull()
-                currentNickname = user?.get("username") as? String ?: ""
+                val user = withContext(Dispatchers.IO) {
+                    DeclareDatabase.usersTable.select(Columns.list("username")) {
+                        filter { eq("user_id", currentUserID) }
+                    }.decodeSingleOrNull<User>()
+                }
+                currentNickname = user?.username ?: ""
                 nicknameTextView?.text = currentNickname
                 
-                // Load other data that depends on nickname or userId
                 totalBalanceUnpaid()
                 fetchDebt()
                 fetchOwe()
@@ -258,13 +259,15 @@ class ProfileFragment : Fragment() {
     private fun saveNickname() {
         val updatedNickname = nicknameEditText?.text.toString()
         currentNickname = updatedNickname
-        val userId = mAuth?.currentUserOrNull()?.id ?: return
+        val userId = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return
         lifecycleScope.launch {
             try {
-                DeclareDatabase.usersTable.update({
-                    set("username", updatedNickname)
-                }) {
-                    filter { eq("id", userId) }
+                withContext(Dispatchers.IO) {
+                    DeclareDatabase.usersTable.update({
+                        set("username", updatedNickname)
+                    }) {
+                        filter { eq("user_id", userId) }
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("Supabase", "Error saving nickname: ${e.message}")
@@ -273,13 +276,18 @@ class ProfileFragment : Fragment() {
     }
 
     private fun fetchOwe() {
-        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
+        val currentUserId = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return
         lifecycleScope.launch {
             try {
-                val borrows = DeclareDatabase.borrowsTable.select {
-                    filter { eq("lender_id", currentUserId) }
-                }.decodeList<Map<String, Any>>()
-                currentOwe = borrows.sumOf { it["borrowed_amount"]?.toString()?.toDoubleOrNull()?.toInt() ?: 0 }
+                val borrows = withContext(Dispatchers.IO) {
+                    DeclareDatabase.borrowsTable.select {
+                        filter { 
+                            eq("lender_id", currentUserId)
+                            neq("status", 3) // Not Paid
+                        }
+                    }.decodeList<BorrowNowTransaction>()
+                }
+                currentOwe = borrows.sumOf { it.borrowedAmount ?: 0.0 }
             } catch (e: Exception) {
                 Log.e("Supabase", "Error fetching owe: ${e.message}")
             }
@@ -287,13 +295,18 @@ class ProfileFragment : Fragment() {
     }
 
     private fun fetchDebt() {
-        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
+        val currentUserId = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return
         lifecycleScope.launch {
             try {
-                val borrows = DeclareDatabase.borrowsTable.select {
-                    filter { eq("borrower_id", currentUserId) }
-                }.decodeList<Map<String, Any>>()
-                currentDebt = borrows.sumOf { it["borrowed_amount"]?.toString()?.toDoubleOrNull()?.toInt() ?: 0 }
+                val borrows = withContext(Dispatchers.IO) {
+                    DeclareDatabase.borrowsTable.select {
+                        filter { 
+                            eq("borrower_id", currentUserId)
+                            neq("status", 3) // Not Paid
+                        }
+                    }.decodeList<BorrowNowTransaction>()
+                }
+                currentDebt = borrows.sumOf { it.borrowedAmount ?: 0.0 }
             } catch (e: Exception) {
                 Log.e("Supabase", "Error fetching debt: ${e.message}")
             }
@@ -303,31 +316,33 @@ class ProfileFragment : Fragment() {
     private fun totalBalanceUnpaid() {
         lifecycleScope.launch {
             try {
-                val transactions = DeclareDatabase.transactionsTable.select().decodeList<Map<String, Any>>()
-                totalIndividualPayment = 0
-                totalPaymentList = 0
+                val transactions = withContext(Dispatchers.IO) {
+                    DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
+                }
+                var totalIndividualPaymentSum = 0.0
+                var totalPaymentListSum = 0.0
 
                 for (transaction in transactions) {
-                    val individualPayment = transaction["total_individual_payment"]?.toString()?.toDoubleOrNull()?.toInt() ?: 0
-                    val payorsList = transaction["payors_list"] as? List<String> ?: emptyList()
-                    val amountsPaidList = transaction["amounts_paid_list"] as? List<Int> ?: emptyList()
+                    val individualPayment = transaction.totalIndividualPayment
+                    val payorsList = transaction.payorsDisplayNames ?: transaction.payorsList ?: emptyList()
+                    val amountsPaidList = transaction.amountsPaidList ?: emptyList()
 
                     val userIndex = payorsList.indexOf(currentNickname)
                     if (userIndex != -1 && userIndex < amountsPaidList.size) {
-                        totalIndividualPayment += individualPayment
-                        totalPaymentList += amountsPaidList[userIndex]
+                        totalIndividualPaymentSum += individualPayment
+                        totalPaymentListSum += (amountsPaidList[userIndex] ?: 0.0)
                     }
                 }
 
-                if (totalPaymentList > totalIndividualPayment) {
-                    balance = totalPaymentList - totalIndividualPayment
-                    unpaid = 0
+                if (totalPaymentListSum > totalIndividualPaymentSum) {
+                    balance = totalPaymentListSum - totalIndividualPaymentSum
+                    unpaid = 0.0
                 } else {
-                    unpaid = totalIndividualPayment - totalPaymentList
-                    balance = 0
+                    unpaid = totalIndividualPaymentSum - totalPaymentListSum
+                    balance = 0.0
                 }
 
-                totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(balance.toDouble())
+                totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(balance)
                 totalTextView?.text = "Total Balance:"
             } catch (e: Exception) {
                 Log.e("Supabase", "Error fetching balance/unpaid: ${e.message}")
@@ -349,7 +364,7 @@ class ProfileFragment : Fragment() {
             debtTextView?.setBackgroundResource(R.drawable.button_background_invisible)
             debtTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
 
-            totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(balance.toDouble())
+            totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(balance)
             totalTextView?.text = "Total Balance:"
         }
     }
@@ -368,7 +383,7 @@ class ProfileFragment : Fragment() {
             debtTextView?.setBackgroundResource(R.drawable.button_background_invisible)
             debtTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
 
-            totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(unpaid.toDouble())
+            totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(unpaid)
             totalTextView?.text = "Total Unpaid Balance:"
         }
     }
@@ -387,7 +402,7 @@ class ProfileFragment : Fragment() {
             debtTextView?.setBackgroundResource(R.drawable.button_background_invisible)
             debtTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
 
-            totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(currentOwe.toDouble())
+            totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(currentOwe)
             totalTextView?.text = "Total Owed Balance:"
         }
     }
@@ -406,7 +421,7 @@ class ProfileFragment : Fragment() {
             debtTextView?.setBackgroundResource(R.drawable.button_background_visible)
             debtTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.yellow))
 
-            totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(currentDebt.toDouble())
+            totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(currentDebt)
             totalTextView?.text = "Total Debt:"
         }
     }
@@ -620,22 +635,22 @@ class ProfileFragment : Fragment() {
         when (category) {
             BreakdownItem.Category.BALANCE -> {
                 categoryTitle.text = "Total Balance"
-                totalAmount.text = CurrencyUtils.formatAmountWithCurrency(balance.toDouble())
+                totalAmount.text = CurrencyUtils.formatAmountWithCurrency(balance)
                 loadBalanceBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar)
             }
             BreakdownItem.Category.UNPAID -> {
                 categoryTitle.text = "Total Unpaid"
-                totalAmount.text = CurrencyUtils.formatAmountWithCurrency(unpaid.toDouble())
+                totalAmount.text = CurrencyUtils.formatAmountWithCurrency(unpaid)
                 loadUnpaidBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar)
             }
             BreakdownItem.Category.OWE -> {
                 categoryTitle.text = "Total Owed"
-                totalAmount.text = CurrencyUtils.formatAmountWithCurrency(currentOwe.toDouble())
+                totalAmount.text = CurrencyUtils.formatAmountWithCurrency(currentOwe)
                 loadOweBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar)
             }
             BreakdownItem.Category.DEBT -> {
                 categoryTitle.text = "Total Debt"
-                totalAmount.text = CurrencyUtils.formatAmountWithCurrency(currentDebt.toDouble())
+                totalAmount.text = CurrencyUtils.formatAmountWithCurrency(currentDebt)
                 loadDebtBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar)
             }
         }
@@ -652,21 +667,23 @@ class ProfileFragment : Fragment() {
 
         lifecycleScope.launch {
             try {
-                val transactions = DeclareDatabase.transactionsTable.select().decodeList<Map<String, Any>>()
+                val transactions = withContext(Dispatchers.IO) {
+                    DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
+                }
                 items.clear()
                 for (transaction in transactions) {
-                    val individualPayment = transaction["total_individual_payment"]?.toString()?.toDoubleOrNull()?.toInt() ?: 0
-                    val payorsList = transaction["payors_list"] as? List<String> ?: emptyList()
-                    val amountsPaidList = transaction["amounts_paid_list"] as? List<Int> ?: emptyList()
-                    val dateStr = transaction["date"]?.toString() ?: "Unknown Date"
-                    val transactionType = transaction["transaction_type"]?.toString() ?: ""
+                    val individualPayment = transaction.totalIndividualPayment
+                    val payorsList = transaction.payorsDisplayNames ?: transaction.payorsList ?: emptyList()
+                    val amountsPaidList = transaction.amountsPaidList ?: emptyList()
+                    val dateStr = transaction.monthYear ?: "Unknown Date"
+                    val transactionType = transaction.transactionType ?: ""
 
                     val userIndex = payorsList.indexOf(currentNickname)
                     if (userIndex != -1 && userIndex < amountsPaidList.size) {
-                        val userPayment = amountsPaidList[userIndex]
+                        val userPayment = amountsPaidList[userIndex] ?: 0.0
                         val transactionBalance = userPayment - individualPayment
                         if (transactionBalance > 0) {
-                            items.add(BreakdownItem(BreakdownItem.Category.BALANCE, dateStr, "Transaction", transactionBalance.toDouble(), "Completed", transactionType))
+                            items.add(BreakdownItem(BreakdownItem.Category.BALANCE, dateStr, "Transaction", transactionBalance, "Completed", transactionType))
                         }
                     }
                 }
@@ -690,21 +707,23 @@ class ProfileFragment : Fragment() {
 
         lifecycleScope.launch {
             try {
-                val transactions = DeclareDatabase.transactionsTable.select().decodeList<Map<String, Any>>()
+                val transactions = withContext(Dispatchers.IO) {
+                    DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
+                }
                 items.clear()
                 for (transaction in transactions) {
-                    val individualPayment = transaction["total_individual_payment"]?.toString()?.toDoubleOrNull()?.toInt() ?: 0
-                    val payorsList = transaction["payors_list"] as? List<String> ?: emptyList()
-                    val amountsPaidList = transaction["amounts_paid_list"] as? List<Int> ?: emptyList()
-                    val dateStr = transaction["date"]?.toString() ?: "Unknown Date"
-                    val transactionType = transaction["transaction_type"]?.toString() ?: ""
+                    val individualPayment = transaction.totalIndividualPayment
+                    val payorsList = transaction.payorsDisplayNames ?: transaction.payorsList ?: emptyList()
+                    val amountsPaidList = transaction.amountsPaidList ?: emptyList()
+                    val dateStr = transaction.monthYear ?: "Unknown Date"
+                    val transactionType = transaction.transactionType ?: ""
 
                     val userIndex = payorsList.indexOf(currentNickname)
                     if (userIndex != -1 && userIndex < amountsPaidList.size) {
-                        val userPayment = amountsPaidList[userIndex]
+                        val userPayment = amountsPaidList[userIndex] ?: 0.0
                         val transactionUnpaid = individualPayment - userPayment
                         if (transactionUnpaid > 0) {
-                            items.add(BreakdownItem(BreakdownItem.Category.UNPAID, dateStr, "Transaction", transactionUnpaid.toDouble(), "Pending", transactionType))
+                            items.add(BreakdownItem(BreakdownItem.Category.UNPAID, dateStr, "Transaction", transactionUnpaid, "Pending", transactionType))
                         }
                     }
                 }
@@ -722,22 +741,24 @@ class ProfileFragment : Fragment() {
         recyclerView: RecyclerView, emptyStateLayout: View,
         emptyStateText: TextView, progressBar: View
     ) {
-        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
+        val currentUserId = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return
         progressBar.visibility = View.VISIBLE
         recyclerView.visibility = View.GONE
         emptyStateLayout.visibility = View.GONE
 
         lifecycleScope.launch {
             try {
-                val borrows = DeclareDatabase.borrowsTable.select {
-                    filter { eq("lender_id", currentUserId) }
-                }.decodeList<Map<String, Any>>()
+                val borrows = withContext(Dispatchers.IO) {
+                    DeclareDatabase.borrowsTable.select {
+                        filter { eq("lender_id", currentUserId) }
+                    }.decodeList<BorrowNowTransaction>()
+                }
                 items.clear()
                 for (borrow in borrows) {
-                    val dateStr = borrow["date"]?.toString() ?: "Unknown Date"
-                    val borrowerName = borrow["borrower_name"]?.toString() ?: "Unknown"
-                    val borrowedAmount = borrow["borrowed_amount"]?.toString()?.toDoubleOrNull() ?: 0.0
-                    val status = borrow["status"]?.toString() ?: "Pending"
+                    val dateStr = borrow.createdAt ?: "Unknown Date"
+                    val borrowerName = borrow.borrowerName ?: "Unknown"
+                    val borrowedAmount = borrow.borrowedAmount ?: 0.0
+                    val status = borrow.getStatus() ?: "Pending"
                     items.add(BreakdownItem(BreakdownItem.Category.OWE, dateStr, "From: $borrowerName", borrowedAmount, status))
                 }
                 updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No owed amounts found")
@@ -754,22 +775,24 @@ class ProfileFragment : Fragment() {
         recyclerView: RecyclerView, emptyStateLayout: View,
         emptyStateText: TextView, progressBar: View
     ) {
-        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
+        val currentUserId = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return
         progressBar.visibility = View.VISIBLE
         recyclerView.visibility = View.GONE
         emptyStateLayout.visibility = View.GONE
 
         lifecycleScope.launch {
             try {
-                val borrows = DeclareDatabase.borrowsTable.select {
-                    filter { eq("borrower_id", currentUserId) }
-                }.decodeList<Map<String, Any>>()
+                val borrows = withContext(Dispatchers.IO) {
+                    DeclareDatabase.borrowsTable.select {
+                        filter { eq("borrower_id", currentUserId) }
+                    }.decodeList<BorrowNowTransaction>()
+                }
                 items.clear()
                 for (borrow in borrows) {
-                    val dateStr = borrow["date"]?.toString() ?: "Unknown Date"
-                    val lenderName = borrow["lender_name"]?.toString() ?: "Unknown"
-                    val borrowedAmount = borrow["borrowed_amount"]?.toString()?.toDoubleOrNull() ?: 0.0
-                    val status = borrow["status"]?.toString() ?: "Pending"
+                    val dateStr = borrow.createdAt ?: "Unknown Date"
+                    val lenderName = borrow.lender ?: "Unknown"
+                    val borrowedAmount = borrow.borrowedAmount ?: 0.0
+                    val status = borrow.getStatus() ?: "Pending"
                     items.add(BreakdownItem(BreakdownItem.Category.DEBT, dateStr, "To: $lenderName", borrowedAmount, status))
                 }
                 updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No debt found")

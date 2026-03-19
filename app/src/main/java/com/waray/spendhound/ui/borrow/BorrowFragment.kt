@@ -40,7 +40,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Calendar
-import java.util.Collections
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.UUID
@@ -235,22 +234,22 @@ class BorrowFragment : Fragment() {
         get() = field ?: object : OwedTransactionAdapter.OnLenderActionListener {
             override fun onNotYetClicked(transaction: OwedTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_not_yet_title), getString(R.string.confirm_not_yet_message), R.color.grey) {
-                    updateTransactionStatus(transaction?.getBorrowId(), transaction?.getMonthYear(), transaction?.getDay(), "Unpaid", null)
+                    updateTransactionStatus(transaction?.getBorrowId(), "Unpaid", null)
                 }
             }
             override fun onReceivedClicked(transaction: OwedTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_received_title), getString(R.string.confirm_received_message), R.color.green) {
-                    updateTransactionStatus(transaction?.getBorrowId(), transaction?.getMonthYear(), transaction?.getDay(), "Paid", null)
+                    updateTransactionStatus(transaction?.getBorrowId(), "Paid", null)
                 }
             }
             override fun onDeclineClicked(transaction: OwedTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_decline_title), getString(R.string.confirm_decline_message), R.color.red) {
-                    updateTransactionStatus(transaction?.getBorrowId(), transaction?.getMonthYear(), transaction?.getDay(), "Declined", null)
+                    updateTransactionStatus(transaction?.getBorrowId(), "Declined", null)
                 }
             }
             override fun onApprovedClicked(transaction: OwedTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_approve_title), getString(R.string.confirm_approve_message), R.color.green) {
-                    updateTransactionStatus(transaction?.getBorrowId(), transaction?.getMonthYear(), transaction?.getDay(), "Unpaid", null)
+                    updateTransactionStatus(transaction?.getBorrowId(), "Unpaid", null)
                 }
             }
         }
@@ -259,17 +258,17 @@ class BorrowFragment : Fragment() {
         get() = field ?: object : DebtTransactionAdapter.OnBorrowerActionListener {
             override fun onPayClicked(transaction: BorrowTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_pay_title), getString(R.string.confirm_pay_message), R.color.green) {
-                    updateTransactionStatusWithPaymentDate(transaction?.getBorrowId(), transaction?.getMonthYear(), transaction?.getDay(), "Pending Payment", null)
+                    updateTransactionStatusWithPaymentDate(transaction?.getBorrowId(), "Pending Payment", null)
                 }
             }
             override fun onRemoveClicked(transaction: BorrowTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_remove_title), getString(R.string.confirm_remove_message), R.color.red) {
-                    updateTransactionStatus(transaction?.getBorrowId(), transaction?.getMonthYear(), transaction?.getDay(), "Removed", null)
+                    updateTransactionStatus(transaction?.getBorrowId(), "Removed", null)
                 }
             }
             override fun onTryAgainClicked(transaction: BorrowTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_try_again_title), getString(R.string.confirm_try_again_message), R.color.green) {
-                    updateTransactionStatus(transaction?.getBorrowId(), transaction?.getMonthYear(), transaction?.getDay(), "For Lender Approval", null)
+                    updateTransactionStatus(transaction?.getBorrowId(), "For Lender Approval", null)
                 }
             }
         }
@@ -300,14 +299,18 @@ class BorrowFragment : Fragment() {
     fun getCurrentNickname() {
         val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
         uiScope.launch {
-            val user = withContext(Dispatchers.IO) {
-                DeclareDatabase.usersTable.select(Columns.list("username")) {
-                    filter {
-                        eq("id", currentUserId)
-                    }
-                }.decodeSingleOrNull<User>()
+            try {
+                val user = withContext(Dispatchers.IO) {
+                    DeclareDatabase.usersTable.select(Columns.list("username")) {
+                        filter {
+                            eq("user_id", currentUserId.toLongOrNull() ?: 0L)
+                        }
+                    }.decodeSingleOrNull<User>()
+                }
+                currentNickname = user?.username
+            } catch (e: Exception) {
+                Log.e("BorrowFragment", "Error getting nickname: ${e.message}")
             }
-            currentNickname = user?.username
         }
     }
 
@@ -352,26 +355,42 @@ class BorrowFragment : Fragment() {
         dialog.show()
     }
 
-    fun updateTransactionStatus(borrowId: String?, monthYear: String?, day: String?, newStatus: String?, onSuccess: Runnable?) {
+    private fun getStatusInt(statusStr: String?): Int {
+        return when (statusStr) {
+            "For Lender Approval" -> 1
+            "Pending Payment" -> 2
+            "Paid" -> 3
+            "Declined" -> 4
+            "Payment Denied" -> 5
+            "Removed" -> 6
+            "Paid Partially" -> 7
+            else -> 0
+        }
+    }
+
+    fun updateTransactionStatus(borrowId: String?, newStatus: String?, onSuccess: Runnable?) {
         if (borrowId == null) return
         uiScope.launch {
             try {
+                val statusInt = getStatusInt(newStatus)
                 val currentBorrow = withContext(Dispatchers.IO) {
                     DeclareDatabase.borrowsTable.select {
                         filter {
-                            eq("id", borrowId)
+                            eq("id", borrowId.toLongOrNull() ?: 0L)
                         }
                     }.decodeSingleOrNull<BorrowNowTransaction>()
                 }
-                if (newStatus == "Paid" && currentBorrow != null && currentBorrow.getStatus() != "Paid") {
-                    val amount = currentBorrow.getBorrowedAmount() ?: 0.0
+                if (statusInt == 3 && currentBorrow != null && currentBorrow.statusInt != 3) {
+                    val amount = currentBorrow.borrowedAmount ?: 0.0
                     currentBorrow.getBorrowerID()?.let { BalanceHelper.updateTotaldebt(it, -amount, null) }
                     currentBorrow.getLenderID()?.let { BalanceHelper.updateTotalreceivable(it, -amount, null) }
                 }
                 withContext(Dispatchers.IO) {
-                    DeclareDatabase.borrowsTable.update(mapOf("status" to newStatus)) {
+                    DeclareDatabase.borrowsTable.update({
+                        set("status", statusInt)
+                    }) {
                         filter {
-                            eq("id", borrowId)
+                            eq("id", borrowId.toLongOrNull() ?: 0L)
                         }
                     }
                 }
@@ -384,27 +403,34 @@ class BorrowFragment : Fragment() {
         }
     }
 
-    fun updateTransactionStatusWithPaymentDate(borrowId: String?, monthYear: String?, day: String?, newStatus: String?, onSuccess: Runnable?) {
+    fun updateTransactionStatusWithPaymentDate(borrowId: String?, newStatus: String?, onSuccess: Runnable?) {
         if (borrowId == null) return
         val paymentSentDate = System.currentTimeMillis()
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault())
+        val dateStr = sdf.format(java.util.Date(paymentSentDate))
+
         uiScope.launch {
             try {
+                val statusInt = getStatusInt(newStatus)
                 val currentBorrow = withContext(Dispatchers.IO) {
                     DeclareDatabase.borrowsTable.select {
                         filter {
-                            eq("id", borrowId)
+                            eq("id", borrowId.toLongOrNull() ?: 0L)
                         }
                     }.decodeSingleOrNull<BorrowNowTransaction>()
                 }
-                if (newStatus == "Paid" && currentBorrow != null && currentBorrow.getStatus() != "Paid") {
-                    val amount = currentBorrow.getBorrowedAmount() ?: 0.0
+                if (statusInt == 3 && currentBorrow != null && currentBorrow.statusInt != 3) {
+                    val amount = currentBorrow.borrowedAmount ?: 0.0
                     currentBorrow.getBorrowerID()?.let { BalanceHelper.updateTotaldebt(it, -amount, null) }
                     currentBorrow.getLenderID()?.let { BalanceHelper.updateTotalreceivable(it, -amount, null) }
                 }
                 withContext(Dispatchers.IO) {
-                    DeclareDatabase.borrowsTable.update(mapOf("status" to newStatus, "paymentSentDate" to paymentSentDate)) {
+                    DeclareDatabase.borrowsTable.update({
+                        set("status", statusInt)
+                        set("payment_sent_date", dateStr)
+                    }) {
                         filter {
-                            eq("id", borrowId)
+                            eq("id", borrowId.toLongOrNull() ?: 0L)
                         }
                     }
                 }
@@ -415,34 +441,6 @@ class BorrowFragment : Fragment() {
                 Log.e("BorrowFragment", "Error updating transaction status with payment date: ${e.message}")
             }
         }
-    }
-
-    private fun setupLenderRecyclerView(recyclerView: RecyclerView, dialogProgressBar: View) {
-        val layoutManager = LinearLayoutManager(context, LinearLayoutManager.HORIZONTAL, false)
-        recyclerView.layoutManager = layoutManager
-        val lenders = ArrayList<User?>()
-        val adapter = LenderAdapter(lenders)
-        recyclerView.adapter = adapter
-        val snapHelper: SnapHelper = LinearSnapHelper()
-        snapHelper.attachToRecyclerView(recyclerView)
-
-        recyclerView.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                super.onScrolled(recyclerView, dx, dy)
-                updateLayoutEffect(recyclerView)
-            }
-            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
-                super.onScrollStateChanged(recyclerView, newState)
-                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    val centerView = snapHelper.findSnapView(layoutManager)
-                    centerView?.let {
-                        val pos = layoutManager.getPosition(it)
-                        adapter.getLenderAt(pos)?.let { lender -> selectedLenderName = lender.getUsername() ?: "" }
-                    }
-                }
-            }
-        })
-        loadLenders(adapter, lenders, recyclerView, dialogProgressBar)
     }
 
     private fun updateLayoutEffect(recyclerView: RecyclerView) {
@@ -468,107 +466,20 @@ class BorrowFragment : Fragment() {
         }
     }
 
-    private fun loadLenders(adapter: LenderAdapter, lenders: MutableList<User?>, recyclerView: RecyclerView, dialogProgressBar: View) {
-        uiScope.launch {
-            try {
-                val users = withContext(Dispatchers.IO) {
-                    DeclareDatabase.usersTable.select().decodeList<User>()
-                }
-                activity?.runOnUiThread {
-                    lenders.clear()
-                    lenders.add(User("", "", "", UserBalance()))
-                    lenders.add(User("", "", "", UserBalance()))
-                    for (user in users) {
-                        if (user != null && user.getUsername() != null && user.getUsername() != currentNickname) {
-                            lenders.add(user)
-                        }
-                    }
-                    lenders.add(User("", "", "", UserBalance()))
-                    lenders.add(User("", "", "", UserBalance()))
-                    adapter.notifyDataSetChanged()
-                    adapter.preloadAllImages(context) {
-                        activity?.runOnUiThread {
-                            dialogProgressBar.visibility = View.GONE
-                            if (lenders.size > 2) {
-                                recyclerView.scrollToPosition(2)
-                                recyclerView.post {
-                                    adapter.getLenderAt(2)?.let { selectedLenderName = it.getUsername() ?: "" }
-                                    updateLayoutEffect(recyclerView)
-                                }
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("BorrowFragment", "Error loading lenders: ${e.message}")
-                activity?.runOnUiThread {
-                    dialogProgressBar.visibility = View.GONE
-                }
-            }
-        }
-    }
-
-    private fun addBorrowTransaction(
-        lender: String, borrowedAmountStr: String, currentDate: String?,
-        dialog: Dialog, dialogProgressBar: View, borrowBtn: Button, cancelBtn: Button
-    ) {
-        val timestamp = System.currentTimeMillis()
-        val borrowId = UUID.randomUUID().toString()
-        val borrowedAmount = borrowedAmountStr.toDoubleOrNull() ?: 0.0
-
-        val currentUserId = mAuth?.currentUserOrNull()?.id
-        if (currentUserId != null) {
-            getUserIDByName(lender) { lenderID ->
-                if (lenderID == null) {
-                    activity?.runOnUiThread {
-                        showToast(getString(R.string.toast_borrow_failed))
-                        dialogProgressBar.visibility = View.GONE
-                        borrowBtn.isEnabled = true
-                        cancelBtn.isEnabled = true
-                        hideGlobalLoading()
-                    }
-                    return@getUserIDByName
-                }
-                val bnt = BorrowNowTransaction(borrowId, currentUserId, lenderID, currentNickname, currentDate?.toLongOrNull(), lender, borrowedAmount, "For Lender Approval", timestamp)
-                uiScope.launch {
-                    try {
-                        withContext(Dispatchers.IO) {
-                            DeclareDatabase.borrowsTable.insert(bnt)
-                        }
-                        BalanceHelper.addBorrowerEntry(currentUserId, borrowId, null)
-                        BalanceHelper.addLenderEntry(lenderID, borrowId, null)
-                        BalanceHelper.updateTotaldebt(currentUserId, borrowedAmount, null)
-                        BalanceHelper.updateTotalreceivable(lenderID, borrowedAmount, null)
-                        activity?.runOnUiThread {
-                            showToast(getString(R.string.toast_borrow_success))
-                            dialog.dismiss()
-                            applyFilters()
-                        }
-                    } catch (e: Exception) {
-                        Log.e("BorrowFragment", "Error adding borrow transaction: ${e.message}")
-                        activity?.runOnUiThread {
-                            showToast(getString(R.string.toast_borrow_failed))
-                            dialogProgressBar.visibility = View.GONE
-                            borrowBtn.isEnabled = true
-                            cancelBtn.isEnabled = true
-                            hideGlobalLoading()
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     private fun getUserIDByName(name: String, callback: (String?) -> Unit) {
         uiScope.launch {
-            val user = withContext(Dispatchers.IO) {
-                DeclareDatabase.usersTable.select(Columns.list("id")) {
-                    filter {
-                        eq("username", name)
-                    }
-                }.decodeSingleOrNull<User>()
+            try {
+                val user = withContext(Dispatchers.IO) {
+                    DeclareDatabase.usersTable.select(Columns.list("user_id")) {
+                        filter {
+                            eq("username", name)
+                        }
+                    }.decodeSingleOrNull<User>()
+                }
+                callback(user?.id?.toString())
+            } catch (e: Exception) {
+                callback(null)
             }
-            callback(user?.id)
         }
     }
 

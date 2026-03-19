@@ -34,10 +34,6 @@ class SignUpActivity : AppCompatActivity() {
     private var mAuth: Auth? = null
     private var profileImageUri: Uri? = null
     private var userId: String? = null
-    private val balanced = 0
-    private val unpaid = 0
-    private val owed = 0
-    private val debt = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -94,7 +90,7 @@ class SignUpActivity : AppCompatActivity() {
 
             lifecycleScope.launch {
                 try {
-                    val response = mAuth?.signUpWith(Email) {
+                    mAuth?.signUpWith(Email) {
                         this.email = email
                         this.password = password
                     }
@@ -163,10 +159,22 @@ class SignUpActivity : AppCompatActivity() {
         password: String
     ) {
         try {
-            val initialBalance = UserBalance(0.0, 0.0, 0.0, 0.0, 0.0)
-            val user = User(username, email, profileImageUrl, initialBalance, userId)
+            val numericUid = userId?.toLongOrNull()
+            val user = User(
+                id = numericUid,
+                username = username,
+                email = email,
+                password = password,
+                profileImageUrl = profileImageUrl
+            )
 
-            DeclareDatabase.usersTable.insert(user)
+            withContext(Dispatchers.IO) {
+                DeclareDatabase.usersTable.insert(user)
+                
+                // Initialize balance for the new user
+                val initialBalance = UserBalance(userId = numericUid)
+                DeclareDatabase.userBalanceTable.insert(initialBalance)
+            }
             
             withContext(Dispatchers.Main) {
                 progressBar?.visibility = View.GONE

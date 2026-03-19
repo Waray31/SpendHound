@@ -33,7 +33,6 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
-import java.util.UUID
 
 class MainActivity : AppCompatActivity() {
     var navView: BottomNavigationView? = null
@@ -318,21 +317,33 @@ class MainActivity : AppCompatActivity() {
             try {
                 val calendar = Calendar.getInstance()
                 val monthYear = SimpleDateFormat("MMMM-yyyy", Locale.ENGLISH).format(calendar.time)
-                
+                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault())
+                val createdAt = sdf.format(calendar.time)
+
                 val borrowTransaction = BorrowNowTransaction(
-                    borrowId = UUID.randomUUID().toString(),
-                    borrowerID = currentUser.id,
-                    borrowerName = currentNickname,
-                    lenderID = lender.id?.toString(),
-                    lender = lender.username,
                     borrowedAmount = amount,
-                    status = "For Lender Approval",
-                    date = calendar.timeInMillis,
+                    borrowerId = currentUser.id?.toLongOrNull(),
+                    lenderId = lender.id,
+                    statusInt = 1, // 1 = For Lender Approval
+                    createdAt = createdAt,
                     monthYear = monthYear,
+                    borrowerName = currentNickname,
+                    lender = lender.username,
                     timestamp = System.currentTimeMillis()
                 )
 
-                DeclareDatabase.borrowsTable.insert(borrowTransaction)
+                val inserted = DeclareDatabase.borrowsTable.insert(borrowTransaction) {
+                    select()
+                }.decodeSingle<BorrowNowTransaction>()
+                
+                val borrowIdStr = inserted.id?.toString() ?: ""
+                if (borrowIdStr.isNotEmpty()) {
+                    BalanceHelper.addBorrowerEntry(currentUser.id, borrowIdStr, null)
+                    BalanceHelper.addLenderEntry(lender.id?.toString(), borrowIdStr, null)
+                    BalanceHelper.updateTotaldebt(currentUser.id, amount, null)
+                    BalanceHelper.updateTotalreceivable(lender.id?.toString(), amount, null)
+                }
+
                 Toast.makeText(this@MainActivity, "Borrow request sent!", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error submitting borrow request: ${e.message}")
@@ -344,7 +355,6 @@ class MainActivity : AppCompatActivity() {
     fun getRecentTransactions(callback: Runnable?) {
         lifecycleScope.launch {
             try {
-                val currentUid = mAuth?.currentUserOrNull()?.id ?: return@launch
                 val usernameOrUid = currentNickname ?: ""
                 
                 val transactions = DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
@@ -497,18 +507,18 @@ class MainActivity : AppCompatActivity() {
     ) {
         lifecycleScope.launch {
             try {
-                val currentUserId = mAuth?.currentUserOrNull()?.id
+                val currentUserId = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
                 val borrows = DeclareDatabase.borrowsTable.select().decodeList<BorrowNowTransaction>()
                 
                 debtList.clear()
                 for (bnt in borrows) {
-                    if (bnt.getBorrowerID() == currentUserId) {
+                    if (bnt.borrowerId == currentUserId) {
                         if (bnt.getStatus() != "Removed" && bnt.getStatus() != "Payment Denied" && shouldIncludeForDebtStatus(
                                 bnt.getStatus(),
                                 selectedStatus
                             )
                         ) {
-                            addDebtTransactionFromBorrowNow(bnt, bnt.getMonthYear(), null, bnt.getBorrowId())
+                            addDebtTransactionFromBorrowNow(bnt, bnt.getMonthYear(), null, bnt.id?.toString())
                         }
                     }
                 }
@@ -551,7 +561,7 @@ class MainActivity : AppCompatActivity() {
         borrowId: String?
     ) {
         val dateLong = borrowNowTransaction.getDate()
-        val date = if (dateLong != null) SimpleDateFormat("MMM-dd-yyyy", Locale.getDefault()).format(java.util.Date(dateLong)) else ""
+        val date = SimpleDateFormat("MMM-dd-yyyy", Locale.getDefault()).format(java.util.Date(dateLong))
         
         val psdLong = borrowNowTransaction.getPaymentSentDate()
         val psd = if (psdLong > 0) SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH).format(java.util.Date(psdLong)) else null
@@ -578,19 +588,19 @@ class MainActivity : AppCompatActivity() {
         if (selectedMonth == null || selectedMonth == "All") return
         lifecycleScope.launch {
             try {
-                val uid = mAuth?.currentUserOrNull()?.id
+                val uid = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
                 val borrows = DeclareDatabase.borrowsTable.select {
                     filter { eq("month_year", selectedMonth) }
                 }.decodeList<BorrowNowTransaction>()
                 
                 debtList.clear()
                 for (bnt in borrows) {
-                    if (bnt.getBorrowerID() == uid && bnt.getStatus() != "Removed" && bnt.getStatus() != "Payment Denied" && shouldIncludeForDebtStatus(
+                    if (bnt.borrowerId == uid && bnt.getStatus() != "Removed" && bnt.getStatus() != "Payment Denied" && shouldIncludeForDebtStatus(
                             bnt.getStatus(),
                             selectedStatus
                         )
                     ) {
-                        addDebtTransactionFromBorrowNow(bnt, selectedMonth, null, bnt.getBorrowId())
+                        addDebtTransactionFromBorrowNow(bnt, selectedMonth, null, bnt.id?.toString())
                     }
                 }
                 
@@ -610,17 +620,17 @@ class MainActivity : AppCompatActivity() {
     ) {
         lifecycleScope.launch {
             try {
-                val uid = mAuth?.currentUserOrNull()?.id
+                val uid = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
                 val borrows = DeclareDatabase.borrowsTable.select().decodeList<BorrowNowTransaction>()
                 
                 owedList.clear()
                 for (bnt in borrows) {
-                    if (bnt.getLenderID() == uid && bnt.getStatus() != "Declined" && bnt.getStatus() != "Payment Denied" && bnt.getStatus() != "Removed" && shouldIncludeForStatus(
+                    if (bnt.lenderId == uid && bnt.getStatus() != "Declined" && bnt.getStatus() != "Payment Denied" && bnt.getStatus() != "Removed" && shouldIncludeForStatus(
                             bnt.getStatus(),
                             selectedStatus
                         )
                     ) {
-                        addOwedTransactionFromBorrowNow(bnt, bnt.getMonthYear(), null, bnt.getBorrowId())
+                        addOwedTransactionFromBorrowNow(bnt, bnt.getMonthYear(), null, bnt.id?.toString())
                     }
                 }
                 
@@ -699,7 +709,7 @@ class MainActivity : AppCompatActivity() {
         bid: String?
     ) {
         val dateLong = bnt.getDate()
-        val date = if (dateLong != null) SimpleDateFormat("MMM-dd-yyyy", Locale.getDefault()).format(java.util.Date(dateLong)) else ""
+        val date = SimpleDateFormat("MMM-dd-yyyy", Locale.getDefault()).format(java.util.Date(dateLong))
         
         val psdLong = bnt.getPaymentSentDate()
         val psd = if (psdLong > 0) SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH).format(java.util.Date(psdLong)) else null
@@ -727,19 +737,19 @@ class MainActivity : AppCompatActivity() {
         if (sm == null || sm == "All") return
         lifecycleScope.launch {
             try {
-                val uid = mAuth?.currentUserOrNull()?.id
+                val uid = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
                 val borrows = DeclareDatabase.borrowsTable.select {
                     filter { eq("month_year", sm) }
                 }.decodeList<BorrowNowTransaction>()
                 
                 owedList.clear()
                 for (bnt in borrows) {
-                    if (bnt.getLenderID() == uid && bnt.getStatus() != "Declined" && bnt.getStatus() != "Payment Denied" && bnt.getStatus() != "Removed" && shouldIncludeForStatus(
+                    if (bnt.lenderId == uid && bnt.getStatus() != "Declined" && bnt.getStatus() != "Payment Denied" && bnt.getStatus() != "Removed" && shouldIncludeForStatus(
                             bnt.getStatus(),
                             ss
                         )
                     ) {
-                        addOwedTransactionFromBorrowNow(bnt, sm, null, bnt.getBorrowId())
+                        addOwedTransactionFromBorrowNow(bnt, sm, null, bnt.id?.toString())
                     }
                 }
                 
