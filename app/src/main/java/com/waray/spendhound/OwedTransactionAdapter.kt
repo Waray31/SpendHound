@@ -11,7 +11,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.card.MaterialCardView
 
 class OwedTransactionAdapter(
-    private val owedTransactionList: ArrayList<OwedTransaction>,
+    private val owedTransactionList: List<OwedTransaction?>,
     private var lenderActionListener: OnLenderActionListener? = null
 ) : RecyclerView.Adapter<OwedTransactionAdapter.ViewHolder>() {
 
@@ -30,7 +30,7 @@ class OwedTransactionAdapter(
 
     // Secondary constructor for backward compatibility
     constructor(
-        owedTransactionList: ArrayList<OwedTransaction>,
+        owedTransactionList: List<OwedTransaction?>,
         clickListener: OnItemClickListener?
     ) : this(owedTransactionList) {
         this.clickListener = clickListener
@@ -51,7 +51,7 @@ class OwedTransactionAdapter(
     }
 
     override fun onBindViewHolder(holder: ViewHolder, @SuppressLint("RecyclerView") position: Int) {
-        val transaction = owedTransactionList[position]
+        val transaction = owedTransactionList[position] ?: return
 
         // Bind data to the ViewHolder's views
         holder.owedDateTV.text = transaction.getDate()

@@ -9,30 +9,20 @@ import android.widget.TextView
 
 class SpinnerItemMonths(context: Context, items: MutableList<String?>) :
     ArrayAdapter<String?>(context, R.layout.spinner_item_months, items) {
-    private val mInflater: LayoutInflater
+    private val mInflater: LayoutInflater = LayoutInflater.from(context)
 
-    init {
-        mInflater = LayoutInflater.from(context)
-    }
-
-    override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
+    override fun getView(position: Int, convertView: View?, parent: ViewGroup): View {
         return createItemView(position, convertView, parent)
     }
 
-    override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup?): View {
+    override fun getDropDownView(position: Int, convertView: View?, parent: ViewGroup): View {
         return createItemView(position, convertView, parent)
     }
 
-    private fun createItemView(position: Int, convertView: View?, parent: ViewGroup?): View {
-        var convertView = convertView
-        if (convertView == null) {
-            convertView = mInflater.inflate(R.layout.spinner_item_months, parent, false)
-        }
-
-        val textView = convertView.findViewById<TextView>(android.R.id.text2)
-        textView.setText(getItem(position))
-
-        return convertView
+    private fun createItemView(position: Int, convertView: View?, parent: ViewGroup): View {
+        val view = convertView ?: mInflater.inflate(R.layout.spinner_item_months, parent, false)
+        val textView = view.findViewById<TextView>(android.R.id.text2)
+        textView.text = getItem(position)
+        return view
     }
 }
-

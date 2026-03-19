@@ -186,6 +186,27 @@ object UserHelper {
         }
     }
 
+    /**
+     * Get all users from Supabase.
+     */
+    suspend fun getAllUsers(): List<User> {
+        return withContext(Dispatchers.IO) {
+            try {
+                val users = DeclareDatabase.usersTable.select(Columns.list("id", "username")).decodeList<User>()
+                for (user in users) {
+                    if (user.id != null && user.username != null) {
+                        uidToUsernameCache[user.id] = user.username
+                        usernameToUidCache[user.username] = user.id
+                    }
+                }
+                users
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to get all users: ${e.message}")
+                emptyList()
+            }
+        }
+    }
+
     fun updateCache(uid: String, username: String) {
         uidToUsernameCache[uid] = username
         usernameToUidCache[username] = uid

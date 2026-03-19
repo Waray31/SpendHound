@@ -17,7 +17,6 @@ import com.google.android.material.imageview.ShapeableImageView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicInteger
 
 class LenderAdapter(private val lenders: MutableList<User?>) :
