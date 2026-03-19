@@ -36,6 +36,7 @@ object DeclareDatabase {
 
     // Table References
     val usersTable get() = client.from("users")
+    val userBalanceTable get() = client.from("user_balance")
     val transactionsTable get() = client.from("transactions")
     val groupsTable get() = client.from("groups")
     val borrowsTable get() = client.from("borrows")
@@ -47,6 +48,7 @@ object DeclareDatabase {
     // Compatibility getters (updated to return Supabase types)
     @JvmStatic fun getAuth() = auth
     @JvmStatic fun getUsersTable() = usersTable
+    @JvmStatic fun getUserBalanceTable() = userBalanceTable
     @JvmStatic fun getTransactionsTable() = transactionsTable
     @JvmStatic fun getGroupsTable() = groupsTable
     @JvmStatic fun getBorrowsTable() = borrowsTable

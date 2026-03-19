@@ -155,8 +155,8 @@ class BorrowNowActivity : AppCompatActivity() {
                 val users = DeclareDatabase.usersTable.select().decodeList<User>()
                 lenders?.clear()
                 // Carousel padding
-                lenders?.add(User("", "", "", UserBalance()))
-                lenders?.add(User("", "", "", UserBalance()))
+                lenders?.add(User(username = ""))
+                lenders?.add(User(username = ""))
 
                 for (user in users) {
                     if (user.username != null && user.username != currentNickname) {
@@ -164,8 +164,8 @@ class BorrowNowActivity : AppCompatActivity() {
                     }
                 }
 
-                lenders?.add(User("", "", "", UserBalance()))
-                lenders?.add(User("", "", "", UserBalance()))
+                lenders?.add(User(username = ""))
+                lenders?.add(User(username = ""))
 
                 adapter?.notifyDataSetChanged()
 
@@ -208,7 +208,6 @@ class BorrowNowActivity : AppCompatActivity() {
         val currentMonthYear = SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(calendar.time)
         val timestamp = System.currentTimeMillis()
 
-        val borrowId = UUID.randomUUID().toString()
         val currentUserId = mAuth?.currentUserOrNull()?.id
 
         if (currentUserId != null && !lender.isNullOrEmpty()) {
@@ -223,23 +222,26 @@ class BorrowNowActivity : AppCompatActivity() {
                         return
                     }
 
+                    // Using the secondary constructor of BorrowNowTransaction with 10 arguments
                     val borrowNowTransaction = BorrowNowTransaction(
-                        borrowId,
-                        borrowerID,
-                        lenderID,
-                        currentNickname,
-                        timestamp,
-                        lender,
-                        borrowedAmount.toDouble(),
-                        status,
-                        timestamp
+                        null,              // borrowId: String?
+                        borrowerID,        // borrowerID: String?
+                        currentNickname,   // borrowerName: String?
+                        lenderID,          // lenderID: String?
+                        lender,            // lender: String?
+                        borrowedAmount.toDouble(), // borrowedAmount: Double?
+                        status,            // status: String?
+                        timestamp,         // date: Long?
+                        currentMonthYear,  // monthYear: String?
+                        timestamp          // timestamp: Long
                     )
-                    borrowNowTransaction.setMonthYear(currentMonthYear)
 
                     lifecycleScope.launch {
                         try {
                             DeclareDatabase.borrowsTable.insert(borrowNowTransaction)
                             
+                            val borrowId = borrowNowTransaction.getBorrowId() ?: "0"
+
                             BalanceHelper.addBorrowerEntry(borrowerID, borrowId, null)
                             BalanceHelper.addLenderEntry(lenderID, borrowId, null)
 
@@ -307,8 +309,8 @@ class BorrowNowActivity : AppCompatActivity() {
         }
     }
 
-    private fun hideKeyboard(editText: EditText) {
-        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager?
-        imm?.hideSoftInputFromWindow(editText.windowToken, 0)
+    private fun hideKeyboard(view: View) {
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(view.windowToken, 0)
     }
 }

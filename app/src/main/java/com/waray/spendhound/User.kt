@@ -3,23 +3,35 @@ package com.waray.spendhound
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+/**
+ * Data model for the 'users' table, aligned with the Supabase schema provided.
+ * Database Types:
+ * user_id: int8 (Primary Key)
+ * username: text
+ * email: text
+ * password: text
+ * profile_image_url: varchar
+ * created_at: timestamptz
+ */
 @Serializable
 data class User(
+    @SerialName("user_id")
+    val id: Long? = null,
     val username: String? = null,
     val email: String? = null,
+    val password: String? = null,
     @SerialName("profile_image_url")
     val profileImageUrl: String? = null,
-    val balances: UserBalance? = null,
-    @SerialName("id")
-    val id: Long? = null, // Numeric primary key (int8)
-    @SerialName("uid")
-    val uid: String? = null // Supabase Auth UID (uuid)
+    @SerialName("created_at")
+    val createdAt: String? = null
 ) {
-    // Getters for compatibility
+    // Getters for compatibility with existing app logic
     fun getUsername(): String? = username
     fun getEmail(): String? = email
     fun getProfileImageUrl(): String? = profileImageUrl
-    fun getBalances(): UserBalance? = balances
-    fun getId(): String? = uid ?: id?.toString()
+    fun getCreatedAt(): String? = createdAt
+    
+    // Compatibility methods for existing code referencing 'id' as a string or numeric
+    fun getId(): String? = id?.toString()
     fun getNumericId(): Long? = id
 }

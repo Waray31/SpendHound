@@ -236,7 +236,7 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val currentUserId = mAuth?.currentUserOrNull()?.id
+                val currentUserId = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
                 val allUsers = UserHelper.getAllUsers()
                 val lenders = allUsers.filter { it.id != currentUserId }.toMutableList()
 
@@ -323,7 +323,7 @@ class MainActivity : AppCompatActivity() {
                     borrowId = UUID.randomUUID().toString(),
                     borrowerID = currentUser.id,
                     borrowerName = currentNickname,
-                    lenderID = lender.id,
+                    lenderID = lender.id?.toString(),
                     lender = lender.username,
                     borrowedAmount = amount,
                     status = "For Lender Approval",
@@ -661,7 +661,7 @@ class MainActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val user = DeclareDatabase.usersTable.select(Columns.list("username")) {
-                    filter { eq("id", uid) }
+                    filter { eq("user_id", uid.toLongOrNull() ?: 0L) }
                 }.decodeSingleOrNull<User>()
                 currentNickname = user?.username ?: ""
                 callback(currentNickname)

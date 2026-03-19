@@ -46,8 +46,8 @@ class LenderAdapter(private val lenders: MutableList<User?>) :
             holder.usernameText.visibility = View.VISIBLE
             holder.usernameText.text = lender.username
 
-            val uid = lender.id
-            val cachedUrl: String? = PayorAdapter.sDownloadUrlCache[uid ?: ""]
+            val uid = lender.id?.toString()
+            val cachedUrl: String? = if (uid != null) PayorAdapter.sDownloadUrlCache[uid] else null
 
             if (cachedUrl != null) {
                 loadGlideImage(holder, cachedUrl)
@@ -103,8 +103,8 @@ class LenderAdapter(private val lenders: MutableList<User?>) :
         val total = usersToFetch.size
 
         for (lender in usersToFetch) {
-            val uid = lender?.id
-            val cachedUrl: String? = PayorAdapter.sDownloadUrlCache[uid ?: ""]
+            val uid = lender?.id?.toString()
+            val cachedUrl: String? = if (uid != null) PayorAdapter.sDownloadUrlCache[uid] else null
 
             if (cachedUrl != null) {
                 preloadUrl(context!!, cachedUrl, loadedCount, total, onComplete)

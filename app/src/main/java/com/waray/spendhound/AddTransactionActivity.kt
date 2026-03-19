@@ -86,7 +86,7 @@ class AddTransactionActivity : AppCompatActivity() {
 
         transactionTypeSpinner = findViewById(R.id.transactionType)
         val transactionTypes = resources.getStringArray(R.array.transactionTypes_String)
-        val typesList = transactionTypes.map { it as String? }.toMutableList()
+        val typesList = transactionTypes.toMutableList()
         val adapter = SpinnerItem(this, typesList)
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
         transactionTypeSpinner?.adapter = adapter
@@ -142,12 +142,13 @@ class AddTransactionActivity : AppCompatActivity() {
 
                 for (user in userList) {
                     val username = user.username
-                    val uid = user.id
-                    if (username != null && uid != null) {
+                    val uidLong = user.id
+                    if (username != null && uidLong != null) {
+                        val uid = uidLong.toString()
                         usernames!!.add(username)
                         usernameToUidMap[username] = uid
                         uidToUsernameMap[uid] = username
-                        UserHelper.updateCache(uid, username)
+                        UserHelper.updateCache(uidLong, username)
                     }
                 }
                 addRow()
@@ -308,7 +309,7 @@ class AddTransactionActivity : AppCompatActivity() {
             try {
                 val user = DeclareDatabase.usersTable.select {
                     filter {
-                        eq("id", currentUserId!!)
+                        eq("user_id", currentUserId!!)
                     }
                 }.decodeSingleOrNull<User>()
 
