@@ -28,11 +28,10 @@ import com.waray.spendhound.SpinnerItemMonths
 import com.waray.spendhound.Transaction
 import com.waray.spendhound.User
 import io.github.jan.supabase.gotrue.Auth
+import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
-import java.util.Collections
-import java.util.HashSet
 import java.util.Locale
 
 class TransactionsFragment : Fragment() {
@@ -103,13 +102,13 @@ class TransactionsFragment : Fragment() {
 
         setupStatusTabs()
 
-        adapter = RecentTransactionAdapter(
-            transactionList,
-            RecentTransactionAdapter.OnTransactionClickListener { transaction ->
-                if (transaction?.isExpanded == false) {
-                    (activity as? MainActivity)?.unhideNavigation()
-                }
-            })
+        adapter = RecentTransactionAdapter(transactionList) { transaction ->
+            if (transaction?.isExpanded() == true) {
+                (activity as? MainActivity)?.hideNavigation()
+            } else {
+                (activity as? MainActivity)?.unhideNavigation()
+            }
+        }
         recyclerView?.layoutManager = LinearLayoutManager(context)
         recyclerView?.adapter = adapter
     }
@@ -272,17 +271,18 @@ class TransactionsFragment : Fragment() {
 
         lifecycleScope.launch {
             try {
-                val transactions = DeclareDatabase.transactionsTable.select {
+                val transactions = DeclareDatabase.client.from("transactions").select {
                     filter {
-                        eq("monthYear", monthYear)
+                        eq("month_year", monthYear)
                     }
                 }.decodeList<Transaction>()
 
+                val mainActivity = activity as? MainActivity
                 for (transaction in transactions) {
                     val day = transaction.day
                     val timeKey = transaction.timeKey
 
-                    if (isUserInvolved(transaction, currentNickname)) {
+                    if (mainActivity?.isUserInvolved(transaction, currentNickname) == true) {
                         if (selectedGroupId != "All" && transaction.groupId != selectedGroupId) continue
                         if (!matchesStatusFilter(transaction, selectedStatusTab)) continue
 
@@ -320,13 +320,10 @@ class TransactionsFragment : Fragment() {
                     }
                 }
 
-                transactionList?.let { list ->
-                    Collections.sort(list) { t1, t2 ->
-                        val dateTime1 = t1?.getSortDateTime()
-                        val dateTime2 = t2?.getSortDateTime()
-                        if (dateTime1 != null && dateTime2 != null) return@sort dateTime2.compareTo(dateTime1)
-                        0
-                    }
+                transactionList?.sortWith { t1, t2 ->
+                    val dateTime1 = t1?.getSortDateTime()
+                    val dateTime2 = t2?.getSortDateTime()
+                    if (dateTime1 != null && dateTime2 != null) dateTime2.compareTo(dateTime1) else 0
                 }
 
                 adapter?.notifyDataSetChanged()
@@ -334,7 +331,7 @@ class TransactionsFragment : Fragment() {
 
                 loadingProgressBar?.visibility = View.GONE
                 val count = transactionList?.size ?: 0
-                transactionCountTextView?.text = "$count ${if (count == 1) "transaction" else "transactions"}"
+                transactionCountTextView?.text = String.format(Locale.getDefault(), "%d %s", count, if (count == 1) "transaction" else "transactions")
 
                 if (transactionList.isNullOrEmpty()) {
                     emptyStateLayout?.visibility = View.VISIBLE
@@ -380,17 +377,5 @@ class TransactionsFragment : Fragment() {
             "Transportation" -> R.drawable.vehicles
             else -> R.drawable.others
         }
-    }
-
-    private fun isUserInvolved(transaction: Transaction?, usernameOrUid: String?): Boolean {
-        if (transaction == null || usernameOrUid.isNullOrEmpty()) return false
-        val currentUid = mAuth?.currentUserOrNull()?.id
-        if (transaction.isUserInvolvedByUid(currentUid)) return true
-        if (usernameOrUid == transaction.usernamePost) return true
-        if (usernameOrUid == transaction.posterDisplayName) return true
-        val payorsList = transaction.payorsList
-        if (payorsList != null && payorsList.contains(usernameOrUid)) return true
-        val payorsDisplayNames = transaction.payorsDisplayNames
-        return payorsDisplayNames != null && payorsDisplayNames.contains(usernameOrUid)
     }
 }

@@ -136,7 +136,15 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showBottomBars() {
+    fun unhideNavigation() {
+        showBottomBars()
+    }
+
+    fun hideNavigation() {
+        hideBottomBars()
+    }
+
+    fun showBottomBars() {
         navView?.visibility = View.VISIBLE
         fabMain?.visibility = View.VISIBLE
 
@@ -153,7 +161,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun hideBottomBars() {
+    fun hideBottomBars() {
         navView?.visibility = View.GONE
         fabMain?.visibility = View.GONE
     }
