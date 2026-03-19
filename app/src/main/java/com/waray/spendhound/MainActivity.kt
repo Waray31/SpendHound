@@ -39,6 +39,7 @@ class MainActivity : AppCompatActivity() {
     var navView: BottomNavigationView? = null
     private var mAuth: Auth? = null
     var totalMonthSpends: Double = 0.0
+    var dailyTotals: DoubleArray = DoubleArray(7)
     private var progressBar: ProgressBar? = null
     var currentNickname: String? = ""
     var owedNum: Int = 0
@@ -414,6 +415,70 @@ class MainActivity : AppCompatActivity() {
             "House Necessity" -> R.drawable.necessities
             "Transportation" -> R.drawable.vehicles
             else -> R.drawable.others
+        }
+    }
+
+    fun getTotalMonthSpends(callback: Runnable?) {
+        lifecycleScope.launch {
+            try {
+                val usernameOrUid = currentNickname ?: ""
+                val calendar = Calendar.getInstance()
+                val monthYear = SimpleDateFormat("MMMM-yyyy", Locale.ENGLISH).format(calendar.time)
+                
+                val transactions = DeclareDatabase.transactionsTable.select {
+                    filter { eq("month_year", monthYear) }
+                }.decodeList<Transaction>()
+                
+                totalMonthSpends = transactions
+                    .filter { isUserInvolved(it, usernameOrUid) }
+                    .sumOf { it.paymentAmount }
+                
+                callback?.run()
+            } catch (e: Exception) {
+                callback?.run()
+            }
+        }
+    }
+
+    fun getEverydaySpends(callback: Runnable?) {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MILLISECOND, 0)
+        getEverydaySpendsForWeek(calendar, callback)
+    }
+
+    fun getEverydaySpendsForWeek(weekStart: Calendar, callback: Runnable?) {
+        lifecycleScope.launch {
+            try {
+                val usernameOrUid = currentNickname ?: ""
+                val startDate = weekStart.timeInMillis
+                val endDate = weekStart.clone() as Calendar
+                endDate.add(Calendar.DAY_OF_YEAR, 7)
+                val endTime = endDate.timeInMillis
+
+                val transactions = DeclareDatabase.transactionsTable.select {
+                    filter {
+                        gte("timestamp", startDate)
+                        lt("timestamp", endTime)
+                    }
+                }.decodeList<Transaction>()
+
+                val newDailyTotals = DoubleArray(7) { 0.0 }
+                for (t in transactions) {
+                    if (isUserInvolved(t, usernameOrUid)) {
+                        val tCal = Calendar.getInstance().apply { timeInMillis = t.timestamp }
+                        val dayOfWeek = tCal.get(Calendar.DAY_OF_WEEK) // SUNDAY = 1
+                        newDailyTotals[dayOfWeek - 1] += t.paymentAmount
+                    }
+                }
+                dailyTotals = newDailyTotals
+                callback?.run()
+            } catch (e: Exception) {
+                callback?.run()
+            }
         }
     }
 

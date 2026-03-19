@@ -21,6 +21,7 @@ import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
+import com.waray.spendhound.CurrencyUtils
 import com.waray.spendhound.DeclareDatabase
 import com.waray.spendhound.MainActivity
 import com.waray.spendhound.R
@@ -105,11 +106,57 @@ class HomeFragment : Fragment() {
     private fun callMainActivityMethod() {
         val mainActivity = activity as? MainActivity ?: return
         showLoading()
-        mainActivity.getRecentTransaction { hideLoading() }
+        mainActivity.getRecentTransactions {
+            activity?.runOnUiThread { hideLoading() }
+        }
         showLoading()
-        mainActivity.getTotalMonthSpends { hideLoading() }
+        mainActivity.getTotalMonthSpends {
+            activity?.runOnUiThread {
+                updateTotalMonthSpendsUI()
+                hideLoading()
+            }
+        }
         showLoading()
-        mainActivity.getEverydaySpends { hideLoading() }
+        mainActivity.getEverydaySpends {
+            activity?.runOnUiThread {
+                updateWeeklyChartUI()
+                hideLoading()
+            }
+        }
+    }
+
+    private fun updateTotalMonthSpendsUI() {
+        val mainActivity = activity as? MainActivity ?: return
+        binding?.totalMonthSpends?.text = CurrencyUtils.formatAmountWithCurrency(mainActivity.totalMonthSpends)
+    }
+
+    private fun updateWeeklyChartUI() {
+        val mainActivity = activity as? MainActivity ?: return
+        val dailyTotals = mainActivity.dailyTotals
+        val maxTotal = dailyTotals.maxOrNull() ?: 1.0
+        val scaleFactor = if (maxTotal > 0) 100.0 / maxTotal else 0.0
+
+        val totalTextViews = arrayOf(
+            binding?.totalday7, binding?.totalday6, binding?.totalday5, 
+            binding?.totalday4, binding?.totalday3, binding?.totalday2, binding?.totalday1
+        )
+        val barViews = arrayOf(
+            binding?.day7Bar, binding?.day6Bar, binding?.day5Bar, 
+            binding?.day4Bar, binding?.day3Bar, binding?.day2Bar, binding?.day1Bar
+        )
+
+        for (i in 0..6) {
+            val amount = dailyTotals[i]
+            totalTextViews[i]?.text = if (amount > 0) CurrencyUtils.formatAmount(amount) else "0"
+            
+            val barView = barViews[i]
+            barView?.let {
+                val params = it.layoutParams
+                val heightInDp = (amount * scaleFactor).coerceAtLeast(10.0).toInt()
+                params.height = (heightInDp * resources.displayMetrics.density).toInt()
+                it.layoutParams = params
+            }
+        }
     }
 
     private fun setTextViews() {
@@ -211,7 +258,12 @@ class HomeFragment : Fragment() {
     private fun refreshWeeklyData() {
         val mainActivity = activity as? MainActivity ?: return
         showLoading()
-        mainActivity.getEverydaySpendsForWeek(currentWeekStart) { hideLoading() }
+        mainActivity.getEverydaySpendsForWeek(currentWeekStart) {
+            activity?.runOnUiThread {
+                updateWeeklyChartUI()
+                hideLoading()
+            }
+        }
         setTextViewsForWeek()
     }
 
