@@ -49,12 +49,16 @@
             android:layout_weight="1"
             android:background="@drawable/transparent_background" />
 
-        <Spinner
-            android:id="@+id/monthSpinner"
+        <Button
+            android:id="@+id/datePickerButton"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:background="@drawable/transparent_background" />
+            android:background="@drawable/transparent_background"
+            android:textAllCaps="false"
+            android:textColor="@color/darkBlue"
+            android:textSize="14sp"
+            android:textAlignment="center" />
 
     </LinearLayout>
 

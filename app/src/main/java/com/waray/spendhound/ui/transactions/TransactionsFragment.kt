@@ -1,12 +1,14 @@
 package com.waray.spendhound.ui.transactions
 
 import android.annotation.SuppressLint
+import android.app.DatePickerDialog
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
+import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.Spinner
@@ -37,7 +39,7 @@ class TransactionsFragment : Fragment() {
     private var recyclerView: RecyclerView? = null
     private var adapter: RecentTransactionAdapter? = null
     private var transactionList: ArrayList<RecentTransaction>? = null
-    private var monthSpinner: Spinner? = null
+    private var datePickerButton: Button? = null
     private var groupSpinner: Spinner? = null
     private var currentMonthTextView: TextView? = null
     private var transactionCountTextView: TextView? = null
@@ -45,8 +47,8 @@ class TransactionsFragment : Fragment() {
     private var emptyStateLayout: LinearLayout? = null
     private var mAuth: Auth? = null
     private var currentNickname: String? = ""
-    private var availableMonths: MutableList<String?>? = null
     private var selectedMonth: String? = null
+    private val selectedCalendar: Calendar = Calendar.getInstance()
 
     private var groupNames: MutableList<String?>? = null
     private var groupIds: MutableList<String?>? = null
@@ -69,7 +71,6 @@ class TransactionsFragment : Fragment() {
 
         mAuth = DeclareDatabase.auth
         transactionList = ArrayList()
-        availableMonths = ArrayList()
         groupNames = ArrayList()
         groupIds = ArrayList()
 
@@ -81,13 +82,14 @@ class TransactionsFragment : Fragment() {
 
         getCurrentNickname()
         loadUserGroups()
+        setupDatePicker()
 
         return root
     }
 
     private fun initViews(root: View) {
         recyclerView = root.findViewById(R.id.allTransactionsRecyclerView)
-        monthSpinner = root.findViewById(R.id.monthSpinner)
+        datePickerButton = root.findViewById(R.id.datePickerButton)
         groupSpinner = root.findViewById(R.id.groupSpinner)
         currentMonthTextView = root.findViewById(R.id.currentMonthTextView)
         transactionCountTextView = root.findViewById(R.id.transactionCountTextView)
@@ -153,7 +155,7 @@ class TransactionsFragment : Fragment() {
     }
 
     private fun getCurrentNickname() {
-        val userId = mAuth?.currentUserOrNull()?.id ?: return run { loadAvailableMonths() }
+        val userId = mAuth?.currentUserOrNull()?.id ?: return
         
         lifecycleScope.launch {
             try {
@@ -166,10 +168,8 @@ class TransactionsFragment : Fragment() {
                 if (user != null) {
                     currentNickname = user.username ?: ""
                 }
-                loadAvailableMonths()
             } catch (e: Exception) {
                 Log.e("TransactionsFragment", "Error getting nickname", e)
-                loadAvailableMonths()
             }
         }
     }
@@ -215,86 +215,47 @@ class TransactionsFragment : Fragment() {
         }
     }
 
-    private fun loadAvailableMonths() {
-        loadingProgressBar?.visibility = View.VISIBLE
+    private fun setupDatePicker() {
+        val year = selectedCalendar.get(Calendar.YEAR)
+        val month = selectedCalendar.get(Calendar.MONTH)
+        selectedMonth = formatMonthYear(year, month)
+        
+        updateDatePickerButtonText()
+        selectedMonth?.let { 
+            updateMonthDisplay(it)
+            fetchTransactionsForMonth(it) 
+        }
 
-        lifecycleScope.launch {
-            try {
-                val transactions = DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
-                val uniqueMonths = HashSet<String>()
-
-                for (transaction in transactions) {
-                    if (isUserInvolved(transaction, currentNickname)) {
-                        transaction.monthYear?.let { uniqueMonths.add(it) }
-                    }
-                }
-
-                availableMonths = ArrayList(uniqueMonths)
-                availableMonths?.let { months ->
-                    Collections.sort(months) { m1, m2 ->
-                        try {
-                            val sdf = SimpleDateFormat("MMMM-yyyy", Locale.getDefault())
-                            return@sort sdf.parse(m2!!)!!.compareTo(sdf.parse(m1!!))
-                        } catch (e: Exception) {
-                            return@sort m2?.compareTo(m1 ?: "") ?: 0
-                        }
-                    }
-                }
-
-                setupMonthSpinner()
-                loadingProgressBar?.visibility = View.GONE
-            } catch (e: Exception) {
-                Log.e("TransactionsFragment", "Error loading months", e)
-                loadingProgressBar?.visibility = View.GONE
-            }
+        datePickerButton?.setOnClickListener {
+            showDatePickerDialog()
         }
     }
 
-    private fun setupMonthSpinner() {
-        if (context == null || monthSpinner == null) return
+    private fun showDatePickerDialog() {
+        val year = selectedCalendar.get(Calendar.YEAR)
+        val month = selectedCalendar.get(Calendar.MONTH)
+        val day = selectedCalendar.get(Calendar.DAY_OF_MONTH)
 
-        if (availableMonths.isNullOrEmpty()) {
-            val calendar = Calendar.getInstance()
-            val dateFormat = SimpleDateFormat("MMMM-yyyy", Locale.getDefault())
-            availableMonths = arrayListOf(dateFormat.format(calendar.time))
-        }
+        DatePickerDialog(requireContext(), { _, selectedYear, selectedMonth, selectedDay ->
+            selectedCalendar.set(selectedYear, selectedMonth, selectedDay)
+            val monthYear = formatMonthYear(selectedYear, selectedMonth)
+            this.selectedMonth = monthYear
+            updateDatePickerButtonText()
+            updateMonthDisplay(monthYear)
+            fetchTransactionsForMonth(monthYear)
+        }, year, month, day).show()
+    }
 
-        val spinnerAdapter = SpinnerItemMonths(requireContext(), availableMonths!!)
-        monthSpinner?.adapter = spinnerAdapter
+    private fun formatMonthYear(year: Int, month: Int): String {
+        val cal = Calendar.getInstance()
+        cal.set(year, month, 1)
+        val sdf = SimpleDateFormat("MMMM-yyyy", Locale.getDefault())
+        return sdf.format(cal.time)
+    }
 
-        val calendar = Calendar.getInstance()
-        val currentMonth = SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(calendar.time)
-
-        var defaultPosition = 0
-        availableMonths?.let { months ->
-            for (i in months.indices) {
-                if (months[i] == currentMonth) {
-                    defaultPosition = i
-                    break
-                }
-            }
-        }
-
-        monthSpinner?.setSelection(defaultPosition)
-        selectedMonth = availableMonths?.get(defaultPosition)
-        selectedMonth?.let {
-            updateMonthDisplay(it)
-            fetchTransactionsForMonth(it)
-        }
-
-        monthSpinner?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                val month = availableMonths?.get(position)
-                if (month != selectedMonth) {
-                    selectedMonth = month
-                    selectedMonth?.let {
-                        updateMonthDisplay(it)
-                        fetchTransactionsForMonth(it)
-                    }
-                }
-            }
-            override fun onNothingSelected(parent: AdapterView<*>?) {}
-        }
+    private fun updateDatePickerButtonText() {
+        val sdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+        datePickerButton?.text = sdf.format(selectedCalendar.time)
     }
 
     private fun updateMonthDisplay(monthYear: String) {

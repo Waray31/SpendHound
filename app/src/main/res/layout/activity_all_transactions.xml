@@ -50,11 +50,14 @@
             android:background="@drawable/transparent_background"
             android:textAlignment="center" />
 
-        <Spinner
-            android:id="@+id/monthSpinner"
+        <Button
+            android:id="@+id/datePickerButton"
             android:layout_width="140dp"
             android:layout_height="wrap_content"
             android:background="@drawable/transparent_background"
+            android:textAllCaps="false"
+            android:textColor="@color/darkBlue"
+            android:textSize="14sp"
             android:textAlignment="center" />
 
     </LinearLayout>
@@ -135,8 +138,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical">
-
-            <!-- Current Month Display -->
 
             <!-- Transaction Count -->
             <TextView

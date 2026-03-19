@@ -61,8 +61,6 @@ class BorrowFragment : Fragment() {
     private var owedRecyclerList: RecyclerView? = null
     private var loadingOverlay: View? = null
 
-    var debtSortedMonths: MutableList<String?>? = null
-    var owedSortedMonths: MutableList<String?>? = null
     var selectedMonth: String? = null
     private var selectedStatusTab = "All"
     private var owedDebtClicked = false
@@ -117,11 +115,9 @@ class BorrowFragment : Fragment() {
     private fun setupViews() {
         owedRecyclerList?.layoutManager = LinearLayoutManager(context)
         debtRecyclerList?.layoutManager = LinearLayoutManager(context)
-        OwedMonthlyFilterList()
     }
 
     private fun setupDatePicker() {
-        // Initialize selectedMonth with current date
         val year = selectedCalendar.get(Calendar.YEAR)
         val month = selectedCalendar.get(Calendar.MONTH)
         selectedMonth = formatMonthYear(year, month)
@@ -149,12 +145,12 @@ class BorrowFragment : Fragment() {
     private fun formatMonthYear(year: Int, month: Int): String {
         val cal = Calendar.getInstance()
         cal.set(year, month, 1)
-        val sdf = SimpleDateFormat("MMM yyyy", Locale.getDefault())
+        val sdf = SimpleDateFormat("MMMM-yyyy", Locale.ENGLISH)
         return sdf.format(cal.time)
     }
 
     private fun updateDatePickerButtonText() {
-        val sdf = SimpleDateFormat("MMM yyyy", Locale.getDefault())
+        val sdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
         val dateText = sdf.format(selectedCalendar.time)
         datePickerButton?.text = dateText
     }
@@ -283,7 +279,7 @@ class BorrowFragment : Fragment() {
         owedRecyclerList?.visibility = View.VISIBLE
         debtRecyclerList?.visibility = View.GONE
         owedDebtClicked = true
-        OwedMonthlyFilterList()
+        applyFilters()
     }
 
     private fun handleDebtClick() {
@@ -291,7 +287,7 @@ class BorrowFragment : Fragment() {
         owedRecyclerList?.visibility = View.GONE
         debtRecyclerList?.visibility = View.VISIBLE
         owedDebtClicked = false
-        DebtMonthlyFilterList()
+        applyFilters()
     }
 
     private fun setTabColors(activeTab: TextView, inactiveTab: TextView) {
@@ -299,39 +295,6 @@ class BorrowFragment : Fragment() {
         inactiveTab.setBackgroundResource(R.drawable.button_background_invisible)
         activeTab.setTextColor(ContextCompat.getColor(requireContext(), R.color.darkBlue))
         inactiveTab.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
-    }
-
-
-    fun DebtMonthlyFilterList() {
-        val currentUserId = mAuth?.currentUserOrNull()?.id
-        uiScope.launch {
-            val borrows = withContext(Dispatchers.IO) {
-                DeclareDatabase.borrowsTable.select(columns = Columns.list("month_year", "borrower_id")) {
-                    filter {
-                        eq("borrower_id", currentUserId ?: "")
-                    }
-                }.decodeList<BorrowNowTransaction>()
-            }
-            debtSortedMonths = borrows.mapNotNull { it.month_year }.toSet().toMutableList()
-            debtSortedMonths?.add(0, "All")
-            Collections.sort(debtSortedMonths as MutableList<String>)
-        }
-    }
-
-    fun OwedMonthlyFilterList() {
-        val currentUserId = mAuth?.currentUserOrNull()?.id
-        uiScope.launch {
-            val borrows = withContext(Dispatchers.IO) {
-                DeclareDatabase.borrowsTable.select(columns = Columns.list("month_year", "lender_id")) {
-                    filter {
-                        eq("lender_id", currentUserId ?: "")
-                    }
-                }.decodeList<BorrowNowTransaction>()
-            }
-            owedSortedMonths = borrows.mapNotNull { it.month_year }.toSet().toMutableList()
-            owedSortedMonths?.add(0, "All")
-            Collections.sort(owedSortedMonths as MutableList<String>)
-        }
     }
 
     fun getCurrentNickname() {
