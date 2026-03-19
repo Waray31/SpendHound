@@ -103,7 +103,7 @@ class TransactionsFragment : Fragment() {
         setupStatusTabs()
 
         adapter = RecentTransactionAdapter(transactionList) { transaction ->
-            if (transaction?.isExpanded() == true) {
+            if (transaction?.isExpanded == true) {
                 (activity as? MainActivity)?.hideNavigation()
             } else {
                 (activity as? MainActivity)?.unhideNavigation()
@@ -321,8 +321,8 @@ class TransactionsFragment : Fragment() {
                 }
 
                 transactionList?.sortWith { t1, t2 ->
-                    val dateTime1 = t1?.getSortDateTime()
-                    val dateTime2 = t2?.getSortDateTime()
+                    val dateTime1 = t1?.sortDateTime
+                    val dateTime2 = t2?.sortDateTime
                     if (dateTime1 != null && dateTime2 != null) dateTime2.compareTo(dateTime1) else 0
                 }
 

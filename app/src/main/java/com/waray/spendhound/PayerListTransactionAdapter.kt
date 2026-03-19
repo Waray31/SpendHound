@@ -50,14 +50,14 @@ class PayerListTransactionAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val transaction = transactionList[position]
-        holder.hoursAgoTV.text = transaction.getDate()
-        holder.payerNameTV.text = transaction.getBorrowee()
-        holder.amountPaidTV.text = transaction.getBorrowedAmountStr()
+        holder.hoursAgoTV.text = transaction.date
+        holder.payerNameTV.text = transaction.borrowee
+        holder.amountPaidTV.text = transaction.borrowedAmountStr
 
         holder.payerImg.setImageResource(R.drawable.placeholder_profile_image)
-        holder.payerImg.tag = transaction.getBorrowee()
+        holder.payerImg.tag = transaction.borrowee
 
-        setProfileImage(holder.payerImg, transaction.getBorrowee())
+        setProfileImage(holder.payerImg, transaction.borrowee)
 
         holder.confirmPayerBtn.setOnClickListener {
             showConfirmationDialog("Confirm", transaction, pathList[position]!!, position)
@@ -148,7 +148,7 @@ class PayerListTransactionAdapter(
                     }
                 }
 
-                transaction.setStatus(getStatusStr(statusInt))
+                transaction.status = getStatusStr(statusInt)
                 transactionList[position] = transaction
                 notifyDataSetChanged()
                 statusUpdatedListener?.onTransactionStatusUpdated()
@@ -229,7 +229,7 @@ class PayerListTransactionAdapter(
                         }
                     }
                 }
-                transactionList.forEach { it.setStatus(getStatusStr(statusInt)) }
+                transactionList.forEach { it.status = getStatusStr(statusInt) }
                 notifyDataSetChanged()
                 statusUpdatedListener?.onTransactionStatusUpdated()
             } catch (e: Exception) {
@@ -248,7 +248,7 @@ class PayerListTransactionAdapter(
                         filter { eq("username", payerName) }
                     }.decodeSingleOrNull<User>()
                 }
-                val imageUrl = user?.getProfileImageUrl()
+                val imageUrl = user?.profileImageUrl
                 if (imageUrl != null && payerName == imageView.tag && context != null) {
                     Glide.with(context).load(imageUrl).placeholder(R.drawable.placeholder_profile_image).into(imageView)
                 }

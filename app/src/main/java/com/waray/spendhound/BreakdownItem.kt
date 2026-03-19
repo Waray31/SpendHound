@@ -21,12 +21,4 @@ data class BreakdownItem(
         OWE,
         DEBT
     }
-
-    // Explicit getters for compatibility with existing code that might use them
-    fun getCategory(): Category? = category
-    fun getDate(): String? = date
-    fun getPersonName(): String? = personName
-    fun getAmount(): Double = amount
-    fun getStatus(): String? = status
-    fun getDescription(): String? = description
 }

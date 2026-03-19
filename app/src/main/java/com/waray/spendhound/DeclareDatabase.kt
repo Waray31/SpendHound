@@ -45,15 +45,6 @@ object DeclareDatabase {
     // Storage Bucket Reference
     val profileImagesBucket get() = client.storage.from("profile_images")
 
-    // Compatibility getters (updated to return Supabase types)
-    @JvmStatic fun getAuth() = auth
-    @JvmStatic fun getUsersTable() = usersTable
-    @JvmStatic fun getUserBalanceTable() = userBalanceTable
-    @JvmStatic fun getTransactionsTable() = transactionsTable
-    @JvmStatic fun getGroupsTable() = groupsTable
-    @JvmStatic fun getBorrowsTable() = borrowsTable
-    @JvmStatic fun getUserBorrowsTable() = userBorrowsTable
-
     // Legacy method names updated for Supabase compatibility
     @JvmStatic fun getDatabaseReference() = usersTable
     @JvmStatic fun getDBRefTransaction() = transactionsTable

@@ -114,31 +114,4 @@ class RecentTransaction {
         this.day = day
         this.timeKey = timeKey
     }
-
-    // Explicitly named getters for Java/Kotlin compatibility
-    fun getMostRecentDate(): String? = mostRecentDate
-    fun getMostRecentTransactionType(): String? = mostRecentTransactionType
-    fun getMostRecentDetails(): String? = mostRecentDetails
-    fun getMostRecentPaymentAmountStr(): String? = mostRecentPaymentAmountStr
-    fun getIconResource(): Int = iconResource
-    fun getSortDateTime(): String? = sortDateTime
-    fun getPayorsList(): MutableList<String?>? = payorsList
-    fun getPayorUids(): MutableList<String?>? = payorUids
-    fun getAmountsPaidList(): MutableList<Double?>? = amountsPaidList
-    fun getTotalIndividualPayment(): Double = totalIndividualPayment
-    fun getFullDateWithYear(): String? = fullDateWithYear
-    fun getCreatedBy(): String? = createdBy
-    fun getCreatedByUid(): String? = createdByUid
-    fun getMonthYear(): String? = monthYear
-    fun getDay(): String? = day
-    fun getTimeKey(): String? = timeKey
-    fun isExpanded(): Boolean = isExpanded
-
-    fun setExpanded(expanded: Boolean) {
-        this.isExpanded = expanded
-    }
-
-    fun setAmountsPaidList(list: MutableList<Double?>?) {
-        this.amountsPaidList = list
-    }
 }

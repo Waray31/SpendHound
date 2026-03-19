@@ -9,17 +9,17 @@ import androidx.recyclerview.widget.RecyclerView
 class CheckedTransactionsAdapter(private val checkedTransactions: ArrayList<BorrowTransaction>) :
     RecyclerView.Adapter<CheckedTransactionsAdapter.ViewHolder?>() {
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
-        val itemView = LayoutInflater.from(parent.getContext())
+        val itemView = LayoutInflater.from(parent.context)
             .inflate(R.layout.item_checked_transaction, parent, false)
         return ViewHolder(itemView)
     }
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
-        val transaction = checkedTransactions.get(position)
-        holder.dateTextView.setText(transaction.getDate())
-        holder.borroweeTextView.setText(transaction.getBorrowee())
-        holder.amountTextView.setText(transaction.getBorrowedAmountStr())
-        holder.statusTextView.setText(transaction.getStatus())
+        val transaction = checkedTransactions[position]
+        holder.dateTextView.text = transaction.date
+        holder.borroweeTextView.text = transaction.borrowee
+        holder.amountTextView.text = transaction.borrowedAmountStr
+        holder.statusTextView.text = transaction.status
     }
 
     override fun getItemCount(): Int {
@@ -27,17 +27,9 @@ class CheckedTransactionsAdapter(private val checkedTransactions: ArrayList<Borr
     }
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-        var dateTextView: TextView
-        var borroweeTextView: TextView
-        var amountTextView: TextView
-        var statusTextView: TextView
-
-        init {
-            dateTextView = itemView.findViewById<TextView>(R.id.dateTextView)
-            borroweeTextView = itemView.findViewById<TextView>(R.id.borroweeTextView)
-            amountTextView = itemView.findViewById<TextView>(R.id.amountTextView)
-            statusTextView = itemView.findViewById<TextView>(R.id.statusTextView)
-        }
+        var dateTextView: TextView = itemView.findViewById(R.id.dateTextView)
+        var borroweeTextView: TextView = itemView.findViewById(R.id.borroweeTextView)
+        var amountTextView: TextView = itemView.findViewById(R.id.amountTextView)
+        var statusTextView: TextView = itemView.findViewById(R.id.statusTextView)
     }
 }
-

@@ -20,32 +20,4 @@ class BorrowerListTransaction {
         this.borrowedAmountStr = borrowedAmountStr
         this.status = status
     }
-
-    // Getters
-    fun getDate(): String? = date
-    fun getBorrowee(): String? = borrowee
-    fun getBorrowedAmountStr(): String? = borrowedAmountStr
-    fun getBorrowerImgUrl(): String? = borrowerImgUrl
-    fun getStatus(): String? = status
-    fun getProfileImageUrl(): String? = profileImageUrl
-
-    // Setters
-    fun setDate(date: String?) {
-        this.date = date
-    }
-    fun setBorrowee(borrowee: String?) {
-        this.borrowee = borrowee
-    }
-    fun setBorrowedAmountStr(amount: String?) {
-        this.borrowedAmountStr = amount
-    }
-    fun setBorrowerImgUrl(url: String?) {
-        this.borrowerImgUrl = url
-    }
-    fun setStatus(status: String?) {
-        this.status = status
-    }
-    fun setProfileImageUrl(url: String?) {
-        this.profileImageUrl = url
-    }
 }

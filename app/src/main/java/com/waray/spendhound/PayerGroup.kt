@@ -9,11 +9,4 @@ data class PayerGroup(
     var members: MutableList<String?>? = null,
     var createdBy: String? = null,
     var memberDisplayNames: MutableList<String?>? = null
-) {
-    // Getters for compatibility
-    fun getGroupId(): String? = groupId
-    fun getGroupName(): String? = groupName
-    fun getMembers(): MutableList<String?>? = members
-    fun getCreatedBy(): String? = createdBy
-    fun getMemberDisplayNames(): MutableList<String?>? = memberDisplayNames
-}
+)

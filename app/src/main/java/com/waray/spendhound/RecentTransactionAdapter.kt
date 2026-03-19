@@ -39,7 +39,7 @@ class RecentTransactionAdapter(
     fun preloadAllImages(context: Context?) {
         if (recentTransactionList == null || context == null) return
         for (transaction in recentTransactionList) {
-            val uids = transaction.getPayorUids()
+            val uids = transaction.payorUids
             if (uids != null && uids.isNotEmpty()) {
                 PayorAdapter.preCacheUids(context, uids)
             }
@@ -55,26 +55,26 @@ class RecentTransactionAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val transaction = recentTransactionList?.get(position) ?: return
 
-        holder.dateTextView.text = transaction.getMostRecentDate()
-        holder.typeTextView.text = transaction.getMostRecentTransactionType()
-        holder.amountTextView.text = transaction.getMostRecentPaymentAmountStr()
-        holder.iconImageView.setImageResource(transaction.getIconResource())
+        holder.dateTextView.text = transaction.mostRecentDate
+        holder.typeTextView.text = transaction.mostRecentTransactionType
+        holder.amountTextView.text = transaction.mostRecentPaymentAmountStr
+        holder.iconImageView.setImageResource(transaction.iconResource)
 
-        val isExpanded = transaction.isExpanded()
+        val isExpanded = transaction.isExpanded
         holder.expandableLayout.visibility = if (isExpanded) View.VISIBLE else View.GONE
         holder.detailsTextView.text = if (isExpanded) "Hide Details <" else "See Details >"
 
         if (isExpanded) {
             holder.loadingOverlay.visibility = View.VISIBLE
-            holder.createdByTextView.text = transaction.getCreatedBy() ?: "Unknown"
+            holder.createdByTextView.text = transaction.createdBy ?: "Unknown"
 
-            val payorsUids = transaction.getPayorUids()
-            val payorsNames = transaction.getPayorsList()
-            val amountsPaid = transaction.getAmountsPaidList()
-            val individualPayment = transaction.getTotalIndividualPayment()
+            val payorsUids = transaction.payorUids
+            val payorsNames = transaction.payorsList
+            val amountsPaid = transaction.amountsPaidList
+            val individualPayment = transaction.totalIndividualPayment
 
             val currentUid = DeclareDatabase.auth.currentUserOrNull()?.id
-            val isCreator = transaction.getCreatedByUid() != null && transaction.getCreatedByUid() == currentUid
+            val isCreator = transaction.createdByUid != null && transaction.createdByUid == currentUid
 
             if (payorsUids != null) {
                 val payorAdapter = PayorAdapter(
@@ -151,14 +151,14 @@ class RecentTransactionAdapter(
                 holder.editTransactionBtn.visibility = View.GONE
             }
 
-            val details = transaction.getMostRecentDetails()
+            val details = transaction.mostRecentDetails
             holder.fullDetailsTextView.text = if (!details.isNullOrEmpty() && details != "See Details >") details else "No additional details"
         } else {
             holder.loadingOverlay.visibility = View.GONE
         }
 
         holder.mainContent.setOnClickListener {
-            transaction.setExpanded(!transaction.isExpanded())
+            transaction.isExpanded = !transaction.isExpanded
             notifyItemChanged(holder.adapterPosition)
             clickListener?.onTransactionClick(transaction)
         }
@@ -180,9 +180,9 @@ class RecentTransactionAdapter(
     }
 
     private fun saveTransactionChanges(context: Context, transaction: RecentTransaction, updatedAmounts: MutableList<Double?>, position: Int, onSuccess: Runnable, onComplete: Runnable) {
-        val my = transaction.getMonthYear()
-        val d = transaction.getDay()
-        val tk = transaction.getTimeKey()
+        val my = transaction.monthYear
+        val d = transaction.day
+        val tk = transaction.timeKey
 
         if (my == null || d == null || tk == null) {
             Toast.makeText(context, "Error: Reference not found", Toast.LENGTH_SHORT).show()
@@ -205,7 +205,7 @@ class RecentTransactionAdapter(
                 
                 withContext(Dispatchers.Main) {
                     Toast.makeText(context, "Transaction updated successfully", Toast.LENGTH_SHORT).show()
-                    transaction.setAmountsPaidList(updatedAmounts)
+                    transaction.amountsPaidList = updatedAmounts
                     onSuccess.run()
                     notifyItemChanged(position)
                 }

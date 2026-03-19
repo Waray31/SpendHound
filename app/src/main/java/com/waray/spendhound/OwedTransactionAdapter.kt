@@ -54,10 +54,10 @@ class OwedTransactionAdapter(
         val transaction = owedTransactionList[position] ?: return
 
         // Bind data to the ViewHolder's views
-        holder.owedDateTV.text = transaction.getDate()
-        holder.owedBorroweeTV.text = transaction.getBorrower()
-        holder.owedAmountBorrowedTV.text = CurrencyUtils.formatAmountWithCurrency(transaction.getBorrowedAmountStr() ?: "0")
-        holder.owedStatusTV.text = transaction.getStatus()
+        holder.owedDateTV.text = transaction.date
+        holder.owedBorroweeTV.text = transaction.borrower
+        holder.owedAmountBorrowedTV.text = CurrencyUtils.formatAmountWithCurrency(transaction.borrowedAmountStr ?: "0")
+        holder.owedStatusTV.text = transaction.status
 
         // Hide all action layouts by default
         holder.pendingPaymentActionsLayout.visibility = View.GONE
@@ -65,7 +65,7 @@ class OwedTransactionAdapter(
         holder.paymentSentDateTV.visibility = View.GONE
 
         // Set status color based on status value
-        val status = transaction.getStatus()
+        val status = transaction.status
         val statusColor: Int
         var isPendingStatus = false
         var isPendingPayment = false
@@ -105,7 +105,7 @@ class OwedTransactionAdapter(
         }
 
         // Show payment sent date for Paid status
-        val paymentSentDate = transaction.getPaymentSentDate()
+        val paymentSentDate = transaction.paymentSentDate
         if (isPaid && !paymentSentDate.isNullOrEmpty()) {
             holder.paymentSentDateTV.visibility = View.VISIBLE
             holder.paymentSentDateTV.text = ": $paymentSentDate"

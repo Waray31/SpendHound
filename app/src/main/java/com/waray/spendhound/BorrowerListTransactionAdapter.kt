@@ -50,14 +50,14 @@ class BorrowerListTransactionAdapter(
 
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val transaction = transactionList[position]
-        holder.hoursAgoTV.text = transaction.getDate()
-        holder.borrowerNameTV.text = transaction.getBorrowee()
-        holder.amountBorrowedTV.text = transaction.getBorrowedAmountStr()
+        holder.hoursAgoTV.text = transaction.date
+        holder.borrowerNameTV.text = transaction.borrowee
+        holder.amountBorrowedTV.text = transaction.borrowedAmountStr
 
         holder.borrowerImg.setImageResource(R.drawable.placeholder_profile_image)
-        holder.borrowerImg.tag = transaction.getBorrowee()
+        holder.borrowerImg.tag = transaction.borrowee
 
-        setProfileImage(holder.borrowerImg, transaction.getBorrowee())
+        setProfileImage(holder.borrowerImg, transaction.borrowee)
 
         holder.acceptBorrowerBtn.setOnClickListener {
             showConfirmationDialog("Accept", transaction, pathList[position]!!, position)
@@ -119,7 +119,7 @@ class BorrowerListTransactionAdapter(
                     4 -> "Declined"
                     else -> "Unknown"
                 }
-                transaction.setStatus(statusStr)
+                transaction.status = statusStr
                 transactionList[position] = transaction
                 notifyDataSetChanged()
                 statusUpdatedListener?.onTransactionStatusUpdated()
@@ -176,7 +176,7 @@ class BorrowerListTransactionAdapter(
                     4 -> "Declined"
                     else -> "Unknown"
                 }
-                transactionList.forEach { it.setStatus(statusStr) }
+                transactionList.forEach { it.status = statusStr }
                 notifyDataSetChanged()
                 statusUpdatedListener?.onTransactionStatusUpdated()
             } catch (e: Exception) {

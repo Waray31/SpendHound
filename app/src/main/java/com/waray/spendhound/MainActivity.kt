@@ -1,6 +1,5 @@
 package com.waray.spendhound
 
-import android.annotation.SuppressLint
 import android.app.Dialog
 import android.content.Intent
 import android.graphics.drawable.ColorDrawable
@@ -28,11 +27,14 @@ import com.google.android.material.behavior.HideBottomViewOnScrollBehavior
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import io.github.jan.supabase.gotrue.Auth
-import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.min
 
 class MainActivity : AppCompatActivity() {
     var navView: BottomNavigationView? = null
@@ -43,9 +45,9 @@ class MainActivity : AppCompatActivity() {
     var currentNickname: String? = ""
     var owedNum: Int = 0
     var debtNum: Int = 0
-    private var recentTransactionList = ArrayList<RecentTransaction?>()
-    var debtList: ArrayList<BorrowTransaction?> = ArrayList()
-    var owedList: ArrayList<OwedTransaction?> = ArrayList()
+    private var recentTransactionList = ArrayList<RecentTransaction>()
+    var debtList: ArrayList<BorrowTransaction> = ArrayList()
+    var owedList: ArrayList<OwedTransaction> = ArrayList()
     private var recentTransactionAdapter: RecentTransactionAdapter? = null
 
     // FAB Menu fields
@@ -65,23 +67,13 @@ class MainActivity : AppCompatActivity() {
         fun onDebtNumReceived(debtNum: Int)
     }
 
-    interface CurrentNicknameCallback {
-        fun onCurrentNicknameReceived(currentNickname: String?)
-    }
-
     fun isUserInvolved(
         transaction: Transaction?,
         usernameOrUid: String?
     ): Boolean {
         if (transaction == null || usernameOrUid.isNullOrEmpty()) return false
         val currentUid = mAuth?.currentUserOrNull()?.id
-        if (transaction.isUserInvolvedByUid(currentUid)) return true
-        if (usernameOrUid == transaction.getUsernamePost()) return true
-        if (usernameOrUid == transaction.getPosterDisplayName()) return true
-        val payorsList = transaction.getPayorsList()
-        if (payorsList != null && payorsList.contains(usernameOrUid)) return true
-        val payorsDisplayNames = transaction.getPayorsDisplayNames()
-        return payorsDisplayNames != null && payorsDisplayNames.contains(usernameOrUid)
+        return transaction.isUserInvolvedByUid(currentUid) || transaction.isUserInvolvedByUsername(usernameOrUid)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -272,7 +264,7 @@ class MainActivity : AppCompatActivity() {
                         for (i in 0 until recyclerView.childCount) {
                             val child = recyclerView.getChildAt(i)
                             val childMidpoint = (recyclerView.layoutManager!!.getDecoratedLeft(child) + recyclerView.layoutManager!!.getDecoratedRight(child)) / 2f
-                            val d = Math.min(d1.toDouble(), Math.abs(midpoint - childMidpoint).toDouble()).toFloat()
+                            val d = min(d1, abs(midpoint - childMidpoint))
                             val scale = s0 + (s1 - s0) * (d - d0) / (d1 - d0)
                             child.scaleX = scale
                             child.scaleY = scale
@@ -289,7 +281,7 @@ class MainActivity : AppCompatActivity() {
                         return@setOnClickListener
                     }
 
-                    val amount = try { amountStr.toDouble() } catch (e: NumberFormatException) { 0.0 }
+                    val amount = amountStr.toDoubleOrNull() ?: 0.0
                     if (amount <= 0) {
                         Toast.makeText(this@MainActivity, "Invalid amount", Toast.LENGTH_SHORT).show()
                         return@setOnClickListener
@@ -310,8 +302,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun submitBorrowRequest(lender: User, amount: Double) {
-        val currentUser = mAuth?.currentUserOrNull()
-        if (currentUser == null) return
+        val currentUser = mAuth?.currentUserOrNull() ?: return
 
         lifecycleScope.launch {
             try {
@@ -322,7 +313,7 @@ class MainActivity : AppCompatActivity() {
 
                 val borrowTransaction = BorrowNowTransaction(
                     borrowedAmount = amount,
-                    borrowerId = currentUser.id?.toLongOrNull(),
+                    borrowerId = currentUser.id.toLongOrNull(),
                     lenderId = lender.id,
                     statusInt = 1, // 1 = For Lender Approval
                     createdAt = createdAt,
@@ -352,412 +343,300 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun getRecentTransactions(callback: Runnable?) {
+    fun getRecentTransactions(onComplete: (ArrayList<RecentTransaction>) -> Unit) {
         lifecycleScope.launch {
             try {
-                val usernameOrUid = currentNickname ?: ""
-                
-                val transactions = DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
-                recentTransactionList.clear()
-                
-                for (t in transactions) {
-                    if (isUserInvolved(t, usernameOrUid)) {
-                        val my = t.monthYear ?: ""
-                        val d = t.day ?: ""
-                        val tk = t.timeKey ?: ""
-                        val p = my.split("-").toTypedArray()
-                        val month = if (p.isNotEmpty()) p[0] else ""
-                        val year = if (p.size > 1) p[1] else ""
-                        
-                        recentTransactionList.add(
-                            RecentTransaction(
-                                "$month - $d",
-                                t.getTransactionType(),
-                                t.getMultilineStr(),
-                                CurrencyUtils.formatAmountWithCurrency(t.getPaymentAmount()),
-                                getTransactionIcon(t.getTransactionType()),
-                                "$year-$month-$d $tk",
-                                t.getPayorsDisplayNames() ?: t.getPayorsList(),
-                                t.getPayorsList(),
-                                t.getAmountsPaidList(),
-                                t.getTotalIndividualPayment(),
-                                null,
-                                t.getPosterDisplayName() ?: t.getUsernamePost(),
-                                t.getUsernamePost(),
-                                my,
-                                d,
-                                tk
-                            )
+                val currentUid = mAuth?.currentUserOrNull()?.id ?: return@launch
+                val result = DeclareDatabase.postgrest.from("transactions")
+                    .select() {
+                        order("timestamp", Order.DESCENDING)
+                    }
+                    .decodeList<Transaction>()
+
+                val recentList = ArrayList<RecentTransaction>()
+                for (transaction in result) {
+                    if (transaction.isUserInvolvedByUid(currentUid)) {
+                        val rt = RecentTransaction(
+                            mostRecentDate = transaction.monthYear,
+                            mostRecentTransactionType = transaction.transactionType,
+                            mostRecentDetails = transaction.multilineStr,
+                            mostRecentPaymentAmountStr = transaction.paymentAmount.toString(),
+                            iconResource = R.drawable.plus,
+                            sortDateTime = transaction.timestamp.toString(),
+                            payorsList = transaction.payorsList,
+                            amountsPaidList = transaction.amountsPaidList,
+                            fullDateWithYear = "${transaction.day}-${transaction.monthYear}",
+                            createdBy = transaction.posterDisplayName,
+                            createdByUid = transaction.usernamePost
                         )
+                        recentList.add(rt)
                     }
                 }
-                
-                recentTransactionList.sortWith { t1, t2 ->
-                    if (t1?.getSortDateTime() != null && t2?.getSortDateTime() != null) 
-                        t2.getSortDateTime()!!.compareTo(t1.getSortDateTime()!!) 
-                    else 0
-                }
-                
-                val rv: RecyclerView? = findViewById(R.id.transactionListRecycler)
-                if (rv != null) {
-                    recentTransactionAdapter = RecentTransactionAdapter(
-                        recentTransactionList as ArrayList<RecentTransaction>,
-                        RecentTransactionAdapter.OnTransactionClickListener { transaction ->
-                            onTransactionTap(transaction!!)
-                        })
-                    rv.adapter = recentTransactionAdapter
-                    rv.layoutManager = LinearLayoutManager(this@MainActivity)
-                    recentTransactionAdapter?.preloadAllImages(this@MainActivity)
-                }
-                callback?.run()
+                recentTransactionList = recentList
+                onComplete(recentList)
             } catch (e: Exception) {
-                callback?.run()
+                Log.e("MainActivity", "Error fetching recent transactions: ${e.message}")
+                onComplete(ArrayList())
             }
         }
     }
 
-    private fun onTransactionTap(transaction: RecentTransaction) {
-        // Implementation for handling transaction tap
-    }
-
-    private fun getTransactionIcon(type: String?): Int {
-        return when (type) {
-            "Electricity" -> R.drawable.lightning_bolt
-            "Water" -> R.drawable.faucet
-            "Rent" -> R.drawable.house
-            "Internet" -> R.drawable.internet
-            "Online Shopping" -> R.drawable.online_shopping
-            "Travel" -> R.drawable.travel
-            "Groceries" -> R.drawable.groceries
-            "Foods" -> R.drawable.hamburger
-            "House Necessity" -> R.drawable.necessities
-            "Transportation" -> R.drawable.vehicles
-            else -> R.drawable.others
-        }
-    }
-
-    fun getTotalMonthSpends(callback: Runnable?) {
+    fun getTotalMonthSpends(onComplete: (Double) -> Unit) {
         lifecycleScope.launch {
             try {
-                val usernameOrUid = currentNickname ?: ""
+                val currentUid = mAuth?.currentUserOrNull()?.id ?: return@launch
                 val calendar = Calendar.getInstance()
-                val monthYear = SimpleDateFormat("MMMM-yyyy", Locale.ENGLISH).format(calendar.time)
+                val currentMonthYear = SimpleDateFormat("MMMM-yyyy", Locale.ENGLISH).format(calendar.time)
                 
-                val transactions = DeclareDatabase.transactionsTable.select {
-                    filter { eq("month_year", monthYear) }
-                }.decodeList<Transaction>()
-                
-                totalMonthSpends = transactions
-                    .filter { isUserInvolved(it, usernameOrUid) }
-                    .sumOf { it.paymentAmount }
-                
-                callback?.run()
+                val result = DeclareDatabase.postgrest.from("transactions")
+                    .select() {
+                        filter {
+                            eq("monthYear", currentMonthYear)
+                        }
+                    }
+                    .decodeList<Transaction>()
+
+                var total = 0.0
+                for (transaction in result) {
+                    if (transaction.usernamePost == currentUid) {
+                        total += transaction.paymentAmount
+                    }
+                }
+                totalMonthSpends = total
+                onComplete(total)
             } catch (e: Exception) {
-                callback?.run()
+                Log.e("MainActivity", "Error calculating total month spends: ${e.message}")
+                onComplete(0.0)
             }
         }
     }
 
-    fun getEverydaySpends(callback: Runnable?) {
+    fun getDebtList(status: String, callback: DebtNumCallback) {
+        lifecycleScope.launch {
+            try {
+                val currentUid = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return@launch
+                val statusInt = when (status) {
+                    "Pending" -> 2
+                    "Paid" -> 3
+                    else -> 0
+                }
+                
+                val result = DeclareDatabase.postgrest.from("borrows")
+                    .select() {
+                        filter {
+                            eq("borrower_id", currentUid)
+                            if (statusInt > 0) eq("status", statusInt)
+                        }
+                    }
+                    .decodeList<BorrowNowTransaction>()
+
+                val list = ArrayList<BorrowTransaction>()
+                for (b in result) {
+                    list.add(BorrowTransaction(
+                        date = b.createdAt,
+                        borrowee = b.lenderId?.toString(),
+                        borrowedAmountStr = b.borrowedAmount?.toString(),
+                        status = b.getStatus(),
+                        borroweeDisplayName = b.lender,
+                        paymentSentDate = b.paymentSentDate,
+                        borrowId = b.id?.toString(),
+                        monthYear = b.monthYear,
+                        day = null
+                    ))
+                }
+                debtList = list
+                debtNum = list.size
+                callback.onDebtNumReceived(debtNum)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error fetching debt list: ${e.message}")
+                callback.onDebtNumReceived(0)
+            }
+        }
+    }
+
+    fun getOwedList(status: String, callback: OwedNumCallback) {
+        lifecycleScope.launch {
+            try {
+                val currentUid = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return@launch
+                val statusInt = when (status) {
+                    "Pending" -> 2
+                    "Paid" -> 3
+                    else -> 0
+                }
+
+                val result = DeclareDatabase.postgrest.from("borrows")
+                    .select() {
+                        filter {
+                            eq("lender_id", currentUid)
+                            if (statusInt > 0) eq("status", statusInt)
+                        }
+                    }
+                    .decodeList<BorrowNowTransaction>()
+
+                val list = ArrayList<OwedTransaction>()
+                for (b in result) {
+                    list.add(OwedTransaction(
+                        date = b.createdAt,
+                        borrower = b.borrowerName,
+                        borrowedAmountStr = b.borrowedAmount?.toString(),
+                        status = b.getStatus(),
+                        paymentSentDate = b.paymentSentDate,
+                        borrowId = b.id?.toString(),
+                        monthYear = b.monthYear,
+                        day = null
+                    ))
+                }
+                owedList = list
+                owedNum = list.size
+                callback.onOwedNumReceived(owedNum)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error fetching owed list: ${e.message}")
+                callback.onOwedNumReceived(0)
+            }
+        }
+    }
+
+    fun getDebtListMonthly(monthYear: String, status: String, callback: DebtNumCallback) {
+        lifecycleScope.launch {
+            try {
+                val currentUid = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return@launch
+                val result = DeclareDatabase.postgrest.from("borrows")
+                    .select() {
+                        filter {
+                            eq("borrower_id", currentUid)
+                            eq("monthYear", monthYear)
+                        }
+                    }
+                    .decodeList<BorrowNowTransaction>()
+
+                val list = ArrayList<BorrowTransaction>()
+                for (b in result) {
+                    if (status == "All" || b.getStatus() == status) {
+                        list.add(BorrowTransaction(
+                            date = b.createdAt,
+                            borrowee = b.lenderId?.toString(),
+                            borrowedAmountStr = b.borrowedAmount?.toString(),
+                            status = b.getStatus(),
+                            borroweeDisplayName = b.lender,
+                            paymentSentDate = b.paymentSentDate,
+                            borrowId = b.id?.toString(),
+                            monthYear = b.monthYear,
+                            day = null
+                        ))
+                    }
+                }
+                debtList = list
+                callback.onDebtNumReceived(list.size)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error fetching monthly debt list: ${e.message}")
+                callback.onDebtNumReceived(0)
+            }
+        }
+    }
+
+    fun getOwedListMonthly(monthYear: String, status: String, callback: OwedNumCallback) {
+        lifecycleScope.launch {
+            try {
+                val currentUid = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return@launch
+                val result = DeclareDatabase.postgrest.from("borrows")
+                    .select() {
+                        filter {
+                            eq("lender_id", currentUid)
+                            eq("monthYear", monthYear)
+                        }
+                    }
+                    .decodeList<BorrowNowTransaction>()
+
+                val list = ArrayList<OwedTransaction>()
+                for (b in result) {
+                    if (status == "All" || b.getStatus() == status) {
+                        list.add(OwedTransaction(
+                            date = b.createdAt,
+                            borrower = b.borrowerName,
+                            borrowedAmountStr = b.borrowedAmount?.toString(),
+                            status = b.getStatus(),
+                            paymentSentDate = b.paymentSentDate,
+                            borrowId = b.id?.toString(),
+                            monthYear = b.monthYear,
+                            day = null
+                        ))
+                    }
+                }
+                owedList = list
+                callback.onOwedNumReceived(list.size)
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error fetching monthly owed list: ${e.message}")
+                callback.onOwedNumReceived(0)
+            }
+        }
+    }
+
+    fun getCurrentNickname(callback: (String?) -> Unit) {
+        if (!currentNickname.isNullOrEmpty()) {
+            callback(currentNickname)
+            return
+        }
+        val uid = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
+        if (uid != null) {
+            UserHelper.getUsernameById(uid, object : UserHelper.UsernameCallback {
+                override fun onUsernameRetrieved(username: String?) {
+                    currentNickname = username
+                    callback(username)
+                }
+                override fun onError(error: String?) {
+                    callback(null)
+                }
+            })
+        } else {
+            callback(null)
+        }
+    }
+
+    fun getEverydaySpends(onComplete: () -> Unit) {
         val calendar = Calendar.getInstance()
         calendar.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
         calendar.set(Calendar.HOUR_OF_DAY, 0)
         calendar.set(Calendar.MINUTE, 0)
         calendar.set(Calendar.SECOND, 0)
         calendar.set(Calendar.MILLISECOND, 0)
-        getEverydaySpendsForWeek(calendar, callback)
+        getEverydaySpendsForWeek(calendar, onComplete)
     }
 
-    fun getEverydaySpendsForWeek(weekStart: Calendar, callback: Runnable?) {
+    fun getEverydaySpendsForWeek(startDate: Calendar, onComplete: () -> Unit) {
         lifecycleScope.launch {
             try {
-                val usernameOrUid = currentNickname ?: ""
-                val startDate = weekStart.timeInMillis
-                val endDate = weekStart.clone() as Calendar
-                endDate.add(Calendar.DAY_OF_YEAR, 7)
-                val endTime = endDate.timeInMillis
+                val currentUid = mAuth?.currentUserOrNull()?.id ?: return@launch
+                val startMillis = startDate.timeInMillis
+                val endCalendar = startDate.clone() as Calendar
+                endCalendar.add(Calendar.DAY_OF_YEAR, 7)
+                val endMillis = endCalendar.timeInMillis
 
-                val transactions = DeclareDatabase.transactionsTable.select {
-                    filter {
-                        gte("timestamp", startDate)
-                        lt("timestamp", endTime)
+                val result = DeclareDatabase.postgrest.from("transactions")
+                    .select() {
+                        filter {
+                            gte("timestamp", startMillis)
+                            lt("timestamp", endMillis)
+                        }
                     }
-                }.decodeList<Transaction>()
+                    .decodeList<Transaction>()
 
-                val newDailyTotals = DoubleArray(7) { 0.0 }
-                for (t in transactions) {
-                    if (isUserInvolved(t, usernameOrUid)) {
-                        val tCal = Calendar.getInstance().apply { timeInMillis = t.timestamp }
-                        val dayOfWeek = tCal.get(Calendar.DAY_OF_WEEK) // SUNDAY = 1
-                        newDailyTotals[dayOfWeek - 1] += t.paymentAmount
-                    }
-                }
-                dailyTotals = newDailyTotals
-                callback?.run()
-            } catch (e: Exception) {
-                callback?.run()
-            }
-        }
-    }
-
-    fun getDebtList(
-        selectedStatus: String?,
-        callback: DebtNumCallback,
-        actionListener: DebtTransactionAdapter.OnBorrowerActionListener?
-    ) {
-        lifecycleScope.launch {
-            try {
-                val currentUserId = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
-                val borrows = DeclareDatabase.borrowsTable.select().decodeList<BorrowNowTransaction>()
-                
-                debtList.clear()
-                for (bnt in borrows) {
-                    if (bnt.borrowerId == currentUserId) {
-                        if (bnt.getStatus() != "Removed" && bnt.getStatus() != "Payment Denied" && shouldIncludeForDebtStatus(
-                                bnt.getStatus(),
-                                selectedStatus
-                            )
-                        ) {
-                            addDebtTransactionFromBorrowNow(bnt, bnt.getMonthYear(), null, bnt.id?.toString())
+                val totals = DoubleArray(7) { 0.0 }
+                for (transaction in result) {
+                    if (isUserInvolved(transaction, currentUid)) {
+                        val transCal = Calendar.getInstance()
+                        transCal.timeInMillis = transaction.timestamp
+                        val dayOfWeek = transCal.get(Calendar.DAY_OF_WEEK)
+                        val index = dayOfWeek - 1
+                        if (index in 0..6) {
+                            totals[index] += transaction.paymentAmount
                         }
                     }
                 }
-                
-                sortAndDisplayDebtList(actionListener)
-                debtNum = debtList.size
-                callback.onDebtNumReceived(debtNum)
+                dailyTotals = totals
+                onComplete()
             } catch (e: Exception) {
-                Log.e("MainActivity", "Error getting debt list: ${e.message}")
-            }
-        }
-    }
-
-    private fun sortAndDisplayDebtList(actionListener: DebtTransactionAdapter.OnBorrowerActionListener?) {
-        debtList.sortWith { o1, o2 ->
-            try {
-                val f = SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH)
-                return@sortWith f.parse(o2!!.getDate())!!.compareTo(f.parse(o1!!.getDate()))
-            } catch (e: Exception) {
-                return@sortWith 0
-            }
-        }
-        val rv: RecyclerView? = findViewById(R.id.debtRecyclerList)
-        if (rv != null) {
-            rv.adapter = DebtTransactionAdapter(
-                    debtList,
-                    actionListener ?: object : DebtTransactionAdapter.OnBorrowerActionListener {
-                        override fun onPayClicked(transaction: BorrowTransaction?, position: Int) {}
-                        override fun onRemoveClicked(transaction: BorrowTransaction?, position: Int) {}
-                        override fun onTryAgainClicked(transaction: BorrowTransaction?, position: Int) {}
-                    })
-            rv.layoutManager = LinearLayoutManager(this@MainActivity)
-        }
-    }
-
-    private fun addDebtTransactionFromBorrowNow(
-        borrowNowTransaction: BorrowNowTransaction,
-        monthYear: String?,
-        day: String?,
-        borrowId: String?
-    ) {
-        val dateLong = borrowNowTransaction.getDate()
-        val date = SimpleDateFormat("MMM-dd-yyyy", Locale.getDefault()).format(java.util.Date(dateLong))
-        
-        val psdLong = borrowNowTransaction.getPaymentSentDate()
-        val psd = if (psdLong > 0) SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH).format(java.util.Date(psdLong)) else null
-        
-        val bt = BorrowTransaction(
-            date,
-            borrowNowTransaction.getLender(),
-            borrowNowTransaction.getBorrowedAmount().toString(),
-            borrowNowTransaction.getStatus()
-        )
-        bt.setPaymentSentDate(psd)
-        bt.setBorrowId(borrowId)
-        bt.setMonthYear(monthYear)
-        bt.setDay(day)
-        debtList.add(bt)
-    }
-
-    fun getDebtListMonthly(
-        selectedMonth: String?,
-        selectedStatus: String?,
-        callback: DebtNumCallback,
-        actionListener: DebtTransactionAdapter.OnBorrowerActionListener?
-    ) {
-        if (selectedMonth == null || selectedMonth == "All") return
-        lifecycleScope.launch {
-            try {
-                val uid = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
-                val borrows = DeclareDatabase.borrowsTable.select {
-                    filter { eq("month_year", selectedMonth) }
-                }.decodeList<BorrowNowTransaction>()
-                
-                debtList.clear()
-                for (bnt in borrows) {
-                    if (bnt.borrowerId == uid && bnt.getStatus() != "Removed" && bnt.getStatus() != "Payment Denied" && shouldIncludeForDebtStatus(
-                            bnt.getStatus(),
-                            selectedStatus
-                        )
-                    ) {
-                        addDebtTransactionFromBorrowNow(bnt, selectedMonth, null, bnt.id?.toString())
-                    }
-                }
-                
-                sortAndDisplayDebtList(actionListener)
-                debtNum = debtList.size
-                callback.onDebtNumReceived(debtNum)
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error getting monthly debt list: ${e.message}")
-            }
-        }
-    }
-
-    fun getOwedList(
-        selectedStatus: String?,
-        callback: OwedNumCallback,
-        actionListener: OwedTransactionAdapter.OnLenderActionListener?
-    ) {
-        lifecycleScope.launch {
-            try {
-                val uid = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
-                val borrows = DeclareDatabase.borrowsTable.select().decodeList<BorrowNowTransaction>()
-                
-                owedList.clear()
-                for (bnt in borrows) {
-                    if (bnt.lenderId == uid && bnt.getStatus() != "Declined" && bnt.getStatus() != "Payment Denied" && bnt.getStatus() != "Removed" && shouldIncludeForStatus(
-                            bnt.getStatus(),
-                            selectedStatus
-                        )
-                    ) {
-                        addOwedTransactionFromBorrowNow(bnt, bnt.getMonthYear(), null, bnt.id?.toString())
-                    }
-                }
-                
-                sortAndDisplayOwedList(actionListener)
-                owedNum = owedList.size
-                callback.onOwedNumReceived(owedNum)
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error getting owed list: ${e.message}")
-            }
-        }
-    }
-
-    private fun sortAndDisplayOwedList(actionListener: OwedTransactionAdapter.OnLenderActionListener?) {
-        owedList.sortWith { o1, o2 ->
-            try {
-                val f = SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH)
-                return@sortWith f.parse(o2!!.getDate())!!.compareTo(f.parse(o1!!.getDate()))
-            } catch (e: Exception) {
-                return@sortWith 0
-            }
-        }
-        val rv: RecyclerView? = findViewById(R.id.owedRecyclerList)
-        if (rv != null) {
-            rv.adapter = OwedTransactionAdapter(
-                    owedList as List<OwedTransaction?>,
-                    actionListener ?: object : OwedTransactionAdapter.OnLenderActionListener {
-                        override fun onNotYetClicked(transaction: OwedTransaction?, position: Int) {}
-                        override fun onReceivedClicked(transaction: OwedTransaction?, position: Int) {}
-                        override fun onDeclineClicked(transaction: OwedTransaction?, position: Int) {}
-                        override fun onApprovedClicked(transaction: OwedTransaction?, position: Int) {}
-                    })
-            rv.layoutManager = LinearLayoutManager(this@MainActivity)
-        }
-    }
-
-    fun getCurrentNickname(callback: (String?) -> Unit) {
-        val uid = mAuth?.currentUserOrNull()?.id ?: return callback("")
-        lifecycleScope.launch {
-            try {
-                val user = DeclareDatabase.usersTable.select(Columns.list("username")) {
-                    filter { eq("user_id", uid.toLongOrNull() ?: 0L) }
-                }.decodeSingleOrNull<User>()
-                currentNickname = user?.username ?: ""
-                callback(currentNickname)
-            } catch (e: Exception) {
-                callback("")
-            }
-        }
-    }
-
-    fun changeFormatDate(date: String): String? {
-        return try {
-            val d = SimpleDateFormat("MMMM-dd-yyyy", Locale.ENGLISH).parse(date)
-            SimpleDateFormat("MMM-dd-yyyy", Locale.getDefault()).format(d!!)
-        } catch (e: Exception) {
-            date
-        }
-    }
-
-    private fun shouldIncludeForStatus(s: String?, ss: String?): Boolean {
-        if ("All" == ss) return true
-        if ("Pending" == ss) return "Pending Payment" == s || "For Lender Approval" == s
-        return s == ss
-    }
-
-    private fun shouldIncludeForDebtStatus(s: String?, ss: String?): Boolean {
-        if ("All" == ss) return true
-        if ("Pending" == ss) return "Pending Payment" == s || "For Lender Approval" == s || "Declined" == s
-        return s == ss
-    }
-
-    private fun addOwedTransactionFromBorrowNow(
-        bnt: BorrowNowTransaction,
-        my: String?,
-        d: String?,
-        bid: String?
-    ) {
-        val dateLong = bnt.getDate()
-        val date = SimpleDateFormat("MMM-dd-yyyy", Locale.getDefault()).format(java.util.Date(dateLong))
-        
-        val psdLong = bnt.getPaymentSentDate()
-        val psd = if (psdLong > 0) SimpleDateFormat("MMM-dd-yyyy", Locale.ENGLISH).format(java.util.Date(psdLong)) else null
-        
-        owedList.add(
-            OwedTransaction(
-                date,
-                bnt.getBorrowerName() ?: "Unknown",
-                bnt.getBorrowedAmount().toString(),
-                bnt.getStatus(),
-                psd,
-                bid,
-                my,
-                d
-            )
-        )
-    }
-
-    fun getOwedListMonthly(
-        sm: String?,
-        ss: String?,
-        callback: OwedNumCallback,
-        actionListener: OwedTransactionAdapter.OnLenderActionListener?
-    ) {
-        if (sm == null || sm == "All") return
-        lifecycleScope.launch {
-            try {
-                val uid = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
-                val borrows = DeclareDatabase.borrowsTable.select {
-                    filter { eq("month_year", sm) }
-                }.decodeList<BorrowNowTransaction>()
-                
-                owedList.clear()
-                for (bnt in borrows) {
-                    if (bnt.lenderId == uid && bnt.getStatus() != "Declined" && bnt.getStatus() != "Payment Denied" && bnt.getStatus() != "Removed" && shouldIncludeForStatus(
-                            bnt.getStatus(),
-                            ss
-                        )
-                    ) {
-                        addOwedTransactionFromBorrowNow(bnt, sm, null, bnt.id?.toString())
-                    }
-                }
-                
-                sortAndDisplayOwedList(actionListener)
-                owedNum = owedList.size
-                callback.onOwedNumReceived(owedNum)
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error getting monthly owed list: ${e.message}")
+                Log.e("MainActivity", "Error fetching everyday spends: ${e.message}")
+                onComplete()
             }
         }
     }

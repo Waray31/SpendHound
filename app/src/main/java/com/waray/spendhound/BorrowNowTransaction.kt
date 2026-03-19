@@ -87,9 +87,9 @@ class BorrowNowTransaction(
     fun getBorrowerID(): String? = borrowerId?.toString()
     fun getLenderID(): String? = lenderId?.toString()
     
-    // borrowedAmount, borrowerName, lender, monthYear, timestamp 
-    // are already accessible via generated accessors in Kotlin.
-    // If Java calls them, it uses getBorrowedAmount(), etc.
+    // Properties are accessible directly in Kotlin.
+    // getBorrowedAmount(), getBorrowerName(), getLender(), getMonthYear() 
+    // were removed to avoid Platform Declaration Clash with generated property getters.
 
     fun getDate(): Long {
         if (createdAt == null) return timestamp
@@ -113,7 +113,7 @@ class BorrowNowTransaction(
         }
     }
     
-    fun getPaymentSentDate(): Long {
+    fun getPaymentSentDateLong(): Long {
         if (paymentSentDate == null) return 0
         return try {
             val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault())

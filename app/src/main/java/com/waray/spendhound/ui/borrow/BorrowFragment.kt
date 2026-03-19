@@ -18,21 +18,17 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.RecyclerView
-import androidx.recyclerview.widget.SnapHelper
 import com.waray.spendhound.BalanceHelper
 import com.waray.spendhound.BorrowNowTransaction
 import com.waray.spendhound.BorrowTransaction
 import com.waray.spendhound.DeclareDatabase
 import com.waray.spendhound.DebtTransactionAdapter
-import com.waray.spendhound.LenderAdapter
 import com.waray.spendhound.MainActivity
 import com.waray.spendhound.OwedTransaction
 import com.waray.spendhound.OwedTransactionAdapter
 import com.waray.spendhound.R
 import com.waray.spendhound.User
-import com.waray.spendhound.UserBalance
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.CoroutineScope
@@ -42,7 +38,6 @@ import kotlinx.coroutines.withContext
 import java.util.Calendar
 import java.text.SimpleDateFormat
 import java.util.Locale
-import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.min
 
@@ -67,7 +62,6 @@ class BorrowFragment : Fragment() {
     private var mAuth: Auth? = null
 
     private var globalLoadingOverlay: View? = null
-    private var selectedLenderName = ""
     private val selectedCalendar: Calendar = Calendar.getInstance()
 
     private val uiScope = CoroutineScope(Dispatchers.Main)
@@ -205,13 +199,13 @@ class BorrowFragment : Fragment() {
                     override fun onOwedNumReceived(owedNum: Int) {
                         OwedSize(owedNum)
                     }
-                }, lenderActionListener)
+                })
             } else {
-                mainActivity.getOwedListMonthly(selectedMonth, selectedStatusTab, object : MainActivity.OwedNumCallback {
+                mainActivity.getOwedListMonthly(selectedMonth ?: "", selectedStatusTab, object : MainActivity.OwedNumCallback {
                     override fun onOwedNumReceived(owedNum: Int) {
                         OwedSize(owedNum)
                     }
-                }, lenderActionListener)
+                })
             }
         } else {
             if (selectedMonth == "All") {
@@ -219,13 +213,13 @@ class BorrowFragment : Fragment() {
                     override fun onDebtNumReceived(debtNum: Int) {
                         DebtSize(debtNum)
                     }
-                }, borrowerActionListener)
+                })
             } else {
-                mainActivity.getDebtListMonthly(selectedMonth, selectedStatusTab, object : MainActivity.DebtNumCallback {
+                mainActivity.getDebtListMonthly(selectedMonth ?: "", selectedStatusTab, object : MainActivity.DebtNumCallback {
                     override fun onDebtNumReceived(debtNum: Int) {
                         DebtSize(debtNum)
                     }
-                }, borrowerActionListener)
+                })
             }
         }
     }
@@ -234,22 +228,22 @@ class BorrowFragment : Fragment() {
         get() = field ?: object : OwedTransactionAdapter.OnLenderActionListener {
             override fun onNotYetClicked(transaction: OwedTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_not_yet_title), getString(R.string.confirm_not_yet_message), R.color.grey) {
-                    updateTransactionStatus(transaction?.getBorrowId(), "Unpaid", null)
+                    updateTransactionStatus(transaction?.borrowId, "Unpaid", null)
                 }
             }
             override fun onReceivedClicked(transaction: OwedTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_received_title), getString(R.string.confirm_received_message), R.color.green) {
-                    updateTransactionStatus(transaction?.getBorrowId(), "Paid", null)
+                    updateTransactionStatus(transaction?.borrowId, "Paid", null)
                 }
             }
             override fun onDeclineClicked(transaction: OwedTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_decline_title), getString(R.string.confirm_decline_message), R.color.red) {
-                    updateTransactionStatus(transaction?.getBorrowId(), "Declined", null)
+                    updateTransactionStatus(transaction?.borrowId, "Declined", null)
                 }
             }
             override fun onApprovedClicked(transaction: OwedTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_approve_title), getString(R.string.confirm_approve_message), R.color.green) {
-                    updateTransactionStatus(transaction?.getBorrowId(), "Unpaid", null)
+                    updateTransactionStatus(transaction?.borrowId, "Unpaid", null)
                 }
             }
         }
@@ -258,17 +252,17 @@ class BorrowFragment : Fragment() {
         get() = field ?: object : DebtTransactionAdapter.OnBorrowerActionListener {
             override fun onPayClicked(transaction: BorrowTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_pay_title), getString(R.string.confirm_pay_message), R.color.green) {
-                    updateTransactionStatusWithPaymentDate(transaction?.getBorrowId(), "Pending Payment", null)
+                    updateTransactionStatusWithPaymentDate(transaction?.borrowId, "Pending Payment", null)
                 }
             }
             override fun onRemoveClicked(transaction: BorrowTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_remove_title), getString(R.string.confirm_remove_message), R.color.red) {
-                    updateTransactionStatus(transaction?.getBorrowId(), "Removed", null)
+                    updateTransactionStatus(transaction?.borrowId, "Removed", null)
                 }
             }
             override fun onTryAgainClicked(transaction: BorrowTransaction?, position: Int) {
                 showConfirmationDialog(getString(R.string.confirm_try_again_title), getString(R.string.confirm_try_again_message), R.color.green) {
-                    updateTransactionStatus(transaction?.getBorrowId(), "For Lender Approval", null)
+                    updateTransactionStatus(transaction?.borrowId, "For Lender Approval", null)
                 }
             }
         }
@@ -319,6 +313,11 @@ class BorrowFragment : Fragment() {
         noOwedTextView?.visibility = if (owedNum == 0) View.VISIBLE else View.GONE
         owedRecyclerList?.visibility = if (owedNum == 0) View.GONE else View.VISIBLE
         noDebtTextView?.visibility = View.GONE
+        
+        val mainActivity = activity as? MainActivity
+        if (owedNum > 0 && mainActivity != null) {
+            owedRecyclerList?.adapter = OwedTransactionAdapter(mainActivity.owedList, lenderActionListener)
+        }
     }
 
     fun DebtSize(debtNum: Int) {
@@ -326,6 +325,11 @@ class BorrowFragment : Fragment() {
         noDebtTextView?.visibility = if (debtNum == 0) View.VISIBLE else View.GONE
         debtRecyclerList?.visibility = if (debtNum == 0) View.GONE else View.VISIBLE
         noOwedTextView?.visibility = View.GONE
+        
+        val mainActivity = activity as? MainActivity
+        if (debtNum > 0 && mainActivity != null) {
+            debtRecyclerList?.adapter = DebtTransactionAdapter(mainActivity.debtList, borrowerActionListener)
+        }
     }
 
     fun showConfirmationDialog(title: String?, message: String?, confirmBtnColor: Int, onConfirm: Runnable) {
@@ -439,46 +443,6 @@ class BorrowFragment : Fragment() {
                 applyFilters()
             } catch (e: Exception) {
                 Log.e("BorrowFragment", "Error updating transaction status with payment date: ${e.message}")
-            }
-        }
-    }
-
-    private fun updateLayoutEffect(recyclerView: RecyclerView) {
-        val midpoint = recyclerView.width / 2f
-        val d0 = 0f
-        val d1 = 0.9f * midpoint
-        val s0 = 1.6f
-        val s1 = 1.0f
-        val a0 = 1.0f
-        val a1 = 0.5f
-
-        for (i in 0 until recyclerView.childCount) {
-            val child = recyclerView.getChildAt(i)
-            recyclerView.layoutManager?.let { lm ->
-                val childMidpoint = (lm.getDecoratedRight(child) + lm.getDecoratedLeft(child)) / 2f
-                val d = min(d1, abs(midpoint - childMidpoint))
-                val scale = s0 + (s1 - s0) * (d - d0) / (d1 - d0)
-                val alpha = a0 + (a1 - a0) * (d - d0) / (d1 - d0)
-                child.scaleX = scale
-                child.scaleY = scale
-                child.alpha = alpha
-            }
-        }
-    }
-
-    private fun getUserIDByName(name: String, callback: (String?) -> Unit) {
-        uiScope.launch {
-            try {
-                val user = withContext(Dispatchers.IO) {
-                    DeclareDatabase.usersTable.select(Columns.list("user_id")) {
-                        filter {
-                            eq("username", name)
-                        }
-                    }.decodeSingleOrNull<User>()
-                }
-                callback(user?.id?.toString())
-            } catch (e: Exception) {
-                callback(null)
             }
         }
     }

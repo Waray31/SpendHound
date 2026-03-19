@@ -36,22 +36,4 @@ data class Transaction(
         if (payorsList?.contains(username) == true) return true
         return false
     }
-
-    // Getters for compatibility
-    fun getTransactionType(): String? = transactionType
-    fun getPaymentAmount(): Double = paymentAmount
-    fun getMultilineStr(): String? = multilineStr
-    fun getPayorsList(): MutableList<String?>? = payorsList
-    fun getAmountsPaidList(): MutableList<Double?>? = amountsPaidList
-    fun getUsernamePost(): String? = usernamePost
-    fun getTotalIndividualPayment(): Double = totalIndividualPayment
-    fun getGroupId(): String? = groupId
-    fun getGroupName(): String? = groupName
-    fun getPayorsDisplayNames(): MutableList<String?>? = payorsDisplayNames
-    fun getPosterDisplayName(): String? = posterDisplayName
-    fun getMonthYear(): String? = monthYear
-    fun getDay(): String? = day
-    fun getTimeKey(): String? = timeKey
-    fun getTimestamp(): Long = timestamp
-    fun getId(): String = id
 }

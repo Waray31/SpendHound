@@ -26,12 +26,12 @@ class BorrowTransactionAdapter(private val borrowTransactionList: ArrayList<Borr
     override fun onBindViewHolder(holder: ViewHolder, @SuppressLint("RecyclerView") position: Int) {
         val transaction = borrowTransactionList[position]
 
-        holder.cbDebtDateTV.text = transaction.getDate()
-        holder.cbDebtBorroweeTV.text = transaction.getBorrowee()
-        holder.cbDebtAmountBorrowedTV.text = CurrencyUtils.formatAmountWithCurrency(transaction.getBorrowedAmountStr() ?: "")
-        holder.cbDebtStatusTV.text = transaction.getStatus()
+        holder.cbDebtDateTV.text = transaction.date
+        holder.cbDebtBorroweeTV.text = transaction.borrowee
+        holder.cbDebtAmountBorrowedTV.text = CurrencyUtils.formatAmountWithCurrency(transaction.borrowedAmountStr ?: "")
+        holder.cbDebtStatusTV.text = transaction.status
 
-        val status = transaction.getStatus()
+        val status = transaction.status
         val statusColor: Int = if ("Paid".equals(status, ignoreCase = true)) {
             ContextCompat.getColor(holder.itemView.context, R.color.green)
         } else if ("Pending".equals(status, ignoreCase = true)) {

@@ -126,7 +126,7 @@ class AllTransactionsActivity : AppCompatActivity() {
         lifecycleScope.launch {
             try {
                 val user = DeclareDatabase.usersTable.select {
-                    filter { eq("id", userId) }
+                    filter { eq("user_id", userId.toLongOrNull() ?: 0L) }
                 }.decodeSingleOrNull<User>()
                 
                 currentNickname = user?.username ?: ""
@@ -215,25 +215,25 @@ class AllTransactionsActivity : AppCompatActivity() {
                         val fullDateWithYear = "$month $day, $year"
                         val sortDateTime = "$year-$month-$day $timeKey"
 
-                        val transactionType = transaction.getTransactionType()
-                        val details = transaction.getMultilineStr()
-                        val paymentAmount = transaction.getPaymentAmount()
+                        val transactionType = transaction.transactionType
+                        val details = transaction.multilineStr
+                        val paymentAmount = transaction.paymentAmount
                         val paymentAmountStr = CurrencyUtils.formatAmountWithCurrency(paymentAmount)
                         val iconResource = getIconForTransactionType(transactionType)
 
-                        var payorsList = transaction.getPayorsDisplayNames()
+                        var payorsList = transaction.payorsDisplayNames
                         if (payorsList.isNullOrEmpty()) {
-                            payorsList = transaction.getPayorsList()
+                            payorsList = transaction.payorsList
                         }
-                        val payorUids = transaction.getPayorsList()
-                        val amountsPaidList = transaction.getAmountsPaidList()
-                        val totalIndividualPayment = transaction.getTotalIndividualPayment()
+                        val payorUids = transaction.payorsList
+                        val amountsPaidList = transaction.amountsPaidList
+                        val totalIndividualPayment = transaction.totalIndividualPayment
 
-                        var createdBy = transaction.getPosterDisplayName()
+                        var createdBy = transaction.posterDisplayName
                         if (createdBy.isNullOrEmpty()) {
-                            createdBy = transaction.getUsernamePost()
+                            createdBy = transaction.usernamePost
                         }
-                        val createdByUid = transaction.getUsernamePost()
+                        val createdByUid = transaction.usernamePost
 
                         val recentTrans = RecentTransaction(
                             displayDate, transactionType, details, paymentAmountStr,
@@ -246,8 +246,8 @@ class AllTransactionsActivity : AppCompatActivity() {
                 }
 
                 transactionList?.sortWith { t1, t2 ->
-                    val dateTime1 = t1?.getSortDateTime()
-                    val dateTime2 = t2?.getSortDateTime()
+                    val dateTime1 = t1?.sortDateTime
+                    val dateTime2 = t2?.sortDateTime
                     if (dateTime1 != null && dateTime2 != null) {
                         dateTime2.compareTo(dateTime1)
                     } else 0
@@ -280,8 +280,8 @@ class AllTransactionsActivity : AppCompatActivity() {
     ): Boolean {
         if ("All".equals(statusFilter, ignoreCase = true)) return true
 
-        val paidAmounts = transaction.getAmountsPaidList()
-        val totalToPay = transaction.getTotalIndividualPayment()
+        val paidAmounts = transaction.amountsPaidList
+        val totalToPay = transaction.totalIndividualPayment
 
         if (paidAmounts.isNullOrEmpty()) {
             return "Unpaid".equals(statusFilter, ignoreCase = true)
@@ -291,10 +291,10 @@ class AllTransactionsActivity : AppCompatActivity() {
         var allUnpaid = true
 
         for (paid in paidAmounts) {
-            if (paid!! < totalToPay) {
+            if (paid == null || paid < totalToPay) {
                 allPaid = false
             }
-            if (paid > 0) {
+            if (paid != null && paid > 0) {
                 allUnpaid = false
             }
         }
@@ -326,11 +326,11 @@ class AllTransactionsActivity : AppCompatActivity() {
         if (transaction == null || usernameOrUid.isNullOrEmpty()) return false
         val currentUid = mAuth?.currentUserOrNull()?.id
         if (transaction.isUserInvolvedByUid(currentUid)) return true
-        if (usernameOrUid == transaction.getUsernamePost()) return true
-        if (usernameOrUid == transaction.getPosterDisplayName()) return true
-        val payorsList = transaction.getPayorsList()
+        if (usernameOrUid == transaction.usernamePost) return true
+        if (usernameOrUid == transaction.posterDisplayName) return true
+        val payorsList = transaction.payorsList
         if (payorsList != null && payorsList.contains(usernameOrUid)) return true
-        val payorsDisplayNames = transaction.getPayorsDisplayNames()
+        val payorsDisplayNames = transaction.payorsDisplayNames
         if (payorsDisplayNames != null && payorsDisplayNames.contains(usernameOrUid)) return true
         return false
     }
