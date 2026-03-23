@@ -50,16 +50,6 @@
             android:background="@drawable/transparent_background"
             android:textAlignment="center" />
 
-        <Button
-            android:id="@+id/datePickerButton"
-            android:layout_width="140dp"
-            android:layout_height="wrap_content"
-            android:background="@drawable/transparent_background"
-            android:textAllCaps="false"
-            android:textColor="@color/darkBlue"
-            android:textSize="14sp"
-            android:textAlignment="center" />
-
     </LinearLayout>
 
     <!-- Status Tabs -->
@@ -139,8 +129,17 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
+            <Button
+                android:id="@+id/datePickerButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/transparent_background"
+                android:textAllCaps="false"
+                android:textColor="@color/darkBlue"
+                android:textSize="14sp"
+                android:textAlignment="center" />
             <!-- Transaction Count -->
-            <TextView
+            <!--<TextView
                 android:id="@+id/currentMonthTextView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -149,7 +148,7 @@
                 android:paddingBottom="8dp"
                 android:text="February 2026"
                 android:textColor="@color/darkBlue"
-                android:textSize="18sp" />
+                android:textSize="18sp" />-->
 
             <TextView
                 android:id="@+id/transactionCountTextView"

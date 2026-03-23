@@ -2,7 +2,6 @@ package com.waray.spendhound.ui.borrow
 
 import android.annotation.SuppressLint
 import android.app.Dialog
-import android.app.DatePickerDialog
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
@@ -19,6 +18,8 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.datepicker.MaterialDatePicker
+import androidx.core.util.Pair
 import com.waray.spendhound.BalanceHelper
 import com.waray.spendhound.BorrowNowTransaction
 import com.waray.spendhound.BorrowTransaction
@@ -38,9 +39,7 @@ import kotlinx.coroutines.withContext
 import java.util.Calendar
 import java.text.SimpleDateFormat
 import java.util.Locale
-import kotlin.math.abs
 import kotlin.math.max
-import kotlin.math.min
 
 class BorrowFragment : Fragment() {
     private var datePickerButton: Button? = null
@@ -56,14 +55,15 @@ class BorrowFragment : Fragment() {
     private var owedRecyclerList: RecyclerView? = null
     private var loadingOverlay: View? = null
 
-    var selectedMonth: String? = null
+    private var startDate: Long = 0L
+    private var endDate: Long = 0L
+    
     private var selectedStatusTab = "All"
-    private var owedDebtClicked = false
+    private var owedDebtClicked = true
     var currentNickname: String? = ""
     private var mAuth: Auth? = null
 
     private var globalLoadingOverlay: View? = null
-    private val selectedCalendar: Calendar = Calendar.getInstance()
 
     private val uiScope = CoroutineScope(Dispatchers.Main)
     private var pendingLoads = 0
@@ -95,7 +95,7 @@ class BorrowFragment : Fragment() {
 
         getCurrentNickname()
         setupViews()
-        setupDatePicker()
+        setupDateRangePicker()
         setupStatusTabs()
         setupClickListeners()
 
@@ -112,42 +112,50 @@ class BorrowFragment : Fragment() {
         debtRecyclerList?.layoutManager = LinearLayoutManager(context)
     }
 
-    private fun setupDatePicker() {
-        val year = selectedCalendar.get(Calendar.YEAR)
-        val month = selectedCalendar.get(Calendar.MONTH)
-        selectedMonth = formatMonthYear(year, month)
+    private fun setupDateRangePicker() {
+        // Default to current month
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        cal.set(Calendar.DAY_OF_MONTH, 1)
+        startDate = cal.timeInMillis
         
+        cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
+        cal.set(Calendar.HOUR_OF_DAY, 23)
+        cal.set(Calendar.MINUTE, 59)
+        cal.set(Calendar.SECOND, 59)
+        endDate = cal.timeInMillis
+
         updateDatePickerButtonText()
         datePickerButton?.setOnClickListener {
-            showDatePickerDialog()
+            showDateRangePickerDialog()
         }
     }
 
-    private fun showDatePickerDialog() {
-        val year = selectedCalendar.get(Calendar.YEAR)
-        val month = selectedCalendar.get(Calendar.MONTH)
-        val day = selectedCalendar.get(Calendar.DAY_OF_MONTH)
+    private fun showDateRangePickerDialog() {
+        val builder = MaterialDatePicker.Builder.dateRangePicker()
+        builder.setTitleText("Select Date Range")
+        builder.setSelection(Pair(startDate, endDate))
 
-        DatePickerDialog(requireContext(), { _, selectedYear, selectedMonth, selectedDay ->
-            selectedCalendar.set(selectedYear, selectedMonth, selectedDay)
-            val monthYear = formatMonthYear(selectedYear, selectedMonth)
-            this.selectedMonth = monthYear
+        val picker = builder.build()
+        picker.show(childFragmentManager, "DATE_RANGE_PICKER")
+
+        picker.addOnPositiveButtonClickListener { selection ->
+            startDate = selection.first ?: startDate
+            endDate = (selection.second ?: selection.first ?: endDate) + 86400000 - 1
             updateDatePickerButtonText()
             applyFilters()
-        }, year, month, day).show()
-    }
-
-    private fun formatMonthYear(year: Int, month: Int): String {
-        val cal = Calendar.getInstance()
-        cal.set(year, month, 1)
-        val sdf = SimpleDateFormat("MMMM-yyyy", Locale.ENGLISH)
-        return sdf.format(cal.time)
+        }
     }
 
     private fun updateDatePickerButtonText() {
-        val sdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
-        val dateText = sdf.format(selectedCalendar.time)
-        datePickerButton?.text = dateText
+        val sdf = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+        val startStr = sdf.format(startDate)
+        val endStr = sdf.format(endDate)
+        val displayStr = "$startStr - $endStr"
+        datePickerButton?.text = displayStr
     }
 
     private fun setupStatusTabs() {
@@ -196,33 +204,70 @@ class BorrowFragment : Fragment() {
         showLoading()
 
         if (owedDebtClicked) {
-            if (selectedMonth == "All") {
-                mainActivity.getOwedList(selectedStatusTab, object : MainActivity.OwedNumCallback {
-                    override fun onOwedNumReceived(owedNum: Int) {
-                        OwedSize(owedNum)
-                    }
-                })
-            } else {
-                mainActivity.getOwedListMonthly(selectedMonth ?: "", selectedStatusTab, object : MainActivity.OwedNumCallback {
-                    override fun onOwedNumReceived(owedNum: Int) {
-                        OwedSize(owedNum)
-                    }
-                })
-            }
+             fetchOwedInRange(startDate, endDate, selectedStatusTab)
         } else {
-            if (selectedMonth == "All") {
-                mainActivity.getDebtList(selectedStatusTab, object : MainActivity.DebtNumCallback {
-                    override fun onDebtNumReceived(debtNum: Int) {
-                        DebtSize(debtNum)
+             fetchDebtInRange(startDate, endDate, selectedStatusTab)
+        }
+    }
+
+    private fun fetchOwedInRange(start: Long, end: Long, status: String) {
+        val mainActivity = activity as? MainActivity ?: return
+        // Since getOwedListMonthly uses monthYear string, we'll need to adapt it or implement a range fetch.
+        // For simplicity, keeping the current architecture but filtering by timestamp locally if needed.
+        // However, to keep it consistent with the request, let's use the range to filter.
+        
+        uiScope.launch {
+            try {
+                val currentUserIdLong = (activity as? MainActivity)?.currentNickname 
+                // Using existing MainActivity logic but filtering by range
+                mainActivity.getOwedList(status, object : MainActivity.OwedNumCallback {
+                    override fun onOwedNumReceived(owedNum: Int) {
+                        val filteredList = mainActivity.owedList.filter {
+                            val timestamp = parseDateToLong(it.date)
+                            timestamp in start..end
+                        }
+                        mainActivity.owedList = filteredList
+                        OwedSize(filteredList.size)
                     }
                 })
-            } else {
-                mainActivity.getDebtListMonthly(selectedMonth ?: "", selectedStatusTab, object : MainActivity.DebtNumCallback {
-                    override fun onDebtNumReceived(debtNum: Int) {
-                        DebtSize(debtNum)
-                    }
-                })
+            } catch (e: Exception) {
+                hideLoading()
             }
+        }
+    }
+
+    private fun fetchDebtInRange(start: Long, end: Long, status: String) {
+        val mainActivity = activity as? MainActivity ?: return
+        uiScope.launch {
+            try {
+                mainActivity.getDebtList(status, object : MainActivity.DebtNumCallback {
+                    override fun onDebtNumReceived(debtNum: Int) {
+                        val filteredList = mainActivity.debtList.filter {
+                            val timestamp = parseDateToLong(it.date)
+                            timestamp in start..end
+                        }
+                        mainActivity.debtList = filteredList
+                        DebtSize(filteredList.size)
+                    }
+                })
+            } catch (e: Exception) {
+                hideLoading()
+            }
+        }
+    }
+
+    private fun parseDateToLong(dateStr: String?): Long {
+        if (dateStr == null) return 0L
+        return try {
+            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+            sdf.parse(dateStr)?.time ?: 0L
+        } catch (e: Exception) {
+             try {
+                val sdf2 = SimpleDateFormat("MMMM-dd-yyyy", Locale.getDefault())
+                sdf2.parse(dateStr)?.time ?: 0L
+             } catch (e2: Exception) {
+                 0L
+             }
         }
     }
 

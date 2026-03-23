@@ -1,7 +1,6 @@
 package com.waray.spendhound
 
 import android.annotation.SuppressLint
-import android.app.DatePickerDialog
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -13,6 +12,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.datepicker.MaterialDatePicker
+import androidx.core.util.Pair
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.launch
@@ -33,8 +34,9 @@ class AllTransactionsActivity : AppCompatActivity() {
     private var mAuth: Auth? = null
     private var currentNickname: String? = ""
     private var currentUserNumericId: Long? = null
-    private var selectedMonth: String? = null
-    private val selectedCalendar: Calendar = Calendar.getInstance()
+    
+    private var startDate: Long = 0L
+    private var endDate: Long = 0L
 
     // Status Tabs
     private var allTabTV: TextView? = null
@@ -51,7 +53,7 @@ class AllTransactionsActivity : AppCompatActivity() {
         
         initViews()
         getCurrentNickname()
-        setupDatePicker()
+        setupDateRangePicker()
     }
 
     private fun initViews() {
@@ -115,7 +117,7 @@ class AllTransactionsActivity : AppCompatActivity() {
     }
 
     private fun refreshTransactions() {
-        selectedMonth?.let { fetchTransactionsForMonth(it) }
+        fetchTransactionsInRange(startDate, endDate)
     }
 
     private fun onTransactionTap(transaction: RecentTransaction?) {
@@ -140,56 +142,57 @@ class AllTransactionsActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupDatePicker() {
-        val year = selectedCalendar.get(Calendar.YEAR)
-        val month = selectedCalendar.get(Calendar.MONTH)
-        selectedMonth = formatMonthYear(year, month)
+    private fun setupDateRangePicker() {
+        // Default to current month
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.HOUR_OF_DAY, 0)
+        cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0)
+        cal.set(Calendar.MILLISECOND, 0)
+        cal.set(Calendar.DAY_OF_MONTH, 1)
+        startDate = cal.timeInMillis
         
+        cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
+        cal.set(Calendar.HOUR_OF_DAY, 23)
+        cal.set(Calendar.MINUTE, 59)
+        cal.set(Calendar.SECOND, 59)
+        endDate = cal.timeInMillis
+
         updateDatePickerButtonText()
-        selectedMonth?.let { 
-            updateMonthDisplay(it)
-            fetchTransactionsForMonth(it) 
-        }
+        fetchTransactionsInRange(startDate, endDate)
 
         datePickerButton?.setOnClickListener {
-            showDatePickerDialog()
+            showDateRangePickerDialog()
         }
     }
 
-    private fun showDatePickerDialog() {
-        val year = selectedCalendar.get(Calendar.YEAR)
-        val month = selectedCalendar.get(Calendar.MONTH)
-        val day = selectedCalendar.get(Calendar.DAY_OF_MONTH)
+    private fun showDateRangePickerDialog() {
+        val builder = MaterialDatePicker.Builder.dateRangePicker()
+        builder.setTitleText("Select Date Range")
+        builder.setSelection(Pair(startDate, endDate))
 
-        DatePickerDialog(this, { _, selectedYear, selectedMonth, selectedDay ->
-            selectedCalendar.set(selectedYear, selectedMonth, selectedDay)
-            val monthYear = formatMonthYear(selectedYear, selectedMonth)
-            this.selectedMonth = monthYear
+        val picker = builder.build()
+        picker.show(supportFragmentManager, "DATE_RANGE_PICKER")
+
+        picker.addOnPositiveButtonClickListener { selection ->
+            startDate = selection.first ?: startDate
+            endDate = (selection.second ?: selection.first ?: endDate) + 86400000 - 1
             updateDatePickerButtonText()
-            updateMonthDisplay(monthYear)
-            fetchTransactionsForMonth(monthYear)
-        }, year, month, day).show()
-    }
-
-    private fun formatMonthYear(year: Int, month: Int): String {
-        val cal = Calendar.getInstance()
-        cal.set(year, month, 1)
-        val sdf = SimpleDateFormat("MMMM-yyyy", Locale.getDefault())
-        return sdf.format(cal.time)
+            fetchTransactionsInRange(startDate, endDate)
+        }
     }
 
     private fun updateDatePickerButtonText() {
-        val sdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
-        datePickerButton?.text = sdf.format(selectedCalendar.time)
-    }
-
-    private fun updateMonthDisplay(monthYear: String) {
-        val displayMonth = monthYear.replace("-", " ")
-        currentMonthTextView?.text = displayMonth
+        val sdf = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+        val startStr = sdf.format(startDate)
+        val endStr = sdf.format(endDate)
+        val displayStr = "$startStr - $endStr"
+        datePickerButton?.text = displayStr
+        currentMonthTextView?.text = displayStr
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    private fun fetchTransactionsForMonth(monthYear: String) {
+    private fun fetchTransactionsInRange(start: Long, end: Long) {
         loadingProgressBar?.visibility = View.VISIBLE
         emptyStateLayout?.visibility = View.GONE
         transactionList.clear()
@@ -197,24 +200,27 @@ class AllTransactionsActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                // Fetch all and filter locally because monthYear is @Transient
                 val transactions = DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
 
                 for (transaction in transactions) {
-                    if (isUserInvolved(transaction, currentNickname)) {
+                    val timestamp = parseCreatedAt(transaction.createdAt)
+                    
+                    if (timestamp in start..end && isUserInvolved(transaction, currentNickname)) {
                         if (!matchesStatusFilter(transaction, selectedStatusTab)) {
                             continue
                         }
 
-                        val parts = monthYear.split("-").toTypedArray()
-                        val month = parts[0]
-                        val year = if (parts.size > 1) parts[1] else ""
-                        val day = transaction.day ?: ""
-                        val timeKey = transaction.timeKey ?: ""
+                        val cal = Calendar.getInstance()
+                        cal.timeInMillis = timestamp
+                        val monthName = cal.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.getDefault())
+                        val year = cal.get(Calendar.YEAR).toString()
+                        val day = cal.get(Calendar.DAY_OF_MONTH).toString()
+                        val monthYear = "$monthName-$year"
 
-                        val displayDate = "$month - $day"
-                        val fullDateWithYear = "$month $day, $year"
-                        val sortDateTime = "$year-$month-$day $timeKey"
+                        val displayDate = "$monthName - $day"
+                        val fullDateWithYear = "$monthName $day, $year"
+                        val timeKey = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(cal.time)
+                        val sortDateTime = "$year-$monthName-$day $timeKey"
 
                         val transactionType = transaction.transactionType
                         val details = transaction.transactionDetail
@@ -270,6 +276,16 @@ class AllTransactionsActivity : AppCompatActivity() {
             } finally {
                 loadingProgressBar?.visibility = View.GONE
             }
+        }
+    }
+
+    private fun parseCreatedAt(createdAt: String?): Long {
+        if (createdAt == null) return 0L
+        return try {
+            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+            sdf.parse(createdAt)?.time ?: 0L
+        } catch (e: Exception) {
+            0L
         }
     }
 

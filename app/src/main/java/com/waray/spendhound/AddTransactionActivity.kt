@@ -17,6 +17,8 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.isVisible
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.datepicker.MaterialDatePicker
+import androidx.core.util.Pair
 import io.github.jan.supabase.gotrue.Auth
 import kotlinx.coroutines.launch
 import kotlinx.serialization.InternalSerializationApi
@@ -34,6 +36,7 @@ class AddTransactionActivity : AppCompatActivity() {
     private var saveTransactionBtn: Button? = null
     private var progressOverlay: View? = null
     private var payorsContainer: LinearLayout? = null
+    private var dateRangePickerBtn: Button? = null
     
     private var mAuth: Auth? = null
     private var currentUserId: String? = null
@@ -47,6 +50,9 @@ class AddTransactionActivity : AppCompatActivity() {
     private var amountPaidList: MutableList<Double> = mutableListOf()
     private var individualPayment: Double = 0.0
     private var selectedGroup: PayerGroup? = null
+    
+    private var startDate: Long = System.currentTimeMillis()
+    private var endDate: Long = System.currentTimeMillis()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -58,6 +64,7 @@ class AddTransactionActivity : AppCompatActivity() {
         initViews()
         setupListeners()
         fetchCurrentUser()
+        updateDateDisplay()
     }
 
     private fun initViews() {
@@ -70,7 +77,6 @@ class AddTransactionActivity : AppCompatActivity() {
         progressOverlay = findViewById(R.id.progressBar)
         payorsContainer = findViewById(R.id.container)
 
-        // Setup Spinner using the existing string-array
         val adapter = ArrayAdapter.createFromResource(
             this,
             R.array.transactionTypes_String,
@@ -81,6 +87,10 @@ class AddTransactionActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
+        dateRangePickerBtn?.setOnClickListener {
+            showDateRangePicker()
+        }
+
         addPayorsBtn?.setOnClickListener {
             showAddPayorDialog()
         }
@@ -96,6 +106,28 @@ class AddTransactionActivity : AppCompatActivity() {
                 calculateIndividualPayment()
             }
         })
+    }
+
+    private fun showDateRangePicker() {
+        val builder = MaterialDatePicker.Builder.dateRangePicker()
+        builder.setTitleText("Select Date Range")
+        builder.setSelection(Pair(startDate, endDate))
+
+        val picker = builder.build()
+        picker.show(supportFragmentManager, "DATE_RANGE_PICKER")
+
+        picker.addOnPositiveButtonClickListener { selection ->
+            startDate = selection.first ?: startDate
+            endDate = selection.second ?: selection.first ?: endDate
+            updateDateDisplay()
+        }
+    }
+
+    private fun updateDateDisplay() {
+        val sdf = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+        val startStr = sdf.format(startDate)
+        val endStr = sdf.format(endDate)
+        dateRangePickerBtn?.text = if (startDate == endDate) startStr else "$startStr - $endStr"
     }
 
     private fun calculateIndividualPayment() {
@@ -180,10 +212,15 @@ class AddTransactionActivity : AppCompatActivity() {
 
     @OptIn(InternalSerializationApi::class)
     private fun saveTransaction() {
-        val calendar = Calendar.getInstance()
-        val currentMonthYear = SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(calendar.time)
-        val currentDay = SimpleDateFormat("dd", Locale.getDefault()).format(calendar.time)
-        val currentTime = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(calendar.time)
+        val cal = Calendar.getInstance()
+        cal.timeInMillis = startDate
+        
+        val currentMonthYear = SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(cal.time)
+        val currentDay = SimpleDateFormat("dd", Locale.getDefault()).format(cal.time)
+        val currentTime = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Calendar.getInstance().time)
+        
+        val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault())
+        val createdAt = isoFormat.format(cal.time)
 
         val transaction = Transaction(
             transactionType = transactionType,
@@ -200,7 +237,8 @@ class AddTransactionActivity : AppCompatActivity() {
             groupId = selectedGroup?.groupId,
             posterDisplayName = posterDisplayName,
             usernamePost = currentUserId,
-            timestamp = System.currentTimeMillis()
+            timestamp = startDate,
+            createdAt = createdAt
         )
 
         lifecycleScope.launch {
