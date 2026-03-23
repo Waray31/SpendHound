@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.graphics.Color
 import android.graphics.Typeface
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -70,7 +71,6 @@ class HomeFragment : Fragment() {
         val view = binding!!.root
 
         loadingOverlay_home = view.findViewById(R.id.loadingOverlay_home)
-        loadingOverlay_home?.visibility = View.VISIBLE
 
         day7TextView = view.findViewById(R.id.day7)
         day6TextView = view.findViewById(R.id.day6)
@@ -366,9 +366,10 @@ class HomeFragment : Fragment() {
 
                 withContext(Dispatchers.Main) {
                     setupLineChart(entries, labels)
-                    hideLoading()
                 }
             } catch (e: Exception) {
+                Log.e("HomeFragment", "Error fetching monthly chart data: ${e.message}")
+            } finally {
                 withContext(Dispatchers.Main) {
                     hideLoading()
                 }

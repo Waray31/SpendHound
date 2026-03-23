@@ -33,6 +33,7 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import kotlin.math.max
 
 class TransactionsFragment : Fragment() {
     private var recyclerView: RecyclerView? = null
@@ -60,6 +61,8 @@ class TransactionsFragment : Fragment() {
     private var unpaidTabTV: TextView? = null
     private var pendingTabTV: TextView? = null
     private var selectedStatusTab = "All"
+
+    private var pendingLoads = 0
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -156,6 +159,7 @@ class TransactionsFragment : Fragment() {
     private fun getCurrentNickname() {
         val userId = mAuth?.currentUserOrNull()?.id ?: return
         
+        showLoading()
         lifecycleScope.launch {
             try {
                 val user = DeclareDatabase.usersTable.select {
@@ -169,6 +173,8 @@ class TransactionsFragment : Fragment() {
                 }
             } catch (e: Exception) {
                 Log.e("TransactionsFragment", "Error getting nickname", e)
+            } finally {
+                hideLoading()
             }
         }
     }
@@ -176,6 +182,7 @@ class TransactionsFragment : Fragment() {
     private fun loadUserGroups() {
         val currentUid = mAuth?.currentUserOrNull()?.id ?: return
         
+        showLoading()
         lifecycleScope.launch {
             try {
                 val groups = DeclareDatabase.groupsTable.select().decodeList<PayerGroup>()
@@ -195,6 +202,8 @@ class TransactionsFragment : Fragment() {
                 groupAdapter?.notifyDataSetChanged()
             } catch (e: Exception) {
                 Log.e("TransactionsFragment", "Error loading groups", e)
+            } finally {
+                hideLoading()
             }
         }
     }
@@ -264,7 +273,7 @@ class TransactionsFragment : Fragment() {
 
     @SuppressLint("NotifyDataSetChanged")
     private fun fetchTransactionsForMonth(monthYear: String) {
-        loadingProgressBar?.visibility = View.VISIBLE
+        showLoading()
         emptyStateLayout?.visibility = View.GONE
         transactionList?.clear()
         adapter?.notifyDataSetChanged()
@@ -329,7 +338,6 @@ class TransactionsFragment : Fragment() {
                 adapter?.notifyDataSetChanged()
                 context?.let { adapter?.preloadAllImages(it) }
 
-                loadingProgressBar?.visibility = View.GONE
                 val count = transactionList?.size ?: 0
                 transactionCountTextView?.text = String.format(Locale.getDefault(), "%d %s", count, if (count == 1) "transaction" else "transactions")
 
@@ -342,7 +350,8 @@ class TransactionsFragment : Fragment() {
                 }
             } catch (e: Exception) {
                 Log.e("TransactionsFragment", "Error fetching transactions", e)
-                loadingProgressBar?.visibility = View.GONE
+            } finally {
+                hideLoading()
             }
         }
     }
@@ -376,6 +385,18 @@ class TransactionsFragment : Fragment() {
             "House Necessity" -> R.drawable.necessities
             "Transportation" -> R.drawable.vehicles
             else -> R.drawable.others
+        }
+    }
+
+    private fun showLoading() {
+        pendingLoads++
+        loadingProgressBar?.visibility = View.VISIBLE
+    }
+
+    private fun hideLoading() {
+        pendingLoads = max(0, pendingLoads - 1)
+        if (pendingLoads == 0) {
+            loadingProgressBar?.visibility = View.GONE
         }
     }
 }

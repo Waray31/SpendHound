@@ -88,7 +88,6 @@ class ProfileFragment : Fragment() {
         val view: View = inflater.inflate(R.layout.fragment_profile, container, false)
 
         loadingOverlayProfile = view.findViewById(R.id.loadingOverlay_profile)
-        loadingOverlayProfile?.visibility = View.VISIBLE
 
         profileImageView = view.findViewById(R.id.profileImageView)
         nicknameTextView = view.findViewById(R.id.nicknameTextView)
@@ -260,6 +259,7 @@ class ProfileFragment : Fragment() {
         val updatedNickname = nicknameEditText?.text.toString()
         currentNickname = updatedNickname
         val userId = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return
+        showLoading()
         lifecycleScope.launch {
             try {
                 withContext(Dispatchers.IO) {
@@ -271,12 +271,15 @@ class ProfileFragment : Fragment() {
                 }
             } catch (e: Exception) {
                 Log.e("Supabase", "Error saving nickname: ${e.message}")
+            } finally {
+                hideLoading()
             }
         }
     }
 
     private fun fetchOwe() {
         val currentUserId = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return
+        showLoading()
         lifecycleScope.launch {
             try {
                 val borrows = withContext(Dispatchers.IO) {
@@ -290,12 +293,15 @@ class ProfileFragment : Fragment() {
                 currentOwe = borrows.sumOf { it.borrowedAmount ?: 0.0 }
             } catch (e: Exception) {
                 Log.e("Supabase", "Error fetching owe: ${e.message}")
+            } finally {
+                hideLoading()
             }
         }
     }
 
     private fun fetchDebt() {
         val currentUserId = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return
+        showLoading()
         lifecycleScope.launch {
             try {
                 val borrows = withContext(Dispatchers.IO) {
@@ -309,11 +315,14 @@ class ProfileFragment : Fragment() {
                 currentDebt = borrows.sumOf { it.borrowedAmount ?: 0.0 }
             } catch (e: Exception) {
                 Log.e("Supabase", "Error fetching debt: ${e.message}")
+            } finally {
+                hideLoading()
             }
         }
     }
 
     private fun totalBalanceUnpaid() {
+        showLoading()
         lifecycleScope.launch {
             try {
                 val transactions = withContext(Dispatchers.IO) {
@@ -346,6 +355,8 @@ class ProfileFragment : Fragment() {
                 totalTextView?.text = "Total Balance:"
             } catch (e: Exception) {
                 Log.e("Supabase", "Error fetching balance/unpaid: ${e.message}")
+            } finally {
+                hideLoading()
             }
         }
     }

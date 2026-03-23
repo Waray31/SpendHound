@@ -39,6 +39,7 @@ import java.util.Calendar
 import java.text.SimpleDateFormat
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.max
 import kotlin.math.min
 
 class BorrowFragment : Fragment() {
@@ -65,6 +66,7 @@ class BorrowFragment : Fragment() {
     private val selectedCalendar: Calendar = Calendar.getInstance()
 
     private val uiScope = CoroutineScope(Dispatchers.Main)
+    private var pendingLoads = 0
 
     @SuppressLint("MissingInflatedId")
     override fun onCreateView(
@@ -292,6 +294,7 @@ class BorrowFragment : Fragment() {
 
     fun getCurrentNickname() {
         val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
+        showLoading()
         uiScope.launch {
             try {
                 val user = withContext(Dispatchers.IO) {
@@ -304,12 +307,13 @@ class BorrowFragment : Fragment() {
                 currentNickname = user?.username
             } catch (e: Exception) {
                 Log.e("BorrowFragment", "Error getting nickname: ${e.message}")
+            } finally {
+                hideLoading()
             }
         }
     }
 
     fun OwedSize(owedNum: Int) {
-        hideLoading()
         noOwedTextView?.visibility = if (owedNum == 0) View.VISIBLE else View.GONE
         owedRecyclerList?.visibility = if (owedNum == 0) View.GONE else View.VISIBLE
         noDebtTextView?.visibility = View.GONE
@@ -318,10 +322,10 @@ class BorrowFragment : Fragment() {
         if (owedNum > 0 && mainActivity != null) {
             owedRecyclerList?.adapter = OwedTransactionAdapter(mainActivity.owedList, lenderActionListener)
         }
+        hideLoading()
     }
 
     fun DebtSize(debtNum: Int) {
-        hideLoading()
         noDebtTextView?.visibility = if (debtNum == 0) View.VISIBLE else View.GONE
         debtRecyclerList?.visibility = if (debtNum == 0) View.GONE else View.VISIBLE
         noOwedTextView?.visibility = View.GONE
@@ -330,6 +334,7 @@ class BorrowFragment : Fragment() {
         if (debtNum > 0 && mainActivity != null) {
             debtRecyclerList?.adapter = DebtTransactionAdapter(mainActivity.debtList, borrowerActionListener)
         }
+        hideLoading()
     }
 
     fun showConfirmationDialog(title: String?, message: String?, confirmBtnColor: Int, onConfirm: Runnable) {
@@ -374,6 +379,7 @@ class BorrowFragment : Fragment() {
 
     fun updateTransactionStatus(borrowId: String?, newStatus: String?, onSuccess: Runnable?) {
         if (borrowId == null) return
+        showLoading()
         uiScope.launch {
             try {
                 val statusInt = getStatusInt(newStatus)
@@ -403,6 +409,8 @@ class BorrowFragment : Fragment() {
                 applyFilters()
             } catch (e: Exception) {
                 Log.e("BorrowFragment", "Error updating transaction status: ${e.message}")
+            } finally {
+                hideLoading()
             }
         }
     }
@@ -413,6 +421,7 @@ class BorrowFragment : Fragment() {
         val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault())
         val dateStr = sdf.format(java.util.Date(paymentSentDate))
 
+        showLoading()
         uiScope.launch {
             try {
                 val statusInt = getStatusInt(newStatus)
@@ -443,6 +452,8 @@ class BorrowFragment : Fragment() {
                 applyFilters()
             } catch (e: Exception) {
                 Log.e("BorrowFragment", "Error updating transaction status with payment date: ${e.message}")
+            } finally {
+                hideLoading()
             }
         }
     }
@@ -452,11 +463,15 @@ class BorrowFragment : Fragment() {
     }
 
     private fun showLoading() {
+        pendingLoads++
         loadingOverlay?.visibility = View.VISIBLE
     }
 
     private fun hideLoading() {
-        loadingOverlay?.visibility = View.GONE
+        pendingLoads = max(0, pendingLoads - 1)
+        if (pendingLoads == 0) {
+            loadingOverlay?.visibility = View.GONE
+        }
     }
 
     override fun onResume() {

@@ -84,7 +84,11 @@ class MainActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progressBar)
         progressBar?.visibility = View.VISIBLE
         mAuth = DeclareDatabase.auth
-        UserHelper.preloadAllUsers()
+        
+        lifecycleScope.launch {
+            UserHelper.preloadAllUsers()
+            progressBar?.visibility = View.GONE
+        }
 
         val navHostFragment =
             supportFragmentManager.findFragmentById(R.id.nav_host_fragment_activity_main) as NavHostFragment?
@@ -119,7 +123,10 @@ class MainActivity : AppCompatActivity() {
         }
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
-            if (destination.id == R.id.navigation_home || destination.id == R.id.navigation_borrow || destination.id == R.id.navigation_profile) {
+            if (destination.id == R.id.navigation_home || 
+                destination.id == R.id.navigation_transactions || 
+                destination.id == R.id.navigation_borrow || 
+                destination.id == R.id.navigation_profile) {
                 showBottomBars()
             } else {
                 hideBottomBars()
@@ -346,7 +353,11 @@ class MainActivity : AppCompatActivity() {
     fun getRecentTransactions(onComplete: (ArrayList<RecentTransaction>) -> Unit) {
         lifecycleScope.launch {
             try {
-                val currentUid = mAuth?.currentUserOrNull()?.id ?: return@launch
+                val currentUid = mAuth?.currentUserOrNull()?.id
+                if (currentUid == null) {
+                    onComplete(ArrayList())
+                    return@launch
+                }
                 val result = DeclareDatabase.postgrest.from("transactions")
                     .select() {
                         order("timestamp", Order.DESCENDING)
@@ -384,7 +395,11 @@ class MainActivity : AppCompatActivity() {
     fun getTotalMonthSpends(onComplete: (Double) -> Unit) {
         lifecycleScope.launch {
             try {
-                val currentUid = mAuth?.currentUserOrNull()?.id ?: return@launch
+                val currentUid = mAuth?.currentUserOrNull()?.id
+                if (currentUid == null) {
+                    onComplete(0.0)
+                    return@launch
+                }
                 val calendar = Calendar.getInstance()
                 val currentMonthYear = SimpleDateFormat("MMMM-yyyy", Locale.ENGLISH).format(calendar.time)
                 
@@ -414,7 +429,11 @@ class MainActivity : AppCompatActivity() {
     fun getDebtList(status: String, callback: DebtNumCallback) {
         lifecycleScope.launch {
             try {
-                val currentUid = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return@launch
+                val currentUid = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
+                if (currentUid == null) {
+                    callback.onDebtNumReceived(0)
+                    return@launch
+                }
                 val statusInt = when (status) {
                     "Pending" -> 2
                     "Paid" -> 3
@@ -457,7 +476,11 @@ class MainActivity : AppCompatActivity() {
     fun getOwedList(status: String, callback: OwedNumCallback) {
         lifecycleScope.launch {
             try {
-                val currentUid = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return@launch
+                val currentUid = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
+                if (currentUid == null) {
+                    callback.onOwedNumReceived(0)
+                    return@launch
+                }
                 val statusInt = when (status) {
                     "Pending" -> 2
                     "Paid" -> 3
@@ -499,7 +522,11 @@ class MainActivity : AppCompatActivity() {
     fun getDebtListMonthly(monthYear: String, status: String, callback: DebtNumCallback) {
         lifecycleScope.launch {
             try {
-                val currentUid = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return@launch
+                val currentUid = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
+                if (currentUid == null) {
+                    callback.onDebtNumReceived(0)
+                    return@launch
+                }
                 val result = DeclareDatabase.postgrest.from("borrows")
                     .select() {
                         filter {
@@ -537,7 +564,11 @@ class MainActivity : AppCompatActivity() {
     fun getOwedListMonthly(monthYear: String, status: String, callback: OwedNumCallback) {
         lifecycleScope.launch {
             try {
-                val currentUid = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return@launch
+                val currentUid = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
+                if (currentUid == null) {
+                    callback.onOwedNumReceived(0)
+                    return@launch
+                }
                 val result = DeclareDatabase.postgrest.from("borrows")
                     .select() {
                         filter {
@@ -605,7 +636,11 @@ class MainActivity : AppCompatActivity() {
     fun getEverydaySpendsForWeek(startDate: Calendar, onComplete: () -> Unit) {
         lifecycleScope.launch {
             try {
-                val currentUid = mAuth?.currentUserOrNull()?.id ?: return@launch
+                val currentUid = mAuth?.currentUserOrNull()?.id
+                if (currentUid == null) {
+                    onComplete()
+                    return@launch
+                }
                 val startMillis = startDate.timeInMillis
                 val endCalendar = startDate.clone() as Calendar
                 endCalendar.add(Calendar.DAY_OF_YEAR, 7)
