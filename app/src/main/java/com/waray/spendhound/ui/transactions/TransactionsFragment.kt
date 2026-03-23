@@ -47,12 +47,13 @@ class TransactionsFragment : Fragment() {
     private var emptyStateLayout: LinearLayout? = null
     private var mAuth: Auth? = null
     private var currentNickname: String? = ""
+    private var currentUserNumericId: Long? = null
     private var selectedMonth: String? = null
     private val selectedCalendar: Calendar = Calendar.getInstance()
 
     private var groupNames: MutableList<String?>? = null
-    private var groupIds: MutableList<String?>? = null
-    private var selectedGroupId: String? = "All"
+    private var groupIds: MutableList<Long?>? = null
+    private var selectedGroupId: Long? = -1L // -1 for All
     private var groupAdapter: SpinnerItemMonths? = null
 
     // Status Tabs
@@ -79,11 +80,10 @@ class TransactionsFragment : Fragment() {
         initViews(root)
 
         groupNames?.add("All group")
-        groupIds?.add("All")
+        groupIds?.add(-1L)
         setupGroupSpinner()
 
-        getCurrentNickname()
-        loadUserGroups()
+        getCurrentUserAndGroups()
         setupDatePicker()
 
         return root
@@ -156,23 +156,25 @@ class TransactionsFragment : Fragment() {
         selectedMonth?.let { fetchTransactionsForMonth(it) }
     }
 
-    private fun getCurrentNickname() {
-        val userId = mAuth?.currentUserOrNull()?.id ?: return
+    private fun getCurrentUserAndGroups() {
+        val authUserId = mAuth?.currentUserOrNull()?.id ?: return
         
         showLoading()
         lifecycleScope.launch {
             try {
                 val user = DeclareDatabase.usersTable.select {
                     filter {
-                        eq("id", userId)
+                        eq("auth_id", authUserId)
                     }
                 }.decodeSingleOrNull<User>()
                 
                 if (user != null) {
                     currentNickname = user.username ?: ""
+                    currentUserNumericId = user.id
+                    loadUserGroups()
                 }
             } catch (e: Exception) {
-                Log.e("TransactionsFragment", "Error getting nickname", e)
+                Log.e("TransactionsFragment", "Error getting user info", e)
             } finally {
                 hideLoading()
             }
@@ -180,7 +182,7 @@ class TransactionsFragment : Fragment() {
     }
 
     private fun loadUserGroups() {
-        val currentUid = mAuth?.currentUserOrNull()?.id ?: return
+        val currentUidLong = currentUserNumericId ?: return
         
         showLoading()
         lifecycleScope.launch {
@@ -191,10 +193,10 @@ class TransactionsFragment : Fragment() {
                 groupIds?.clear()
 
                 groupNames?.add("All group")
-                groupIds?.add("All")
+                groupIds?.add(-1L)
 
                 for (group in groups) {
-                    if (group.members?.contains(currentUid) == true) {
+                    if (group.members?.contains(currentUidLong) == true) {
                         groupNames?.add(group.groupName ?: "")
                         groupIds?.add(group.groupId)
                     }
@@ -292,7 +294,7 @@ class TransactionsFragment : Fragment() {
                     val timeKey = transaction.timeKey
 
                     if (mainActivity?.isUserInvolved(transaction, currentNickname) == true) {
-                        if (selectedGroupId != "All" && transaction.groupId != selectedGroupId) continue
+                        if (selectedGroupId != -1L && transaction.groupId != selectedGroupId) continue
                         if (!matchesStatusFilter(transaction, selectedStatusTab)) continue
 
                         val parts = monthYear.split("-").toTypedArray()

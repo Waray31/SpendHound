@@ -27,7 +27,10 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.lifecycle.lifecycleScope
 import io.github.jan.supabase.gotrue.Auth
+import io.github.jan.supabase.postgrest.from
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -57,6 +60,7 @@ class AddTransactionActivity : AppCompatActivity() {
     private var individualPayment: TextView? = null
     private var totalIndividualPayment = 0.0
     private var currentUserId: String? = null
+    private var currentUserNumericId: Long? = null
     private var selectedGroup: PayerGroup? = null
     private var selectedGroupView: View? = null
     private var payorTooltipPopup: PopupWindow? = null
@@ -68,6 +72,8 @@ class AddTransactionActivity : AppCompatActivity() {
 
     private val usernameToUidMap: MutableMap<String?, String?> = HashMap()
     private val uidToUsernameMap: MutableMap<String?, String?> = HashMap()
+    private val usernameToNumericIdMap: MutableMap<String?, Long?> = HashMap()
+    private val numericIdToUsernameMap: MutableMap<Long?, String?> = HashMap()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -105,7 +111,6 @@ class AddTransactionActivity : AppCompatActivity() {
         individualPayment = findViewById(R.id.individualPayment)
 
         fetchUsernamesAndSetupInitialRow()
-        loadExistingGroups()
 
         btnAdd?.isEnabled = false
         btnAdd?.alpha = 0.5f
@@ -139,16 +144,27 @@ class AddTransactionActivity : AppCompatActivity() {
                 usernames!!.add("Select a payor:")
                 usernameToUidMap.clear()
                 uidToUsernameMap.clear()
+                usernameToNumericIdMap.clear()
+                numericIdToUsernameMap.clear()
 
                 for (user in userList) {
                     val username = user.username
-                    val uidLong = user.id
-                    if (username != null && uidLong != null) {
-                        val uid = uidLong.toString()
+                    val dbId = user.id
+                    val authId = user.authId
+                    if (username != null && dbId != null) {
                         usernames!!.add(username)
-                        usernameToUidMap[username] = uid
-                        uidToUsernameMap[uid] = username
-                        UserHelper.updateCache(uidLong, username)
+                        usernameToNumericIdMap[username] = dbId
+                        numericIdToUsernameMap[dbId] = username
+                        
+                        if (authId != null) {
+                            usernameToUidMap[username] = authId
+                            uidToUsernameMap[authId] = username
+                            if (authId == currentUserId) {
+                                currentUserNumericId = dbId
+                                posterDisplayName = username
+                            }
+                        }
+                        UserHelper.updateCache(dbId, username)
                     }
                 }
                 addRow()
@@ -158,6 +174,8 @@ class AddTransactionActivity : AppCompatActivity() {
                 }
                 btnAdd?.isEnabled = false
                 btnAdd?.alpha = 0.5f
+                
+                loadExistingGroups()
             } catch (e: Exception) {
                 Log.e("Supabase", "Error fetching users: ${e.message}")
             }
@@ -254,14 +272,14 @@ class AddTransactionActivity : AppCompatActivity() {
                     return
                 }
 
-                val uid = usernameToUidMap[displayName]
-                if (uid == null) {
+                val authId = usernameToUidMap[displayName]
+                if (authId == null) {
                     Toast.makeText(this, "User not found: $displayName", Toast.LENGTH_SHORT).show()
                     progressBar?.visibility = View.GONE
                     return
                 }
 
-                if (!uniquePayors.add(uid)) {
+                if (!uniquePayors.add(authId)) {
                     Toast.makeText(this, "Duplicate payor detected: $displayName", Toast.LENGTH_SHORT).show()
                     progressBar?.visibility = View.GONE
                     return
@@ -273,7 +291,7 @@ class AddTransactionActivity : AppCompatActivity() {
                     progressBar?.visibility = View.GONE
                     return
                 }
-                manualPayments[uid] = amount
+                manualPayments[authId] = amount
             }
 
             var sumOfAmounts = 0.0
@@ -286,19 +304,21 @@ class AddTransactionActivity : AppCompatActivity() {
             }
 
             for (i in groupMembers.indices) {
-                val memberUid = groupMembers[i]
-                val memberDisplayName = if (i < groupMemberNames.size) groupMemberNames[i] else uidToUsernameMap[memberUid]
-                payorsList?.add(memberUid)
+                val memberId = groupMembers[i]
+                val memberDisplayName = if (i < groupMemberNames.size) groupMemberNames[i] else numericIdToUsernameMap[memberId]
+                val authId = usernameToUidMap[memberDisplayName]
+                payorsList?.add(authId)
                 payorsDisplayNames?.add(memberDisplayName ?: "Unknown User")
-                amountsPaidList?.add(manualPayments[memberUid] ?: 0.0)
+                amountsPaidList?.add(manualPayments[authId] ?: 0.0)
             }
             totalIndividualPayment = paymentAmount!! / groupMembers.size
         } else {
             val individualAmount = paymentAmount!! / groupMembers.size
             for (i in groupMembers.indices) {
-                val memberUid = groupMembers[i]
-                val memberDisplayName = if (i < groupMemberNames.size) groupMemberNames[i] else uidToUsernameMap[memberUid]
-                payorsList?.add(memberUid)
+                val memberId = groupMembers[i]
+                val memberDisplayName = if (i < groupMemberNames.size) groupMemberNames[i] else numericIdToUsernameMap[memberId]
+                val authId = usernameToUidMap[memberDisplayName]
+                payorsList?.add(authId)
                 payorsDisplayNames?.add(memberDisplayName ?: "Unknown User")
                 amountsPaidList?.add(individualAmount)
             }
@@ -309,7 +329,7 @@ class AddTransactionActivity : AppCompatActivity() {
             try {
                 val user = DeclareDatabase.usersTable.select {
                     filter {
-                        eq("user_id", currentUserId!!)
+                        eq("auth_id", currentUserId!!)
                     }
                 }.decodeSingleOrNull<User>()
 
@@ -387,6 +407,7 @@ class AddTransactionActivity : AppCompatActivity() {
     }
 
     private fun loadExistingGroups() {
+        if (currentUserNumericId == null) return
         lifecycleScope.launch {
             try {
                 val groupList = DeclareDatabase.groupsTable.select().decodeList<PayerGroup>()
@@ -395,7 +416,10 @@ class AddTransactionActivity : AppCompatActivity() {
                 payerGroups?.clear()
 
                 for (group in groupList) {
-                    if (group.members?.contains(currentUserId) == true) {
+                    // Populate display names from numeric IDs for local use
+                    group.memberDisplayNames = group.members?.mapNotNull { numericIdToUsernameMap[it] }?.toMutableList()
+                    
+                    if (group.members?.contains(currentUserNumericId) == true) {
                         payerGroups?.add(group)
                         addGroupView(group)
                     }
@@ -494,6 +518,15 @@ class AddTransactionActivity : AppCompatActivity() {
         val checkboxContainer: LinearLayout = dialogView.findViewById(R.id.usersCheckboxContainer)
         val checkBoxes = ArrayList<CheckBox>()
 
+        // Add current user as a non-clickable checkbox so they see themselves
+        val currentCheckBox = CheckBox(this)
+        currentCheckBox.text = posterDisplayName ?: "Me"
+        currentCheckBox.setTextColor(ContextCompat.getColor(this, R.color.darkBlue))
+        currentCheckBox.setPadding(8, 8, 8, 8)
+        currentCheckBox.isChecked = true
+        currentCheckBox.isEnabled = false
+        checkboxContainer.addView(currentCheckBox)
+
         for (i in 1 until usernames!!.size) {
             val username = usernames!![i]
             if (usernameToUidMap[username] == currentUserId) continue
@@ -509,43 +542,56 @@ class AddTransactionActivity : AppCompatActivity() {
         dialogView.findViewById<Button>(R.id.cancelGroupBtn).setOnClickListener { dialog.dismiss() }
         dialogView.findViewById<Button>(R.id.createGroupBtn).setOnClickListener {
             val name = nameET.text.toString().trim()
-            if (name.isEmpty()) return@setOnClickListener
+            if (name.isEmpty()) {
+                Toast.makeText(this, "Enter group name", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
 
-            val selectedUids = ArrayList<String?>()
+            val selectedIds = ArrayList<Long?>()
             val selectedNames = ArrayList<String?>()
 
-            selectedUids.add(currentUserId)
-            selectedNames.add(uidToUsernameMap[currentUserId] ?: "Me")
+            if (currentUserNumericId != null) {
+                selectedIds.add(currentUserNumericId)
+                selectedNames.add(posterDisplayName ?: "Me")
+            }
 
             checkBoxes.forEach { if (it.isChecked) {
                 val dName = it.text.toString()
-                usernameToUidMap[dName]?.let { uid ->
-                    selectedUids.add(uid)
+                usernameToNumericIdMap[dName]?.let { id ->
+                    selectedIds.add(id)
                     selectedNames.add(dName)
                 }
             }}
 
-            if (selectedUids.size <= 1) return@setOnClickListener
+            if (selectedIds.size <= 1) {
+                Toast.makeText(this, "Select at least one member", Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
 
-            saveGroupToDatabase(name, selectedUids, selectedNames)
+            saveGroupToDatabase(name, selectedIds, selectedNames)
             dialog.dismiss()
         }
         dialog.show()
     }
 
-    private fun saveGroupToDatabase(name: String, uids: MutableList<String?>, names: MutableList<String?>) {
+    private fun saveGroupToDatabase(name: String, ids: MutableList<Long?>, names: MutableList<String?>) {
         val newGroup = PayerGroup(
             groupName = name,
-            members = uids,
-            createdBy = currentUserId,
-            memberDisplayNames = names
+            members = ids,
+            createdBy = currentUserNumericId
         )
         lifecycleScope.launch {
             try {
                 DeclareDatabase.groupsTable.insert(newGroup)
-                loadExistingGroups()
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@AddTransactionActivity, "Group created successfully", Toast.LENGTH_SHORT).show()
+                    loadExistingGroups()
+                }
             } catch (e: Exception) {
                 Log.e("Supabase", "Error saving group: ${e.message}")
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@AddTransactionActivity, "Failed to create group: ${e.message}", Toast.LENGTH_LONG).show()
+                }
             }
         }
     }
@@ -562,6 +608,15 @@ class AddTransactionActivity : AppCompatActivity() {
         val checkboxContainer: LinearLayout = dialogView.findViewById(R.id.editUsersCheckboxContainer)
         val checkBoxes = ArrayList<CheckBox>()
 
+        // Add current user as a non-clickable checkbox
+        val currentCheckBox = CheckBox(this)
+        currentCheckBox.text = posterDisplayName ?: "Me"
+        currentCheckBox.setTextColor(ContextCompat.getColor(this, R.color.darkBlue))
+        currentCheckBox.setPadding(8, 8, 8, 8)
+        currentCheckBox.isChecked = true
+        currentCheckBox.isEnabled = false
+        checkboxContainer.addView(currentCheckBox)
+
         for (i in 1 until usernames!!.size) {
             val username = usernames!![i]
             if (usernameToUidMap[username] == currentUserId) continue
@@ -570,9 +625,12 @@ class AddTransactionActivity : AppCompatActivity() {
             checkBox.text = username
             checkBox.setTextColor(ContextCompat.getColor(this, R.color.darkBlue))
             checkBox.setPadding(8, 8, 8, 8)
-            checkBox.isChecked = group.members?.contains(usernameToUidMap[username]) == true || group.memberDisplayNames?.contains(username) == true
             checkBoxes.add(checkBox)
             checkboxContainer.addView(checkBox)
+
+            val isMember = group.members?.contains(usernameToNumericIdMap[username]) == true || 
+                           group.memberDisplayNames?.contains(username) == true
+            checkBox.isChecked = isMember
         }
 
         dialogView.findViewById<Button>(R.id.cancelEditGroupBtn).setOnClickListener { dialog.dismiss() }
@@ -580,41 +638,46 @@ class AddTransactionActivity : AppCompatActivity() {
             val name = nameET.text.toString().trim()
             if (name.isEmpty()) return@setOnClickListener
 
-            val selectedUids = ArrayList<String?>()
+            val selectedIds = ArrayList<Long?>()
             val selectedNames = ArrayList<String?>()
-            selectedUids.add(currentUserId)
-            selectedNames.add(uidToUsernameMap[currentUserId] ?: "Me")
+            
+            if (currentUserNumericId != null) {
+                selectedIds.add(currentUserNumericId)
+                selectedNames.add(posterDisplayName ?: "Me")
+            }
 
             checkBoxes.forEach { if (it.isChecked) {
                 val dName = it.text.toString()
-                usernameToUidMap[dName]?.let { uid ->
-                    selectedUids.add(uid)
+                usernameToNumericIdMap[dName]?.let { id ->
+                    selectedIds.add(id)
                     selectedNames.add(dName)
                 }
             }}
 
-            updateGroupInDatabase(group.groupId, name, selectedUids, selectedNames, groupView)
+            updateGroupInDatabase(group.groupId, name, selectedIds, selectedNames, groupView)
             dialog.dismiss()
         }
         dialog.show()
     }
 
-    private fun updateGroupInDatabase(id: String?, name: String, uids: MutableList<String?>, names: MutableList<String?>, groupView: View) {
+    private fun updateGroupInDatabase(id: Long?, name: String, uids: MutableList<Long?>, names: MutableList<String?>, groupView: View) {
         if (id == null) return
         lifecycleScope.launch {
             try {
                 DeclareDatabase.groupsTable.update({
-                    set("groupName", name)
-                    set("members", uids)
-                    set("memberDisplayNames", names)
+                    set("group_name", name)
+                    set("member_ids", uids)
                 }) {
                     filter {
-                        eq("groupId", id)
+                        eq("group_id", id)
                     }
                 }
-                groupView.findViewById<TextView>(R.id.groupName).text = name
-                groupView.findViewById<TextView>(R.id.groupMembers).text = "Members: ${names.joinToString(", ")}"
-                loadExistingGroups()
+                withContext(Dispatchers.Main) {
+                    groupView.findViewById<TextView>(R.id.groupName).text = name
+                    groupView.findViewById<TextView>(R.id.groupMembers).text = "Members: ${names.joinToString(", ")}"
+                    Toast.makeText(this@AddTransactionActivity, "Group updated", Toast.LENGTH_SHORT).show()
+                    loadExistingGroups()
+                }
             } catch (e: Exception) {
                 Log.e("Supabase", "Error updating group: ${e.message}")
             }
@@ -633,14 +696,17 @@ class AddTransactionActivity : AppCompatActivity() {
                 try {
                     DeclareDatabase.groupsTable.delete {
                         filter {
-                            eq("groupId", group.groupId!!)
+                            eq("group_id", group.groupId!!)
                         }
                     }
-                    groupsContainer?.removeView(groupView)
-                    groupViews?.remove(groupView)
-                    payerGroups?.remove(group)
-                    if (selectedGroup?.groupId == group.groupId) {
-                        deselectGroup()
+                    withContext(Dispatchers.Main) {
+                        groupsContainer?.removeView(groupView)
+                        groupViews?.remove(groupView)
+                        payerGroups?.remove(group)
+                        if (selectedGroup?.groupId == group.groupId) {
+                            deselectGroup()
+                        }
+                        Toast.makeText(this@AddTransactionActivity, "Group removed", Toast.LENGTH_SHORT).show()
                     }
                 } catch (e: Exception) {
                     Log.e("Supabase", "Error deleting group: ${e.message}")

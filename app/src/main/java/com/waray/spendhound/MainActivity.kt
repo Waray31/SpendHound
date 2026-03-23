@@ -5,17 +5,21 @@ import android.content.Intent
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.Log
+import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.widget.Button
+import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.coordinatorlayout.widget.CoordinatorLayout
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.NavigationUI.setupWithNavController
@@ -61,6 +65,9 @@ class MainActivity : AppCompatActivity() {
     private var isFabMenuOpen = false
     private var selectedLenderName = ""
 
+    private var currentUserNumericId: Long? = null
+    private var currentUserId: String? = null
+
     interface OwedNumCallback {
         fun onOwedNumReceived(owedNum: Int)
     }
@@ -87,8 +94,14 @@ class MainActivity : AppCompatActivity() {
         progressBar?.visibility = View.VISIBLE
         mAuth = DeclareDatabase.auth
         
+        val currentSupabaseUser = mAuth?.currentUserOrNull()
+        if (currentSupabaseUser != null) {
+            currentUserId = currentSupabaseUser.id
+        }
+
         lifecycleScope.launch {
             UserHelper.preloadAllUsers()
+            fetchCurrentUserNumericId()
             progressBar?.visibility = View.GONE
         }
 
@@ -136,13 +149,104 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private suspend fun fetchCurrentUserNumericId() {
+        if (currentUserId == null) return
+        try {
+            val user = DeclareDatabase.usersTable.select {
+                filter {
+                    eq("auth_id", currentUserId!!)
+                }
+            }.decodeSingleOrNull<User>()
+            currentUserNumericId = user?.id
+            currentNickname = user?.username
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error fetching numeric ID: ${e.message}")
+        }
+    }
+
     private fun showAddGroupDialog() {
-        val dialog = Dialog(this)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        dialog.setContentView(R.layout.dialog_create_group)
-        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        dialog.window?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
-        dialog.show()
+        lifecycleScope.launch {
+            try {
+                val userList = DeclareDatabase.usersTable.select().decodeList<User>()
+                if (userList.isEmpty()) return@launch
+
+                val builder = AlertDialog.Builder(this@MainActivity)
+                val dialogView = LayoutInflater.from(this@MainActivity).inflate(R.layout.dialog_create_group, null)
+                builder.setView(dialogView)
+                val dialog = builder.create()
+                dialog.window?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+
+                val nameET: EditText = dialogView.findViewById(R.id.groupNameEditText)
+                val checkboxContainer: LinearLayout = dialogView.findViewById(R.id.usersCheckboxContainer)
+                val checkBoxes = ArrayList<CheckBox>()
+
+                for (user in userList) {
+                    if (user.authId == currentUserId) continue
+
+                    val checkBox = CheckBox(this@MainActivity)
+                    checkBox.text = user.username
+                    checkBox.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.darkBlue))
+                    checkBox.setPadding(8, 8, 8, 8)
+                    checkBoxes.add(checkBox)
+                    checkboxContainer.addView(checkBox)
+                }
+
+                dialogView.findViewById<Button>(R.id.cancelGroupBtn).setOnClickListener { dialog.dismiss() }
+                dialogView.findViewById<Button>(R.id.createGroupBtn).setOnClickListener {
+                    val name = nameET.text.toString().trim()
+                    if (name.isEmpty()) {
+                        Toast.makeText(this@MainActivity, "Please enter a group name", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+
+                    val selectedIds = ArrayList<Long?>()
+                    val selectedNames = ArrayList<String?>()
+
+                    if (currentUserNumericId != null) {
+                        selectedIds.add(currentUserNumericId)
+                        selectedNames.add(currentNickname ?: "Me")
+                    }
+
+                    checkBoxes.forEach { if (it.isChecked) {
+                        val dName = it.text.toString()
+                        val user = userList.find { u -> u.username == dName }
+                        user?.id?.let { id ->
+                            selectedIds.add(id)
+                            selectedNames.add(dName)
+                        }
+                    }}
+
+                    if (selectedIds.size <= 1) {
+                        Toast.makeText(this@MainActivity, "Please select at least one more member", Toast.LENGTH_SHORT).show()
+                        return@setOnClickListener
+                    }
+
+                    saveGroupToDatabase(name, selectedIds, selectedNames)
+                    dialog.dismiss()
+                }
+                dialog.show()
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Error showing group dialog: ${e.message}")
+            }
+        }
+    }
+
+    private fun saveGroupToDatabase(name: String, ids: MutableList<Long?>, names: MutableList<String?>) {
+        val newGroup = PayerGroup(
+            groupName = name,
+            members = ids,
+            createdBy = currentUserNumericId,
+            memberDisplayNames = names
+        )
+        lifecycleScope.launch {
+            try {
+                DeclareDatabase.groupsTable.insert(newGroup)
+                Toast.makeText(this@MainActivity, "Group '$name' created successfully!", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                Log.e("Supabase", "Error saving group: ${e.message}")
+                Toast.makeText(this@MainActivity, "Failed to create group", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     fun unhideNavigation() {
@@ -255,9 +359,9 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                val currentUserId = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
+                val currentUserIdNumeric = currentUserNumericId
                 val allUsers = UserHelper.getAllUsers()
-                val lenders = allUsers.filter { it.id != currentUserId }.toMutableList()
+                val lenders = allUsers.filter { it.id != currentUserIdNumeric }.toMutableList()
 
                 val adapter = LenderAdapter(lenders as MutableList<User?>)
                 lendersRecycler.adapter = adapter
@@ -341,7 +445,7 @@ class MainActivity : AppCompatActivity() {
 
                 val borrowTransaction = BorrowNowTransaction(
                     borrowedAmount = amount,
-                    borrowerId = currentUser.id.toLongOrNull(),
+                    borrowerId = currentUserNumericId,
                     lenderId = lender.id,
                     statusInt = 1, // 1 = For Lender Approval
                     createdAt = createdAt,
@@ -358,9 +462,9 @@ class MainActivity : AppCompatActivity() {
                 val borrowIdStr = inserted.id?.toString() ?: ""
                 if (borrowIdStr.isNotEmpty()) {
                     BalanceHelper.addBorrowerEntry(currentUser.id, borrowIdStr, null)
-                    BalanceHelper.addLenderEntry(lender.id?.toString(), borrowIdStr, null)
+                    BalanceHelper.addLenderEntry(lender.authId, borrowIdStr, null)
                     BalanceHelper.updateTotaldebt(currentUser.id, amount, null)
-                    BalanceHelper.updateTotalreceivable(lender.id?.toString(), amount, null)
+                    BalanceHelper.updateTotalreceivable(lender.authId, amount, null)
                 }
 
                 Toast.makeText(this@MainActivity, "Borrow request sent!", Toast.LENGTH_SHORT).show()
@@ -450,8 +554,8 @@ class MainActivity : AppCompatActivity() {
     fun getDebtList(status: String, callback: DebtNumCallback) {
         lifecycleScope.launch {
             try {
-                val currentUid = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
-                if (currentUid == null) {
+                val currentUidLong = currentUserNumericId
+                if (currentUidLong == null) {
                     callback.onDebtNumReceived(0)
                     return@launch
                 }
@@ -464,7 +568,7 @@ class MainActivity : AppCompatActivity() {
                 val result = DeclareDatabase.postgrest.from("borrows")
                     .select() {
                         filter {
-                            eq("borrower_id", currentUid)
+                            eq("borrower_id", currentUidLong)
                             if (statusInt > 0) eq("status", statusInt)
                         }
                     }
@@ -497,8 +601,8 @@ class MainActivity : AppCompatActivity() {
     fun getOwedList(status: String, callback: OwedNumCallback) {
         lifecycleScope.launch {
             try {
-                val currentUid = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
-                if (currentUid == null) {
+                val currentUidLong = currentUserNumericId
+                if (currentUidLong == null) {
                     callback.onOwedNumReceived(0)
                     return@launch
                 }
@@ -511,7 +615,7 @@ class MainActivity : AppCompatActivity() {
                 val result = DeclareDatabase.postgrest.from("borrows")
                     .select() {
                         filter {
-                            eq("lender_id", currentUid)
+                            eq("lender_id", currentUidLong)
                             if (statusInt > 0) eq("status", statusInt)
                         }
                     }
@@ -543,15 +647,15 @@ class MainActivity : AppCompatActivity() {
     fun getDebtListMonthly(monthYear: String, status: String, callback: DebtNumCallback) {
         lifecycleScope.launch {
             try {
-                val currentUid = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
-                if (currentUid == null) {
+                val currentUidLong = currentUserNumericId
+                if (currentUidLong == null) {
                     callback.onDebtNumReceived(0)
                     return@launch
                 }
                 val result = DeclareDatabase.postgrest.from("borrows")
                     .select() {
                         filter {
-                            eq("borrower_id", currentUid)
+                            eq("borrower_id", currentUidLong)
                             eq("monthYear", monthYear)
                         }
                     }
@@ -585,15 +689,15 @@ class MainActivity : AppCompatActivity() {
     fun getOwedListMonthly(monthYear: String, status: String, callback: OwedNumCallback) {
         lifecycleScope.launch {
             try {
-                val currentUid = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
-                if (currentUid == null) {
+                val currentUidLong = currentUserNumericId
+                if (currentUidLong == null) {
                     callback.onOwedNumReceived(0)
                     return@launch
                 }
                 val result = DeclareDatabase.postgrest.from("borrows")
                     .select() {
                         filter {
-                            eq("lender_id", currentUid)
+                            eq("lender_id", currentUidLong)
                             eq("monthYear", monthYear)
                         }
                     }
@@ -628,9 +732,9 @@ class MainActivity : AppCompatActivity() {
             callback(currentNickname)
             return
         }
-        val uid = mAuth?.currentUserOrNull()?.id?.toLongOrNull()
-        if (uid != null) {
-            UserHelper.getUsernameById(uid, object : UserHelper.UsernameCallback {
+        val uidLong = currentUserNumericId
+        if (uidLong != null) {
+            UserHelper.getUsernameById(uidLong, object : UserHelper.UsernameCallback {
                 override fun onUsernameRetrieved(username: String?) {
                     currentNickname = username
                     callback(username)
