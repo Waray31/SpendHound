@@ -37,8 +37,8 @@ class BorrowNowActivity : AppCompatActivity() {
     var currentDate: String? = null
     var status: String? = null
     var borrowedAmountSTR: String? = null
-    var borrowerID: String? = null
-    var lenderID: String? = null
+    var borrowerUserId: String? = null
+    var lenderUserId: String? = null
     private var borrowedAmount = 0
     private var dialogProgressBar: View? = null
     private var borrowBtn: Button? = null
@@ -133,12 +133,12 @@ class BorrowNowActivity : AppCompatActivity() {
     }
 
     private fun loadNickname() {
-        val currentUserID = mAuth?.currentUserOrNull()?.id ?: return
+        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
         lifecycleScope.launch {
             try {
                 val user = DeclareDatabase.usersTable.select(Columns.list("username")) {
                     filter {
-                        eq("id", currentUserID)
+                        eq("auth_id", currentUserId)
                     }
                 }.decodeSingleOrNull<User>()
                 currentNickname = user?.username
@@ -211,12 +211,12 @@ class BorrowNowActivity : AppCompatActivity() {
         val currentUserId = mAuth?.currentUserOrNull()?.id
 
         if (currentUserId != null && !lender.isNullOrEmpty()) {
-            borrowerID = currentUserId
+            borrowerUserId = currentUserId
 
-            UserHelper.getUidByUsername(lender, object : UserHelper.UidCallback {
-                override fun onUidRetrieved(uid: String?) {
-                    lenderID = uid
-                    if (lenderID == null) {
+            UserHelper.getUserIdByUsername(lender, object : UserHelper.UserIdCallback {
+                override fun onUserIdRetrieved(userId: String?) {
+                    lenderUserId = userId
+                    if (lenderUserId == null) {
                         Toast.makeText(this@BorrowNowActivity, "Lender not found", Toast.LENGTH_SHORT).show()
                         dialogProgressBar?.visibility = View.GONE
                         return
@@ -225,9 +225,9 @@ class BorrowNowActivity : AppCompatActivity() {
                     // Using the secondary constructor of BorrowNowTransaction with 10 arguments
                     val borrowNowTransaction = BorrowNowTransaction(
                         null,              // borrowId: String?
-                        borrowerID,        // borrowerID: String?
+                        borrowerUserId,    // borrowerID: String?
                         currentNickname,   // borrowerName: String?
-                        lenderID,          // lenderID: String?
+                        lenderUserId,      // lenderID: String?
                         lender,            // lender: String?
                         borrowedAmount.toDouble(), // borrowedAmount: Double?
                         status,            // status: String?
@@ -242,11 +242,11 @@ class BorrowNowActivity : AppCompatActivity() {
                             
                             val borrowId = borrowNowTransaction.getBorrowId() ?: "0"
 
-                            BalanceHelper.addBorrowerEntry(borrowerID, borrowId, null)
-                            BalanceHelper.addLenderEntry(lenderID, borrowId, null)
+                            BalanceHelper.addBorrowerEntry(borrowerUserId, borrowId, null)
+                            BalanceHelper.addLenderEntry(lenderUserId, borrowId, null)
 
-                            BalanceHelper.updateTotaldebt(borrowerID, borrowedAmount.toDouble(), null)
-                            BalanceHelper.updateTotalreceivable(lenderID, borrowedAmount.toDouble(), null)
+                            BalanceHelper.updateTotaldebt(borrowerUserId, borrowedAmount.toDouble(), null)
+                            BalanceHelper.updateTotalreceivable(lenderUserId, borrowedAmount.toDouble(), null)
 
                             Toast.makeText(this@BorrowNowActivity, "Borrowed successfully", Toast.LENGTH_SHORT).show()
                             dialogProgressBar?.visibility = View.GONE

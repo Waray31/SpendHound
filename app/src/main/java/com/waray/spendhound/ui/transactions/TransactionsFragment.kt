@@ -38,7 +38,7 @@ import kotlin.math.max
 class TransactionsFragment : Fragment() {
     private var recyclerView: RecyclerView? = null
     private var adapter: RecentTransactionAdapter? = null
-    private var transactionList: ArrayList<RecentTransaction>? = null
+    private var transactionList: ArrayList<RecentTransaction> = ArrayList()
     private var datePickerButton: Button? = null
     private var groupSpinner: Spinner? = null
     private var currentMonthTextView: TextView? = null
@@ -182,7 +182,7 @@ class TransactionsFragment : Fragment() {
     }
 
     private fun loadUserGroups() {
-        val currentUidLong = currentUserNumericId ?: return
+        val currentUserIdLong = currentUserNumericId ?: return
         
         showLoading()
         lifecycleScope.launch {
@@ -196,7 +196,7 @@ class TransactionsFragment : Fragment() {
                 groupIds?.add(-1L)
 
                 for (group in groups) {
-                    if (group.members?.contains(currentUidLong) == true) {
+                    if (group.members?.contains(currentUserIdLong) == true) {
                         groupNames?.add(group.groupName ?: "")
                         groupIds?.add(group.groupId)
                     }
@@ -277,21 +277,18 @@ class TransactionsFragment : Fragment() {
     private fun fetchTransactionsForMonth(monthYear: String) {
         showLoading()
         emptyStateLayout?.visibility = View.GONE
-        transactionList?.clear()
+        transactionList.clear()
         adapter?.notifyDataSetChanged()
 
         lifecycleScope.launch {
             try {
-                val transactions = DeclareDatabase.client.from("transactions").select {
-                    filter {
-                        eq("month_year", monthYear)
-                    }
-                }.decodeList<Transaction>()
+                // Fetch all and filter locally because monthYear is @Transient in some versions or not in DB
+                val transactions = DeclareDatabase.client.from("transactions").select().decodeList<Transaction>()
 
                 val mainActivity = activity as? MainActivity
                 for (transaction in transactions) {
-                    val day = transaction.day
-                    val timeKey = transaction.timeKey
+                    val day = transaction.day ?: ""
+                    val timeKey = transaction.timeKey ?: ""
 
                     if (mainActivity?.isUserInvolved(transaction, currentNickname) == true) {
                         if (selectedGroupId != -1L && transaction.groupId != selectedGroupId) continue
@@ -305,45 +302,44 @@ class TransactionsFragment : Fragment() {
                         val sortDateTime = "$year-$monthName-$day $timeKey"
 
                         val transactionType = transaction.transactionType
-                        val details = transaction.multilineStr
+                        val details = transaction.transactionDetail
                         val paymentAmount = transaction.paymentAmount
-                        val paymentAmountStr = CurrencyUtils.formatAmountWithCurrency(paymentAmount)
+                        val paymentAmountStr = CurrencyUtils.formatAmountWithCurrency(paymentAmount.toString())
                         val iconResource = getIconForTransactionType(transactionType)
 
-                        var payorsList = transaction.payorsDisplayNames
-                        if (payorsList.isNullOrEmpty()) payorsList = transaction.payorsList
-                        
-                        val payorUids = transaction.payorsList
-                        val amountsPaidList = transaction.amountsPaidList
-                        val totalIndividualPayment = transaction.totalIndividualPayment
+                        val payorsList = (transaction.payorsDisplayNames ?: transaction.contributors)?.map { it as String? }?.toMutableList()
+                        val payorUserIds = transaction.contributors?.map { it as String? }?.toMutableList()
+                        val amountsPaidList = transaction.amountPaidList?.map { it as Double? }?.toMutableList()
+                        val totalIndividualPayment = transaction.individualPayment
 
                         var createdBy = transaction.posterDisplayName
                         if (createdBy.isNullOrEmpty()) createdBy = transaction.usernamePost
                         
-                        val createdByUid = transaction.usernamePost
+                        val createdByUserId = transaction.usernamePost
 
-                        transactionList?.add(RecentTransaction(
+                        transactionList.add(RecentTransaction(
+                            transaction.id,
                             displayDate, transactionType, details, paymentAmountStr,
-                            iconResource, sortDateTime, payorsList, payorUids,
+                            iconResource, sortDateTime, payorsList, payorUserIds,
                             amountsPaidList, totalIndividualPayment, fullDateWithYear,
-                            createdBy, createdByUid, monthYear, day ?: "", timeKey ?: ""
+                            createdBy, createdByUserId, monthYear, day, timeKey
                         ))
                     }
                 }
 
-                transactionList?.sortWith { t1, t2 ->
-                    val dateTime1 = t1?.sortDateTime
-                    val dateTime2 = t2?.sortDateTime
+                transactionList.sortWith { t1, t2 ->
+                    val dateTime1 = t1.sortDateTime
+                    val dateTime2 = t2.sortDateTime
                     if (dateTime1 != null && dateTime2 != null) dateTime2.compareTo(dateTime1) else 0
                 }
 
                 adapter?.notifyDataSetChanged()
                 context?.let { adapter?.preloadAllImages(it) }
 
-                val count = transactionList?.size ?: 0
+                val count = transactionList.size
                 transactionCountTextView?.text = String.format(Locale.getDefault(), "%d %s", count, if (count == 1) "transaction" else "transactions")
 
-                if (transactionList.isNullOrEmpty()) {
+                if (transactionList.isEmpty()) {
                     emptyStateLayout?.visibility = View.VISIBLE
                     recyclerView?.visibility = View.GONE
                 } else {
@@ -360,15 +356,15 @@ class TransactionsFragment : Fragment() {
 
     private fun matchesStatusFilter(transaction: Transaction, statusFilter: String?): Boolean {
         if ("All".equals(statusFilter, ignoreCase = true)) return true
-        val paidAmounts = transaction.amountsPaidList
-        val totalToPay = transaction.totalIndividualPayment
+        val paidAmounts = transaction.amountPaidList
+        val totalToPay = transaction.individualPayment
         if (paidAmounts.isNullOrEmpty()) return "Unpaid".equals(statusFilter, ignoreCase = true)
 
         var allPaid = true
         var allUnpaid = true
         for (paid in paidAmounts) {
-            if (paid == null || paid < totalToPay) allPaid = false
-            if (paid != null && paid > 0) allUnpaid = false
+            if (paid < totalToPay) allPaid = false
+            if (paid > 0) allUnpaid = false
         }
         val status = if (allPaid) "Paid" else if (allUnpaid) "Unpaid" else "Pending"
         return status.equals(statusFilter, ignoreCase = true)

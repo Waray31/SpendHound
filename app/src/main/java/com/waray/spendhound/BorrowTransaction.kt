@@ -5,7 +5,7 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class BorrowTransaction(
     var date: String? = null,
-    var borrowee: String? = null, // Now stores UID (was username/lender name)
+    var borrowee: String? = null, // Renamed from borroweeUserId to match usage
     var borrowedAmountStr: String? = null,
     var status: String? = null,
     var borroweeDisplayName: String? = null, // Display name for UI

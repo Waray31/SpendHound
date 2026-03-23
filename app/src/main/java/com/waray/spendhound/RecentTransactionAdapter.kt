@@ -39,9 +39,9 @@ class RecentTransactionAdapter(
     fun preloadAllImages(context: Context?) {
         if (recentTransactionList == null || context == null) return
         for (transaction in recentTransactionList) {
-            val uids = transaction.payorUids
-            if (uids != null && uids.isNotEmpty()) {
-                PayorAdapter.preCacheUids(context, uids)
+            val userIds = transaction.payorUserIds
+            if (userIds != null && userIds.isNotEmpty()) {
+                PayorAdapter.preCacheUserIds(context, userIds)
             }
         }
     }
@@ -68,17 +68,17 @@ class RecentTransactionAdapter(
             holder.loadingOverlay.visibility = View.VISIBLE
             holder.createdByTextView.text = transaction.createdBy ?: "Unknown"
 
-            val payorsUids = transaction.payorUids
+            val payorUserIds = transaction.payorUserIds
             val payorsNames = transaction.payorsList
             val amountsPaid = transaction.amountsPaidList
             val individualPayment = transaction.totalIndividualPayment
 
-            val currentUid = DeclareDatabase.auth.currentUserOrNull()?.id
-            val isCreator = transaction.createdByUid != null && transaction.createdByUid == currentUid
+            val currentUserId = DeclareDatabase.auth.currentUserOrNull()?.id
+            val isCreator = transaction.createdByUserId != null && transaction.createdByUserId == currentUserId
 
-            if (payorsUids != null) {
+            if (payorUserIds != null) {
                 val payorAdapter = PayorAdapter(
-                    payorsUids,
+                    payorUserIds,
                     payorsNames,
                     amountsPaid ?: mutableListOf(),
                     individualPayment,
@@ -180,26 +180,21 @@ class RecentTransactionAdapter(
     }
 
     private fun saveTransactionChanges(context: Context, transaction: RecentTransaction, updatedAmounts: MutableList<Double?>, position: Int, onSuccess: Runnable, onComplete: Runnable) {
-        val my = transaction.monthYear
-        val d = transaction.day
-        val tk = transaction.timeKey
+        val id = transaction.transactionId
 
-        if (my == null || d == null || tk == null) {
-            Toast.makeText(context, "Error: Reference not found", Toast.LENGTH_SHORT).show()
+        if (id == null) {
+            Toast.makeText(context, "Error: Transaction ID not found", Toast.LENGTH_SHORT).show()
             onComplete.run()
             return
         }
 
         scope.launch {
             try {
-                // Since we use my, d, tk as composite key in old Firebase, in Supabase we can filter by these
                 DeclareDatabase.transactionsTable.update({
-                    set("amountsPaidList", updatedAmounts)
+                    set("amount_paid_list", updatedAmounts.filterNotNull())
                 }) {
                     filter {
-                        eq("monthYear", my)
-                        eq("day", d)
-                        eq("timeKey", tk)
+                        eq("id", id)
                     }
                 }
                 

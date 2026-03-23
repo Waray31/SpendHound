@@ -19,16 +19,16 @@ object BalanceHelper {
     /**
      * Initialize balances for a user in the 'user_balance' table.
      */
-    fun initializeBalancesForNewUser(uid: String?, callback: BalanceCallback?) {
-        if (uid == null) return
+    fun initializeBalancesForNewUser(userId: String?, callback: BalanceCallback?) {
+        if (userId == null) return
         
         scope.launch {
             try {
-                val initialBalance = UserBalance(userId = uid.toLong())
+                val initialBalance = UserBalance(userId = userId.toLong())
                 DeclareDatabase.userBalanceTable.insert(initialBalance)
                 
                 withContext(Dispatchers.Main) {
-                    Log.d(TAG, "Balances initialized in user_balance for user: $uid")
+                    Log.d(TAG, "Balances initialized in user_balance for user: $userId")
                     callback?.onSuccess()
                 }
             } catch (e: Exception) {
@@ -43,20 +43,20 @@ object BalanceHelper {
     /**
      * Ensures a balance record exists for the user.
      */
-    fun ensureBalancesExist(uid: String?, callback: BalanceCallback?) {
-        if (uid == null) return
+    fun ensureBalancesExist(userId: String?, callback: BalanceCallback?) {
+        if (userId == null) return
 
         scope.launch {
             try {
                 val balance = DeclareDatabase.userBalanceTable.select {
                     filter {
-                        eq("user_id", uid.toLong())
+                        eq("user_id", userId.toLong())
                     }
                 }.decodeSingleOrNull<UserBalance>()
 
                 withContext(Dispatchers.Main) {
                     if (balance == null) {
-                        initializeBalancesForNewUser(uid, callback)
+                        initializeBalancesForNewUser(userId, callback)
                     } else {
                         callback?.onSuccess()
                     }
@@ -73,15 +73,15 @@ object BalanceHelper {
     /**
      * Fetches the user's balance.
      */
-    fun getUserBalance(uid: String?, callback: (UserBalance?) -> Unit) {
-        if (uid == null) {
+    fun getUserBalance(userId: String?, callback: (UserBalance?) -> Unit) {
+        if (userId == null) {
             callback(null)
             return
         }
         scope.launch {
             try {
                 val balance = DeclareDatabase.userBalanceTable.select {
-                    filter { eq("user_id", uid.toLong()) }
+                    filter { eq("user_id", userId.toLong()) }
                 }.decodeSingleOrNull<UserBalance>()
                 withContext(Dispatchers.Main) {
                     callback(balance)
@@ -94,32 +94,32 @@ object BalanceHelper {
     }
 
     // New methods aligned with user_balance table columns
-    fun updateUnpaidTotalGroup(uid: String?, amountChange: Double, callback: BalanceCallback?) = updateBalanceField("unpaid_total_group", uid, amountChange, callback)
-    fun updateUnpaidTotalIndividual(uid: String?, amountChange: Double, callback: BalanceCallback?) = updateBalanceField("unpaid_total_individual", uid, amountChange, callback)
-    fun updateReceivableTotalGroup(uid: String?, amountChange: Double, callback: BalanceCallback?) = updateBalanceField("receivable_total_group", uid, amountChange, callback)
-    fun updateReceivableTotalIndividual(uid: String?, amountChange: Double, callback: BalanceCallback?) = updateBalanceField("receivable_total_individual", uid, amountChange, callback)
-    fun updateBalanceTotalGroup(uid: String?, amountChange: Double, callback: BalanceCallback?) = updateBalanceField("balance_total_group", uid, amountChange, callback)
-    fun updateBalanceTotalIndividual(uid: String?, amountChange: Double, callback: BalanceCallback?) = updateBalanceField("balance_total_individual", uid, amountChange, callback)
+    fun updateUnpaidTotalGroup(userId: String?, amountChange: Double, callback: BalanceCallback?) = updateBalanceField("unpaid_total_group", userId, amountChange, callback)
+    fun updateUnpaidTotalIndividual(userId: String?, amountChange: Double, callback: BalanceCallback?) = updateBalanceField("unpaid_total_individual", userId, amountChange, callback)
+    fun updateReceivableTotalGroup(userId: String?, amountChange: Double, callback: BalanceCallback?) = updateBalanceField("receivable_total_group", userId, amountChange, callback)
+    fun updateReceivableTotalIndividual(userId: String?, amountChange: Double, callback: BalanceCallback?) = updateBalanceField("receivable_total_individual", userId, amountChange, callback)
+    fun updateBalanceTotalGroup(userId: String?, amountChange: Double, callback: BalanceCallback?) = updateBalanceField("balance_total_group", userId, amountChange, callback)
+    fun updateBalanceTotalIndividual(userId: String?, amountChange: Double, callback: BalanceCallback?) = updateBalanceField("balance_total_individual", userId, amountChange, callback)
 
     // Legacy compatibility methods
-    fun updateTotalBillSpent(uid: String?, amountChange: Double, callback: BalanceCallback?) = updateUnpaidTotalGroup(uid, amountChange, callback)
-    fun updateTotalBillPayment(uid: String?, amountChange: Double, callback: BalanceCallback?) = updateBalanceTotalGroup(uid, amountChange, callback)
-    fun updateTotalIndividualSpent(uid: String?, amountChange: Double, callback: BalanceCallback?) = updateUnpaidTotalIndividual(uid, amountChange, callback)
-    fun updateTotaldebt(uid: String?, amountChange: Double, callback: BalanceCallback?) {
+    fun updateTotalBillSpent(userId: String?, amountChange: Double, callback: BalanceCallback?) = updateUnpaidTotalGroup(userId, amountChange, callback)
+    fun updateTotalBillPayment(userId: String?, amountChange: Double, callback: BalanceCallback?) = updateBalanceTotalGroup(userId, amountChange, callback)
+    fun updateTotalIndividualSpent(userId: String?, amountChange: Double, callback: BalanceCallback?) = updateUnpaidTotalIndividual(userId, amountChange, callback)
+    fun updateTotaldebt(userId: String?, amountChange: Double, callback: BalanceCallback?) {
         // Update both group and individual if needed, or map to group as default
-        updateUnpaidTotalGroup(uid, amountChange, callback)
+        updateUnpaidTotalGroup(userId, amountChange, callback)
     }
-    fun updateTotalreceivable(uid: String?, amountChange: Double, callback: BalanceCallback?) = updateReceivableTotalGroup(uid, amountChange, callback)
+    fun updateTotalreceivable(userId: String?, amountChange: Double, callback: BalanceCallback?) = updateReceivableTotalGroup(userId, amountChange, callback)
 
-    private fun updateBalanceField(columnName: String, uid: String?, amountChange: Double, callback: BalanceCallback?) {
-        if (uid == null) return
+    private fun updateBalanceField(columnName: String, userId: String?, amountChange: Double, callback: BalanceCallback?) {
+        if (userId == null) return
         
         scope.launch {
             try {
                 // Fetch current balance
                 val balance = DeclareDatabase.userBalanceTable.select {
-                    filter { eq("user_id", uid.toLong()) }
-                }.decodeSingleOrNull<UserBalance>() ?: UserBalance(userId = uid.toLong())
+                    filter { eq("user_id", userId.toLong()) }
+                }.decodeSingleOrNull<UserBalance>() ?: UserBalance(userId = userId.toLong())
                 
                 val newValue = when(columnName) {
                     "unpaid_total_group" -> balance.unpaidTotalGroup + amountChange
@@ -134,7 +134,7 @@ object BalanceHelper {
                 DeclareDatabase.userBalanceTable.update({
                     set(columnName, newValue)
                 }) {
-                    filter { eq("user_id", uid.toLong()) }
+                    filter { eq("user_id", userId.toLong()) }
                 }
 
                 withContext(Dispatchers.Main) {
@@ -152,12 +152,12 @@ object BalanceHelper {
     /**
      * Add a record to userBorrows table for the borrower
      */
-    fun addBorrowerEntry(uid: String?, borrowId: String, callback: BalanceCallback?) {
-        if (uid == null) return
+    fun addBorrowerEntry(userId: String?, borrowId: String, callback: BalanceCallback?) {
+        if (userId == null) return
         scope.launch {
             try {
                 DeclareDatabase.userBorrowsTable.insert(mapOf(
-                    "user_id" to uid.toLong(),
+                    "user_id" to userId.toLong(),
                     "borrow_id" to borrowId.toLong(),
                     "type" to "borrower"
                 ))
@@ -171,12 +171,12 @@ object BalanceHelper {
     /**
      * Add a record to userBorrows table for the lender
      */
-    fun addLenderEntry(uid: String?, borrowId: String, callback: BalanceCallback?) {
-        if (uid == null) return
+    fun addLenderEntry(userId: String?, borrowId: String, callback: BalanceCallback?) {
+        if (userId == null) return
         scope.launch {
             try {
                 DeclareDatabase.userBorrowsTable.insert(mapOf(
-                    "user_id" to uid.toLong(),
+                    "user_id" to userId.toLong(),
                     "borrow_id" to borrowId.toLong(),
                     "type" to "lender"
                 ))

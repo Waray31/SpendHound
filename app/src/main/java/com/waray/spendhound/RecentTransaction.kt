@@ -1,6 +1,7 @@
 package com.waray.spendhound
 
 class RecentTransaction {
+    var transactionId: Long? = null
     var mostRecentDate: String? = null
     var mostRecentTransactionType: String? = null
     var mostRecentDetails: String? = null
@@ -8,12 +9,12 @@ class RecentTransaction {
     var iconResource: Int = 0
     var sortDateTime: String? = null
     var payorsList: MutableList<String?>? = null
-    var payorUids: MutableList<String?>? = null
+    var payorUserIds: MutableList<String?>? = null
     var amountsPaidList: MutableList<Double?>? = null
     var totalIndividualPayment: Double = 0.0
     var fullDateWithYear: String? = null
     var createdBy: String? = null
-    var createdByUid: String? = null
+    var createdByUserId: String? = null
 
     var monthYear: String? = null
     var day: String? = null
@@ -64,7 +65,7 @@ class RecentTransaction {
         amountsPaidList: MutableList<Double?>?,
         fullDateWithYear: String?,
         createdBy: String?,
-        createdByUid: String?
+        createdByUserId: String?
     ) {
         this.mostRecentDate = mostRecentDate
         this.mostRecentTransactionType = mostRecentTransactionType
@@ -76,10 +77,11 @@ class RecentTransaction {
         this.amountsPaidList = amountsPaidList
         this.fullDateWithYear = fullDateWithYear
         this.createdBy = createdBy
-        this.createdByUid = createdByUid
+        this.createdByUserId = createdByUserId
     }
 
     constructor(
+        transactionId: Long?,
         mostRecentDate: String?,
         mostRecentTransactionType: String?,
         mostRecentDetails: String?,
@@ -87,16 +89,17 @@ class RecentTransaction {
         iconResource: Int,
         sortDateTime: String?,
         payorsList: MutableList<String?>?,
-        payorUids: MutableList<String?>?,
+        payorUserIds: MutableList<String?>?,
         amountsPaidList: MutableList<Double?>?,
         totalIndividualPayment: Double,
         fullDateWithYear: String?,
         createdBy: String?,
-        createdByUid: String?,
+        createdByUserId: String?,
         monthYear: String?,
         day: String?,
         timeKey: String?
     ) {
+        this.transactionId = transactionId
         this.mostRecentDate = mostRecentDate
         this.mostRecentTransactionType = mostRecentTransactionType
         this.mostRecentDetails = mostRecentDetails
@@ -104,12 +107,12 @@ class RecentTransaction {
         this.iconResource = iconResource
         this.sortDateTime = sortDateTime
         this.payorsList = payorsList
-        this.payorUids = payorUids
+        this.payorUserIds = payorUserIds
         this.amountsPaidList = amountsPaidList
         this.totalIndividualPayment = totalIndividualPayment
         this.fullDateWithYear = fullDateWithYear
         this.createdBy = createdBy
-        this.createdByUid = createdByUid
+        this.createdByUserId = createdByUserId
         this.monthYear = monthYear
         this.day = day
         this.timeKey = timeKey

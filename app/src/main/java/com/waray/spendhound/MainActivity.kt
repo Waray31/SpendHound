@@ -5,21 +5,17 @@ import android.content.Intent
 import android.graphics.drawable.ColorDrawable
 import android.os.Bundle
 import android.util.Log
-import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.Window
 import android.widget.Button
-import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.coordinatorlayout.widget.CoordinatorLayout
-import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.NavigationUI.setupWithNavController
@@ -48,15 +44,15 @@ class MainActivity : AppCompatActivity() {
     var totalMonthSpends: Double = 0.0
     var dailyTotals: DoubleArray = DoubleArray(7)
     private var progressBar: ProgressBar? = null
-    var currentNickname: String? = ""
-    var owedNum: Int = 0
+    private var currentUserNumericId: Long? = null
+    private var currentUserId: String? = null
+    var currentNickname: String? = null
+    
+    var debtList: List<BorrowTransaction> = emptyList()
+    var owedList: List<OwedTransaction> = emptyList()
     var debtNum: Int = 0
-    private var recentTransactionList = ArrayList<RecentTransaction>()
-    var debtList: ArrayList<BorrowTransaction> = ArrayList()
-    var owedList: ArrayList<OwedTransaction> = ArrayList()
-    private var recentTransactionAdapter: RecentTransactionAdapter? = null
+    var owedNum: Int = 0
 
-    // FAB Menu fields
     private var fabMain: FloatingActionButton? = null
     private var fabMenuOverlay: View? = null
     private var containerBorrow: LinearLayout? = null
@@ -64,9 +60,6 @@ class MainActivity : AppCompatActivity() {
     private var containerAddGroup: LinearLayout? = null
     private var isFabMenuOpen = false
     private var selectedLenderName = ""
-
-    private var currentUserNumericId: Long? = null
-    private var currentUserId: String? = null
 
     interface OwedNumCallback {
         fun onOwedNumReceived(owedNum: Int)
@@ -78,11 +71,11 @@ class MainActivity : AppCompatActivity() {
 
     fun isUserInvolved(
         transaction: Transaction?,
-        usernameOrUid: String?
+        usernameOrUserId: String?
     ): Boolean {
-        if (transaction == null || usernameOrUid.isNullOrEmpty()) return false
-        val currentUid = mAuth?.currentUserOrNull()?.id
-        return transaction.isUserInvolvedByUid(currentUid) || transaction.isUserInvolvedByUsername(usernameOrUid)
+        if (transaction == null) return false
+        val userId = mAuth?.currentUserOrNull()?.id
+        return transaction.isUserInvolvedByUserId(userId) || (usernameOrUserId != null && transaction.isUserInvolvedByUsername(usernameOrUserId))
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -99,184 +92,54 @@ class MainActivity : AppCompatActivity() {
             currentUserId = currentSupabaseUser.id
         }
 
-        lifecycleScope.launch {
-            UserHelper.preloadAllUsers()
-            fetchCurrentUserNumericId()
-            progressBar?.visibility = View.GONE
-        }
-
-        val navHostFragment =
-            supportFragmentManager.findFragmentById(R.id.nav_host_fragment_activity_main) as NavHostFragment?
-        val navController = navHostFragment!!.navController
+        // Initialize view components
         navView = findViewById(R.id.navView)
+        val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment_activity_main) as NavHostFragment
+        val navController = navHostFragment.navController
         setupWithNavController(navView!!, navController)
 
-        // FAB Menu Setup
+        setupFabMenu()
+        fetchCurrentUserDetails()
+    }
+
+    private fun setupFabMenu() {
         fabMain = findViewById(R.id.fab_main)
         fabMenuOverlay = findViewById(R.id.fab_menu_overlay)
         containerBorrow = findViewById(R.id.container_borrow)
         containerAddTransaction = findViewById(R.id.container_add_transaction)
         containerAddGroup = findViewById(R.id.container_add_group)
 
-        fabMain?.setOnClickListener { toggleFabMenu() }
-        fabMenuOverlay?.setOnClickListener { closeFabMenu() }
+        fabMain?.setOnClickListener {
+            toggleFabMenu()
+        }
+
+        fabMenuOverlay?.setOnClickListener {
+            if (isFabMenuOpen) toggleFabMenu()
+        }
 
         containerBorrow?.setOnClickListener {
-            closeFabMenu()
-            showBorrowDialog()
+            toggleFabMenu()
+            startActivity(Intent(this, BorrowNowActivity::class.java))
         }
 
         containerAddTransaction?.setOnClickListener {
-            closeFabMenu()
-            val intent = Intent(this, AddTransactionActivity::class.java)
-            startActivity(intent)
+            toggleFabMenu()
+            startActivity(Intent(this, AddTransactionActivity::class.java))
         }
 
         containerAddGroup?.setOnClickListener {
-            closeFabMenu()
+            toggleFabMenu()
             showAddGroupDialog()
-        }
-
-        navController.addOnDestinationChangedListener { _, destination, _ ->
-            if (destination.id == R.id.navigation_home || 
-                destination.id == R.id.navigation_transactions || 
-                destination.id == R.id.navigation_borrow || 
-                destination.id == R.id.navigation_profile) {
-                showBottomBars()
-            } else {
-                hideBottomBars()
-            }
-        }
-    }
-
-    private suspend fun fetchCurrentUserNumericId() {
-        if (currentUserId == null) return
-        try {
-            val user = DeclareDatabase.usersTable.select {
-                filter {
-                    eq("auth_id", currentUserId!!)
-                }
-            }.decodeSingleOrNull<User>()
-            currentUserNumericId = user?.id
-            currentNickname = user?.username
-        } catch (e: Exception) {
-            Log.e("MainActivity", "Error fetching numeric ID: ${e.message}")
         }
     }
 
     private fun showAddGroupDialog() {
-        lifecycleScope.launch {
-            try {
-                val userList = DeclareDatabase.usersTable.select().decodeList<User>()
-                if (userList.isEmpty()) return@launch
-
-                val builder = AlertDialog.Builder(this@MainActivity)
-                val dialogView = LayoutInflater.from(this@MainActivity).inflate(R.layout.dialog_create_group, null)
-                builder.setView(dialogView)
-                val dialog = builder.create()
-                dialog.window?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
-
-                val nameET: EditText = dialogView.findViewById(R.id.groupNameEditText)
-                val checkboxContainer: LinearLayout = dialogView.findViewById(R.id.usersCheckboxContainer)
-                val checkBoxes = ArrayList<CheckBox>()
-
-                for (user in userList) {
-                    if (user.authId == currentUserId) continue
-
-                    val checkBox = CheckBox(this@MainActivity)
-                    checkBox.text = user.username
-                    checkBox.setTextColor(ContextCompat.getColor(this@MainActivity, R.color.darkBlue))
-                    checkBox.setPadding(8, 8, 8, 8)
-                    checkBoxes.add(checkBox)
-                    checkboxContainer.addView(checkBox)
-                }
-
-                dialogView.findViewById<Button>(R.id.cancelGroupBtn).setOnClickListener { dialog.dismiss() }
-                dialogView.findViewById<Button>(R.id.createGroupBtn).setOnClickListener {
-                    val name = nameET.text.toString().trim()
-                    if (name.isEmpty()) {
-                        Toast.makeText(this@MainActivity, "Please enter a group name", Toast.LENGTH_SHORT).show()
-                        return@setOnClickListener
-                    }
-
-                    val selectedIds = ArrayList<Long?>()
-                    val selectedNames = ArrayList<String?>()
-
-                    if (currentUserNumericId != null) {
-                        selectedIds.add(currentUserNumericId)
-                        selectedNames.add(currentNickname ?: "Me")
-                    }
-
-                    checkBoxes.forEach { if (it.isChecked) {
-                        val dName = it.text.toString()
-                        val user = userList.find { u -> u.username == dName }
-                        user?.id?.let { id ->
-                            selectedIds.add(id)
-                            selectedNames.add(dName)
-                        }
-                    }}
-
-                    if (selectedIds.size <= 1) {
-                        Toast.makeText(this@MainActivity, "Please select at least one more member", Toast.LENGTH_SHORT).show()
-                        return@setOnClickListener
-                    }
-
-                    saveGroupToDatabase(name, selectedIds, selectedNames)
-                    dialog.dismiss()
-                }
-                dialog.show()
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error showing group dialog: ${e.message}")
-            }
-        }
-    }
-
-    private fun saveGroupToDatabase(name: String, ids: MutableList<Long?>, names: MutableList<String?>) {
-        val newGroup = PayerGroup(
-            groupName = name,
-            members = ids,
-            createdBy = currentUserNumericId,
-            memberDisplayNames = names
-        )
-        lifecycleScope.launch {
-            try {
-                DeclareDatabase.groupsTable.insert(newGroup)
-                Toast.makeText(this@MainActivity, "Group '$name' created successfully!", Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                Log.e("Supabase", "Error saving group: ${e.message}")
-                Toast.makeText(this@MainActivity, "Failed to create group", Toast.LENGTH_SHORT).show()
-            }
-        }
-    }
-
-    fun unhideNavigation() {
-        showBottomBars()
-    }
-
-    fun hideNavigation() {
-        hideBottomBars()
-    }
-
-    fun showBottomBars() {
-        navView?.visibility = View.VISIBLE
-        fabMain?.visibility = View.VISIBLE
-
-        val navParams = navView?.layoutParams as? CoordinatorLayout.LayoutParams
-        if (navParams != null) {
-            val behavior = navParams.behavior as? HideBottomViewOnScrollBehavior<BottomNavigationView>
-            behavior?.slideUp(navView!!)
-        }
-
-        val fabParams = fabMain?.layoutParams as? CoordinatorLayout.LayoutParams
-        if (fabParams != null) {
-            val behavior = fabParams.behavior as? HideBottomViewOnScrollBehavior<FloatingActionButton>
-            behavior?.slideUp(fabMain!!)
-        }
-    }
-
-    fun hideBottomBars() {
-        navView?.visibility = View.GONE
-        fabMain?.visibility = View.GONE
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(R.layout.dialog_create_group)
+        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+        dialog.show()
     }
 
     private fun toggleFabMenu() {
@@ -285,12 +148,13 @@ class MainActivity : AppCompatActivity() {
 
     private fun openFabMenu() {
         isFabMenuOpen = true
+        fabMain?.setImageResource(R.drawable.ic_close_24dp)
         fabMenuOverlay?.visibility = View.VISIBLE
         fabMenuOverlay?.animate()?.alpha(1f)?.setDuration(300)?.start()
 
         fabMain?.animate()?.rotation(45f)?.setDuration(300)?.start()
 
-        // Curved horizontal layout: 150, 90, 30 degrees (from right to left)
+        // Curved horizontal layout: 150, 90, 30 degrees (from left to right)
         showFabOption(containerBorrow, 150)
         showFabOption(containerAddTransaction, 90)
         showFabOption(containerAddGroup, 30)
@@ -298,6 +162,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun closeFabMenu() {
         isFabMenuOpen = false
+        fabMain?.setImageResource(R.drawable.baseline_add_24)
         fabMenuOverlay?.animate()?.alpha(0f)?.setDuration(300)?.withEndAction {
             fabMenuOverlay?.visibility = View.GONE
         }?.start()
@@ -339,206 +204,39 @@ class MainActivity : AppCompatActivity() {
             ?.start()
     }
 
-    private fun showBorrowDialog() {
-        val dialog = Dialog(this)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        dialog.setContentView(R.layout.dialog_borrow_now)
-        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        dialog.window?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
-
-        val lendersRecycler = dialog.findViewById<RecyclerView>(R.id.lenderRecyclerView)
-        val amountInput = dialog.findViewById<EditText>(R.id.dialogBorrowEditText)
-        val borrowBtn = dialog.findViewById<Button>(R.id.dialogBorrowBtn)
-        val cancelBtn = dialog.findViewById<Button>(R.id.dialogCancelBtn)
-        val dialogBorrower = dialog.findViewById<TextView>(R.id.dialogBorrower)
-        val dialogBorrowDate = dialog.findViewById<TextView>(R.id.dialogBorrowDate)
-
-        dialogBorrower.text = currentNickname
-        val calendar = Calendar.getInstance()
-        dialogBorrowDate.text = SimpleDateFormat("MMM-dd-yyyy", Locale.getDefault()).format(calendar.time)
-
+    private fun fetchCurrentUserDetails() {
+        val authId = currentUserId ?: return
         lifecycleScope.launch {
             try {
-                val currentUserIdNumeric = currentUserNumericId
-                val allUsers = UserHelper.getAllUsers()
-                val lenders = allUsers.filter { it.id != currentUserIdNumeric }.toMutableList()
-
-                val adapter = LenderAdapter(lenders as MutableList<User?>)
-                lendersRecycler.adapter = adapter
-                lendersRecycler.layoutManager = LinearLayoutManager(this@MainActivity, LinearLayoutManager.HORIZONTAL, false)
-
-                val snapHelper: SnapHelper = LinearSnapHelper()
-                snapHelper.attachToRecyclerView(lendersRecycler)
-
-                lendersRecycler.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-                    override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
-                        super.onScrollStateChanged(recyclerView, newState)
-                        if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                            val centerView = snapHelper.findSnapView(lendersRecycler.layoutManager)
-                            if (centerView != null) {
-                                val pos = lendersRecycler.getChildAdapterPosition(centerView)
-                                val lender = adapter.getLenderAt(pos)
-                                if (lender != null) {
-                                    selectedLenderName = lender.username ?: ""
-                                }
-                            }
-                        }
-                    }
-
-                    override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                        super.onScrolled(recyclerView, dx, dy)
-                        val midpoint = recyclerView.width / 2f
-                        val d0 = 0f
-                        val d1 = 0.5f
-                        val s0 = 1f
-                        val s1 = 0.8f
-
-                        for (i in 0 until recyclerView.childCount) {
-                            val child = recyclerView.getChildAt(i)
-                            val childMidpoint = (recyclerView.layoutManager!!.getDecoratedLeft(child) + recyclerView.layoutManager!!.getDecoratedRight(child)) / 2f
-                            val d = min(d1, abs(midpoint - childMidpoint))
-                            val scale = s0 + (s1 - s0) * (d - d0) / (d1 - d0)
-                            child.scaleX = scale
-                            child.scaleY = scale
-                        }
-                    }
-                })
-
-                cancelBtn.setOnClickListener { dialog.dismiss() }
-
-                borrowBtn.setOnClickListener {
-                    val amountStr = amountInput.text.toString()
-                    if (amountStr.isEmpty() || selectedLenderName.isEmpty()) {
-                        Toast.makeText(this@MainActivity, "Please fill all fields", Toast.LENGTH_SHORT).show()
-                        return@setOnClickListener
-                    }
-
-                    val amount = amountStr.toDoubleOrNull() ?: 0.0
-                    if (amount <= 0) {
-                        Toast.makeText(this@MainActivity, "Invalid amount", Toast.LENGTH_SHORT).show()
-                        return@setOnClickListener
-                    }
-
-                    val lender = lenders.find { it.username == selectedLenderName }
-                    if (lender != null) {
-                        submitBorrowRequest(lender, amount)
-                        dialog.dismiss()
-                    }
-                }
-
-                dialog.show()
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error showing borrow dialog: ${e.message}")
-            }
-        }
-    }
-
-    private fun submitBorrowRequest(lender: User, amount: Double) {
-        val currentUser = mAuth?.currentUserOrNull() ?: return
-
-        lifecycleScope.launch {
-            try {
-                val calendar = Calendar.getInstance()
-                val monthYear = SimpleDateFormat("MMMM-yyyy", Locale.ENGLISH).format(calendar.time)
-                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault())
-                val createdAt = sdf.format(calendar.time)
-
-                val borrowTransaction = BorrowNowTransaction(
-                    borrowedAmount = amount,
-                    borrowerId = currentUserNumericId,
-                    lenderId = lender.id,
-                    statusInt = 1, // 1 = For Lender Approval
-                    createdAt = createdAt,
-                    monthYear = monthYear,
-                    borrowerName = currentNickname,
-                    lender = lender.username,
-                    timestamp = System.currentTimeMillis()
-                )
-
-                val inserted = DeclareDatabase.borrowsTable.insert(borrowTransaction) {
-                    select()
-                }.decodeSingle<BorrowNowTransaction>()
+                val user = DeclareDatabase.usersTable.select {
+                    filter { eq("auth_id", authId) }
+                }.decodeSingleOrNull<User>()
                 
-                val borrowIdStr = inserted.id?.toString() ?: ""
-                if (borrowIdStr.isNotEmpty()) {
-                    BalanceHelper.addBorrowerEntry(currentUser.id, borrowIdStr, null)
-                    BalanceHelper.addLenderEntry(lender.authId, borrowIdStr, null)
-                    BalanceHelper.updateTotaldebt(currentUser.id, amount, null)
-                    BalanceHelper.updateTotalreceivable(lender.authId, amount, null)
-                }
-
-                Toast.makeText(this@MainActivity, "Borrow request sent!", Toast.LENGTH_SHORT).show()
+                currentUserNumericId = user?.id
+                currentNickname = user?.username
+                progressBar?.visibility = View.GONE
             } catch (e: Exception) {
-                Log.e("MainActivity", "Error submitting borrow request: ${e.message}")
-                Toast.makeText(this@MainActivity, "Failed to send request", Toast.LENGTH_SHORT).show()
+                Log.e("MainActivity", "Error fetching user details: ${e.message}")
+                progressBar?.visibility = View.GONE
             }
         }
     }
 
-    fun getRecentTransactions(onComplete: (ArrayList<RecentTransaction>) -> Unit) {
-        lifecycleScope.launch {
-            try {
-                val currentUid = mAuth?.currentUserOrNull()?.id
-                if (currentUid == null) {
-                    onComplete(ArrayList())
-                    return@launch
-                }
-                val result = DeclareDatabase.postgrest.from("transactions")
-                    .select() {
-                        order("timestamp", Order.DESCENDING)
-                    }
-                    .decodeList<Transaction>()
-
-                val recentList = ArrayList<RecentTransaction>()
-                for (transaction in result) {
-                    if (transaction.isUserInvolvedByUid(currentUid)) {
-                        val rt = RecentTransaction(
-                            mostRecentDate = transaction.monthYear,
-                            mostRecentTransactionType = transaction.transactionType,
-                            mostRecentDetails = transaction.multilineStr,
-                            mostRecentPaymentAmountStr = transaction.paymentAmount.toString(),
-                            iconResource = R.drawable.plus,
-                            sortDateTime = transaction.timestamp.toString(),
-                            payorsList = transaction.payorsList,
-                            amountsPaidList = transaction.amountsPaidList,
-                            fullDateWithYear = "${transaction.day}-${transaction.monthYear}",
-                            createdBy = transaction.posterDisplayName,
-                            createdByUid = transaction.usernamePost
-                        )
-                        recentList.add(rt)
-                    }
-                }
-                recentTransactionList = recentList
-                onComplete(recentList)
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Error fetching recent transactions: ${e.message}")
-                onComplete(ArrayList())
-            }
-        }
+    fun getRecentTransactions(onComplete: () -> Unit) {
+        // Implementation placeholder
+        onComplete()
     }
 
-    fun getTotalMonthSpends(onComplete: (Double) -> Unit) {
+    fun getTotalMonthSpends(monthYear: String? = null, onComplete: (Double) -> Unit) {
+        val targetMonthYear = monthYear ?: SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(Calendar.getInstance().time)
         lifecycleScope.launch {
             try {
-                val currentUid = mAuth?.currentUserOrNull()?.id
-                if (currentUid == null) {
-                    onComplete(0.0)
-                    return@launch
-                }
-                val calendar = Calendar.getInstance()
-                val currentMonthYear = SimpleDateFormat("MMMM-yyyy", Locale.ENGLISH).format(calendar.time)
-                
-                val result = DeclareDatabase.postgrest.from("transactions")
-                    .select() {
-                        filter {
-                            eq("monthYear", currentMonthYear)
-                        }
-                    }
-                    .decodeList<Transaction>()
+                // Fetch all and filter locally because monthYear is @Transient
+                val result = DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
 
                 var total = 0.0
                 for (transaction in result) {
-                    if (transaction.usernamePost == currentUid) {
+                    if (isUserInvolved(transaction, currentNickname) && transaction.monthYear == targetMonthYear) {
                         total += transaction.paymentAmount
                     }
                 }
@@ -554,8 +252,8 @@ class MainActivity : AppCompatActivity() {
     fun getDebtList(status: String, callback: DebtNumCallback) {
         lifecycleScope.launch {
             try {
-                val currentUidLong = currentUserNumericId
-                if (currentUidLong == null) {
+                val currentUserIdLong = currentUserNumericId
+                if (currentUserIdLong == null) {
                     callback.onDebtNumReceived(0)
                     return@launch
                 }
@@ -568,7 +266,7 @@ class MainActivity : AppCompatActivity() {
                 val result = DeclareDatabase.postgrest.from("borrows")
                     .select() {
                         filter {
-                            eq("borrower_id", currentUidLong)
+                            eq("borrower_id", currentUserIdLong)
                             if (statusInt > 0) eq("status", statusInt)
                         }
                     }
@@ -601,8 +299,8 @@ class MainActivity : AppCompatActivity() {
     fun getOwedList(status: String, callback: OwedNumCallback) {
         lifecycleScope.launch {
             try {
-                val currentUidLong = currentUserNumericId
-                if (currentUidLong == null) {
+                val currentUserIdLong = currentUserNumericId
+                if (currentUserIdLong == null) {
                     callback.onOwedNumReceived(0)
                     return@launch
                 }
@@ -615,7 +313,7 @@ class MainActivity : AppCompatActivity() {
                 val result = DeclareDatabase.postgrest.from("borrows")
                     .select() {
                         filter {
-                            eq("lender_id", currentUidLong)
+                            eq("lender_id", currentUserIdLong)
                             if (statusInt > 0) eq("status", statusInt)
                         }
                     }
@@ -647,23 +345,22 @@ class MainActivity : AppCompatActivity() {
     fun getDebtListMonthly(monthYear: String, status: String, callback: DebtNumCallback) {
         lifecycleScope.launch {
             try {
-                val currentUidLong = currentUserNumericId
-                if (currentUidLong == null) {
+                val currentUserIdLong = currentUserNumericId
+                if (currentUserIdLong == null) {
                     callback.onDebtNumReceived(0)
                     return@launch
                 }
                 val result = DeclareDatabase.postgrest.from("borrows")
                     .select() {
                         filter {
-                            eq("borrower_id", currentUidLong)
-                            eq("monthYear", monthYear)
+                            eq("borrower_id", currentUserIdLong)
                         }
                     }
                     .decodeList<BorrowNowTransaction>()
 
                 val list = ArrayList<BorrowTransaction>()
                 for (b in result) {
-                    if (status == "All" || b.getStatus() == status) {
+                    if (b.monthYear == monthYear && (status == "All" || b.getStatus() == status)) {
                         list.add(BorrowTransaction(
                             date = b.createdAt,
                             borrowee = b.lenderId?.toString(),
@@ -689,23 +386,22 @@ class MainActivity : AppCompatActivity() {
     fun getOwedListMonthly(monthYear: String, status: String, callback: OwedNumCallback) {
         lifecycleScope.launch {
             try {
-                val currentUidLong = currentUserNumericId
-                if (currentUidLong == null) {
+                val currentUserIdLong = currentUserNumericId
+                if (currentUserIdLong == null) {
                     callback.onOwedNumReceived(0)
                     return@launch
                 }
                 val result = DeclareDatabase.postgrest.from("borrows")
                     .select() {
                         filter {
-                            eq("lender_id", currentUidLong)
-                            eq("monthYear", monthYear)
+                            eq("lender_id", currentUserIdLong)
                         }
                     }
                     .decodeList<BorrowNowTransaction>()
 
                 val list = ArrayList<OwedTransaction>()
                 for (b in result) {
-                    if (status == "All" || b.getStatus() == status) {
+                    if (b.monthYear == monthYear && (status == "All" || b.getStatus() == status)) {
                         list.add(OwedTransaction(
                             date = b.createdAt,
                             borrower = b.borrowerName,
@@ -732,59 +428,37 @@ class MainActivity : AppCompatActivity() {
             callback(currentNickname)
             return
         }
-        val uidLong = currentUserNumericId
-        if (uidLong != null) {
-            UserHelper.getUsernameById(uidLong, object : UserHelper.UsernameCallback {
-                override fun onUsernameRetrieved(username: String?) {
-                    currentNickname = username
-                    callback(username)
-                }
-                override fun onError(error: String?) {
-                    callback(null)
-                }
-            })
-        } else {
-            callback(null)
+        val authId = currentUserId ?: return
+        lifecycleScope.launch {
+            try {
+                val user = DeclareDatabase.usersTable.select {
+                    filter { eq("auth_id", authId) }
+                }.decodeSingleOrNull<User>()
+                currentNickname = user?.username
+                callback(currentNickname)
+            } catch (e: Exception) {
+                callback(null)
+            }
         }
     }
 
-    fun getEverydaySpends(onComplete: () -> Unit) {
-        val calendar = Calendar.getInstance()
-        calendar.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
-        calendar.set(Calendar.HOUR_OF_DAY, 0)
-        calendar.set(Calendar.MINUTE, 0)
-        calendar.set(Calendar.SECOND, 0)
-        calendar.set(Calendar.MILLISECOND, 0)
-        getEverydaySpendsForWeek(calendar, onComplete)
-    }
+    fun getEverydaySpends(startMillis: Long? = null, endMillis: Long? = null, onComplete: () -> Unit) {
+        val now = Calendar.getInstance()
+        val sMillis = startMillis ?: now.apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0) }.timeInMillis
+        val eMillis = endMillis ?: now.apply { set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59) }.timeInMillis
 
-    fun getEverydaySpendsForWeek(startDate: Calendar, onComplete: () -> Unit) {
         lifecycleScope.launch {
             try {
-                val currentUid = mAuth?.currentUserOrNull()?.id
-                if (currentUid == null) {
-                    onComplete()
-                    return@launch
-                }
-                val startMillis = startDate.timeInMillis
-                val endCalendar = startDate.clone() as Calendar
-                endCalendar.add(Calendar.DAY_OF_YEAR, 7)
-                val endMillis = endCalendar.timeInMillis
-
                 val result = DeclareDatabase.postgrest.from("transactions")
-                    .select() {
-                        filter {
-                            gte("timestamp", startMillis)
-                            lt("timestamp", endMillis)
-                        }
-                    }
+                    .select()
                     .decodeList<Transaction>()
 
                 val totals = DoubleArray(7) { 0.0 }
                 for (transaction in result) {
-                    if (isUserInvolved(transaction, currentUid)) {
+                    val transTime = transaction.timestamp
+                    if (transTime in sMillis..eMillis && isUserInvolved(transaction, currentNickname)) {
                         val transCal = Calendar.getInstance()
-                        transCal.timeInMillis = transaction.timestamp
+                        transCal.timeInMillis = transTime
                         val dayOfWeek = transCal.get(Calendar.DAY_OF_WEEK)
                         val index = dayOfWeek - 1
                         if (index in 0..6) {
@@ -799,5 +473,28 @@ class MainActivity : AppCompatActivity() {
                 onComplete()
             }
         }
+    }
+
+    fun getEverydaySpendsForWeek(calendar: Calendar, onComplete: () -> Unit) {
+        val start = calendar.clone() as Calendar
+        start.set(Calendar.HOUR_OF_DAY, 0)
+        start.set(Calendar.MINUTE, 0)
+        start.set(Calendar.SECOND, 0)
+        
+        val end = calendar.clone() as Calendar
+        end.add(Calendar.DAY_OF_YEAR, 6)
+        end.set(Calendar.HOUR_OF_DAY, 23)
+        end.set(Calendar.MINUTE, 59)
+        end.set(Calendar.SECOND, 59)
+        
+        getEverydaySpends(start.timeInMillis, end.timeInMillis, onComplete)
+    }
+
+    fun hideNavigation() {
+        navView?.visibility = View.GONE
+    }
+
+    fun unhideNavigation() {
+        navView?.visibility = View.VISIBLE
     }
 }

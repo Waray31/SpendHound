@@ -186,4 +186,7 @@
     <string name="label_borrow_money">Borrow Money</string>
     <string name="label_add_transaction">Add Transaction</string>
     <string name="label_add_group">Add Group</string>
+
+    <!-- Members Label -->
+    <string name="members_format">Members: %1$s</string>
 </resources>

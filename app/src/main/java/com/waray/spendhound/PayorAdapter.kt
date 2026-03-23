@@ -22,7 +22,7 @@ import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 
 class PayorAdapter(
-    private val payorsUids: MutableList<String?>?,
+    private val payorUserIds: MutableList<String?>?,
     private val payorsNames: MutableList<String?>?,
     amountsPaid: MutableList<Double?>,
     private val individualPayment: Double,
@@ -52,7 +52,7 @@ class PayorAdapter(
 
     fun setOnLoadingCompleteListener(listener: OnLoadingCompleteListener?) {
         this.loadingCompleteListener = listener
-        if (payorsUids.isNullOrEmpty() && loadingCompleteListener != null) {
+        if (payorUserIds.isNullOrEmpty() && loadingCompleteListener != null) {
             loadingCompleteListener!!.onLoadingComplete()
         }
     }
@@ -67,22 +67,22 @@ class PayorAdapter(
     }
 
     fun startLoadingAllImages(context: Context) {
-        if (payorsUids.isNullOrEmpty()) {
+        if (payorUserIds.isNullOrEmpty()) {
             loadingCompleteListener?.onLoadingComplete()
             return
         }
 
-        for (i in payorsUids.indices) {
-            val uid = payorsUids[i] ?: continue
-            val cachedUrl = sDownloadUrlCache[uid]
+        for (i in payorUserIds.indices) {
+            val userId = payorUserIds[i] ?: continue
+            val cachedUrl = sDownloadUrlCache[userId]
 
             if (cachedUrl != null) {
                 preloadProfileImage(context, cachedUrl, i)
             } else {
                 scope.launch {
                     try {
-                        val url = DeclareDatabase.profileImagesBucket.publicUrl("$uid.jpg")
-                        sDownloadUrlCache[uid] = url
+                        val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId.jpg")
+                        sDownloadUrlCache[userId] = url
                         preloadProfileImage(context, url, i)
                     } catch (e: Exception) {
                         checkLoadingComplete(i)
@@ -147,7 +147,7 @@ class PayorAdapter(
     }
 
     override fun onBindViewHolder(holder: PayorViewHolder, position: Int) {
-        val uid = payorsUids?.get(position)
+        val userId = payorUserIds?.get(position)
         val name = if (payorsNames != null && position < payorsNames.size) payorsNames[position] else "User"
         val paid = if (amountsPaid != null && position < amountsPaid!!.size) amountsPaid!![position] ?: 0.0 else 0.0
 
@@ -181,15 +181,15 @@ class PayorAdapter(
             holder.editButtonsLayout.visibility = View.GONE
         }
 
-        if (uid != null) {
-            val cachedUrl = sDownloadUrlCache[uid]
+        if (userId != null) {
+            val cachedUrl = sDownloadUrlCache[userId]
             if (cachedUrl != null) {
                 loadGlideImage(holder, cachedUrl, position)
             } else {
                 scope.launch {
                     try {
-                        val url = DeclareDatabase.profileImagesBucket.publicUrl("$uid.jpg")
-                        sDownloadUrlCache[uid] = url
+                        val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId.jpg")
+                        sDownloadUrlCache[userId] = url
                         loadGlideImage(holder, url, position)
                     } catch (e: Exception) {
                         holder.payorImage.setImageResource(R.drawable.placeholder_profile_image)
@@ -259,7 +259,7 @@ class PayorAdapter(
         }
     }
 
-    override fun getItemCount(): Int = payorsUids?.size ?: 0
+    override fun getItemCount(): Int = payorUserIds?.size ?: 0
 
     class PayorViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val payorImage: ImageView = itemView.findViewById(R.id.payorProfileImage)
@@ -275,18 +275,18 @@ class PayorAdapter(
     companion object {
         val sDownloadUrlCache: MutableMap<String, String> = ConcurrentHashMap()
 
-        fun preCacheUids(context: Context, uids: MutableList<String?>) {
+        fun preCacheUserIds(context: Context, userIds: MutableList<String?>) {
             val scope = CoroutineScope(Dispatchers.IO)
-            for (uid in uids) {
-                if (uid == null) continue
-                val cachedUrl = sDownloadUrlCache[uid]
+            for (userId in userIds) {
+                if (userId == null) continue
+                val cachedUrl = sDownloadUrlCache[userId]
                 if (cachedUrl != null) {
                     preloadOnly(context, cachedUrl)
                 } else {
                     scope.launch {
                         try {
-                            val url = DeclareDatabase.profileImagesBucket.publicUrl("$uid.jpg")
-                            sDownloadUrlCache[uid] = url
+                            val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId.jpg")
+                            sDownloadUrlCache[userId] = url
                             preloadOnly(context, url)
                         } catch (e: Exception) {}
                     }

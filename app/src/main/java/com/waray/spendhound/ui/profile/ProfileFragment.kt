@@ -54,11 +54,11 @@ class ProfileFragment : Fragment() {
     private var profileImageView: ImageView? = null
     private var nicknameTextView: TextView? = null
     private var totalBalancedTextView: TextView? = null
+    private var totalTextView: TextView? = null
     private var balanceTextView: TextView? = null
     private var unpaidTextView: TextView? = null
     private var oweTextView: TextView? = null
     private var debtTextView: TextView? = null
-    private var totalTextView: TextView? = null
     private var nicknameEditText: EditText? = null
     private var editNickname: ImageView? = null
     private var saveNickname: ImageView? = null
@@ -216,12 +216,12 @@ class ProfileFragment : Fragment() {
 
     private fun loadNicknameAndData() {
         showLoading()
-        val currentUserID = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return hideLoading()
+        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return hideLoading()
         lifecycleScope.launch {
             try {
                 val user = withContext(Dispatchers.IO) {
                     DeclareDatabase.usersTable.select(Columns.list("username")) {
-                        filter { eq("user_id", currentUserID) }
+                        filter { eq("auth_id", currentUserId) }
                     }.decodeSingleOrNull<User>()
                 }
                 currentNickname = user?.username ?: ""
@@ -258,7 +258,7 @@ class ProfileFragment : Fragment() {
     private fun saveNickname() {
         val updatedNickname = nicknameEditText?.text.toString()
         currentNickname = updatedNickname
-        val userId = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return
+        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
         showLoading()
         lifecycleScope.launch {
             try {
@@ -266,7 +266,7 @@ class ProfileFragment : Fragment() {
                     DeclareDatabase.usersTable.update({
                         set("username", updatedNickname)
                     }) {
-                        filter { eq("user_id", userId) }
+                        filter { eq("auth_id", currentUserId) }
                     }
                 }
             } catch (e: Exception) {
@@ -278,19 +278,27 @@ class ProfileFragment : Fragment() {
     }
 
     private fun fetchOwe() {
-        val currentUserId = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return
+        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
         showLoading()
         lifecycleScope.launch {
             try {
-                val borrows = withContext(Dispatchers.IO) {
-                    DeclareDatabase.borrowsTable.select {
-                        filter { 
-                            eq("lender_id", currentUserId)
-                            neq("status", 3) // Not Paid
-                        }
-                    }.decodeList<BorrowNowTransaction>()
+                val user = withContext(Dispatchers.IO) {
+                    DeclareDatabase.usersTable.select(Columns.list("user_id")) {
+                        filter { eq("auth_id", currentUserId) }
+                    }.decodeSingleOrNull<User>()
                 }
-                currentOwe = borrows.sumOf { it.borrowedAmount ?: 0.0 }
+                
+                if (user?.id != null) {
+                    val borrows = withContext(Dispatchers.IO) {
+                        DeclareDatabase.borrowsTable.select {
+                            filter { 
+                                eq("lender_id", user.id)
+                                neq("status", 3) // Not Paid
+                            }
+                        }.decodeList<BorrowNowTransaction>()
+                    }
+                    currentOwe = borrows.sumOf { it.borrowedAmount ?: 0.0 }
+                }
             } catch (e: Exception) {
                 Log.e("Supabase", "Error fetching owe: ${e.message}")
             } finally {
@@ -300,19 +308,27 @@ class ProfileFragment : Fragment() {
     }
 
     private fun fetchDebt() {
-        val currentUserId = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return
+        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
         showLoading()
         lifecycleScope.launch {
             try {
-                val borrows = withContext(Dispatchers.IO) {
-                    DeclareDatabase.borrowsTable.select {
-                        filter { 
-                            eq("borrower_id", currentUserId)
-                            neq("status", 3) // Not Paid
-                        }
-                    }.decodeList<BorrowNowTransaction>()
+                val user = withContext(Dispatchers.IO) {
+                    DeclareDatabase.usersTable.select(Columns.list("user_id")) {
+                        filter { eq("auth_id", currentUserId) }
+                    }.decodeSingleOrNull<User>()
                 }
-                currentDebt = borrows.sumOf { it.borrowedAmount ?: 0.0 }
+                
+                if (user?.id != null) {
+                    val borrows = withContext(Dispatchers.IO) {
+                        DeclareDatabase.borrowsTable.select {
+                            filter { 
+                                eq("borrower_id", user.id)
+                                neq("status", 3) // Not Paid
+                            }
+                        }.decodeList<BorrowNowTransaction>()
+                    }
+                    currentDebt = borrows.sumOf { it.borrowedAmount ?: 0.0 }
+                }
             } catch (e: Exception) {
                 Log.e("Supabase", "Error fetching debt: ${e.message}")
             } finally {
@@ -332,9 +348,9 @@ class ProfileFragment : Fragment() {
                 var totalPaymentListSum = 0.0
 
                 for (transaction in transactions) {
-                    val individualPayment = transaction.totalIndividualPayment
-                    val payorsList = transaction.payorsDisplayNames ?: transaction.payorsList ?: emptyList()
-                    val amountsPaidList = transaction.amountsPaidList ?: emptyList()
+                    val individualPayment = transaction.individualPayment
+                    val payorsList = transaction.payorsDisplayNames ?: transaction.contributors ?: emptyList()
+                    val amountsPaidList = transaction.amountPaidList ?: emptyList()
 
                     val userIndex = payorsList.indexOf(currentNickname)
                     if (userIndex != -1 && userIndex < amountsPaidList.size) {
@@ -546,7 +562,7 @@ class ProfileFragment : Fragment() {
     }
 
     private fun uploadProfilePhoto(imageUri: Uri?) {
-        val userId = mAuth?.currentUserOrNull()?.id ?: return hideLoading()
+        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return hideLoading()
         
         lifecycleScope.launch {
             try {
@@ -555,11 +571,11 @@ class ProfileFragment : Fragment() {
                 }
                 if (bytes != null) {
                     val bucket = DeclareDatabase.profileImagesBucket
-                    val path = "$userId.jpg"
+                    val path = "$currentUserId.jpg"
                     bucket.upload(path, bytes, upsert = true)
                     val publicUrl = bucket.publicUrl(path)
                     
-                    PayorAdapter.sDownloadUrlCache[userId] = publicUrl
+                    PayorAdapter.sDownloadUrlCache[currentUserId] = publicUrl
                     withContext(Dispatchers.Main) {
                         hideLoading()
                         Toast.makeText(requireContext(), "Profile Photo Changed Successfully", Toast.LENGTH_SHORT).show()
@@ -683,9 +699,9 @@ class ProfileFragment : Fragment() {
                 }
                 items.clear()
                 for (transaction in transactions) {
-                    val individualPayment = transaction.totalIndividualPayment
-                    val payorsList = transaction.payorsDisplayNames ?: transaction.payorsList ?: emptyList()
-                    val amountsPaidList = transaction.amountsPaidList ?: emptyList()
+                    val individualPayment = transaction.individualPayment
+                    val payorsList = transaction.payorsDisplayNames ?: transaction.contributors ?: emptyList()
+                    val amountsPaidList = transaction.amountPaidList ?: emptyList()
                     val dateStr = transaction.monthYear ?: "Unknown Date"
                     val transactionType = transaction.transactionType ?: ""
 
@@ -723,9 +739,9 @@ class ProfileFragment : Fragment() {
                 }
                 items.clear()
                 for (transaction in transactions) {
-                    val individualPayment = transaction.totalIndividualPayment
-                    val payorsList = transaction.payorsDisplayNames ?: transaction.payorsList ?: emptyList()
-                    val amountsPaidList = transaction.amountsPaidList ?: emptyList()
+                    val individualPayment = transaction.individualPayment
+                    val payorsList = transaction.payorsDisplayNames ?: transaction.contributors ?: emptyList()
+                    val amountsPaidList = transaction.amountPaidList ?: emptyList()
                     val dateStr = transaction.monthYear ?: "Unknown Date"
                     val transactionType = transaction.transactionType ?: ""
 
@@ -752,27 +768,35 @@ class ProfileFragment : Fragment() {
         recyclerView: RecyclerView, emptyStateLayout: View,
         emptyStateText: TextView, progressBar: View
     ) {
-        val currentUserId = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return
+        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
         progressBar.visibility = View.VISIBLE
         recyclerView.visibility = View.GONE
         emptyStateLayout.visibility = View.GONE
 
         lifecycleScope.launch {
             try {
-                val borrows = withContext(Dispatchers.IO) {
-                    DeclareDatabase.borrowsTable.select {
-                        filter { eq("lender_id", currentUserId) }
-                    }.decodeList<BorrowNowTransaction>()
+                val user = withContext(Dispatchers.IO) {
+                    DeclareDatabase.usersTable.select(Columns.list("user_id")) {
+                        filter { eq("auth_id", currentUserId) }
+                    }.decodeSingleOrNull<User>()
                 }
-                items.clear()
-                for (borrow in borrows) {
-                    val dateStr = borrow.createdAt ?: "Unknown Date"
-                    val borrowerName = borrow.borrowerName ?: "Unknown"
-                    val borrowedAmount = borrow.borrowedAmount ?: 0.0
-                    val status = borrow.getStatus() ?: "Pending"
-                    items.add(BreakdownItem(BreakdownItem.Category.OWE, dateStr, "From: $borrowerName", borrowedAmount, status))
+                
+                if (user?.id != null) {
+                    val borrows = withContext(Dispatchers.IO) {
+                        DeclareDatabase.borrowsTable.select {
+                            filter { eq("lender_id", user.id) }
+                        }.decodeList<BorrowNowTransaction>()
+                    }
+                    items.clear()
+                    for (borrow in borrows) {
+                        val dateStr = borrow.createdAt ?: "Unknown Date"
+                        val borrowerName = borrow.borrowerName ?: "Unknown"
+                        val borrowedAmount = borrow.borrowedAmount ?: 0.0
+                        val status = borrow.getStatus() ?: "Pending"
+                        items.add(BreakdownItem(BreakdownItem.Category.OWE, dateStr, "From: $borrowerName", borrowedAmount, status))
+                    }
+                    updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No owed amounts found")
                 }
-                updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No owed amounts found")
             } catch (e: Exception) {
                 progressBar.visibility = View.GONE
                 emptyStateLayout.visibility = View.VISIBLE
@@ -786,27 +810,35 @@ class ProfileFragment : Fragment() {
         recyclerView: RecyclerView, emptyStateLayout: View,
         emptyStateText: TextView, progressBar: View
     ) {
-        val currentUserId = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return
+        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
         progressBar.visibility = View.VISIBLE
         recyclerView.visibility = View.GONE
         emptyStateLayout.visibility = View.GONE
 
         lifecycleScope.launch {
             try {
-                val borrows = withContext(Dispatchers.IO) {
-                    DeclareDatabase.borrowsTable.select {
-                        filter { eq("borrower_id", currentUserId) }
-                    }.decodeList<BorrowNowTransaction>()
+                val user = withContext(Dispatchers.IO) {
+                    DeclareDatabase.usersTable.select(Columns.list("user_id")) {
+                        filter { eq("auth_id", currentUserId) }
+                    }.decodeSingleOrNull<User>()
                 }
-                items.clear()
-                for (borrow in borrows) {
-                    val dateStr = borrow.createdAt ?: "Unknown Date"
-                    val lenderName = borrow.lender ?: "Unknown"
-                    val borrowedAmount = borrow.borrowedAmount ?: 0.0
-                    val status = borrow.getStatus() ?: "Pending"
-                    items.add(BreakdownItem(BreakdownItem.Category.DEBT, dateStr, "To: $lenderName", borrowedAmount, status))
+                
+                if (user?.id != null) {
+                    val borrows = withContext(Dispatchers.IO) {
+                        DeclareDatabase.borrowsTable.select {
+                            filter { eq("borrower_id", user.id) }
+                        }.decodeList<BorrowNowTransaction>()
+                    }
+                    items.clear()
+                    for (borrow in borrows) {
+                        val dateStr = borrow.createdAt ?: "Unknown Date"
+                        val lenderName = borrow.lender ?: "Unknown"
+                        val borrowedAmount = borrow.borrowedAmount ?: 0.0
+                        val status = borrow.getStatus() ?: "Pending"
+                        items.add(BreakdownItem(BreakdownItem.Category.DEBT, dateStr, "To: $lenderName", borrowedAmount, status))
+                    }
+                    updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No debt found")
                 }
-                updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No debt found")
             } catch (e: Exception) {
                 progressBar.visibility = View.GONE
                 emptyStateLayout.visibility = View.VISIBLE

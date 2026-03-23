@@ -14,15 +14,17 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import io.github.jan.supabase.gotrue.Auth
+import io.github.jan.supabase.postgrest.from
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
 class AllTransactionsActivity : AppCompatActivity() {
+
     private var recyclerView: RecyclerView? = null
     private var adapter: RecentTransactionAdapter? = null
-    private var transactionList: ArrayList<RecentTransaction>? = null
+    private var transactionList: ArrayList<RecentTransaction> = ArrayList()
     private var datePickerButton: Button? = null
     private var currentMonthTextView: TextView? = null
     private var transactionCountTextView: TextView? = null
@@ -30,6 +32,7 @@ class AllTransactionsActivity : AppCompatActivity() {
     private var emptyStateLayout: LinearLayout? = null
     private var mAuth: Auth? = null
     private var currentNickname: String? = ""
+    private var currentUserNumericId: Long? = null
     private var selectedMonth: String? = null
     private val selectedCalendar: Calendar = Calendar.getInstance()
 
@@ -45,8 +48,7 @@ class AllTransactionsActivity : AppCompatActivity() {
         setContentView(R.layout.activity_all_transactions)
 
         mAuth = DeclareDatabase.auth
-        transactionList = ArrayList()
-
+        
         initViews()
         getCurrentNickname()
         setupDatePicker()
@@ -121,15 +123,17 @@ class AllTransactionsActivity : AppCompatActivity() {
     }
 
     private fun getCurrentNickname() {
-        val userId = mAuth?.currentUserOrNull()?.id ?: return
+        val user = mAuth?.currentUserOrNull() ?: return
+        val authId = user.id
         
         lifecycleScope.launch {
             try {
-                val user = DeclareDatabase.usersTable.select {
-                    filter { eq("user_id", userId.toLongOrNull() ?: 0L) }
+                val userDetails = DeclareDatabase.usersTable.select {
+                    filter { eq("auth_id", authId) }
                 }.decodeSingleOrNull<User>()
                 
-                currentNickname = user?.username ?: ""
+                currentNickname = userDetails?.username ?: ""
+                currentUserNumericId = userDetails?.id
             } catch (e: Exception) {
                 Log.e("AllTransactions", "Error getting nickname: " + e.message)
             }
@@ -188,16 +192,13 @@ class AllTransactionsActivity : AppCompatActivity() {
     private fun fetchTransactionsForMonth(monthYear: String) {
         loadingProgressBar?.visibility = View.VISIBLE
         emptyStateLayout?.visibility = View.GONE
-        transactionList?.clear()
+        transactionList.clear()
         adapter?.notifyDataSetChanged()
 
         lifecycleScope.launch {
             try {
-                val transactions = DeclareDatabase.transactionsTable.select {
-                    filter {
-                        eq("monthYear", monthYear)
-                    }
-                }.decodeList<Transaction>()
+                // Fetch all and filter locally because monthYear is @Transient
+                val transactions = DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
 
                 for (transaction in transactions) {
                     if (isUserInvolved(transaction, currentNickname)) {
@@ -216,38 +217,36 @@ class AllTransactionsActivity : AppCompatActivity() {
                         val sortDateTime = "$year-$month-$day $timeKey"
 
                         val transactionType = transaction.transactionType
-                        val details = transaction.multilineStr
+                        val details = transaction.transactionDetail
                         val paymentAmount = transaction.paymentAmount
-                        val paymentAmountStr = CurrencyUtils.formatAmountWithCurrency(paymentAmount)
+                        val paymentAmountStr = CurrencyUtils.formatAmountWithCurrency(paymentAmount.toString())
                         val iconResource = getIconForTransactionType(transactionType)
 
-                        var payorsList = transaction.payorsDisplayNames
-                        if (payorsList.isNullOrEmpty()) {
-                            payorsList = transaction.payorsList
-                        }
-                        val payorUids = transaction.payorsList
-                        val amountsPaidList = transaction.amountsPaidList
-                        val totalIndividualPayment = transaction.totalIndividualPayment
+                        val payorsList = (transaction.payorsDisplayNames ?: transaction.contributors)?.map { it as String? }?.toMutableList()
+                        val payorUserIds = transaction.contributors?.map { it as String? }?.toMutableList()
+                        val amountsPaidList = transaction.amountPaidList?.map { it as Double? }?.toMutableList()
+                        val totalIndividualPayment = transaction.individualPayment
 
                         var createdBy = transaction.posterDisplayName
                         if (createdBy.isNullOrEmpty()) {
                             createdBy = transaction.usernamePost
                         }
-                        val createdByUid = transaction.usernamePost
+                        val createdByUserId = transaction.usernamePost
 
                         val recentTrans = RecentTransaction(
+                            transaction.id,
                             displayDate, transactionType, details, paymentAmountStr,
-                            iconResource, sortDateTime, payorsList, payorUids,
+                            iconResource, sortDateTime, payorsList, payorUserIds,
                             amountsPaidList, totalIndividualPayment, fullDateWithYear,
-                            createdBy, createdByUid, monthYear, day, timeKey
+                            createdBy, createdByUserId, monthYear, day, timeKey
                         )
-                        transactionList?.add(recentTrans)
+                        transactionList.add(recentTrans)
                     }
                 }
 
-                transactionList?.sortWith { t1, t2 ->
-                    val dateTime1 = t1?.sortDateTime
-                    val dateTime2 = t2?.sortDateTime
+                transactionList.sortWith { t1, t2 ->
+                    val dateTime1 = t1.sortDateTime
+                    val dateTime2 = t2.sortDateTime
                     if (dateTime1 != null && dateTime2 != null) {
                         dateTime2.compareTo(dateTime1)
                     } else 0
@@ -256,10 +255,10 @@ class AllTransactionsActivity : AppCompatActivity() {
                 adapter?.notifyDataSetChanged()
                 adapter?.preloadAllImages(this@AllTransactionsActivity)
 
-                val count = transactionList?.size ?: 0
+                val count = transactionList.size
                 transactionCountTextView?.text = "$count ${if (count == 1) "transaction" else "transactions"}"
 
-                if (transactionList.isNullOrEmpty()) {
+                if (transactionList.isEmpty()) {
                     emptyStateLayout?.visibility = View.VISIBLE
                     recyclerView?.visibility = View.GONE
                 } else {
@@ -280,8 +279,8 @@ class AllTransactionsActivity : AppCompatActivity() {
     ): Boolean {
         if ("All".equals(statusFilter, ignoreCase = true)) return true
 
-        val paidAmounts = transaction.amountsPaidList
-        val totalToPay = transaction.totalIndividualPayment
+        val paidAmounts = transaction.amountPaidList
+        val totalToPay = transaction.individualPayment
 
         if (paidAmounts.isNullOrEmpty()) {
             return "Unpaid".equals(statusFilter, ignoreCase = true)
@@ -291,10 +290,10 @@ class AllTransactionsActivity : AppCompatActivity() {
         var allUnpaid = true
 
         for (paid in paidAmounts) {
-            if (paid == null || paid < totalToPay) {
+            if (paid < totalToPay) {
                 allPaid = false
             }
-            if (paid != null && paid > 0) {
+            if (paid > 0) {
                 allUnpaid = false
             }
         }
@@ -321,17 +320,19 @@ class AllTransactionsActivity : AppCompatActivity() {
 
     private fun isUserInvolved(
         transaction: Transaction?,
-        usernameOrUid: String?
+        usernameOrUserId: String?
     ): Boolean {
-        if (transaction == null || usernameOrUid.isNullOrEmpty()) return false
-        val currentUid = mAuth?.currentUserOrNull()?.id
-        if (transaction.isUserInvolvedByUid(currentUid)) return true
-        if (usernameOrUid == transaction.usernamePost) return true
-        if (usernameOrUid == transaction.posterDisplayName) return true
-        val payorsList = transaction.payorsList
-        if (payorsList != null && payorsList.contains(usernameOrUid)) return true
-        val payorsDisplayNames = transaction.payorsDisplayNames
-        if (payorsDisplayNames != null && payorsDisplayNames.contains(usernameOrUid)) return true
+        if (transaction == null) return false
+        val currentUserId = mAuth?.currentUserOrNull()?.id
+        
+        if (transaction.isUserInvolvedByUserId(currentUserId)) return true
+        if (transaction.creatorId == currentUserNumericId) return true
+        
+        if (usernameOrUserId != null) {
+            if (usernameOrUserId == transaction.usernamePost) return true
+            if (usernameOrUserId == transaction.posterDisplayName) return true
+            if (transaction.payorsDisplayNames?.contains(usernameOrUserId) == true) return true
+        }
         return false
     }
 }

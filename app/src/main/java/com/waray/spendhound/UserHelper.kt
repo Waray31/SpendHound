@@ -9,7 +9,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 /**
- * Helper class for managing user UID to username mappings using Supabase.
+ * Helper class for managing user ID to username mappings using Supabase.
  * Provides caching and lookup functionality.
  * Updated to use Long for user IDs to match the database schema.
  */
@@ -168,13 +168,14 @@ object UserHelper {
     }
 
     /**
-     * Legacy compatibility methods using String UIDs
+     * Compatibility methods using String User IDs
      */
-    fun getUsernameByUid(uid: String?, callback: UsernameCallback) = getUsernameById(uid?.toLongOrNull(), callback)
-    fun getUidByUsername(username: String?, callback: UidCallback) {
+    fun getUsernameByUserId(userId: String?, callback: UsernameCallback) = getUsernameById(userId?.toLongOrNull(), callback)
+    
+    fun getUserIdByUsername(username: String?, callback: UserIdCallback) {
         getIdByUsername(username, object : IdCallback {
             override fun onIdRetrieved(id: Long?) {
-                callback.onUidRetrieved(id?.toString())
+                callback.onUserIdRetrieved(id?.toString())
             }
             override fun onError(error: String?) {
                 callback.onError(error)
@@ -246,8 +247,8 @@ object UserHelper {
         fun onError(error: String?)
     }
 
-    interface UidCallback {
-        fun onUidRetrieved(uid: String?)
+    interface UserIdCallback {
+        fun onUserIdRetrieved(userId: String?)
         fun onError(error: String?)
     }
 
