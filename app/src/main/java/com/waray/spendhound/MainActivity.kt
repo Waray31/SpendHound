@@ -34,7 +34,9 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import kotlin.math.abs
+import kotlin.math.cos
 import kotlin.math.min
+import kotlin.math.sin
 
 class MainActivity : AppCompatActivity() {
     var navView: BottomNavigationView? = null
@@ -119,7 +121,7 @@ class MainActivity : AppCompatActivity() {
 
         containerAddGroup?.setOnClickListener {
             closeFabMenu()
-            // showAddGroupDialog()
+            showAddGroupDialog()
         }
 
         navController.addOnDestinationChangedListener { _, destination, _ ->
@@ -132,6 +134,15 @@ class MainActivity : AppCompatActivity() {
                 hideBottomBars()
             }
         }
+    }
+
+    private fun showAddGroupDialog() {
+        val dialog = Dialog(this)
+        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
+        dialog.setContentView(R.layout.dialog_create_group)
+        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        dialog.window?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+        dialog.show()
     }
 
     fun unhideNavigation() {
@@ -175,9 +186,10 @@ class MainActivity : AppCompatActivity() {
 
         fabMain?.animate()?.rotation(45f)?.setDuration(300)?.start()
 
-        showFabOption(containerBorrow, 1)
-        showFabOption(containerAddTransaction, 2)
-        showFabOption(containerAddGroup, 3)
+        // Curved horizontal layout: 150, 90, 30 degrees (from right to left)
+        showFabOption(containerBorrow, 150)
+        showFabOption(containerAddTransaction, 90)
+        showFabOption(containerAddGroup, 30)
     }
 
     private fun closeFabMenu() {
@@ -193,24 +205,33 @@ class MainActivity : AppCompatActivity() {
         hideFabOption(containerAddGroup)
     }
 
-    private fun showFabOption(view: LinearLayout?, index: Int) {
+    private fun showFabOption(view: LinearLayout?, angleDegrees: Int) {
         view?.visibility = View.VISIBLE
         view?.alpha = 0f
-        view?.translationY = 50f
+        
+        val radius = 300f // distance from main FAB
+        val angleRadians = Math.toRadians(angleDegrees.toDouble())
+        val targetX = (radius * cos(angleRadians)).toFloat()
+        val targetY = -(radius * sin(angleRadians)).toFloat()
+
+        view?.translationX = 0f
+        view?.translationY = 0f
+        
         view?.animate()
             ?.alpha(1f)
-            ?.translationY(0f)
+            ?.translationX(targetX)
+            ?.translationY(targetY)
             ?.setDuration(300)
-            ?.setStartDelay((index * 50).toLong())
             ?.start()
     }
 
     private fun hideFabOption(view: LinearLayout?) {
         view?.animate()
             ?.alpha(0f)
-            ?.translationY(50f)
+            ?.translationX(0f)
+            ?.translationY(0f)
             ?.setDuration(300)
-            ?.withEndAction { view.visibility = View.GONE }
+            ?.withEndAction { view?.visibility = View.GONE }
             ?.start()
     }
 

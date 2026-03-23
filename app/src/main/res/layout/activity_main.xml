@@ -40,100 +40,6 @@
         app:labelVisibilityMode="selected"
         app:menu="@menu/bottom_nav_menu" />
 
-    <!-- Mini FAB Containers -->
-    <LinearLayout
-        android:id="@+id/container_borrow"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:elevation="10dp"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:visibility="gone"
-        app:layout_anchor="@id/fab_main"
-        app:layout_anchorGravity="center">
-
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fab_borrow"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:backgroundTint="@color/yellow"
-            android:contentDescription="@string/label_borrow_money"
-            android:src="@drawable/borrow_money"
-            app:fabSize="mini"
-            app:tint="@null" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:fontFamily="@font/montserratalternatess_bold"
-            android:text="@string/label_borrow_money"
-            android:textColor="@color/white"
-            android:textSize="10sp" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/container_add_transaction"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:elevation="10dp"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:visibility="gone"
-        app:layout_anchor="@id/fab_main"
-        app:layout_anchorGravity="center">
-
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fab_add_transaction"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:backgroundTint="@color/yellow"
-            android:contentDescription="@string/label_add_transaction"
-            android:src="@drawable/add_transaction"
-            app:fabSize="mini"
-            app:tint="@null" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:fontFamily="@font/montserratalternatess_bold"
-            android:text="@string/label_add_transaction"
-            android:textColor="@color/white"
-            android:textSize="10sp" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/container_add_group"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:elevation="10dp"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:visibility="gone"
-        app:layout_anchor="@id/fab_main"
-        app:layout_anchorGravity="center">
-
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fab_add_group"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            app:backgroundTint="@color/yellow"
-            android:contentDescription="@string/label_add_group"
-            android:src="@drawable/add_group"
-            app:fabSize="mini"
-            app:tint="@null" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:fontFamily="@font/montserratalternatess_bold"
-            android:text="@string/label_add_group"
-            android:textColor="@color/white"
-            android:textSize="10sp" />
-    </LinearLayout>
-
     <FrameLayout
         android:id="@+id/fab_main_layout"
         android:layout_width="wrap_content"
@@ -152,7 +58,7 @@
             android:translationY="18dp" />
     </FrameLayout>
 
-    <!-- Main FAB: Should be at the end to be drawn last -->
+    <!-- Main FAB -->
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_main"
         android:layout_width="wrap_content"
@@ -168,6 +74,118 @@
         app:layout_anchor="@id/navView"
         app:layout_anchorGravity="top|center_horizontal"
         app:tint="@color/white" />
+
+    <!-- Mini FAB Containers: Placed after fab_main and with higher elevation -->
+    <LinearLayout
+        android:id="@+id/container_borrow"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:elevation="20dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_anchor="@id/fab_main"
+        app:layout_anchorGravity="center">
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_borrow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:backgroundTint="@color/yellow"
+            android:contentDescription="@string/label_borrow_money"
+            android:src="@drawable/borrow_money"
+            app:fabSize="mini"
+            app:tint="@null"
+            android:clickable="false"
+            android:focusable="false" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="@string/label_borrow_money"
+            android:textColor="@color/white"
+            android:textSize="10sp"
+            android:clickable="false"
+            android:focusable="false" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/container_add_transaction"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:elevation="20dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_anchor="@id/fab_main"
+        app:layout_anchorGravity="center">
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_add_transaction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:backgroundTint="@color/yellow"
+            android:contentDescription="@string/label_add_transaction"
+            android:src="@drawable/add_transaction"
+            app:fabSize="mini"
+            app:tint="@null"
+            android:clickable="false"
+            android:focusable="false" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="@string/label_add_transaction"
+            android:textColor="@color/white"
+            android:textSize="10sp"
+            android:clickable="false"
+            android:focusable="false" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/container_add_group"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:elevation="20dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_anchor="@id/fab_main"
+        app:layout_anchorGravity="center">
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_add_group"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:backgroundTint="@color/yellow"
+            android:contentDescription="@string/label_add_group"
+            android:src="@drawable/add_group"
+            app:fabSize="mini"
+            app:tint="@null"
+            android:clickable="false"
+            android:focusable="false" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="@string/label_add_group"
+            android:textColor="@color/white"
+            android:textSize="10sp"
+            android:clickable="false"
+            android:focusable="false" />
+    </LinearLayout>
 
     <FrameLayout
         android:layout_width="wrap_content"
