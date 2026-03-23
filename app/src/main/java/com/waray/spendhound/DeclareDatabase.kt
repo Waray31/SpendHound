@@ -1,6 +1,7 @@
 package com.waray.spendhound
 
 import io.github.jan.supabase.SupabaseClient
+import io.github.jan.supabase.annotations.SupabaseInternal
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.gotrue.auth
@@ -11,11 +12,13 @@ import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.realtime.realtime
 import io.github.jan.supabase.storage.Storage
 import io.github.jan.supabase.storage.storage
+import io.ktor.client.plugins.HttpTimeout
 
 object DeclareDatabase {
     private const val SUPABASE_URL = "https://xgcitilgtmxtfcxpmfiz.supabase.co"
     private const val SUPABASE_KEY = "sb_publishable_8VI_opH_alc_Inj3QkASuw_PLnJ1vUc"
 
+    @OptIn(SupabaseInternal::class)
     val client: SupabaseClient by lazy {
         createSupabaseClient(
             supabaseUrl = SUPABASE_URL,
@@ -25,6 +28,14 @@ object DeclareDatabase {
             install(Postgrest)
             install(Realtime)
             install(Storage)
+            
+            httpConfig {
+                install(HttpTimeout) {
+                    requestTimeoutMillis = 60000L
+                    connectTimeoutMillis = 60000L
+                    socketTimeoutMillis = 60000L
+                }
+            }
         }
     }
 

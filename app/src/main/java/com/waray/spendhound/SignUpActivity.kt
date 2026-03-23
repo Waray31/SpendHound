@@ -7,22 +7,23 @@ import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
 import android.text.TextUtils
-import android.view.MotionEvent
+import android.util.Log
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageView
 import android.widget.ProgressBar
-import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.bumptech.glide.Glide
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
+import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.ByteArrayOutputStream
 
 class SignUpActivity : AppCompatActivity() {
     private var emailEditText: EditText? = null
@@ -30,10 +31,13 @@ class SignUpActivity : AppCompatActivity() {
     private var confirmPasswordEditText: EditText? = null
     private var usernameEditText: EditText? = null
     private var signUpButton: Button? = null
+    private var profileImageView: ImageView? = null
     private var progressBar: ProgressBar? = null
     private var mAuth: Auth? = null
     private var profileImageUri: Uri? = null
     private var userId: String? = null
+
+    private val tag = "SignUpActivity"
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,15 +48,12 @@ class SignUpActivity : AppCompatActivity() {
         passwordEditText = findViewById(R.id.passwordSignup)
         confirmPasswordEditText = findViewById(R.id.confirmPasswordSignup)
         signUpButton = findViewById(R.id.signUpButton)
+        profileImageView = findViewById(R.id.profileImageView)
         progressBar = findViewById(R.id.progressBar)
 
         mAuth = DeclareDatabase.auth
 
         exitEditText()
-
-        signUpButton?.setOnClickListener {
-            signUp()
-        }
     }
 
     fun onAddProfileImageClicked(view: View?) {
@@ -60,12 +61,25 @@ class SignUpActivity : AppCompatActivity() {
         startActivityForResult(intent, PICK_IMAGE_REQUEST)
     }
 
+    fun onSignUpClicked(view: View?) {
+        signUp()
+    }
+
+    fun onSignInClicked(view: View?) {
+        finish()
+    }
+
+    @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null && data.data != null) {
             profileImageUri = data.data
-            // Optional: Update UI to show selected image
-            Toast.makeText(this, "Image selected", Toast.LENGTH_SHORT).show()
+            profileImageView?.let {
+                Glide.with(this)
+                    .load(profileImageUri)
+                    .centerCrop()
+                    .into(it)
+            }
         }
     }
 
@@ -75,55 +89,56 @@ class SignUpActivity : AppCompatActivity() {
         val password = passwordEditText?.text.toString().trim()
         val confirmPassword = confirmPasswordEditText?.text.toString().trim()
 
-        if (TextUtils.isEmpty(username) || TextUtils.isEmpty(password) || TextUtils.isEmpty(
-                confirmPassword
-            ) || TextUtils.isEmpty(email)
-        ) {
+        if (TextUtils.isEmpty(username) || TextUtils.isEmpty(password) || TextUtils.isEmpty(email)) {
             Toast.makeText(this, "Please fill in all fields", Toast.LENGTH_SHORT).show()
-        } else if (password != confirmPassword) {
+            return
+        }
+        if (password != confirmPassword) {
             Toast.makeText(this, "Passwords don't match", Toast.LENGTH_SHORT).show()
-        } else if (password.length < 6) {
-            Toast.makeText(this, "Password must be at least 6 characters long", Toast.LENGTH_SHORT)
-                .show()
-        } else {
-            progressBar?.visibility = View.VISIBLE
+            return
+        }
 
-            lifecycleScope.launch {
-                try {
-                    mAuth?.signUpWith(Email) {
-                        this.email = email
-                        this.password = password
-                    }
-                    userId = mAuth?.currentUserOrNull()?.id
+        progressBar?.visibility = View.VISIBLE
+        signUpButton?.isEnabled = false
 
-                    if (userId != null) {
-                        if (profileImageUri != null) {
-                            uploadProfileImage(userId!!)
-                        } else {
-                            val profileImageUrl = "placeholder_profile_image" // Use a default or empty
-                            saveUserToDatabase(
-                                username,
-                                email,
-                                profileImageUrl,
-                                password
-                            )
-                        }
-                    } else {
-                        throw Exception("Failed to get user ID")
-                    }
-                } catch (e: Exception) {
-                    progressBar?.visibility = View.GONE
-                    Toast.makeText(
-                        this@SignUpActivity,
-                        "Sign up failed: ${e.message}",
-                        Toast.LENGTH_SHORT
-                    ).show()
+        lifecycleScope.launch {
+            try {
+                Log.d(tag, "Starting Auth Sign Up...")
+                mAuth?.signUpWith(Email) {
+                    this.email = email
+                    this.password = password
                 }
+                
+                val session = mAuth?.currentSessionOrNull()
+                userId = mAuth?.currentUserOrNull()?.id
+                Log.d(tag, "Auth success. UserID: $userId, Session active: ${session != null}")
+
+                if (userId != null) {
+                    if (session == null) {
+                        progressBar?.visibility = View.GONE
+                        signUpButton?.isEnabled = true
+                        Toast.makeText(this@SignUpActivity, "Success! Check your email to confirm your account.", Toast.LENGTH_LONG).show()
+                        finish()
+                    } else {
+                        if (profileImageUri != null) {
+                            uploadProfileImage(userId!!, username, email, password)
+                        } else {
+                            saveUserToDatabase(username, email, "placeholder_profile_image", password)
+                        }
+                    }
+                } else {
+                    throw Exception("Could not retrieve user ID from Supabase.")
+                }
+            } catch (e: Exception) {
+                Log.e(tag, "Sign Up Error: ${e.message}")
+                progressBar?.visibility = View.GONE
+                signUpButton?.isEnabled = true
+                Toast.makeText(this@SignUpActivity, "Sign up failed: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
 
-    private suspend fun uploadProfileImage(userId: String) {
+    private suspend fun uploadProfileImage(userId: String, username: String, email: String, pass: String) {
         try {
             val bytes = withContext(Dispatchers.IO) {
                 contentResolver.openInputStream(profileImageUri!!)?.use { it.readBytes() }
@@ -132,48 +147,50 @@ class SignUpActivity : AppCompatActivity() {
             if (bytes != null) {
                 val bucket = DeclareDatabase.profileImagesBucket
                 val path = "$userId.jpg"
+                Log.d(tag, "Uploading to Storage: $path")
+                
                 bucket.upload(path, bytes, upsert = true)
                 val publicUrl = bucket.publicUrl(path)
+                Log.d(tag, "Upload success. URL: $publicUrl")
                 
-                saveUserToDatabase(
-                    usernameEditText?.text.toString().trim(),
-                    emailEditText?.text.toString().trim(),
-                    publicUrl,
-                    passwordEditText?.text.toString().trim()
-                )
-            } else {
-                throw Exception("Could not read image bytes")
+                saveUserToDatabase(username, email, publicUrl, pass)
             }
         } catch (e: Exception) {
+            Log.e(tag, "Storage Error: ${e.message}")
             withContext(Dispatchers.Main) {
                 progressBar?.visibility = View.GONE
-                Toast.makeText(this@SignUpActivity, "Image upload failed: ${e.message}", Toast.LENGTH_SHORT).show()
+                signUpButton?.isEnabled = true
+                Toast.makeText(this@SignUpActivity, "Image upload failed: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
 
-    private suspend fun saveUserToDatabase(
-        username: String,
-        email: String,
-        profileImageUrl: String,
-        password: String
-    ) {
+    private suspend fun saveUserToDatabase(username: String, email: String, profileImageUrl: String, pass: String) {
         try {
-            val numericUid = userId?.toLongOrNull()
-            val user = User(
-                id = numericUid,
-                username = username,
-                email = email,
-                password = password,
-                profileImageUrl = profileImageUrl
+            Log.d(tag, "Inserting into Database 'users' table...")
+            
+            val userData = mapOf(
+                "auth_id" to userId,
+                "username" to username,
+                "email" to email,
+                "password" to pass,
+                "profile_image_url" to profileImageUrl
             )
 
             withContext(Dispatchers.IO) {
-                DeclareDatabase.usersTable.insert(user)
+                // Using insert instead of upsert to avoid constraint errors
+                val createdUser = DeclareDatabase.usersTable.insert(userData) {
+                    select(Columns.list("user_id"))
+                }.decodeSingle<User>()
                 
-                // Initialize balance for the new user
-                val initialBalance = UserBalance(userId = numericUid)
+                Log.d(tag, "User table entry created. Internal ID: ${createdUser.id}")
+
+                // Initialize balance row
+                val initialBalance = UserBalance(userId = createdUser.id)
                 DeclareDatabase.userBalanceTable.insert(initialBalance)
+                
+                // Update local UserHelper cache
+                createdUser.id?.let { UserHelper.updateCache(it, username) }
             }
             
             withContext(Dispatchers.Main) {
@@ -181,50 +198,38 @@ class SignUpActivity : AppCompatActivity() {
                 signUpSuccess()
             }
         } catch (e: Exception) {
+            Log.e(tag, "Database Table Error: ${e.message}")
             withContext(Dispatchers.Main) {
                 progressBar?.visibility = View.GONE
-                Toast.makeText(this@SignUpActivity, "Failed to save user: ${e.message}", Toast.LENGTH_SHORT).show()
+                signUpButton?.isEnabled = true
+                Toast.makeText(this@SignUpActivity, "Database failed: ${e.message}", Toast.LENGTH_LONG).show()
             }
         }
     }
 
     private fun signUpSuccess() {
-        Toast.makeText(this@SignUpActivity, "Sign up successful", Toast.LENGTH_SHORT).show()
-        val intent = Intent(this@SignUpActivity, MainActivity::class.java)
+        Toast.makeText(this, "Welcome to SpendHound!", Toast.LENGTH_SHORT).show()
+        val intent = Intent(this, MainActivity::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
         startActivity(intent)
         finish()
     }
 
     @SuppressLint("ClickableViewAccessibility")
     fun exitEditText() {
-        val usernameSignUp: EditText = findViewById(R.id.usernameSignUp)
-        val emailSignup: EditText = findViewById(R.id.emailSignup)
-        val passwordSignup: EditText = findViewById(R.id.passwordSignup)
-        val confirmPasswordSignup: EditText = findViewById(R.id.confirmPasswordSignup)
-        
-        val touchListener = View.OnTouchListener { v, _ ->
-            v.performClick()
-            false
-        }
-
-        usernameSignUp.setOnTouchListener(touchListener)
-        emailSignup.setOnTouchListener(touchListener)
-        passwordSignup.setOnTouchListener(touchListener)
-        confirmPasswordSignup.setOnTouchListener(touchListener)
-
         val rootView = findViewById<View>(android.R.id.content)
         rootView.setOnTouchListener { _, _ ->
             hideKeyboard(usernameEditText)
+            hideKeyboard(emailEditText)
             hideKeyboard(passwordEditText)
+            hideKeyboard(confirmPasswordEditText)
             false
         }
     }
 
     private fun hideKeyboard(editText: EditText?) {
-        editText?.let {
-            val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.hideSoftInputFromWindow(it.windowToken, 0)
-        }
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(editText?.windowToken, 0)
     }
 
     companion object {
