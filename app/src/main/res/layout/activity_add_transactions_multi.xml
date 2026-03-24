@@ -8,6 +8,7 @@
     tools:context=".ui.multi_transaction.MultiTransactionActivity">
 
     <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/white">
@@ -25,7 +26,9 @@
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clipToPadding="false"
         android:fillViewport="true"
+        android:paddingBottom="160dp"
         app:layout_behavior="@string/appbar_scrolling_view_behavior">
 
         <LinearLayout
@@ -82,7 +85,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="One person paid"
-                            android:textSize="12sp"
+                            android:textSize="10sp"
                             android:textColor="@color/toggle_button_text_color"
                             app:backgroundTint="@color/toggle_button_background_tint"
                             app:strokeColor="@color/toggle_button_stroke_color" />
@@ -94,7 +97,7 @@
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="Multiple people paid"
-                            android:textSize="12sp"
+                            android:textSize="10sp"
                             android:textColor="@color/toggle_button_text_color"
                             app:backgroundTint="@color/toggle_button_background_tint"
                             app:strokeColor="@color/toggle_button_stroke_color" />
@@ -117,6 +120,7 @@
                         <Spinner
                             android:id="@+id/spinnerGlobalPayor"
                             android:layout_width="match_parent"
+                            android:background="@drawable/round_border_glassy"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="4dp"
                             android:minHeight="48dp" />
@@ -143,90 +147,93 @@
                 android:text="+ Add another"
                 android:textColor="@color/darkBlue" />
 
-            <!-- Summary Card -->
-            <com.google.android.material.card.MaterialCardView
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+    <!-- Summary Card (Fixed at Bottom) -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/summaryCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom"
+        app:cardCornerRadius="0dp"
+        app:cardElevation="16dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/top_round_border"
+            android:orientation="vertical"
+            android:padding="20dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Total"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tvTotalAmount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="₱0.00"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:gravity="end"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Each owes"
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/tvEachOwes"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="₱0.00"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnSubmit"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="16dp"
-                app:cardCornerRadius="0dp"
-                app:cardElevation="16dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/top_round_border"
-                    android:orientation="vertical"
-                    android:padding="20dp">
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal">
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Total"
-                                android:textSize="12sp" />
-
-                            <TextView
-                                android:id="@+id/tvTotalAmount"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="₱0.00"
-                                android:textColor="@color/darkBlue"
-                                android:textSize="18sp"
-                                android:textStyle="bold" />
-                        </LinearLayout>
-
-                        <LinearLayout
-                            android:layout_width="0dp"
-                            android:layout_height="wrap_content"
-                            android:layout_weight="1"
-                            android:gravity="end"
-                            android:orientation="vertical">
-
-                            <TextView
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="Each owes"
-                                android:textSize="12sp" />
-
-                            <TextView
-                                android:id="@+id/tvEachOwes"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:text="₱0.00"
-                                android:textColor="@color/darkBlue"
-                                android:textSize="18sp"
-                                android:textStyle="bold" />
-                        </LinearLayout>
-                    </LinearLayout>
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnSubmit"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="16dp"
-                        android:backgroundTint="@color/yellow"
-                        android:enabled="false"
-                        android:paddingVertical="12dp"
-                        android:text="Add 0 Transactions"
-                        android:textAllCaps="false"
-                        android:textColor="@color/white"
-                        android:textSize="16sp" />
-
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
+                android:backgroundTint="@color/yellow"
+                android:enabled="false"
+                android:paddingVertical="12dp"
+                android:text="Add 0 Transactions"
+                android:textAllCaps="false"
+                android:textColor="@color/white"
+                android:textSize="16sp"
+                android:visibility="gone"
+                tools:visibility="visible" />
 
         </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
+    </com.google.android.material.card.MaterialCardView>
 
     <!-- Progress Overlay -->
     <FrameLayout

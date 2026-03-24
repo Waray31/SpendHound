@@ -107,9 +107,20 @@ class MultiTransactionActivity : AppCompatActivity() {
 
     private fun validateSubmission() {
         val transactions = adapter.getTransactions()
-        var allValid = true
+        var allValid = transactions.isNotEmpty()
         
         for (tx in transactions) {
+            // Check if title is empty
+            if (tx.title.isBlank()) {
+                allValid = false
+                break
+            }
+            // Check if amount is zero
+            if (tx.amount <= 0) {
+                allValid = false
+                break
+            }
+            // Check if split is valid
             val totalPaid = tx.payors.sumOf { it.amount }
             if (Math.abs(tx.amount - totalPaid) > 0.01) {
                 allValid = false
@@ -117,7 +128,11 @@ class MultiTransactionActivity : AppCompatActivity() {
             }
         }
         
-        binding.btnSubmit.isEnabled = allValid && transactions.isNotEmpty() && transactions.sumOf { it.amount } > 0
+        binding.btnSubmit.isVisible = allValid
+        binding.btnSubmit.isEnabled = allValid
+        
+        // Adjust padding of scrollview based on button visibility if needed, 
+        // but here we have a fixed height summary card area.
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
