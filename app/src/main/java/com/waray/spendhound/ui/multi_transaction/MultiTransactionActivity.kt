@@ -1,10 +1,15 @@
 package com.waray.spendhound.ui.multi_transaction
 
 import android.app.AlertDialog
+import android.content.Context
+import android.graphics.Rect
 import android.os.Bundle
+import android.view.MotionEvent
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -96,6 +101,25 @@ class MultiTransactionActivity : AppCompatActivity() {
         }
     }
 
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.action == MotionEvent.ACTION_DOWN) {
+            val v = currentFocus
+            if (v is EditText) {
+                val outRect = Rect()
+                v.getGlobalVisibleRect(outRect)
+                if (!outRect.contains(event.rawX.toInt(), event.rawY.toInt())) {
+                    v.clearFocus()
+                    val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                    imm.hideSoftInputFromWindow(v.windowToken, 0)
+                    
+                    // Recalculate totals on focus loss
+                    viewModel.calculateTotals()
+                }
+            }
+        }
+        return super.dispatchTouchEvent(event)
+    }
+
     private fun observeState() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -111,12 +135,22 @@ class MultiTransactionActivity : AppCompatActivity() {
                 launch {
                     viewModel.members.collect { members ->
                         currentMembers = members
+                        viewModel.calculateTotals() // Refresh 'Each Owes' based on new member count
                     }
                 }
                 launch {
                     viewModel.transactions.collect { transactions ->
                         adapter.setTransactions(transactions)
-                        updateSummary(transactions)
+                        binding.btnSubmit.text = "Add ${transactions.size} Transactions"
+                        viewModel.calculateTotals()
+                    }
+                }
+                launch {
+                    viewModel.totalAmount.collect { total ->
+                        binding.tvTotalAmount.text = CurrencyUtils.formatAmountWithCurrency(total)
+                        val memberCount = currentMembers.size.coerceAtLeast(1)
+                        binding.tvEachOwes.text = CurrencyUtils.formatAmountWithCurrency(total / memberCount)
+                        binding.btnSubmit.isEnabled = adapter.getTransactions().isNotEmpty() && total > 0
                     }
                 }
                 launch {
@@ -142,17 +176,6 @@ class MultiTransactionActivity : AppCompatActivity() {
                 }
             }
         }
-    }
-
-    private fun updateSummary(transactions: List<TransactionEntry>) {
-        val total = transactions.sumOf { it.amount }
-        binding.tvTotalAmount.text = CurrencyUtils.formatAmountWithCurrency(total)
-        
-        val memberCount = currentMembers.size.coerceAtLeast(1)
-        binding.tvEachOwes.text = CurrencyUtils.formatAmountWithCurrency(total / memberCount)
-        
-        binding.btnSubmit.text = "Add ${transactions.size} Transactions"
-        binding.btnSubmit.isEnabled = transactions.isNotEmpty() && total > 0
     }
 
     private fun showPayorSelectionDialog(position: Int) {

@@ -21,6 +21,13 @@
         <item name="android:textSize">16sp</item>
     </style>
 
+    <style name="SelectedButton">
+        <!-- Change the font family -->
+        <item name="android:background">@drawable/rounded_border_selected_bg</item>
+        <!-- Change the font size (adjust the textSize attribute as needed) -->
+        <item name="android:textSize">16sp</item>
+    </style>
+
     <style name="CircleImageView">
         <item name="cornerSize">50%</item>
     </style>

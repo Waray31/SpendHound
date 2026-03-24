@@ -10,9 +10,11 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.realtime.Realtime
 import io.github.jan.supabase.realtime.realtime
+import io.github.jan.supabase.serializer.KotlinXSerializer
 import io.github.jan.supabase.storage.Storage
 import io.github.jan.supabase.storage.storage
 import io.ktor.client.plugins.HttpTimeout
+import kotlinx.serialization.json.Json
 
 object DeclareDatabase {
     private const val SUPABASE_URL = "https://xgcitilgtmxtfcxpmfiz.supabase.co"
@@ -28,6 +30,12 @@ object DeclareDatabase {
             install(Postgrest)
             install(Realtime)
             install(Storage)
+            
+            defaultSerializer = KotlinXSerializer(Json {
+                ignoreUnknownKeys = true
+                coerceInputValues = true
+                encodeDefaults = true
+            })
             
             httpConfig {
                 install(HttpTimeout) {

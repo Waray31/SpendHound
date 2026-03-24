@@ -23,7 +23,7 @@ class MultiTransactionRepository {
             filter {
                 eq("group_id", groupId)
             }
-        }.decodeSingle<PayerGroup>()
+        }.decodeSingleOrNull<PayerGroup>() ?: return@withContext emptyList()
         
         val memberIds = group.members?.filterNotNull() ?: emptyList()
         if (memberIds.isEmpty()) return@withContext emptyList()
@@ -47,23 +47,32 @@ class MultiTransactionRepository {
             
             entries.forEach { entry ->
                 // 1. Insert into transactions
-                val transaction = TransactionTable(
+                // Corrected mapping: transactionType gets the entry.category
+                val transaction = TransactionInsert(
                     groupId = groupId,
-                    title = entry.title,
-                    totalAmount = entry.amount,
-                    createdBy = createdBy,
-                    createdAt = createdAt
+                    transactionType = entry.category, // Use category for transaction_type column
+                    transactionDetail = entry.title,   // Use user-entered title for transaction_detail column
+                    paymentAmount = entry.amount,
+                    creatorId = createdBy,
+                    createdAt = createdAt,
+                    status = 0
                 )
                 
-                val insertedTx = client.postgrest.from("transactions").insert(transaction) {
+                // Supabase will return the inserted row with the generated ID
+                val response = client.postgrest.from("transactions").insert(transaction) {
                     select()
-                }.decodeSingle<TransactionTable>()
+                }.decodeSingle<TransactionResponse>()
                 
-                val txId = insertedTx.id ?: throw Exception("Failed to get transaction ID")
+                val txId = response.id ?: throw Exception("Failed to get transaction ID")
 
                 // 2. Insert into transaction_payors
+                // If single payor mode, ensure the entry has the total amount assigned to that payor
                 val payorRecords = entry.payors.map { 
-                    TransactionPayorTable(transactionId = txId, userId = it.userId, amount = it.amount)
+                    TransactionPayorTable(
+                        transactionId = txId, 
+                        userId = it.userId, 
+                        amount = if (it.amount > 0) it.amount else entry.amount // Fix for 0 amount issue
+                    )
                 }
                 client.postgrest.from("transaction_payors").insert(payorRecords)
 
