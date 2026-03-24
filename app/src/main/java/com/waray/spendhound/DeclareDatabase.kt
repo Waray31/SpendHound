@@ -1,5 +1,6 @@
 package com.waray.spendhound
 
+import android.content.Context
 import io.github.jan.supabase.SupabaseClient
 import io.github.jan.supabase.annotations.SupabaseInternal
 import io.github.jan.supabase.createSupabaseClient
@@ -20,13 +21,19 @@ object DeclareDatabase {
     private const val SUPABASE_URL = "https://xgcitilgtmxtfcxpmfiz.supabase.co"
     private const val SUPABASE_KEY = "sb_publishable_8VI_opH_alc_Inj3QkASuw_PLnJ1vUc"
 
+    private var _client: SupabaseClient? = null
+
     @OptIn(SupabaseInternal::class)
-    val client: SupabaseClient by lazy {
-        createSupabaseClient(
+    fun initialize(context: Context) {
+        if (_client != null) return
+        
+        _client = createSupabaseClient(
             supabaseUrl = SUPABASE_URL,
             supabaseKey = SUPABASE_KEY
         ) {
-            install(Auth)
+            install(Auth) {
+                sessionManager = SharedPreferencesSessionManager(context)
+            }
             install(Postgrest)
             install(Realtime)
             install(Storage)
@@ -46,6 +53,9 @@ object DeclareDatabase {
             }
         }
     }
+
+    val client: SupabaseClient
+        get() = _client ?: throw IllegalStateException("DeclareDatabase not initialized. Call initialize(context) first.")
 
     // Supabase Module Helpers
     val auth: Auth get() = client.auth
