@@ -89,6 +89,12 @@ dependencies {
     // Firebase Authentication (Keeping for reference or removal if fully replaced)
     // implementation 'com.google.firebase:firebase-auth:22.1.1'
 
+    // Firebase Authentication (Keeping for reference or removal if fully replaced)
+    // implementation 'com.google.firebase:firebase-auth:22.1.1'
+
+    // Firebase Authentication (Keeping for reference or removal if fully replaced)
+    // implementation 'com.google.firebase:firebase-auth:22.1.1'
+
     // Firebase Realtime Database
     implementation 'com.google.firebase:firebase-database:20.2.2'
 

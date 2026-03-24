@@ -18,18 +18,6 @@
         tools:targetApi="tiramisu"
         android:enableOnBackInvokedCallback="true">
 
-        <!-- Firebase Authentication -->
-        <activity
-            android:name="com.google.firebase.auth.internal.GenericIdpActivity"
-            android:exported="true"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
-        <activity
-            android:name="com.google.firebase.auth.internal.RecaptchaActivity"
-            android:exported="false"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar"
-            tools:replace="android:exported" />
-
-
         <!-- Google Sign-In -->
         <activity
             android:name="com.google.android.gms.auth.api.signin.internal.SignInHubActivity"
@@ -49,7 +37,7 @@
             android:exported="true"
             android:parentActivityName=".MainActivity"
             android:label="Add Transaction"
-            android:windowSoftInputMode="adjustPan"/>
+            android:windowSoftInputMode="adjustPan" />
 
         <activity android:name=".BorrowNowActivity"
             android:exported="true"
