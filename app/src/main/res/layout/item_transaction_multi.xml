@@ -27,13 +27,22 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:hint="Description"
+                app:boxBackgroundColor="@color/whitest"
+                app:boxCornerRadiusBottomEnd="8dp"
+                app:boxCornerRadiusBottomStart="8dp"
+                app:boxCornerRadiusTopEnd="8dp"
+                app:boxCornerRadiusTopStart="8dp"
+                app:boxStrokeColor="@color/darkBlue"
+                app:boxStrokeWidth="1dp"
+                app:boxStrokeWidthFocused="1dp"
+                app:hintTextColor="@color/grey"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etTitle"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/round_border_glassy"
+                    android:background="@null"
                     android:inputType="textCapSentences" />
             </com.google.android.material.textfield.TextInputLayout>
 
@@ -43,13 +52,22 @@
                 android:layout_marginStart="8dp"
                 android:hint="Amount"
                 app:prefixText="₱"
+                app:boxBackgroundColor="@color/whitest"
+                app:boxCornerRadiusBottomEnd="8dp"
+                app:boxCornerRadiusBottomStart="8dp"
+                app:boxCornerRadiusTopEnd="8dp"
+                app:boxCornerRadiusTopStart="8dp"
+                app:boxStrokeColor="@color/darkBlue"
+                app:boxStrokeWidth="1dp"
+                app:boxStrokeWidthFocused="1dp"
+                app:hintTextColor="@color/grey"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
 
                 <com.google.android.material.textfield.TextInputEditText
                     android:id="@+id/etAmount"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/round_border_glassy"
+                    android:background="@null"
                     android:inputType="numberDecimal" />
             </com.google.android.material.textfield.TextInputLayout>
         </LinearLayout>
@@ -68,7 +86,6 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:minHeight="48dp" />
-/>
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnToggleSplit"
