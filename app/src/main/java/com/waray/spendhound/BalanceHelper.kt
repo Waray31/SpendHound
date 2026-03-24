@@ -7,6 +7,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 /**
  * Helper class for managing user balance operations in Supabase.
@@ -24,8 +26,18 @@ object BalanceHelper {
         
         scope.launch {
             try {
-                val initialBalance = UserBalance(userId = userId.toLong())
-                DeclareDatabase.userBalanceTable.insert(initialBalance)
+                // Use buildJsonObject to avoid 'Serializer for class Any not found' error
+                // and avoid sending null 'created_at', allowing Supabase to use its default value (NOW()).
+                val initialBalanceData = buildJsonObject {
+                    put("user_id", userId.toLong())
+                    put("unpaid_total_group", 0.0)
+                    put("unpaid_total_individual", 0.0)
+                    put("receivable_total_group", 0.0)
+                    put("receivable_total_individual", 0.0)
+                    put("balance_total_group", 0.0)
+                    put("balance_total_individual", 0.0)
+                }
+                DeclareDatabase.userBalanceTable.insert(initialBalanceData)
                 
                 withContext(Dispatchers.Main) {
                     Log.d(TAG, "Balances initialized in user_balance for user: $userId")
@@ -156,11 +168,12 @@ object BalanceHelper {
         if (userId == null) return
         scope.launch {
             try {
-                DeclareDatabase.userBorrowsTable.insert(mapOf(
-                    "user_id" to userId.toLong(),
-                    "borrow_id" to borrowId.toLong(),
-                    "type" to "borrower"
-                ))
+                val entry = buildJsonObject {
+                    put("user_id", userId.toLong())
+                    put("borrow_id", borrowId.toLong())
+                    put("type", "borrower")
+                }
+                DeclareDatabase.userBorrowsTable.insert(entry)
                 withContext(Dispatchers.Main) { callback?.onSuccess() }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) { callback?.onFailure(e.message) }
@@ -175,11 +188,12 @@ object BalanceHelper {
         if (userId == null) return
         scope.launch {
             try {
-                DeclareDatabase.userBorrowsTable.insert(mapOf(
-                    "user_id" to userId.toLong(),
-                    "borrow_id" to borrowId.toLong(),
-                    "type" to "lender"
-                ))
+                val entry = buildJsonObject {
+                    put("user_id", userId.toLong())
+                    put("borrow_id", borrowId.toLong())
+                    put("type", "lender")
+                }
+                DeclareDatabase.userBorrowsTable.insert(entry)
                 withContext(Dispatchers.Main) { callback?.onSuccess() }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) { callback?.onFailure(e.message) }
