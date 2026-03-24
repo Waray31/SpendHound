@@ -26,6 +26,7 @@ import androidx.recyclerview.widget.SnapHelper
 import com.google.android.material.behavior.HideBottomViewOnScrollBehavior
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.waray.spendhound.ui.multi_transaction.MultiTransactionActivity
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Order
@@ -124,7 +125,7 @@ class MainActivity : AppCompatActivity() {
 
         containerAddTransaction?.setOnClickListener {
             toggleFabMenu()
-            startActivity(Intent(this, AddTransactionActivity::class.java))
+            startActivity(Intent(this, MultiTransactionActivity::class.java))
         }
 
         containerAddGroup?.setOnClickListener {
