@@ -24,6 +24,8 @@ import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 class SignUpActivity : AppCompatActivity() {
     private var emailEditText: EditText? = null
@@ -103,6 +105,20 @@ class SignUpActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
+                // Trap: Check if username already exists before creating Auth account
+                val existingUser = withContext(Dispatchers.IO) {
+                    DeclareDatabase.usersTable.select(Columns.list("user_id")) {
+                        filter { eq("username", username) }
+                    }.decodeSingleOrNull<User>()
+                }
+                
+                if (existingUser != null) {
+                    progressBar?.visibility = View.GONE
+                    signUpButton?.isEnabled = true
+                    Toast.makeText(this@SignUpActivity, "Username already taken", Toast.LENGTH_SHORT).show()
+                    return@launch
+                }
+
                 Log.d(tag, "Starting Auth Sign Up...")
                 mAuth?.signUpWith(Email) {
                     this.email = email
@@ -120,10 +136,13 @@ class SignUpActivity : AppCompatActivity() {
                         Toast.makeText(this@SignUpActivity, "Success! Check your email to confirm your account.", Toast.LENGTH_LONG).show()
                         finish()
                     } else {
+                        // Hash the password before saving to custom database table
+                        val hashedPassword = SecurityUtils.hashPassword(password)
+                        
                         if (profileImageUri != null) {
-                            uploadProfileImage(userId!!, username, email, password)
+                            uploadProfileImage(userId!!, username, email, hashedPassword)
                         } else {
-                            saveUserToDatabase(username, email, "placeholder_profile_image", password)
+                            saveUserToDatabase(username, email, "placeholder_profile_image", hashedPassword)
                         }
                     }
                 } else {
@@ -138,7 +157,7 @@ class SignUpActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun uploadProfileImage(userId: String, username: String, email: String, pass: String) {
+    private suspend fun uploadProfileImage(userId: String, username: String, email: String, hashedPass: String) {
         try {
             val bytes = withContext(Dispatchers.IO) {
                 contentResolver.openInputStream(profileImageUri!!)?.use { it.readBytes() }
@@ -153,7 +172,7 @@ class SignUpActivity : AppCompatActivity() {
                 val publicUrl = bucket.publicUrl(path)
                 Log.d(tag, "Upload success. URL: $publicUrl")
                 
-                saveUserToDatabase(username, email, publicUrl, pass)
+                saveUserToDatabase(username, email, publicUrl, hashedPass)
             }
         } catch (e: Exception) {
             Log.e(tag, "Storage Error: ${e.message}")
@@ -165,17 +184,18 @@ class SignUpActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun saveUserToDatabase(username: String, email: String, profileImageUrl: String, pass: String) {
+    private suspend fun saveUserToDatabase(username: String, email: String, profileImageUrl: String, hashedPass: String) {
         try {
             Log.d(tag, "Inserting into Database 'users' table...")
             
-            val userData = mapOf(
-                "auth_id" to userId,
-                "username" to username,
-                "email" to email,
-                "password" to pass,
-                "profile_image_url" to profileImageUrl
-            )
+            // Using buildJsonObject to avoid 'Serializer for class Any not found' error
+            val userData = buildJsonObject {
+                put("auth_id", userId)
+                put("username", username)
+                put("email", email)
+                put("password", hashedPass)
+                put("profile_image_url", profileImageUrl)
+            }
 
             withContext(Dispatchers.IO) {
                 // Using insert instead of upsert to avoid constraint errors
@@ -185,9 +205,18 @@ class SignUpActivity : AppCompatActivity() {
                 
                 Log.d(tag, "User table entry created. Internal ID: ${createdUser.id}")
 
-                // Initialize balance row
-                val initialBalance = UserBalance(userId = createdUser.id)
-                DeclareDatabase.userBalanceTable.insert(initialBalance)
+                // Initialize balance row using buildJsonObject to avoid serializer errors
+                // and skip sending 'created_at' so DB uses default value.
+                val initialBalanceData = buildJsonObject {
+                    put("user_id", createdUser.id ?: 0L)
+                    put("unpaid_total_group", 0.0)
+                    put("unpaid_total_individual", 0.0)
+                    put("receivable_total_group", 0.0)
+                    put("receivable_total_individual", 0.0)
+                    put("balance_total_group", 0.0)
+                    put("balance_total_individual", 0.0)
+                }
+                DeclareDatabase.userBalanceTable.insert(initialBalanceData)
                 
                 // Update local UserHelper cache
                 createdUser.id?.let { UserHelper.updateCache(it, username) }

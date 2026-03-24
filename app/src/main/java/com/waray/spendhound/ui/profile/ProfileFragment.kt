@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
+import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
@@ -12,6 +13,7 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.Window
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
@@ -40,6 +42,7 @@ import com.waray.spendhound.DeclareDatabase
 import com.waray.spendhound.LoginActivity
 import com.waray.spendhound.PayorAdapter
 import com.waray.spendhound.R
+import com.waray.spendhound.SecurityUtils
 import com.waray.spendhound.Transaction
 import com.waray.spendhound.User
 import io.github.jan.supabase.gotrue.Auth
@@ -77,6 +80,7 @@ class ProfileFragment : Fragment() {
     private var oweDebtDrawableTransparent: Drawable? = null
     private var profileLogout: Button? = null
     private var breakdownBtn: Button? = null
+    private var btnAdminSettings: Button? = null
 
     private var loadingOverlayProfile: View? = null
     private var pendingLoads = 0
@@ -104,6 +108,7 @@ class ProfileFragment : Fragment() {
         oweDebtLayout = view.findViewById(R.id.oweDebtLayout)
         profileLogout = view.findViewById(R.id.profileLogout)
         breakdownBtn = view.findViewById(R.id.breakdown_btn)
+        btnAdminSettings = view.findViewById(R.id.btnAdminSettings)
 
         balanceUnpaidDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.round_border_glassy)
         balanceUnpaidDrawableTransparent = ContextCompat.getDrawable(requireContext(), R.drawable.transparent_background)
@@ -127,6 +132,7 @@ class ProfileFragment : Fragment() {
         setupProfileImageViewClick()
         setupProfileLogoutButton()
         setupBreakdownButton()
+        setupAdminSettingsButton()
 
         val activity: AppCompatActivity? = getActivity() as AppCompatActivity?
         activity?.supportActionBar?.hide()
@@ -605,6 +611,55 @@ class ProfileFragment : Fragment() {
 
     private fun setupBreakdownButton() {
         breakdownBtn?.setOnClickListener { showBreakdownDialog() }
+    }
+
+    private fun setupAdminSettingsButton() {
+        btnAdminSettings?.setOnClickListener {
+            showAdminLoginDialog()
+        }
+    }
+
+    private fun showAdminLoginDialog() {
+        val dialog = AlertDialog.Builder(requireContext()).create()
+        val inflater = layoutInflater
+        val dialogView = inflater.inflate(R.layout.dialog_admin_login, null)
+        
+        val etAdminUsername = dialogView.findViewById<EditText>(R.id.etAdminUsername)
+        val etAdminPassword = dialogView.findViewById<EditText>(R.id.etAdminPassword)
+        
+        dialog.setView(dialogView)
+        dialog.setButton(AlertDialog.BUTTON_POSITIVE, "Login") { _, _ ->
+            val username = etAdminUsername.text.toString()
+            val password = etAdminPassword.text.toString()
+            handleAdminLogin(username, password)
+        }
+        dialog.setButton(AlertDialog.BUTTON_NEGATIVE, "Cancel") { d, _ -> d.dismiss() }
+        dialog.show()
+    }
+
+    private fun handleAdminLogin(username: String, pass: String) {
+        lifecycleScope.launch {
+            try {
+                val hashedPassword = SecurityUtils.hashPassword(pass)
+                val admin = withContext(Dispatchers.IO) {
+                    DeclareDatabase.usersTable.select {
+                        filter {
+                            eq("username", username)
+                            eq("password", hashedPassword)
+                        }
+                    }.decodeSingleOrNull<User>()
+                }
+
+                if (admin != null) {
+                    Toast.makeText(requireContext(), "Admin access granted", Toast.LENGTH_SHORT).show()
+                    // TODO: Open admin panel
+                } else {
+                    Toast.makeText(requireContext(), "Invalid admin credentials", Toast.LENGTH_SHORT).show()
+                }
+            } catch (e: Exception) {
+                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 
     private fun showBreakdownDialog() {
