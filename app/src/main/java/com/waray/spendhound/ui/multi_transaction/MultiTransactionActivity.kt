@@ -21,6 +21,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.waray.spendhound.CurrencyUtils
 import com.waray.spendhound.PayerGroup
+import com.waray.spendhound.R
 import com.waray.spendhound.User
 import com.waray.spendhound.databinding.ActivityAddTransactionsMultiBinding
 import kotlinx.coroutines.launch

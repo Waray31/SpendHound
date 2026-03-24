@@ -28,7 +28,7 @@
                 <ImageView
                     android:id="@+id/appImg"
                     android:layout_width="wrap_content"
-                    android:layout_height="36dp"
+                    android:layout_height="24dp"
                     android:fontFamily="@font/montserratalternatess_regular"
                     android:scaleType="fitCenter"
                     app:srcCompat="@drawable/logothree" />

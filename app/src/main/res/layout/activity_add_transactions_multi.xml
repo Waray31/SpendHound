@@ -72,25 +72,32 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         app:checkedButton="@+id/btnSinglePayor"
-                        app:singleSelection="true">
+                        app:singleSelection="true"
+                        app:selectionRequired="true">
 
-                        <Button
+                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnSinglePayor"
                             style="?attr/materialButtonOutlinedStyle"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="One person paid"
-                            android:textSize="12sp" />
+                            android:textSize="12sp"
+                            android:textColor="@color/toggle_button_text_color"
+                            app:backgroundTint="@color/toggle_button_background_tint"
+                            app:strokeColor="@color/toggle_button_stroke_color" />
 
-                        <Button
+                        <com.google.android.material.button.MaterialButton
                             android:id="@+id/btnMultiplePayors"
                             style="?attr/materialButtonOutlinedStyle"
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
                             android:text="Multiple people paid"
-                            android:textSize="12sp" />
+                            android:textSize="12sp"
+                            android:textColor="@color/toggle_button_text_color"
+                            app:backgroundTint="@color/toggle_button_background_tint"
+                            app:strokeColor="@color/toggle_button_stroke_color" />
                     </com.google.android.material.button.MaterialButtonToggleGroup>
 
                     <LinearLayout
