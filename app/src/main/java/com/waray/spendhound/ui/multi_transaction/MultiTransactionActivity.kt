@@ -1,6 +1,5 @@
 package com.waray.spendhound.ui.multi_transaction
 
-import android.app.AlertDialog
 import android.content.Context
 import android.graphics.Rect
 import android.os.Bundle
@@ -21,7 +20,6 @@ import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.waray.spendhound.CurrencyUtils
-import com.waray.spendhound.DeclareDatabase
 import com.waray.spendhound.PayerGroup
 import com.waray.spendhound.User
 import com.waray.spendhound.databinding.ActivityAddTransactionsMultiBinding
@@ -55,7 +53,7 @@ class MultiTransactionActivity : AppCompatActivity() {
     private fun setupRecyclerView() {
         adapter = MultiTransactionAdapter(
             onAmountChanged = { viewModel.calculateTotals() },
-            onPayorClick = { position -> showPayorSelectionDialog(position) }
+            onValidationChanged = { validateSubmission() }
         )
         binding.rvTransactions.layoutManager = LinearLayoutManager(this)
         binding.rvTransactions.adapter = adapter
@@ -81,13 +79,8 @@ class MultiTransactionActivity : AppCompatActivity() {
             binding.rvTransactions.smoothScrollToPosition(adapter.itemCount - 1)
         }
 
-        binding.tvGlobalPaidBy.setOnClickListener {
-            showPayorSelectionDialog(-1) // -1 means global
-        }
-
         binding.btnSubmit.setOnClickListener {
             val selectedGroup = currentGroups.getOrNull(binding.spinnerGroup.selectedItemPosition)
-            
             if (selectedGroup?.groupId != null) {
                 viewModel.submit(selectedGroup.groupId!!)
             }
@@ -99,6 +92,31 @@ class MultiTransactionActivity : AppCompatActivity() {
             }
             override fun onNothingSelected(p0: AdapterView<*>?) {}
         }
+
+        binding.spinnerGlobalPayor.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p0: AdapterView<*>?, p1: View?, pos: Int, p3: Long) {
+                val member = currentMembers.getOrNull(pos)
+                if (member != null && !viewModel.isMultiplePayorsMode.value) {
+                    viewModel.updateGlobalPayors(listOf(PayorEntry(member.id!!, member.username!!)))
+                }
+            }
+            override fun onNothingSelected(p0: AdapterView<*>?) {}
+        }
+    }
+
+    private fun validateSubmission() {
+        val transactions = adapter.getTransactions()
+        var allValid = true
+        
+        for (tx in transactions) {
+            val totalPaid = tx.payors.sumOf { it.amount }
+            if (Math.abs(tx.amount - totalPaid) > 0.01) {
+                allValid = false
+                break
+            }
+        }
+        
+        binding.btnSubmit.isEnabled = allValid && transactions.isNotEmpty() && transactions.sumOf { it.amount } > 0
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
@@ -111,8 +129,6 @@ class MultiTransactionActivity : AppCompatActivity() {
                     v.clearFocus()
                     val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
                     imm.hideSoftInputFromWindow(v.windowToken, 0)
-                    
-                    // Recalculate totals on focus loss
                     viewModel.calculateTotals()
                 }
             }
@@ -127,15 +143,23 @@ class MultiTransactionActivity : AppCompatActivity() {
                     viewModel.groups.collect { groups ->
                         currentGroups = groups
                         val names = groups.map { it.groupName ?: "Unnamed Group" }
-                        val adapter = ArrayAdapter(this@MultiTransactionActivity, android.R.layout.simple_spinner_item, names)
-                        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-                        binding.spinnerGroup.adapter = adapter
+                        val groupAdapter = ArrayAdapter(this@MultiTransactionActivity, android.R.layout.simple_spinner_item, names)
+                        groupAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                        binding.spinnerGroup.adapter = groupAdapter
                     }
                 }
                 launch {
                     viewModel.members.collect { members ->
                         currentMembers = members
-                        viewModel.calculateTotals() // Refresh 'Each Owes' based on new member count
+                        adapter.setMembers(members)
+                        
+                        // Update Global Payor Spinner
+                        val names = members.map { it.username ?: "Unknown" }
+                        val memberAdapter = ArrayAdapter(this@MultiTransactionActivity, android.R.layout.simple_spinner_item, names)
+                        memberAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                        binding.spinnerGlobalPayor.adapter = memberAdapter
+
+                        viewModel.calculateTotals()
                     }
                 }
                 launch {
@@ -143,6 +167,7 @@ class MultiTransactionActivity : AppCompatActivity() {
                         adapter.setTransactions(transactions)
                         binding.btnSubmit.text = "Add ${transactions.size} Transactions"
                         viewModel.calculateTotals()
+                        validateSubmission()
                     }
                 }
                 launch {
@@ -150,13 +175,14 @@ class MultiTransactionActivity : AppCompatActivity() {
                         binding.tvTotalAmount.text = CurrencyUtils.formatAmountWithCurrency(total)
                         val memberCount = currentMembers.size.coerceAtLeast(1)
                         binding.tvEachOwes.text = CurrencyUtils.formatAmountWithCurrency(total / memberCount)
-                        binding.btnSubmit.isEnabled = adapter.getTransactions().isNotEmpty() && total > 0
+                        validateSubmission()
                     }
                 }
                 launch {
                     viewModel.isMultiplePayorsMode.collect { isMultiple ->
                         binding.layoutSinglePayor.isVisible = !isMultiple
                         adapter.setMode(isMultiple)
+                        validateSubmission()
                     }
                 }
                 launch {
@@ -176,56 +202,5 @@ class MultiTransactionActivity : AppCompatActivity() {
                 }
             }
         }
-    }
-
-    private fun showPayorSelectionDialog(position: Int) {
-        if (currentMembers.isEmpty()) {
-            Toast.makeText(this, "No members in this group", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val memberNames = currentMembers.map { it.username ?: "Unknown" }.toTypedArray()
-        val checkedItems = BooleanArray(memberNames.size)
-        
-        // Initial state
-        val currentPayors = if (position == -1) {
-            viewModel.transactions.value.firstOrNull()?.payors ?: emptyList()
-        } else {
-            viewModel.transactions.value.getOrNull(position)?.payors ?: emptyList()
-        }
-        
-        currentPayors.forEach { payor ->
-            val idx = currentMembers.indexOfFirst { it.id == payor.userId }
-            if (idx != -1) checkedItems[idx] = true
-        }
-
-        AlertDialog.Builder(this)
-            .setTitle("Select Payors")
-            .setMultiChoiceItems(memberNames, checkedItems) { _, which, isChecked ->
-                checkedItems[which] = isChecked
-            }
-            .setPositiveButton("OK") { _, _ ->
-                val selectedEntries = mutableListOf<PayorEntry>()
-                val selectedCount = checkedItems.count { it }
-                if (selectedCount == 0) return@setPositiveButton
-
-                val amountPerPayor = if (position == -1) 0.0 else (viewModel.transactions.value[position].amount / selectedCount)
-
-                checkedItems.forEachIndexed { index, isChecked ->
-                    if (isChecked) {
-                        val member = currentMembers[index]
-                        selectedEntries.add(PayorEntry(member.id!!, member.username!!, amountPerPayor))
-                    }
-                }
-
-                if (position == -1) {
-                    viewModel.updateGlobalPayors(selectedEntries)
-                    binding.tvGlobalPaidBy.text = if (selectedEntries.size == 1) selectedEntries[0].username else "${selectedEntries.size} people"
-                } else {
-                    viewModel.updatePayorsForTransaction(position, selectedEntries)
-                }
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
     }
 }

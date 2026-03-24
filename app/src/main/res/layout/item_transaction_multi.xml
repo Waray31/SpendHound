@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="16dp"
@@ -17,6 +18,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:baselineAligned="false"
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
@@ -64,32 +66,66 @@
                 android:layout_weight="1"
                 android:minHeight="48dp" />
 
-            <LinearLayout
-                android:id="@+id/layoutPayerRow"
-                android:layout_width="0dp"
+            <View
+                android:layout_width="16dp"
+                android:layout_height="0dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnToggleSplit"
+                style="@style/Widget.MaterialComponents.Button.TextButton"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
+                android:text="Split"
+                android:textSize="12sp"
+                android:visibility="gone"
+                tools:visibility="visible" />
+        </LinearLayout>
+
+        <!-- Payor Detail Section (Visible in Multi-Payor Mode) -->
+        <LinearLayout
+            android:id="@+id/layoutPayerRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="vertical"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Who paid?"
+                android:textColor="@color/darkBlue"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <!-- Single Payor Dropdown -->
+            <Spinner
+                android:id="@+id/spinnerSinglePayor"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:minHeight="48dp" />
+
+            <!-- Multi Payor Split Container -->
+            <LinearLayout
+                android:id="@+id/layoutMultiPayorContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
                 android:orientation="vertical"
-                android:visibility="gone">
+                android:visibility="gone" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:text="Paid by"
-                    android:textSize="12sp" />
+            <TextView
+                android:id="@+id/tvRemainingAmount"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Remaining: ₱0.00"
+                android:textColor="#F44336"
+                android:textSize="12sp"
+                android:visibility="gone" />
 
-                <TextView
-                    android:id="@+id/tvPaidBy"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="?attr/selectableItemBackground"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:paddingVertical="4dp"
-                    android:text="Select Payor"
-                    android:textColor="@color/darkBlue"
-                    android:textStyle="bold" />
-            </LinearLayout>
         </LinearLayout>
 
     </LinearLayout>
