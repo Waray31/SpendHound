@@ -47,7 +47,6 @@ class AllTransactionsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_all_transactions)
 
         mAuth = DeclareDatabase.auth
         
@@ -59,7 +58,6 @@ class AllTransactionsActivity : AppCompatActivity() {
     private fun initViews() {
         recyclerView = findViewById(R.id.allTransactionsRecyclerView)
         datePickerButton = findViewById(R.id.datePickerButton)
-        currentMonthTextView = findViewById(R.id.currentMonthTextView)
         transactionCountTextView = findViewById(R.id.transactionCountTextView)
         loadingProgressBar = findViewById(R.id.loadingProgressBar)
         emptyStateLayout = findViewById(R.id.emptyStateLayout)

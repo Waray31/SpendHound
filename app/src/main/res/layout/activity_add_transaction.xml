@@ -46,7 +46,7 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_margin="4dp"
+                        android:layout_margin="8dp"
                         android:background="@drawable/rounded_border_transparent_bg"
                         android:elevation="3dp">
 
@@ -54,7 +54,7 @@
                             android:id="@+id/transactionType"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:layout_marginVertical="4dp"
+                            android:paddingVertical="8dp"
                             android:background="@android:color/transparent"
                             android:paddingHorizontal="8dp" />
                     </LinearLayout>
@@ -201,7 +201,7 @@
                                 android:fontFamily="@font/montserratalternatess_regular"
                                 android:hint="Enter amount"
                                 android:inputType="numberDecimal"
-                                android:paddingVertical="12dp"
+                                android:paddingVertical="8dp"
                                 android:textAlignment="center"
                                 android:textSize="16sp" />
                         </LinearLayout>

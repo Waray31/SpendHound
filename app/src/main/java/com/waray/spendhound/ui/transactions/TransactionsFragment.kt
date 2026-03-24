@@ -95,7 +95,6 @@ class TransactionsFragment : Fragment() {
         recyclerView = root.findViewById(R.id.allTransactionsRecyclerView)
         datePickerButton = root.findViewById(R.id.datePickerButton)
         groupSpinner = root.findViewById(R.id.groupSpinner)
-        currentMonthTextView = root.findViewById(R.id.currentMonthTextView)
         transactionCountTextView = root.findViewById(R.id.transactionCountTextView)
         loadingProgressBar = root.findViewById(R.id.loadingProgressBar)
         emptyStateLayout = root.findViewById(R.id.emptyStateLayout)
