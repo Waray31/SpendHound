@@ -33,7 +33,6 @@ class LoginActivity : AppCompatActivity() {
 
         mAuth = DeclareDatabase.auth
 
-        rememberMeCheckbox = findViewById<CheckBox>(R.id.rememberMeCheckbox)
         usernameEditText = findViewById<EditText>(R.id.usernameEditText)
         passwordEditText = findViewById<EditText>(R.id.passwordEditText)
         val loginButton = findViewById<Button>(R.id.loginButton)

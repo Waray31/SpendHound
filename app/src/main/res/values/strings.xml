@@ -189,4 +189,18 @@
 
     <!-- Members Label -->
     <string name="members_format">Members: %1$s</string>
+
+    <!-- Sign Up Screen -->
+    <string name="back_button">Back</string>
+    <string name="create_account">Create Account</string>
+    <string name="sign_up_subtitle">Enter your details to get started</string>
+    <string name="full_name">Full Name</string>
+    <string name="email">Email</string>
+    <string name="phone_number">Phone Number</string>
+    <string name="password">Password</string>
+    <string name="confirm_password">Confirm Password</string>
+    <string name="sign_up">Sign Up</string>
+    <string name="already_have_account">Already have an account?</string>
+    <string name="login">Login</string>
+    <string name="edit_photo">Edit Photo</string>
 </resources>
