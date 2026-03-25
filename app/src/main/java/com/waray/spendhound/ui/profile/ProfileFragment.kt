@@ -4,7 +4,6 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
-import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.Drawable
 import android.net.Uri
 import android.os.Bundle
@@ -13,7 +12,6 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.Window
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
@@ -40,16 +38,20 @@ import com.waray.spendhound.BreakdownItem
 import com.waray.spendhound.CurrencyUtils
 import com.waray.spendhound.DeclareDatabase
 import com.waray.spendhound.LoginActivity
+import com.waray.spendhound.MainActivity
 import com.waray.spendhound.PayorAdapter
 import com.waray.spendhound.R
 import com.waray.spendhound.SecurityUtils
 import com.waray.spendhound.Transaction
 import com.waray.spendhound.User
+import com.waray.spendhound.UserHelper
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import java.io.ByteArrayOutputStream
 import kotlin.math.max
 
@@ -153,8 +155,13 @@ class ProfileFragment : Fragment() {
         } else {
             lifecycleScope.launch {
                 try {
-                    val bucket = DeclareDatabase.profileImagesBucket
-                    val url = bucket.publicUrl("$userId.jpg")
+                    val user = withContext(Dispatchers.IO) {
+                        DeclareDatabase.usersTable.select(Columns.list("profile_image_url")) {
+                            filter { eq("auth_id", userId) }
+                        }.decodeSingleOrNull<User>()
+                    }
+                    
+                    val url = user?.profileImageUrl ?: DeclareDatabase.profileImagesBucket.publicUrl("$userId.jpg")
                     PayorAdapter.sDownloadUrlCache[userId] = url
                     loadGlideProfileImage(imageView, url)
                 } catch (e: Exception) {
@@ -213,8 +220,7 @@ class ProfileFragment : Fragment() {
 
     private fun setupSaveNickname() {
         saveNickname?.setOnClickListener {
-            saveNickname()
-            switchToDisplayMode()
+            saveNicknameAndSwitchMode()
             val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             imm.hideSoftInputFromWindow(nicknameEditText?.windowToken, 0)
         }
@@ -255,28 +261,65 @@ class ProfileFragment : Fragment() {
     private fun switchToDisplayMode() {
         nicknameTextView?.visibility = View.VISIBLE
         nicknameEditText?.visibility = View.GONE
-        currentNickname = nicknameEditText?.text.toString()
         nicknameTextView?.text = currentNickname
         editNickname?.visibility = View.VISIBLE
         saveNickname?.visibility = View.GONE
     }
 
-    private fun saveNickname() {
-        val updatedNickname = nicknameEditText?.text.toString()
-        currentNickname = updatedNickname
+    private fun saveNicknameAndSwitchMode() {
+        val updatedNickname = nicknameEditText?.text.toString().trim()
+        if (updatedNickname.isEmpty()) {
+            Toast.makeText(requireContext(), "Nickname cannot be empty", Toast.LENGTH_SHORT).show()
+            return
+        }
+
         val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
         showLoading()
         lifecycleScope.launch {
             try {
+                // Check if username already exists
+                val existingUser = withContext(Dispatchers.IO) {
+                    DeclareDatabase.usersTable.select(Columns.list("user_id")) {
+                        filter { 
+                            eq("username", updatedNickname)
+                            neq("auth_id", currentUserId)
+                        }
+                    }.decodeSingleOrNull<User>()
+                }
+
+                if (existingUser != null) {
+                    Toast.makeText(requireContext(), "Username already taken", Toast.LENGTH_SHORT).show()
+                    hideLoading()
+                    return@launch
+                }
+
+                val updateData = buildJsonObject {
+                    put("username", updatedNickname)
+                }
+
                 withContext(Dispatchers.IO) {
-                    DeclareDatabase.usersTable.update({
-                        set("username", updatedNickname)
-                    }) {
+                    DeclareDatabase.usersTable.update(updateData) {
                         filter { eq("auth_id", currentUserId) }
                     }
+                    
+                    // Update cache
+                    val user = DeclareDatabase.usersTable.select(Columns.list("user_id")) {
+                        filter { eq("auth_id", currentUserId) }
+                    }.decodeSingleOrNull<User>()
+                    user?.id?.let { UserHelper.updateCache(it, updatedNickname) }
                 }
+
+                currentNickname = updatedNickname
+                switchToDisplayMode()
+
+                // Sync with MainActivity
+                (activity as? MainActivity)?.currentNickname = currentNickname
+
+                totalBalanceUnpaid() // Re-calculate based on new nickname if needed (though transactions should use IDs ideally)
+                Toast.makeText(requireContext(), "Profile updated", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
                 Log.e("Supabase", "Error saving nickname: ${e.message}")
+                Toast.makeText(requireContext(), "Failed to update profile", Toast.LENGTH_SHORT).show()
             } finally {
                 hideLoading()
             }
@@ -373,8 +416,10 @@ class ProfileFragment : Fragment() {
                     balance = 0.0
                 }
 
-                totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(balance)
-                totalTextView?.text = "Total Balance:"
+                withContext(Dispatchers.Main) {
+                    totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(balance)
+                    totalTextView?.text = "Total Balance:"
+                }
             } catch (e: Exception) {
                 Log.e("Supabase", "Error fetching balance/unpaid: ${e.message}")
             } finally {
@@ -569,7 +614,7 @@ class ProfileFragment : Fragment() {
 
     private fun uploadProfilePhoto(imageUri: Uri?) {
         val currentUserId = mAuth?.currentUserOrNull()?.id ?: return hideLoading()
-        
+
         lifecycleScope.launch {
             try {
                 val bytes = withContext(Dispatchers.IO) {
@@ -581,8 +626,21 @@ class ProfileFragment : Fragment() {
                     bucket.upload(path, bytes, upsert = true)
                     val publicUrl = bucket.publicUrl(path)
                     
+                    // UPDATE DATABASE HERE
+                    val updateData = buildJsonObject {
+                        put("profile_image_url", publicUrl)
+                    }
+                    withContext(Dispatchers.IO) {
+                        DeclareDatabase.usersTable.update(updateData) {
+                            filter { eq("auth_id", currentUserId) }
+                        }
+                    }
+                    
                     PayorAdapter.sDownloadUrlCache[currentUserId] = publicUrl
+                    
+                    // Trigger a re-render/refresh of images if needed
                     withContext(Dispatchers.Main) {
+                        setProfileImage(profileImageView!!)
                         hideLoading()
                         Toast.makeText(requireContext(), "Profile Photo Changed Successfully", Toast.LENGTH_SHORT).show()
                     }
@@ -620,21 +678,19 @@ class ProfileFragment : Fragment() {
     }
 
     private fun showAdminLoginDialog() {
-        val dialog = AlertDialog.Builder(requireContext()).create()
-        val inflater = layoutInflater
-        val dialogView = inflater.inflate(R.layout.dialog_admin_login, null)
-        
+        val dialogView = layoutInflater.inflate(R.layout.dialog_admin_login, null)
         val etAdminUsername = dialogView.findViewById<EditText>(R.id.etAdminUsername)
         val etAdminPassword = dialogView.findViewById<EditText>(R.id.etAdminPassword)
         
-        dialog.setView(dialogView)
-        dialog.setButton(AlertDialog.BUTTON_POSITIVE, "Login") { _, _ ->
-            val username = etAdminUsername.text.toString()
-            val password = etAdminPassword.text.toString()
-            handleAdminLogin(username, password)
-        }
-        dialog.setButton(AlertDialog.BUTTON_NEGATIVE, "Cancel") { d, _ -> d.dismiss() }
-        dialog.show()
+        AlertDialog.Builder(requireContext())
+            .setView(dialogView)
+            .setPositiveButton("Login") { _, _ ->
+                val username = etAdminUsername.text.toString()
+                val password = etAdminPassword.text.toString()
+                handleAdminLogin(username, password)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun handleAdminLogin(username: String, pass: String) {

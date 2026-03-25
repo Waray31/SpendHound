@@ -27,9 +27,11 @@ import com.waray.spendhound.DeclareDatabase
 import com.waray.spendhound.MainActivity
 import com.waray.spendhound.R
 import com.waray.spendhound.Transaction
+import com.waray.spendhound.User
 import com.waray.spendhound.databinding.FragmentHomeBinding
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.from
+import io.github.jan.supabase.postgrest.query.Columns
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -95,31 +97,60 @@ class HomeFragment : Fragment() {
         setupToggleListeners()
         setupNavigationListeners()
         updateDateRangeDisplay()
-        callMainActivityMethod()
-
+        
         setTextViews()
         (activity as? AppCompatActivity)?.supportActionBar?.hide()
 
         return view
     }
 
-    private fun callMainActivityMethod() {
+    override fun onResume() {
+        super.onResume()
+        refreshAllData()
+    }
+
+    private fun refreshAllData() {
         val mainActivity = activity as? MainActivity ?: return
+        val authId = mAuth?.currentUserOrNull()?.id ?: return
+
         showLoading()
-        mainActivity.getRecentTransactions {
-            activity?.runOnUiThread { hideLoading() }
-        }
-        showLoading()
-        mainActivity.getTotalMonthSpends {
-            activity?.runOnUiThread {
-                updateTotalMonthSpendsUI()
-                hideLoading()
-            }
-        }
-        showLoading()
-        mainActivity.getEverydaySpends {
-            activity?.runOnUiThread {
-                updateWeeklyChartUI()
+        lifecycleScope.launch {
+            try {
+                // FORCE REFRESH User details from DB to get the latest nickname
+                val user = withContext(Dispatchers.IO) {
+                    DeclareDatabase.usersTable.select(Columns.list("username", "user_id")) {
+                        filter { eq("auth_id", authId) }
+                    }.decodeSingleOrNull<User>()
+                }
+                
+                if (user != null) {
+                    mainActivity.currentNickname = user.username
+                }
+                
+                mainActivity.getRecentTransactions {
+                    activity?.runOnUiThread { hideLoading() }
+                }
+                
+                mainActivity.getTotalMonthSpends {
+                    activity?.runOnUiThread {
+                        updateTotalMonthSpendsUI()
+                        hideLoading()
+                    }
+                }
+                
+                mainActivity.getEverydaySpends {
+                    activity?.runOnUiThread {
+                        updateWeeklyChartUI()
+                        hideLoading()
+                    }
+                }
+                
+                if (!isWeeklyMode) {
+                    loadMonthlyChartData()
+                }
+
+            } catch (e: Exception) {
+                Log.e("HomeFragment", "Error refreshing data: ${e.message}")
                 hideLoading()
             }
         }
@@ -355,8 +386,8 @@ class HomeFragment : Fragment() {
                 for (transaction in transactions) {
                     if (mainActivity?.isUserInvolved(transaction, username) == true) {
                         val transactionDate = Calendar.getInstance().apply { timeInMillis = transaction.timestamp }
-                        val dayOfMonth = transactionDate.get(Calendar.DAY_OF_MONTH)
-                        dailySpends[dayOfMonth] = (dailySpends[dayOfMonth] ?: 0.0) + transaction.paymentAmount
+                        val actualDayOfMonth = transactionDate.get(Calendar.DAY_OF_MONTH)
+                        dailySpends[actualDayOfMonth] = (dailySpends[actualDayOfMonth] ?: 0.0) + transaction.paymentAmount
                     }
                 }
 

@@ -17,6 +17,7 @@ import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import com.bumptech.glide.Glide
@@ -38,6 +39,8 @@ class SignUpActivity : AppCompatActivity() {
     private var btnNextStep: Button? = null
     private var profileImageView: ImageView? = null
     private var progressBar: ProgressBar? = null
+    private var ivBack: ImageView? = null
+    private var layoutFooter: LinearLayout? = null
     private var mAuth: Auth? = null
     private var profileImageUri: Uri? = null
     private var userId: String? = null // Supabase Auth UID
@@ -56,6 +59,8 @@ class SignUpActivity : AppCompatActivity() {
         layoutStep1 = findViewById(R.id.layoutStep1)
         layoutStep2 = findViewById(R.id.layoutStep2)
         tvSignUpTitle = findViewById(R.id.tvSignUpTitle)
+        ivBack = findViewById(R.id.ivBack)
+        layoutFooter = findViewById(R.id.layoutFooter)
         
         usernameEditText = findViewById(R.id.usernameSignUp)
         emailEditText = findViewById(R.id.emailSignup)
@@ -75,6 +80,28 @@ class SignUpActivity : AppCompatActivity() {
         }
 
         exitEditText()
+
+        // Handle back button behavior
+        onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+            override fun handleOnBackPressed() {
+                if (layoutStep2?.visibility == View.VISIBLE) {
+                    // Do nothing - back button is disabled in Step 2
+                } else {
+                    finish()
+                }
+            }
+        })
+
+        // Check if we were redirected here to complete Step 2
+        val isRedirected = intent.getBooleanExtra("REDIRECTED_TO_STEP_2", false)
+        if (isRedirected) {
+            val email = intent.getStringExtra("USER_EMAIL") ?: ""
+            userId = intent.getStringExtra("USER_AUTH_ID")
+            internalUserId = intent.getLongExtra("USER_INTERNAL_ID", -1L)
+            if (internalUserId == -1L) internalUserId = null
+            
+            showStep2(email.substringBefore("@"))
+        }
     }
 
     private fun validateStep1(): Boolean {
@@ -186,6 +213,8 @@ class SignUpActivity : AppCompatActivity() {
     private fun showStep2(tempUsername: String) {
         layoutStep1?.visibility = View.GONE
         layoutStep2?.visibility = View.VISIBLE
+        ivBack?.visibility = View.GONE // Remove back button on Step 2
+        layoutFooter?.visibility = View.GONE // Remove footer on Step 2
         tvSignUpTitle?.text = "Complete Your Profile"
         usernameEditText?.setText(tempUsername)
     }
@@ -236,6 +265,12 @@ class SignUpActivity : AppCompatActivity() {
 
                 updateUserInDatabase(username, finalProfileUrl)
                 
+                // Mark Step 2 as completed in SharedPreferences
+                userId?.let {
+                    val prefs = getSharedPreferences("SpendHoundPrefs", Context.MODE_PRIVATE)
+                    prefs.edit().putBoolean("step2_completed_$it", true).apply()
+                }
+
                 withContext(Dispatchers.Main) {
                     progressBar?.visibility = View.GONE
                     signUpSuccess()
@@ -294,9 +329,8 @@ class SignUpActivity : AppCompatActivity() {
 
     fun onSignInClicked(view: View?) {
         if (layoutStep2?.visibility == View.VISIBLE) {
-            layoutStep2?.visibility = View.GONE
-            layoutStep1?.visibility = View.VISIBLE
-            tvSignUpTitle?.text = "Create Account"
+            // This button should actually be hidden/disabled if we are in Step 2 according to logic,
+            // but just in case, we do nothing.
         } else {
             finish()
         }
