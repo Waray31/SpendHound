@@ -51,8 +51,8 @@
                 android:textSize="24sp" />
 
             <FrameLayout
-                android:layout_width="100dp"
-                android:layout_height="100dp"
+                android:layout_width="130dp"
+                android:layout_height="130dp"
                 android:layout_marginBottom="24dp">
 
                 <com.google.android.material.imageview.ShapeableImageView
@@ -73,8 +73,10 @@
                     android:contentDescription="Edit Photo"
                     android:onClick="onAddProfileImageClicked"
                     android:src="@drawable/edit_photo"
+                    app:backgroundTint="@color/yellow"
                     app:fabCustomSize="32dp"
-                    app:tint="@color/darkBlue" />
+                    android:elevation="1dp"
+                    app:tint="@color/whitest" />
             </FrameLayout>
 
             <com.google.android.material.textfield.TextInputLayout
