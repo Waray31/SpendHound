@@ -37,7 +37,7 @@ class AddTransactionActivity : AppCompatActivity() {
     private var progressOverlay: View? = null
     private var payorsContainer: LinearLayout? = null
     private var dateRangePickerBtn: Button? = null
-    
+
     private var mAuth: Auth? = null
     private var currentUserId: String? = null
     private var currentUserNumericId: Long? = null
@@ -50,7 +50,7 @@ class AddTransactionActivity : AppCompatActivity() {
     private var amountPaidList: MutableList<Double> = mutableListOf()
     private var individualPayment: Double = 0.0
     private var selectedGroup: PayerGroup? = null
-    
+
     private var startDate: Long = System.currentTimeMillis()
     private var endDate: Long = System.currentTimeMillis()
 
@@ -145,7 +145,7 @@ class AddTransactionActivity : AppCompatActivity() {
                 val user = DeclareDatabase.usersTable.select {
                     filter { eq("auth_id", authId) }
                 }.decodeSingleOrNull<User>()
-                
+
                 currentUserNumericId = user?.id
                 posterDisplayName = user?.username
             } catch (e: Exception) {
@@ -190,7 +190,7 @@ class AddTransactionActivity : AppCompatActivity() {
             Toast.makeText(this, "Please select a bill type", Toast.LENGTH_SHORT).show()
             return
         }
-        
+
         transactionType = transactionTypeSpinner?.selectedItem?.toString() ?: ""
         val amountStr = paymentAmountET?.text.toString().trim()
         transactionDetail = transactionDetailET?.text.toString().trim()
@@ -214,11 +214,11 @@ class AddTransactionActivity : AppCompatActivity() {
     private fun saveTransaction() {
         val cal = Calendar.getInstance()
         cal.timeInMillis = startDate
-        
+
         val currentMonthYear = SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(cal.time)
         val currentDay = SimpleDateFormat("dd", Locale.getDefault()).format(cal.time)
         val currentTime = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Calendar.getInstance().time)
-        
+
         val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault())
         val createdAt = isoFormat.format(cal.time)
 

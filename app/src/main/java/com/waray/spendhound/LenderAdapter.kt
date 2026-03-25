@@ -46,23 +46,20 @@ class LenderAdapter(private val lenders: MutableList<User?>) :
             holder.usernameText.visibility = View.VISIBLE
             holder.usernameText.text = lender.username
 
+            val authId = lender.authId
             val userId = lender.id?.toString()
-            val cachedUrl: String? = if (userId != null) PayorAdapter.sDownloadUrlCache[userId] else null
+            val cachedUrl: String? = if (authId != null) PayorAdapter.sDownloadUrlCache[authId] else if (userId != null) PayorAdapter.sDownloadUrlCache[userId] else null
 
             if (cachedUrl != null) {
                 loadGlideImage(holder, cachedUrl)
             } else if (!lender.profileImageUrl.isNullOrEmpty() && lender.profileImageUrl!!.startsWith("http")) {
                 loadGlideImage(holder, lender.profileImageUrl)
             } else if (userId != null) {
-                scope.launch {
-                    try {
-                        val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId.jpg")
-                        PayorAdapter.sDownloadUrlCache[userId] = url
-                        loadGlideImage(holder, url)
-                    } catch (e: Exception) {
-                        holder.profileImage.setImageResource(R.drawable.placeholder_profile_image)
-                    }
-                }
+                // Use user_id/user_id.jpg format
+                val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
+                if (authId != null) PayorAdapter.sDownloadUrlCache[authId] = url
+                PayorAdapter.sDownloadUrlCache[userId] = url
+                loadGlideImage(holder, url)
             } else {
                 holder.profileImage.setImageResource(R.drawable.placeholder_profile_image)
             }
@@ -103,25 +100,19 @@ class LenderAdapter(private val lenders: MutableList<User?>) :
         val total = usersToFetch.size
 
         for (lender in usersToFetch) {
+            val authId = lender?.authId
             val userId = lender?.id?.toString()
-            val cachedUrl: String? = if (userId != null) PayorAdapter.sDownloadUrlCache[userId] else null
+            val cachedUrl: String? = if (authId != null) PayorAdapter.sDownloadUrlCache[authId] else if (userId != null) PayorAdapter.sDownloadUrlCache[userId] else null
 
             if (cachedUrl != null) {
                 preloadUrl(context!!, cachedUrl, loadedCount, total, onComplete)
             } else if (!lender?.profileImageUrl.isNullOrEmpty() && lender!!.profileImageUrl!!.startsWith("http")) {
                 preloadUrl(context!!, lender.profileImageUrl, loadedCount, total, onComplete)
             } else if (userId != null) {
-                scope.launch {
-                    try {
-                        val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId.jpg")
-                        PayorAdapter.sDownloadUrlCache[userId] = url
-                        preloadUrl(context!!, url, loadedCount, total, onComplete)
-                    } catch (e: Exception) {
-                        if (loadedCount.incrementAndGet() >= total) {
-                            onComplete?.run()
-                        }
-                    }
-                }
+                val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
+                if (authId != null) PayorAdapter.sDownloadUrlCache[authId] = url
+                PayorAdapter.sDownloadUrlCache[userId] = url
+                preloadUrl(context!!, url, loadedCount, total, onComplete)
             } else {
                 if (loadedCount.incrementAndGet() >= total) {
                     onComplete?.run()

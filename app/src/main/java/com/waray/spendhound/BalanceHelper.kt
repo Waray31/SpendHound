@@ -20,6 +20,7 @@ object BalanceHelper {
 
     /**
      * Initialize balances for a user in the 'user_balance' table.
+     * Uses upsert to prevent "already exists" errors.
      */
     fun initializeBalancesForNewUser(userId: String?, callback: BalanceCallback?) {
         if (userId == null) return
@@ -37,7 +38,7 @@ object BalanceHelper {
                     put("balance_total_group", 0.0)
                     put("balance_total_individual", 0.0)
                 }
-                DeclareDatabase.userBalanceTable.insert(initialBalanceData)
+                DeclareDatabase.userBalanceTable.upsert(initialBalanceData)
                 
                 withContext(Dispatchers.Main) {
                     Log.d(TAG, "Balances initialized in user_balance for user: $userId")

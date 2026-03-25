@@ -81,7 +81,8 @@ class PayorAdapter(
             } else {
                 scope.launch {
                     try {
-                        val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId.jpg")
+                        // Use numeric user_id as folder and filename
+                        val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
                         sDownloadUrlCache[userId] = url
                         preloadProfileImage(context, url, i)
                     } catch (e: Exception) {
@@ -188,7 +189,8 @@ class PayorAdapter(
             } else {
                 scope.launch {
                     try {
-                        val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId.jpg")
+                        // Use numeric user_id as folder and filename
+                        val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
                         sDownloadUrlCache[userId] = url
                         loadGlideImage(holder, url, position)
                     } catch (e: Exception) {
@@ -285,7 +287,8 @@ class PayorAdapter(
                 } else {
                     scope.launch {
                         try {
-                            val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId.jpg")
+                            // Use numeric user_id as folder and filename
+                            val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
                             sDownloadUrlCache[userId] = url
                             preloadOnly(context, url)
                         } catch (e: Exception) {}

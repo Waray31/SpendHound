@@ -47,6 +47,7 @@ class AllTransactionsActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContentView(R.layout.fragment_transactions)
 
         mAuth = DeclareDatabase.auth
         
@@ -134,6 +135,9 @@ class AllTransactionsActivity : AppCompatActivity() {
                 
                 currentNickname = userDetails?.username ?: ""
                 currentUserNumericId = userDetails?.id
+                
+                // Refresh transactions once we have the numeric ID
+                refreshTransactions()
             } catch (e: Exception) {
                 Log.e("AllTransactions", "Error getting nickname: " + e.message)
             }
@@ -191,6 +195,11 @@ class AllTransactionsActivity : AppCompatActivity() {
 
     @SuppressLint("NotifyDataSetChanged")
     private fun fetchTransactionsInRange(start: Long, end: Long) {
+        if (currentUserNumericId == null && mAuth?.currentUserOrNull() != null) {
+            // Wait for user details to load
+            return
+        }
+
         loadingProgressBar?.visibility = View.VISIBLE
         emptyStateLayout?.visibility = View.GONE
         transactionList.clear()
@@ -223,7 +232,7 @@ class AllTransactionsActivity : AppCompatActivity() {
                         val transactionType = transaction.transactionType
                         val details = transaction.transactionDetail
                         val paymentAmount = transaction.paymentAmount
-                        val paymentAmountStr = CurrencyUtils.formatAmountWithCurrency(paymentAmount.toString())
+                        val paymentAmountStr = CurrencyUtils.formatAmountWithCurrency(paymentAmount)
                         val iconResource = getIconForTransactionType(transactionType)
 
                         val payorsList = (transaction.payorsDisplayNames ?: transaction.contributors)?.map { it as String? }?.toMutableList()
@@ -279,12 +288,22 @@ class AllTransactionsActivity : AppCompatActivity() {
 
     private fun parseCreatedAt(createdAt: String?): Long {
         if (createdAt == null) return 0L
-        return try {
-            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-            sdf.parse(createdAt)?.time ?: 0L
-        } catch (e: Exception) {
-            0L
+        val formats = arrayOf(
+            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss"
+        )
+        for (format in formats) {
+            try {
+                val sdf = SimpleDateFormat(format, Locale.getDefault())
+                val date = sdf.parse(createdAt)
+                if (date != null) return date.time
+            } catch (e: Exception) {
+                // Try next format
+            }
         }
+        return 0L
     }
 
     private fun matchesStatusFilter(
@@ -337,16 +356,27 @@ class AllTransactionsActivity : AppCompatActivity() {
         usernameOrUserId: String?
     ): Boolean {
         if (transaction == null) return false
-        val currentUserId = mAuth?.currentUserOrNull()?.id
         
-        if (transaction.isUserInvolvedByUserId(currentUserId)) return true
-        if (transaction.creatorId == currentUserNumericId) return true
+        // 1. Check by numeric ID (Best for consistency with storage/other models)
+        if (currentUserNumericId != null) {
+            if (transaction.creatorId == currentUserNumericId) return true
+            if (transaction.contributors?.contains(currentUserNumericId.toString()) == true) return true
+        }
         
+        // 2. Check by Auth UID (Fallback for legacy data)
+        val currentAuthId = mAuth?.currentUserOrNull()?.id
+        if (currentAuthId != null) {
+            if (transaction.usernamePost == currentAuthId) return true
+            if (transaction.contributors?.contains(currentAuthId) == true) return true
+        }
+        
+        // 3. Check by Nickname (Fallback for names stored in contributors)
         if (usernameOrUserId != null) {
-            if (usernameOrUserId == transaction.usernamePost) return true
             if (usernameOrUserId == transaction.posterDisplayName) return true
             if (transaction.payorsDisplayNames?.contains(usernameOrUserId) == true) return true
+            if (transaction.contributors?.contains(usernameOrUserId) == true) return true
         }
+
         return false
     }
 }

@@ -24,6 +24,7 @@ import com.bumptech.glide.Glide
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -175,6 +176,7 @@ class SignUpActivity : AppCompatActivity() {
             }
 
             withContext(Dispatchers.IO) {
+                // Use insert for initial save to avoid needing UPDATE permissions for upsert
                 val createdUser = DeclareDatabase.usersTable.insert(userData) {
                     select(Columns.list("user_id"))
                 }.decodeSingle<User>()
@@ -201,7 +203,7 @@ class SignUpActivity : AppCompatActivity() {
                 showStep2(username)
             }
         } catch (e: Exception) {
-            Log.e(tag, "Database Error in Step 1: ${e.message}")
+            Log.e(tag, "Database Error in Step 1: ${e.message}", e)
             withContext(Dispatchers.Main) {
                 progressBar?.visibility = View.GONE
                 btnNextStep?.isEnabled = true
@@ -259,8 +261,13 @@ class SignUpActivity : AppCompatActivity() {
                 }
 
                 var finalProfileUrl = "placeholder_profile_image"
-                if (profileImageUri != null) {
-                    finalProfileUrl = uploadProfileImageAndGetUrl(userId!!) ?: "placeholder_profile_image"
+                val userId = internalUserId
+                if (profileImageUri != null && userId != null) {
+                    Log.d(tag, "Attempting to upload profile image for user: $userId")
+                    finalProfileUrl = uploadProfileImageAndGetUrl(userId) ?: "placeholder_profile_image"
+                    Log.d(tag, "Profile image upload result: $finalProfileUrl")
+                } else {
+                    Log.w(tag, "Skipping profile image upload - profileImageUri: ${profileImageUri != null}, internalUserId: $userId")
                 }
 
                 updateUserInDatabase(username, finalProfileUrl)
@@ -276,7 +283,7 @@ class SignUpActivity : AppCompatActivity() {
                     signUpSuccess()
                 }
             } catch (e: Exception) {
-                Log.e(tag, "Update Error (Step 2): ${e.message}")
+                Log.e(tag, "Update Error (Step 2): ${e.message}", e)
                 progressBar?.visibility = View.GONE
                 signUpButton?.isEnabled = true
                 Toast.makeText(this@SignUpActivity, "Update failed: ${e.message}", Toast.LENGTH_LONG).show()
@@ -284,31 +291,135 @@ class SignUpActivity : AppCompatActivity() {
         }
     }
 
-    private suspend fun uploadProfileImageAndGetUrl(authUid: String): String? {
+    private suspend fun uploadProfileImageAndGetUrl(userInternalId: Long): String? {
+        Log.d(tag, "🔍 ===== STARTING PROFILE IMAGE UPLOAD DIAGNOSTICS =====")
+        Log.d(tag, "🔍 User ID: $userInternalId")
+        Log.d(tag, "🔍 Image URI: $profileImageUri")
+        Log.d(tag, "🔍 Current timestamp: ${System.currentTimeMillis()}")
+
         return try {
-            val bytes = withContext(Dispatchers.IO) {
-                contentResolver.openInputStream(profileImageUri!!)?.use { it.readBytes() }
+            // Step 1: Validate inputs
+            Log.d(tag, "🔍 Step 1: Validating inputs...")
+            if (profileImageUri == null) {
+                Log.e(tag, "❌ FAILED Step 1: profileImageUri is null")
+                return null
             }
-            
-            if (bytes != null) {
-                val bucket = DeclareDatabase.profileImagesBucket
-                val path = "$authUid.jpg"
-                Log.d(tag, "Uploading to Storage: $path")
-                
+            Log.d(tag, "🔍 ✓ Step 1 Complete: Inputs validated")
+
+            // Step 2: Read image bytes
+            Log.d(tag, "🔍 Step 2: Reading image bytes from URI...")
+            val bytes = withContext(Dispatchers.IO) {
+                try {
+                    val inputStream = contentResolver.openInputStream(profileImageUri!!)
+                    if (inputStream == null) {
+                        Log.e(tag, "❌ FAILED Step 2: Cannot open input stream from URI: $profileImageUri")
+                        return@withContext null
+                    }
+                    val byteArray = inputStream.use { it.readBytes() }
+                    Log.d(tag, "🔍 ✓ Step 2a: Input stream opened successfully")
+                    Log.d(tag, "🔍 ✓ Step 2b: Read ${byteArray.size} bytes from stream")
+                    byteArray
+                } catch (e: Exception) {
+                    Log.e(tag, "❌ FAILED Step 2: Exception reading bytes: ${e.message}", e)
+                    throw e
+                }
+            }
+
+            if (bytes == null || bytes.isEmpty()) {
+                Log.e(tag, "❌ FAILED Step 2: Bytes array is null or empty")
+                return null
+            }
+            Log.d(tag, "🔍 ✓ Step 2 Complete: Image bytes read (${bytes.size} bytes)")
+
+            // Step 3: Get Supabase client
+            Log.d(tag, "🔍 Step 3: Getting Supabase client...")
+            val client = try {
+                DeclareDatabase.client
+            } catch (e: Exception) {
+                Log.e(tag, "❌ FAILED Step 3: Cannot get Supabase client: ${e.message}", e)
+                throw e
+            }
+            Log.d(tag, "🔍 ✓ Step 3a: Supabase client obtained")
+
+            // Step 4: Get storage module
+            Log.d(tag, "🔍 Step 4: Getting storage module...")
+            val storage = try {
+                client.storage
+            } catch (e: Exception) {
+                Log.e(tag, "❌ FAILED Step 4: Cannot get storage module: ${e.message}", e)
+                throw e
+            }
+            Log.d(tag, "🔍 ✓ Step 4a: Storage module obtained")
+
+            // Step 5: Get bucket reference
+            Log.d(tag, "🔍 Step 5: Getting bucket reference...")
+            val bucket = try {
+                DeclareDatabase.profileImagesBucket
+            } catch (e: Exception) {
+                Log.e(tag, "❌ FAILED Step 5: Cannot get bucket reference: ${e.message}", e)
+                throw e
+            }
+            Log.d(tag, "🔍 ✓ Step 5a: Bucket reference obtained")
+
+            // Step 6: Prepare upload path
+            val path = "$userInternalId/$userInternalId.jpg"
+            Log.d(tag, "🔍 Step 6: Upload path prepared: $path")
+
+            // Step 7: Upload to storage
+            Log.d(tag, "🔍 Step 7: Starting upload to storage...")
+            try {
                 bucket.upload(path, bytes, upsert = true)
-                val publicUrl = bucket.publicUrl(path)
-                Log.d(tag, "Upload success. URL: $publicUrl")
-                publicUrl
-            } else null
+                Log.d(tag, "🔍 ✓ Step 7a: Upload API call completed")
+            } catch (e: Exception) {
+                Log.e(tag, "❌ FAILED Step 7: Upload failed: ${e.message}", e)
+                e.printStackTrace()
+                throw e
+            }
+            Log.d(tag, "🔍 ✓ Step 7 Complete: Upload completed for path: $path")
+
+            // Step 8: Generate public URL
+            Log.d(tag, "🔍 Step 8: Generating public URL...")
+            val publicUrl = try {
+                bucket.publicUrl(path)
+            } catch (e: Exception) {
+                Log.e(tag, "❌ FAILED Step 8: Cannot generate public URL: ${e.message}", e)
+                throw e
+            }
+
+            Log.d(tag, "🔍 Generated URL: $publicUrl")
+
+            // Step 9: Validate URL
+            if (publicUrl.isNullOrEmpty()) {
+                Log.e(tag, "❌ FAILED Step 9: Public URL is null or empty")
+                return null
+            }
+
+            if (!publicUrl.startsWith("http")) {
+                Log.e(tag, "❌ FAILED Step 9: Public URL is invalid (doesn't start with http): $publicUrl")
+                return null
+            }
+
+            Log.d(tag, "🔍 ✓ Step 9 Complete: URL validation passed")
+            Log.d(tag, "🔍 ===== UPLOAD SUCCESS =====")
+            Log.d(tag, "🔍 Final URL: $publicUrl")
+
+            publicUrl
+
         } catch (e: Exception) {
-            Log.e(tag, "Storage Error: ${e.message}")
+            Log.e(tag, "🔍 ===== UPLOAD FAILED =====")
+            Log.e(tag, "🔍 Exception Type: ${e::class.simpleName}")
+            Log.e(tag, "🔍 Exception Message: ${e.message}")
+            Log.e(tag, "🔍 Full Stack Trace:", e)
+            e.printStackTrace()
             null
         }
     }
 
     private suspend fun updateUserInDatabase(username: String, profileImageUrl: String) {
         try {
-            Log.d(tag, "Updating user in Database...")
+            Log.d(tag, "Updating user in Database for user ID: $internalUserId")
+            Log.d(tag, "Setting username: $username, profileImageUrl: $profileImageUrl")
+            
             val updateData = buildJsonObject {
                 put("username", username)
                 put("profile_image_url", profileImageUrl)
@@ -319,10 +430,25 @@ class SignUpActivity : AppCompatActivity() {
                     filter { eq("user_id", internalUserId ?: -1L) }
                 }
                 
+                Log.d(tag, "Database update completed. Verifying update...")
+                
+                // Verify the update was successful
+                val updatedUser = DeclareDatabase.usersTable.select {
+                    filter { eq("user_id", internalUserId ?: -1L) }
+                }.decodeSingleOrNull<User>()
+                
+                if (updatedUser != null) {
+                    Log.d(tag, "Verification successful - Username: ${updatedUser.username}, ProfileImageUrl: ${updatedUser.profileImageUrl}")
+                } else {
+                    Log.w(tag, "Could not verify updated user record")
+                }
+                
                 // Update local UserHelper cache
                 internalUserId?.let { UserHelper.updateCache(it, username) }
             }
         } catch (e: Exception) {
+            Log.e(tag, "Error updating user in database: ${e.message}", e)
+            e.printStackTrace()
             throw e
         }
     }

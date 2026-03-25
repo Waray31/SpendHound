@@ -19,3 +19,4 @@ data class PayerGroup(
     @Transient
     var memberDisplayNames: MutableList<String?>? = null
 )
+
