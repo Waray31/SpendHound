@@ -86,9 +86,8 @@ class MultiTransactionAdapter(
             binding.btnToggleSplit.isVisible = isMultiplePayorsMode
             
             // Setup Category Spinner
-            val categories = listOf("General", "Food", "Transport", "Bills", "Entertainment")
-            val catAdapter = ArrayAdapter(itemView.context, android.R.layout.simple_spinner_item, categories)
-            catAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+            val categories = listOf("Electricity", "Water", "Rent", "Internet", "Online Shopping", "Travel", "Groceries", "Foods", "House Necessity", "Transportation", "Others")
+            val catAdapter = CategorySpinnerAdapter(itemView.context, categories)
             binding.spinnerCategory.adapter = catAdapter
             binding.spinnerCategory.setSelection(categories.indexOf(entry.category).coerceAtLeast(0))
             binding.spinnerCategory.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
