@@ -16,7 +16,6 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
-import android.widget.PopupMenu
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -55,7 +54,6 @@ import java.io.ByteArrayOutputStream
 import kotlin.math.max
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import io.github.jan.supabase.storage.storage
 
 class ProfileFragment : Fragment() {
     private var profileImageView: ImageView? = null
@@ -67,8 +65,10 @@ class ProfileFragment : Fragment() {
     private var oweTextView: TextView? = null
     private var debtTextView: TextView? = null
     private var nicknameEditText: EditText? = null
-    private var editNickname: ImageView? = null
-    private var saveNickname: ImageView? = null
+    private var editProfileTV: TextView? = null
+    private var cancelProfileTV: TextView? = null
+    private var saveProfileTV: TextView? = null
+    private var pendingImageUri: Uri? = null
     var mAuth: Auth? = null
     private var currentNickname: String? = ""
     private var balance = 0.0
@@ -101,8 +101,9 @@ class ProfileFragment : Fragment() {
         profileImageView = view.findViewById(R.id.profileImageView)
         nicknameTextView = view.findViewById(R.id.nicknameTextView)
         nicknameEditText = view.findViewById(R.id.nicknameEditText)
-        editNickname = view.findViewById(R.id.editNickname)
-        saveNickname = view.findViewById(R.id.saveNickname)
+        editProfileTV = view.findViewById(R.id.editProfile_TV)
+        cancelProfileTV = view.findViewById(R.id.cancelProfile_TV)
+        saveProfileTV = view.findViewById(R.id.saveProfile_TV)
         totalBalancedTextView = view.findViewById(R.id.totalBalancedTextView)
         totalTextView = view.findViewById(R.id.totalTextView)
         balanceTextView = view.findViewById(R.id.balanceTextView)
@@ -126,15 +127,16 @@ class ProfileFragment : Fragment() {
 
         mAuth = DeclareDatabase.auth
 
+        profileImageView?.isClickable = false
         profileImageView?.let { setProfileImage(it) }
         loadNicknameAndData()
-        setupEditNickname()
-        setupSaveNickname()
+        setupEditProfileTV()
+        setupCancelProfileTV()
+        setupSaveProfileTV()
         setupUnpaidButton()
         setupBalanceButton()
         setupOweButton()
         setupDebtButton()
-        setupProfileImageViewClick()
         setupProfileLogoutButton()
         setupBreakdownButton()
         setupAdminSettingsButton()
@@ -226,8 +228,8 @@ class ProfileFragment : Fragment() {
             .into(imageView)
     }
 
-    private fun setupEditNickname() {
-        editNickname?.setOnClickListener {
+    private fun setupEditProfileTV() {
+        editProfileTV?.setOnClickListener {
             switchToEditMode()
             nicknameEditText?.requestFocus()
             val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
@@ -235,11 +237,20 @@ class ProfileFragment : Fragment() {
         }
     }
 
-    private fun setupSaveNickname() {
-        saveNickname?.setOnClickListener {
-            saveNicknameAndSwitchMode()
+    private fun setupCancelProfileTV() {
+        cancelProfileTV?.setOnClickListener {
+            switchToDisplayMode()
+            profileImageView?.let { setProfileImage(it) }
             val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
             imm.hideSoftInputFromWindow(nicknameEditText?.windowToken, 0)
+        }
+    }
+
+    private fun setupSaveProfileTV() {
+        saveProfileTV?.setOnClickListener {
+            val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+            imm.hideSoftInputFromWindow(nicknameEditText?.windowToken, 0)
+            saveProfileAndSwitchMode()
         }
     }
 
@@ -271,19 +282,26 @@ class ProfileFragment : Fragment() {
         nicknameTextView?.visibility = View.GONE
         nicknameEditText?.visibility = View.VISIBLE
         nicknameEditText?.setText(currentNickname)
-        editNickname?.visibility = View.GONE
-        saveNickname?.visibility = View.VISIBLE
+        editProfileTV?.visibility = View.GONE
+        cancelProfileTV?.visibility = View.VISIBLE
+        saveProfileTV?.visibility = View.VISIBLE
+        profileImageView?.isClickable = true
+        profileImageView?.setOnClickListener { showChangeProfilePhotoDialog() }
     }
 
     private fun switchToDisplayMode() {
         nicknameTextView?.visibility = View.VISIBLE
         nicknameEditText?.visibility = View.GONE
         nicknameTextView?.text = currentNickname
-        editNickname?.visibility = View.VISIBLE
-        saveNickname?.visibility = View.GONE
+        editProfileTV?.visibility = View.VISIBLE
+        cancelProfileTV?.visibility = View.GONE
+        saveProfileTV?.visibility = View.GONE
+        profileImageView?.isClickable = false
+        profileImageView?.setOnClickListener(null)
+        pendingImageUri = null
     }
 
-    private fun saveNicknameAndSwitchMode() {
+    private fun saveProfileAndSwitchMode() {
         val updatedNickname = nicknameEditText?.text.toString().trim()
         if (updatedNickname.isEmpty()) {
             Toast.makeText(requireContext(), "Nickname cannot be empty", Toast.LENGTH_SHORT).show()
@@ -294,11 +312,9 @@ class ProfileFragment : Fragment() {
         showLoading()
         lifecycleScope.launch {
             try {
-                // Check if username already exists
-                Log.d("Supabase", "Checking if username '$updatedNickname' exists...")
                 val existingUser = withContext(Dispatchers.IO) {
                     DeclareDatabase.usersTable.select(Columns.list("user_id")) {
-                        filter { 
+                        filter {
                             eq("username", updatedNickname)
                             neq("auth_id", currentUserId)
                         }
@@ -311,40 +327,56 @@ class ProfileFragment : Fragment() {
                     return@launch
                 }
 
-                val updateData = buildJsonObject {
-                    put("username", updatedNickname)
-                }
-
-                withContext(Dispatchers.IO) {
-                    // Update the 'users' table in Postgrest
-                    DeclareDatabase.usersTable.update(updateData) {
-                        filter { eq("auth_id", currentUserId) }
-                    }
-                    
-                    // Sync with Supabase Auth Metadata (Display Name)
-                    mAuth?.updateUser {
-                        data = buildJsonObject {
-                            put("display_name", updatedNickname)
-                        }
-                    }
-                    
-                    // Update cache
-                    val user = DeclareDatabase.usersTable.select(Columns.list("user_id")) {
+                val user = withContext(Dispatchers.IO) {
+                    DeclareDatabase.usersTable.select(Columns.list("user_id")) {
                         filter { eq("auth_id", currentUserId) }
                     }.decodeSingleOrNull<User>()
-                    user?.id?.let { UserHelper.updateCache(it, updatedNickname) }
+                }
+                val numericUserId = user?.id ?: throw Exception("User ID not found")
+
+                // Upload image if one was selected
+                val imageUri = pendingImageUri
+                if (imageUri != null) {
+                    val bytes = withContext(Dispatchers.IO) {
+                        requireContext().contentResolver.openInputStream(imageUri)?.use { it.readBytes() }
+                    } ?: throw Exception("Failed to read image")
+
+                    val path = "$numericUserId/$numericUserId.jpg"
+                    withContext(Dispatchers.IO) {
+                        DeclareDatabase.profileImagesBucket.upload(path, bytes, upsert = true)
+                    }
+
+                    val publicUrl = "${DeclareDatabase.profileImagesBucket.publicUrl(path)}?t=${System.currentTimeMillis()}"
+                    PayorAdapter.sDownloadUrlCache[currentUserId] = publicUrl
+
+                    withContext(Dispatchers.IO) {
+                        DeclareDatabase.usersTable.update(buildJsonObject { put("profile_image_url", publicUrl) }) {
+                            filter { eq("auth_id", currentUserId) }
+                        }
+                    }
+
+                    imageSignature = System.currentTimeMillis()
+                    profileImageView?.let { loadGlideProfileImage(it, publicUrl) }
+                }
+
+                // Update username
+                withContext(Dispatchers.IO) {
+                    DeclareDatabase.usersTable.update(buildJsonObject { put("username", updatedNickname) }) {
+                        filter { eq("auth_id", currentUserId) }
+                    }
+                    mAuth?.updateUser {
+                        data = buildJsonObject { put("display_name", updatedNickname) }
+                    }
+                    UserHelper.updateCache(numericUserId, updatedNickname)
                 }
 
                 currentNickname = updatedNickname
                 switchToDisplayMode()
-
-                // Sync with MainActivity
                 (activity as? MainActivity)?.currentNickname = currentNickname
-
-                totalBalanceUnpaid() // Re-calculate based on new nickname if needed
+                totalBalanceUnpaid()
                 Toast.makeText(requireContext(), "Profile updated", Toast.LENGTH_SHORT).show()
             } catch (e: Exception) {
-                Log.e("Supabase", "Error saving nickname: ${e.message}", e)
+                Log.e("Supabase", "Error saving profile: ${e.message}", e)
                 Toast.makeText(requireContext(), "Failed to update profile: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
                 hideLoading()
@@ -530,43 +562,6 @@ class ProfileFragment : Fragment() {
         }
     }
 
-    private fun setupProfileImageViewClick() {
-        profileImageView?.setOnClickListener {
-            showProfilePictureMenu()
-        }
-    }
-
-    private fun showProfilePictureMenu() {
-        val popupMenu = PopupMenu(requireContext(), profileImageView)
-        popupMenu.menuInflater.inflate(R.menu.profile_picture_menu, popupMenu.menu)
-
-        popupMenu.setOnMenuItemClickListener { item ->
-            when (item.itemId) {
-                R.id.action_view_profile_photo -> {
-                    showLargeProfilePhoto()
-                    true
-                }
-                R.id.action_change_profile_photo -> {
-                    showChangeProfilePhotoDialog()
-                    true
-                }
-                else -> false
-            }
-        }
-        popupMenu.show()
-    }
-
-    private fun showLargeProfilePhoto() {
-        val builder = AlertDialog.Builder(requireContext())
-        val dialogView = layoutInflater.inflate(R.layout.dialog_profile_photo, null)
-        val imageView = dialogView.findViewById<ImageView>(R.id.dialog_profile_photo)
-        setProfileImage(imageView)
-        builder.setView(dialogView)
-        val dialog = builder.create()
-        dialog.show()
-        imageView.setOnClickListener { dialog.dismiss() }
-    }
-
     private fun selectNewProfilePhoto() {
         val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
         if (takePictureIntent.resolveActivity(requireActivity().packageManager) != null) {
@@ -581,14 +576,30 @@ class ProfileFragment : Fragment() {
                 REQUEST_IMAGE_CAPTURE -> {
                     val extras = data?.extras
                     val imageBitmap = extras?.get("data") as? Bitmap
-                    imageBitmap?.let {
-                        val imageUri = getImageUri(requireContext(), it)
-                        updateProfilePhoto(imageUri)
+                    imageBitmap?.let { bmp ->
+                        val imageUri = getImageUri(requireContext(), bmp)
+                        if (imageUri != null) {
+                            pendingImageUri = imageUri
+                            imageSignature = System.currentTimeMillis()
+                            Glide.with(this)
+                                .load(imageUri)
+                                .diskCacheStrategy(DiskCacheStrategy.NONE)
+                                .signature(ObjectKey(imageSignature))
+                                .into(profileImageView!!)
+                        }
                     }
                 }
                 REQUEST_IMAGE_PICK -> {
                     val imageUri = data?.data
-                    updateProfilePhoto(imageUri)
+                    if (imageUri != null) {
+                        pendingImageUri = imageUri
+                        imageSignature = System.currentTimeMillis()
+                        Glide.with(this)
+                            .load(imageUri)
+                            .diskCacheStrategy(DiskCacheStrategy.NONE)
+                            .signature(ObjectKey(imageSignature))
+                            .into(profileImageView!!)
+                    }
                 }
             }
         }
@@ -616,204 +627,6 @@ class ProfileFragment : Fragment() {
             }
         }
         builder.create().show()
-    }
-
-    private fun updateProfilePhoto(imageUri: Uri?) {
-        showLoading()
-        imageSignature = System.currentTimeMillis() // Update signature to bypass cache
-        
-        Glide.with(this)
-            .load(imageUri)
-            .diskCacheStrategy(DiskCacheStrategy.ALL)
-            .signature(ObjectKey(imageSignature))
-            .listener(object : RequestListener<Drawable?> {
-                override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable?>?, isFirstResource: Boolean): Boolean {
-                    hideLoading()
-                    return false
-                }
-                override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable?>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
-                    hideLoading()
-                    return false
-                }
-            })
-            .into(profileImageView!!)
-
-        uploadProfilePhoto(imageUri)
-    }
-
-    private fun uploadProfilePhoto(imageUri: Uri?) {
-        if (imageUri == null) {
-            Log.w("ProfileFragment", "uploadProfilePhoto called with null URI")
-            hideLoading()
-            Toast.makeText(requireContext(), "Invalid image URI", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val authId = mAuth?.currentUserOrNull()?.id ?: return hideLoading()
-
-        lifecycleScope.launch {
-            try {
-                Log.d("ProfileFragment", "🔍 ===== STARTING PROFILE PHOTO UPLOAD DIAGNOSTICS =====")
-                Log.d("ProfileFragment", "🔍 Auth ID: $authId")
-                Log.d("ProfileFragment", "🔍 Image URI: $imageUri")
-                Log.d("ProfileFragment", "🔍 Current timestamp: ${System.currentTimeMillis()}")
-
-                // Step 1: Fetch numeric user_id
-                Log.d("ProfileFragment", "🔍 Step 1: Fetching user ID from database...")
-                val user = withContext(Dispatchers.IO) {
-                    try {
-                        DeclareDatabase.usersTable.select(Columns.list("user_id")) {
-                            filter { eq("auth_id", authId) }
-                        }.decodeSingleOrNull<User>()
-                    } catch (e: Exception) {
-                        Log.e("ProfileFragment", "❌ FAILED Step 1: Cannot fetch user: ${e.message}", e)
-                        throw e
-                    }
-                }
-                val numericUserId = user?.id ?: throw Exception("User ID not found for authId: $authId")
-                Log.d("ProfileFragment", "🔍 ✓ Step 1 Complete: Found numeric user ID: $numericUserId")
-
-                // Step 2: Read image bytes
-                Log.d("ProfileFragment", "🔍 Step 2: Reading image bytes from URI...")
-                val bytes = withContext(Dispatchers.IO) {
-                    try {
-                        val inputStream = requireContext().contentResolver.openInputStream(imageUri)
-                        if (inputStream == null) {
-                            Log.e("ProfileFragment", "❌ FAILED Step 2: Cannot open input stream")
-                            return@withContext null
-                        }
-                        val byteArray = inputStream.use { it.readBytes() }
-                        Log.d("ProfileFragment", "🔍 ✓ Step 2a: Input stream opened successfully")
-                        Log.d("ProfileFragment", "🔍 ✓ Step 2b: Read ${byteArray.size} bytes from stream")
-                        byteArray
-                    } catch (e: Exception) {
-                        Log.e("ProfileFragment", "❌ FAILED Step 2: Exception reading bytes: ${e.message}", e)
-                        throw e
-                    }
-                }
-
-                if (bytes == null || bytes.isEmpty()) {
-                    throw Exception("Failed to read image bytes from URI: $imageUri")
-                }
-                Log.d("ProfileFragment", "🔍 ✓ Step 2 Complete: Image bytes read (${bytes.size} bytes)")
-
-                // Step 3: Get Supabase client
-                Log.d("ProfileFragment", "🔍 Step 3: Getting Supabase client...")
-                val client = try {
-                    DeclareDatabase.client
-                } catch (e: Exception) {
-                    Log.e("ProfileFragment", "❌ FAILED Step 3: Cannot get Supabase client: ${e.message}", e)
-                    throw e
-                }
-                Log.d("ProfileFragment", "🔍 ✓ Step 3a: Supabase client obtained")
-
-                // Step 4: Get storage module
-                Log.d("ProfileFragment", "🔍 Step 4: Getting storage module...")
-                val storage = try {
-                    client.storage
-                } catch (e: Exception) {
-                    Log.e("ProfileFragment", "❌ FAILED Step 4: Cannot get storage module: ${e.message}", e)
-                    throw e
-                }
-                Log.d("ProfileFragment", "🔍 ✓ Step 4a: Storage module obtained")
-
-                // Step 5: Get bucket reference
-                Log.d("ProfileFragment", "🔍 Step 5: Getting bucket reference...")
-                val bucket = try {
-                    DeclareDatabase.profileImagesBucket
-                } catch (e: Exception) {
-                    Log.e("ProfileFragment", "❌ FAILED Step 5: Cannot get bucket reference: ${e.message}", e)
-                    throw e
-                }
-                Log.d("ProfileFragment", "🔍 ✓ Step 5a: Bucket reference obtained")
-
-                // Step 6: Prepare upload path
-                val path = "$numericUserId/$numericUserId.jpg"
-                Log.d("ProfileFragment", "🔍 Step 6: Upload path prepared: $path")
-
-                // Step 7: Upload to storage
-                Log.d("ProfileFragment", "🔍 Step 7: Starting upload to storage...")
-                try {
-                    bucket.upload(path, bytes, upsert = true)
-                    Log.d("ProfileFragment", "🔍 ✓ Step 7a: Upload API call completed")
-                } catch (e: Exception) {
-                    Log.e("ProfileFragment", "❌ FAILED Step 7: Upload failed: ${e.message}", e)
-                    e.printStackTrace()
-                    throw e
-                }
-                Log.d("ProfileFragment", "🔍 ✓ Step 7 Complete: Upload completed for path: $path")
-
-                // Step 8: Generate public URL
-                Log.d("ProfileFragment", "🔍 Step 8: Generating public URL...")
-                val publicUrl = try {
-                    bucket.publicUrl(path)
-                } catch (e: Exception) {
-                    Log.e("ProfileFragment", "❌ FAILED Step 8: Cannot generate public URL: ${e.message}", e)
-                    throw e
-                }
-                Log.d("ProfileFragment", "🔍 Generated URL: $publicUrl")
-
-                if (publicUrl.isEmpty()) {
-                    throw Exception("Failed to generate public URL for path: $path")
-                }
-                Log.d("ProfileFragment", "🔍 ✓ Step 8 Complete: URL validation passed")
-
-                // Step 9: UPDATE DATABASE
-                Log.d("ProfileFragment", "🔍 Step 9: Updating database with profile_image_url...")
-                val updateData = buildJsonObject {
-                    put("profile_image_url", publicUrl)
-                }
-
-                withContext(Dispatchers.IO) {
-                    try {
-                        DeclareDatabase.usersTable.update(updateData) {
-                            filter { eq("auth_id", authId) }
-                        }
-                        Log.d("ProfileFragment", "🔍 ✓ Step 9a: Database update executed")
-
-                        // Verify the update was successful
-                        val updatedUser = DeclareDatabase.usersTable.select(Columns.list("profile_image_url")) {
-                            filter { eq("auth_id", authId) }
-                        }.decodeSingleOrNull<User>()
-
-                        if (updatedUser?.profileImageUrl == publicUrl) {
-                            Log.d("ProfileFragment", "🔍 ✓ Step 9b: Verification successful - profile_image_url updated correctly")
-                            Log.d("ProfileFragment", "🔍 Saved URL: ${updatedUser.profileImageUrl}")
-                        } else {
-                            Log.w("ProfileFragment", "⚠ Step 9b: Verification warning - Expected: $publicUrl, Got: ${updatedUser?.profileImageUrl}")
-                        }
-                    } catch (e: Exception) {
-                        Log.e("ProfileFragment", "❌ FAILED Step 9: Database update failed: ${e.message}", e)
-                        throw e
-                    }
-                }
-
-                // Step 10: Update cache
-                Log.d("ProfileFragment", "🔍 Step 10: Updating cache with new URL...")
-                PayorAdapter.sDownloadUrlCache[authId] = publicUrl
-                Log.d("ProfileFragment", "🔍 ✓ Step 10 Complete: Cache updated")
-
-                // Step 11: Refresh UI
-                Log.d("ProfileFragment", "🔍 Step 11: Refreshing UI...")
-                withContext(Dispatchers.Main) {
-                    setProfileImage(profileImageView!!)
-                    hideLoading()
-                    Log.d("ProfileFragment", "🔍 ✓ Step 11 Complete: UI refreshed")
-                    Toast.makeText(requireContext(), "Profile Photo Changed Successfully", Toast.LENGTH_SHORT).show()
-                    Log.d("ProfileFragment", "🔍 ===== UPLOAD SUCCESS =====")
-                }
-            } catch (e: Exception) {
-                Log.e("ProfileFragment", "🔍 ===== UPLOAD FAILED =====")
-                Log.e("ProfileFragment", "🔍 Exception Type: ${e::class.simpleName}")
-                Log.e("ProfileFragment", "🔍 Exception Message: ${e.message}")
-                Log.e("ProfileFragment", "🔍 Full Stack Trace:", e)
-                e.printStackTrace()
-                withContext(Dispatchers.Main) {
-                    hideLoading()
-                    Toast.makeText(requireContext(), "Upload failed: ${e.message}", Toast.LENGTH_LONG).show()
-                }
-            }
-        }
     }
 
     private fun setupProfileLogoutButton() {
