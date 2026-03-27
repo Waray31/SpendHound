@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="16dp"
+    android:paddingVertical="10dp">
+
+    <ImageView
+        android:id="@+id/ivAvatar"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/placeholder_profile_image" />
+
+    <TextView
+        android:id="@+id/tvUsername"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_weight="1"
+        android:fontFamily="@font/montserratalternatess_regular"
+        android:textColor="@color/darkBlue"
+        android:textSize="15sp" />
+
+    <ImageView
+        android:id="@+id/ivCheck"
+        android:layout_width="26dp"
+        android:layout_height="26dp"
+        android:src="@drawable/ic_circle_unchecked" />
+
+</LinearLayout>
