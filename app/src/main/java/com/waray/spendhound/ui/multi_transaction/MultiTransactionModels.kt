@@ -4,12 +4,14 @@ import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+// ─── UI / local models ────────────────────────────────────────────────────────
+
 @OptIn(InternalSerializationApi::class)
 @Serializable
 data class TransactionEntry(
-    var title: String = "",
+    var title: String = "",           // maps to transaction_items.item_description
     var amount: Double = 0.0,
-    var category: String = "General",
+    var category: String = "Others",  // maps to transaction_items.category
     var payors: MutableList<PayorEntry> = mutableListOf()
 )
 
@@ -21,60 +23,109 @@ data class PayorEntry(
     var amount: Double = 0.0
 )
 
-/**
- * Insertion model for 'transactions' table.
- * IMPORTANT: Omit 'id' field entirely for insertion to let Postgres generate it via the sequence.
- */
+// ─── transactions table ───────────────────────────────────────────────────────
+
+/** INSERT — no id, no title column (removed from schema) */
 @OptIn(InternalSerializationApi::class)
 @Serializable
 data class TransactionInsert(
-    @SerialName("total_amount")
-    val paymentAmount: Double = 0.0,
-    
-    @SerialName("title")
-    val transactionType: String? = null,
-    
-    @SerialName("description")
-    val transactionDetail: String? = null,
-    
-    @SerialName("group_id")
-    val groupId: Long? = null,
-    
-    @SerialName("created_by")
-    val creatorId: Long? = null,
-    
-    @SerialName("created_at")
-    val createdAt: String? = null,
-    
-    @SerialName("status")
-    val status: Int? = null
+    @SerialName("total_amount") val totalAmount: Double = 0.0,
+    @SerialName("description")  val description: String? = null,
+    @SerialName("group_id")     val groupId: Long? = null,
+    @SerialName("created_by")   val createdBy: Long? = null,
+    @SerialName("created_at")   val createdAt: String? = null,
+    @SerialName("status")       val status: Int? = null
 )
 
-/**
- * Retrieval model for 'transactions' table (includes ID).
- */
+/** SELECT — includes generated id */
+@OptIn(InternalSerializationApi::class)
+@Serializable
+data class TransactionFull(
+    @SerialName("id")           val id: Long? = null,
+    @SerialName("total_amount") val totalAmount: Double = 0.0,
+    @SerialName("description")  val description: String? = null,
+    @SerialName("group_id")     val groupId: Long? = null,
+    @SerialName("created_by")   val createdBy: Long? = null,
+    @SerialName("created_at")   val createdAt: String? = null,
+    @SerialName("status")       val status: Int? = null
+)
+
+/** Minimal response after insert — only need the id back */
 @OptIn(InternalSerializationApi::class)
 @Serializable
 data class TransactionResponse(
-    @SerialName("id")
-    val id: Long? = null,
-    
-    @SerialName("payment_amount")
-    val paymentAmount: Double = 0.0
+    @SerialName("id") val id: Long? = null
 )
 
+// ─── transaction_items table ──────────────────────────────────────────────────
+
+/** INSERT */
+@OptIn(InternalSerializationApi::class)
+@Serializable
+data class TransactionItemInsert(
+    @SerialName("transaction_id")   val transactionId: Long,
+    @SerialName("amount")           val amount: Double,
+    @SerialName("category")         val category: String,
+    @SerialName("item_description") val itemDescription: String? = null,
+    @SerialName("created_at")       val createdAt: String? = null
+)
+
+/** SELECT */
+@OptIn(InternalSerializationApi::class)
+@Serializable
+data class TransactionItemFull(
+    @SerialName("id")               val id: Long? = null,
+    @SerialName("transaction_id")   val transactionId: Long = 0,
+    @SerialName("amount")           val amount: Double = 0.0,
+    @SerialName("category")         val category: String? = null,
+    @SerialName("item_description") val itemDescription: String? = null,
+    @SerialName("created_at")       val createdAt: String? = null
+)
+
+// ─── transaction_payors table ─────────────────────────────────────────────────
+
+/** INSERT */
+@OptIn(InternalSerializationApi::class)
+@Serializable
+data class TransactionPayorInsert(
+    @SerialName("transaction_id")       val transactionId: Long,
+    @SerialName("user_id")              val userId: Long,
+    @SerialName("amount")               val amount: Double,
+    @SerialName("transaction_items_id") val transactionItemsId: Long
+)
+
+/** SELECT */
 @OptIn(InternalSerializationApi::class)
 @Serializable
 data class TransactionPayorTable(
-    @SerialName("transaction_id") val transactionId: Long,
-    @SerialName("user_id") val userId: Long,
-    val amount: Double
+    @SerialName("id")                   val id: Long? = null,
+    @SerialName("transaction_id")       val transactionId: Long = 0,
+    @SerialName("user_id")              val userId: Long = 0,
+    @SerialName("amount")               val amount: Double = 0.0,
+    @SerialName("created_at")           val createdAt: String? = null,
+    @SerialName("transaction_items_id") val transactionItemsId: Long? = null
 )
 
+// ─── transaction_splits table ─────────────────────────────────────────────────
+
+/** INSERT */
+@OptIn(InternalSerializationApi::class)
+@Serializable
+data class TransactionSplitInsert(
+    @SerialName("transaction_id")       val transactionId: Long,
+    @SerialName("user_id")              val userId: Long,
+    @SerialName("amount")               val amount: Double,
+    @SerialName("transaction_items_id") val transactionItemsId: Long
+)
+
+/** SELECT */
 @OptIn(InternalSerializationApi::class)
 @Serializable
 data class TransactionSplitTable(
-    @SerialName("transaction_id") val transactionId: Long,
-    @SerialName("user_id") val userId: Long,
-    val amount: Double
+    @SerialName("id")                   val id: Long? = null,
+    @SerialName("transaction_id")       val transactionId: Long = 0,
+    @SerialName("user_id")              val userId: Long = 0,
+    @SerialName("amount")               val amount: Double = 0.0,
+    @SerialName("created_at")           val createdAt: String? = null,
+    @SerialName("transaction_items_id") val transactionItemsId: Long? = null
 )

@@ -3,6 +3,8 @@ package com.waray.spendhound.ui.multi_transaction
 import android.content.Context
 import android.graphics.Rect
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.InputMethodManager
@@ -80,6 +82,15 @@ class MultiTransactionActivity : AppCompatActivity() {
             binding.rvTransactions.smoothScrollToPosition(adapter.itemCount - 1)
         }
 
+        binding.etTransactionTitle.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                viewModel.setTransactionTitle(s.toString())
+                validateSubmission()
+            }
+        })
+
         binding.btnSubmit.setOnClickListener {
             val selectedGroup = currentGroups.getOrNull(binding.spinnerGroup.selectedItemPosition)
             if (selectedGroup?.groupId != null) {
@@ -107,32 +118,17 @@ class MultiTransactionActivity : AppCompatActivity() {
 
     private fun validateSubmission() {
         val transactions = adapter.getTransactions()
-        var allValid = transactions.isNotEmpty()
-        
+        val titleFilled = binding.etTransactionTitle.text?.isNotBlank() == true
+        var allValid = transactions.isNotEmpty() && titleFilled
+
         for (tx in transactions) {
-            // Check if title is empty
-            if (tx.title.isBlank()) {
-                allValid = false
-                break
-            }
-            // Check if amount is zero
-            if (tx.amount <= 0) {
-                allValid = false
-                break
-            }
-            // Check if split is valid
+            if (tx.amount <= 0) { allValid = false; break }
             val totalPaid = tx.payors.sumOf { it.amount }
-            if (Math.abs(tx.amount - totalPaid) > 0.01) {
-                allValid = false
-                break
-            }
+            if (Math.abs(tx.amount - totalPaid) > 0.01) { allValid = false; break }
         }
-        
+
         binding.btnSubmit.isVisible = allValid
         binding.btnSubmit.isEnabled = allValid
-        
-        // Adjust padding of scrollview based on button visibility if needed, 
-        // but here we have a fixed height summary card area.
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {

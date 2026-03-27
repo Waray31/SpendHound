@@ -10,8 +10,6 @@ data class PayerGroup(
     var groupId: Long? = null,
     @SerialName("group_name")
     var groupName: String? = null,
-    @SerialName("member_ids")
-    var members: MutableList<Long?>? = null,
     @SerialName("createdby_id")
     var createdBy: Long? = null,
     @SerialName("created_at")
@@ -20,3 +18,14 @@ data class PayerGroup(
     var memberDisplayNames: MutableList<String?>? = null
 )
 
+@Serializable
+data class GroupMember(
+    @SerialName("id")
+    val id: Long? = null,
+    @SerialName("group_id")
+    val groupId: Long? = null,
+    @SerialName("user_id")
+    val userId: Long? = null,
+    @SerialName("created_at")
+    val createdAt: String? = null
+)

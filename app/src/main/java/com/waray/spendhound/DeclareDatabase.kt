@@ -67,7 +67,11 @@ object DeclareDatabase {
     val usersTable get() = client.from("users")
     val userBalanceTable get() = client.from("user_balance")
     val transactionsTable get() = client.from("transactions")
+    val transactionItemsTable get() = client.from("transaction_items")
+    val transactionPayorsTable get() = client.from("transaction_payors")
+    val transactionSplitsTable get() = client.from("transaction_splits")
     val groupsTable get() = client.from("groups")
+    val groupMembersTable get() = client.from("group_members")
     val borrowsTable get() = client.from("borrows")
     val userBorrowsTable get() = client.from("userBorrows")
 

@@ -30,6 +30,9 @@ class MultiTransactionViewModel(
     private val _totalAmount = MutableStateFlow(0.0)
     val totalAmount: StateFlow<Double> = _totalAmount.asStateFlow()
 
+    private val _transactionTitle = MutableStateFlow("")
+    val transactionTitle: StateFlow<String> = _transactionTitle.asStateFlow()
+
     private val _currentUserNumericId = MutableStateFlow<Long?>(null)
     
     private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
@@ -85,6 +88,10 @@ class MultiTransactionViewModel(
         }
     }
 
+    fun setTransactionTitle(title: String) {
+        _transactionTitle.value = title
+    }
+
     fun setMultiplePayorsMode(isMultiple: Boolean) {
         _isMultiplePayorsMode.value = isMultiple
     }
@@ -136,8 +143,13 @@ class MultiTransactionViewModel(
             return
         }
 
-        if (_transactions.value.any { it.title.isBlank() || it.amount <= 0 }) {
-            _uiState.value = UiState.Error("Please fill in all titles and amounts")
+        if (_transactionTitle.value.isBlank()) {
+            _uiState.value = UiState.Error("Please enter a transaction title")
+            return
+        }
+
+        if (_transactions.value.any { it.amount <= 0 }) {
+            _uiState.value = UiState.Error("Please fill in all amounts")
             return
         }
 
@@ -148,7 +160,9 @@ class MultiTransactionViewModel(
 
         viewModelScope.launch {
             _uiState.value = UiState.Loading
-            val result = repository.submitTransactions(groupId, creatorId, _transactions.value, _members.value)
+            val result = repository.submitTransactions(
+                groupId, creatorId, _transactionTitle.value, _transactions.value, _members.value
+            )
             result.onSuccess {
                 _uiState.value = UiState.Success
             }.onFailure {
