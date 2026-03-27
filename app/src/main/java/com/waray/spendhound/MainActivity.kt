@@ -130,17 +130,8 @@ class MainActivity : AppCompatActivity() {
 
         containerAddGroup?.setOnClickListener {
             toggleFabMenu()
-            showAddGroupDialog()
+            startActivity(Intent(this, GroupsActivity::class.java))
         }
-    }
-
-    private fun showAddGroupDialog() {
-        val dialog = Dialog(this)
-        dialog.requestWindowFeature(Window.FEATURE_NO_TITLE)
-        dialog.setContentView(R.layout.dialog_create_group)
-        dialog.window?.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        dialog.window?.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
-        dialog.show()
     }
 
     private fun toggleFabMenu() {

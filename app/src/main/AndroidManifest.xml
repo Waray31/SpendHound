@@ -51,6 +51,26 @@
             android:label="Borrow Money"
             android:windowSoftInputMode="adjustPan"/>
 
+        <activity android:name=".GroupsActivity"
+            android:exported="false"
+            android:label="My Groups"
+            android:theme="@style/Theme.SpendHound.NoActionBar"
+            android:parentActivityName=".MainActivity" />
+
+        <activity android:name=".CreateGroupActivity"
+            android:exported="false"
+            android:label="New Group"
+            android:theme="@style/Theme.SpendHound.NoActionBar"
+            android:windowSoftInputMode="adjustPan"
+            android:parentActivityName=".GroupsActivity" />
+
+        <activity android:name=".EditGroupActivity"
+            android:exported="false"
+            android:label="Edit Group"
+            android:theme="@style/Theme.SpendHound.NoActionBar"
+            android:windowSoftInputMode="adjustPan"
+            android:parentActivityName=".GroupsActivity" />
+
         <activity android:name=".LoginActivity"
             android:exported="true"
             android:theme="@style/Theme.MaterialComponents.Light.NoActionBar"/>

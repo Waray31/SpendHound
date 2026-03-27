@@ -29,3 +29,20 @@ data class GroupMember(
     @SerialName("created_at")
     val createdAt: String? = null
 )
+
+@Serializable
+data class GroupInsert(
+    @SerialName("group_name") val groupName: String,
+    @SerialName("createdby_id") val createdById: Long
+)
+
+@Serializable
+data class GroupMemberInsert(
+    @SerialName("group_id") val groupId: Long,
+    @SerialName("user_id") val userId: Long
+)
+
+@Serializable
+data class GroupNameUpdate(
+    @SerialName("group_name") val groupName: String
+)
