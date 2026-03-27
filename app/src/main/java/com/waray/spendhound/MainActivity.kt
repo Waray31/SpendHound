@@ -254,15 +254,17 @@ class MainActivity : AppCompatActivity() {
                     "Paid" -> 3
                     else -> 0
                 }
-                
+
                 val result = DeclareDatabase.postgrest.from("borrows")
                     .select() {
                         filter {
                             eq("borrower_id", currentUserIdLong)
                             if (statusInt > 0) eq("status", statusInt)
                         }
-                    }
-                    .decodeList<BorrowNowTransaction>()
+                    }.decodeList<BorrowNowTransaction>()
+
+                val lenderIds = result.mapNotNull { it.lenderId }.distinct()
+                val usersById = fetchUsernamesById(lenderIds)
 
                 val list = ArrayList<BorrowTransaction>()
                 for (b in result) {
@@ -271,7 +273,7 @@ class MainActivity : AppCompatActivity() {
                         borrowee = b.lenderId?.toString(),
                         borrowedAmountStr = b.borrowedAmount?.toString(),
                         status = b.getStatus(),
-                        borroweeDisplayName = b.lender,
+                        borroweeDisplayName = usersById[b.lenderId] ?: b.lenderId?.toString(),
                         paymentSentDate = b.paymentSentDate,
                         borrowId = b.id?.toString(),
                         monthYear = b.monthYear,
@@ -308,14 +310,16 @@ class MainActivity : AppCompatActivity() {
                             eq("lender_id", currentUserIdLong)
                             if (statusInt > 0) eq("status", statusInt)
                         }
-                    }
-                    .decodeList<BorrowNowTransaction>()
+                    }.decodeList<BorrowNowTransaction>()
+
+                val borrowerIds = result.mapNotNull { it.borrowerId }.distinct()
+                val usersById = fetchUsernamesById(borrowerIds)
 
                 val list = ArrayList<OwedTransaction>()
                 for (b in result) {
                     list.add(OwedTransaction(
                         date = b.createdAt,
-                        borrower = b.borrowerName,
+                        borrower = usersById[b.borrowerId] ?: b.borrowerId?.toString(),
                         borrowedAmountStr = b.borrowedAmount?.toString(),
                         status = b.getStatus(),
                         paymentSentDate = b.paymentSentDate,
@@ -343,12 +347,11 @@ class MainActivity : AppCompatActivity() {
                     return@launch
                 }
                 val result = DeclareDatabase.postgrest.from("borrows")
-                    .select() {
-                        filter {
-                            eq("borrower_id", currentUserIdLong)
-                        }
-                    }
+                    .select() { filter { eq("borrower_id", currentUserIdLong) } }
                     .decodeList<BorrowNowTransaction>()
+
+                val lenderIds = result.mapNotNull { it.lenderId }.distinct()
+                val usersById = fetchUsernamesById(lenderIds)
 
                 val list = ArrayList<BorrowTransaction>()
                 for (b in result) {
@@ -358,7 +361,7 @@ class MainActivity : AppCompatActivity() {
                             borrowee = b.lenderId?.toString(),
                             borrowedAmountStr = b.borrowedAmount?.toString(),
                             status = b.getStatus(),
-                            borroweeDisplayName = b.lender,
+                            borroweeDisplayName = usersById[b.lenderId] ?: b.lenderId?.toString(),
                             paymentSentDate = b.paymentSentDate,
                             borrowId = b.id?.toString(),
                             monthYear = b.monthYear,
@@ -384,19 +387,18 @@ class MainActivity : AppCompatActivity() {
                     return@launch
                 }
                 val result = DeclareDatabase.postgrest.from("borrows")
-                    .select() {
-                        filter {
-                            eq("lender_id", currentUserIdLong)
-                        }
-                    }
+                    .select() { filter { eq("lender_id", currentUserIdLong) } }
                     .decodeList<BorrowNowTransaction>()
+
+                val borrowerIds = result.mapNotNull { it.borrowerId }.distinct()
+                val usersById = fetchUsernamesById(borrowerIds)
 
                 val list = ArrayList<OwedTransaction>()
                 for (b in result) {
                     if (b.monthYear == monthYear && (status == "All" || b.getStatus() == status)) {
                         list.add(OwedTransaction(
                             date = b.createdAt,
-                            borrower = b.borrowerName,
+                            borrower = usersById[b.borrowerId] ?: b.borrowerId?.toString(),
                             borrowedAmountStr = b.borrowedAmount?.toString(),
                             status = b.getStatus(),
                             paymentSentDate = b.paymentSentDate,
@@ -412,6 +414,18 @@ class MainActivity : AppCompatActivity() {
                 Log.e("MainActivity", "Error fetching monthly owed list: ${e.message}")
                 callback.onOwedNumReceived(0)
             }
+        }
+    }
+
+    private suspend fun fetchUsernamesById(ids: List<Long>): Map<Long, String> {
+        if (ids.isEmpty()) return emptyMap()
+        return try {
+            DeclareDatabase.usersTable.select {
+                filter { isIn("user_id", ids) }
+            }.decodeList<User>().associate { it.id!! to (it.username ?: it.id.toString()) }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error fetching usernames: ${e.message}")
+            emptyMap()
         }
     }
 
