@@ -58,7 +58,7 @@ class DebtTransactionAdapter(
         val transaction = borrowTransactionList[position] ?: return
 
         // Bind data using property access
-        holder.debtDateTV.text = transaction.date
+        holder.debtDateTV.text = formatDate(transaction.date)
         holder.debtBorroweeTV.text = transaction.borroweeDisplayName ?: transaction.borrowee
         holder.debtAmountBorrowedTV.text = CurrencyUtils.formatAmountWithCurrency(transaction.borrowedAmountStr ?: "0")
         holder.debtStatusTV.text = transaction.status
@@ -151,6 +151,25 @@ class DebtTransactionAdapter(
     }
 
     override fun getItemCount(): Int = borrowTransactionList.size
+
+    companion object {
+        fun formatDate(raw: String?): String {
+            if (raw.isNullOrBlank()) return ""
+            val formats = listOf(
+                "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
+                "yyyy-MM-dd'T'HH:mm:ssXXX",
+                "yyyy-MM-dd'T'HH:mm:ss",
+                "MMMM-dd-yyyy"
+            )
+            for (fmt in formats) {
+                try {
+                    val date = java.text.SimpleDateFormat(fmt, java.util.Locale.getDefault()).parse(raw)
+                    if (date != null) return java.text.SimpleDateFormat("MMM dd, yyyy", java.util.Locale.getDefault()).format(date)
+                } catch (_: Exception) {}
+            }
+            return raw
+        }
+    }
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val debtDateTV: TextView = itemView.findViewById(R.id.debtDateTV)

@@ -54,7 +54,7 @@ class OwedTransactionAdapter(
         val transaction = owedTransactionList[position] ?: return
 
         // Bind data to the ViewHolder's views
-        holder.owedDateTV.text = transaction.date
+        holder.owedDateTV.text = DebtTransactionAdapter.formatDate(transaction.date)
         holder.owedBorroweeTV.text = transaction.borrower
         holder.owedAmountBorrowedTV.text = CurrencyUtils.formatAmountWithCurrency(transaction.borrowedAmountStr ?: "0")
         holder.owedStatusTV.text = transaction.status

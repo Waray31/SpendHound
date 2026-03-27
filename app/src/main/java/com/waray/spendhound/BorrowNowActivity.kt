@@ -21,25 +21,29 @@ import androidx.recyclerview.widget.SnapHelper
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.launch
+import kotlinx.serialization.SerialName
+import kotlinx.serialization.Serializable
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
-import java.util.UUID
 import kotlin.math.abs
 import kotlin.math.min
 
+@Serializable
+private data class BorrowInsert(
+    @SerialName("borrowed_amount") val borrowedAmount: Double,
+    @SerialName("borrower_id")     val borrowerId: Long,
+    @SerialName("lender_id")       val lenderId: Long,
+    @SerialName("status")          val status: Int,
+    @SerialName("created_at")      val createdAt: String
+)
+
 class BorrowNowActivity : AppCompatActivity() {
+
     private var lenderRecyclerView: RecyclerView? = null
     private var date: TextView? = null
     private var borrower: TextView? = null
-    var currentNickname: String? = null
-    var lender: String? = null
-    var currentDate: String? = null
-    var status: String? = null
-    var borrowedAmountSTR: String? = null
-    var borrowerUserId: String? = null
-    var lenderUserId: String? = null
-    private var borrowedAmount = 0
     private var dialogProgressBar: View? = null
     private var borrowBtn: Button? = null
     private var cancelBtn: Button? = null
@@ -47,33 +51,48 @@ class BorrowNowActivity : AppCompatActivity() {
     private var lenders: MutableList<User?>? = null
     private var mAuth: Auth? = null
 
+    private var currentUserNumericId: Long? = null
+    private var selectedLenderUser: User? = null
+
     @SuppressLint("MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.dialog_borrow_now)
-        
+
         mAuth = DeclareDatabase.auth
-        
+
         lenderRecyclerView = findViewById(R.id.lenderRecyclerView)
         date = findViewById(R.id.dialogBorrowDate)
         borrower = findViewById(R.id.dialogBorrower)
         dialogProgressBar = findViewById(R.id.dialogProgressBar)
         borrowBtn = findViewById(R.id.dialogBorrowBtn)
         cancelBtn = findViewById(R.id.dialogCancelBtn)
-        status = "For Lender Approval"
 
         dialogProgressBar?.visibility = View.VISIBLE
 
         setDate()
         setupLenderRecyclerView()
         setupBorrowBtn()
-
         cancelBtn?.setOnClickListener { finish() }
-
         exitEditText()
-        loadNickname()
+        loadCurrentUser()
 
         supportActionBar?.setDisplayHomeAsUpEnabled(true)
+    }
+
+    private fun loadCurrentUser() {
+        val authId = mAuth?.currentUserOrNull()?.id ?: return
+        lifecycleScope.launch {
+            try {
+                val user = DeclareDatabase.usersTable.select(Columns.list("user_id", "username")) {
+                    filter { eq("auth_id", authId) }
+                }.decodeSingleOrNull<User>()
+                currentUserNumericId = user?.id
+                borrower?.text = user?.username
+            } catch (e: Exception) {
+                Log.e("BorrowNowActivity", "Error loading current user: ${e.message}")
+            }
+        }
     }
 
     private fun setupLenderRecyclerView() {
@@ -99,8 +118,7 @@ class BorrowNowActivity : AppCompatActivity() {
                     val centerView = snapHelper.findSnapView(layoutManager)
                     centerView?.let {
                         val pos = layoutManager.getPosition(it)
-                        val selectedLender = adapter?.getLenderAt(pos)
-                        lender = selectedLender?.username
+                        selectedLenderUser = adapter?.getLenderAt(pos)
                     }
                 }
             }
@@ -111,72 +129,46 @@ class BorrowNowActivity : AppCompatActivity() {
 
     private fun updateLayoutEffect(recyclerView: RecyclerView) {
         val midpoint = recyclerView.width / 2f
-        val d0 = 0f
         val d1 = 0.9f * midpoint
-        val s0 = 1.6f
-        val s1 = 1.0f
-        val a0 = 1.0f
-        val a1 = 0.5f
+        val s0 = 1.6f; val s1 = 1.0f
+        val a0 = 1.0f; val a1 = 0.5f
 
         for (i in 0 until recyclerView.childCount) {
             val child = recyclerView.getChildAt(i)
             recyclerView.layoutManager?.let { lm ->
                 val childMidpoint = (lm.getDecoratedRight(child) + lm.getDecoratedLeft(child)) / 2f
                 val d = min(d1, abs(midpoint - childMidpoint))
-                val scale = s0 + (s1 - s0) * (d - d0) / (d1 - d0)
-                val alpha = a0 + (a1 - a0) * (d - d0) / (d1 - d0)
-                child.scaleX = scale
-                child.scaleY = scale
-                child.alpha = alpha
-            }
-        }
-    }
-
-    private fun loadNickname() {
-        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
-        lifecycleScope.launch {
-            try {
-                val user = DeclareDatabase.usersTable.select(Columns.list("username")) {
-                    filter {
-                        eq("auth_id", currentUserId)
-                    }
-                }.decodeSingleOrNull<User>()
-                currentNickname = user?.username
-                borrower?.text = currentNickname
-            } catch (e: Exception) {
-                Log.e("BorrowNowActivity", "Error loading nickname: ${e.message}")
+                child.scaleX = s0 + (s1 - s0) * d / d1
+                child.scaleY = s0 + (s1 - s0) * d / d1
+                child.alpha  = a0 + (a1 - a0) * d / d1
             }
         }
     }
 
     private fun fetchLenders() {
+        val authId = mAuth?.currentUserOrNull()?.id ?: return
         lifecycleScope.launch {
             try {
                 val users = DeclareDatabase.usersTable.select().decodeList<User>()
                 lenders?.clear()
-                // Carousel padding
                 lenders?.add(User(username = ""))
                 lenders?.add(User(username = ""))
-
                 for (user in users) {
-                    if (user.username != null && user.username != currentNickname) {
+                    if (!user.username.isNullOrEmpty() && user.authId != authId) {
                         lenders?.add(user)
                     }
                 }
-
                 lenders?.add(User(username = ""))
                 lenders?.add(User(username = ""))
 
                 adapter?.notifyDataSetChanged()
-
                 adapter?.preloadAllImages(this@BorrowNowActivity) {
                     runOnUiThread {
                         dialogProgressBar?.visibility = View.GONE
-                        if (lenders!!.size > 2) {
+                        if ((lenders?.size ?: 0) > 2) {
                             lenderRecyclerView?.scrollToPosition(2)
                             lenderRecyclerView?.post {
-                                val firstUser = adapter?.getLenderAt(2)
-                                lender = firstUser?.username
+                                selectedLenderUser = adapter?.getLenderAt(2)
                                 lenderRecyclerView?.let { updateLayoutEffect(it) }
                             }
                         }
@@ -190,105 +182,72 @@ class BorrowNowActivity : AppCompatActivity() {
     }
 
     private fun setDate() {
-        val calendar = Calendar.getInstance()
-        currentDate = SimpleDateFormat("MMMM-dd-yyyy", Locale.getDefault()).format(calendar.time)
-        date?.text = currentDate
+        date?.text = SimpleDateFormat("MMMM-dd-yyyy", Locale.getDefault()).format(Calendar.getInstance().time)
     }
 
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == android.R.id.home) {
-            finish()
-            return true
-        }
+        if (item.itemId == android.R.id.home) { finish(); return true }
         return super.onOptionsItemSelected(item)
     }
 
-    private fun addBorrowTransaction() {
-        val calendar = Calendar.getInstance()
-        val currentMonthYear = SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(calendar.time)
-        val timestamp = System.currentTimeMillis()
+    private fun addBorrowTransaction(amount: Double) {
+        val borrowerId = currentUserNumericId
+        val lenderId   = selectedLenderUser?.id
 
-        val currentUserId = mAuth?.currentUserOrNull()?.id
+        if (borrowerId == null) {
+            toast("User session not found. Please try again.")
+            dialogProgressBar?.visibility = View.GONE
+            return
+        }
+        if (lenderId == null) {
+            toast("Please select a lender.")
+            dialogProgressBar?.visibility = View.GONE
+            return
+        }
+        if (borrowerId == lenderId) {
+            toast("You cannot borrow from yourself.")
+            dialogProgressBar?.visibility = View.GONE
+            return
+        }
 
-        if (currentUserId != null && !lender.isNullOrEmpty()) {
-            borrowerUserId = currentUserId
+        val createdAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault()).format(Date())
 
-            UserHelper.getUserIdByUsername(lender, object : UserHelper.UserIdCallback {
-                override fun onUserIdRetrieved(userId: String?) {
-                    lenderUserId = userId
-                    if (lenderUserId == null) {
-                        Toast.makeText(this@BorrowNowActivity, "Lender not found", Toast.LENGTH_SHORT).show()
-                        dialogProgressBar?.visibility = View.GONE
-                        return
-                    }
-
-                    // Using the secondary constructor of BorrowNowTransaction with 10 arguments
-                    val borrowNowTransaction = BorrowNowTransaction(
-                        null,              // borrowId: String?
-                        borrowerUserId,    // borrowerID: String?
-                        currentNickname,   // borrowerName: String?
-                        lenderUserId,      // lenderID: String?
-                        lender,            // lender: String?
-                        borrowedAmount.toDouble(), // borrowedAmount: Double?
-                        status,            // status: String?
-                        timestamp,         // date: Long?
-                        currentMonthYear,  // monthYear: String?
-                        timestamp          // timestamp: Long
+        lifecycleScope.launch {
+            try {
+                DeclareDatabase.borrowsTable.insert(
+                    BorrowInsert(
+                        borrowedAmount = amount,
+                        borrowerId     = borrowerId,
+                        lenderId       = lenderId,
+                        status         = 1, // For Lender Approval
+                        createdAt      = createdAt
                     )
-
-                    lifecycleScope.launch {
-                        try {
-                            DeclareDatabase.borrowsTable.insert(borrowNowTransaction)
-                            
-                            val borrowId = borrowNowTransaction.getBorrowId() ?: "0"
-
-                            BalanceHelper.addBorrowerEntry(borrowerUserId, borrowId, null)
-                            BalanceHelper.addLenderEntry(lenderUserId, borrowId, null)
-
-                            BalanceHelper.updateTotaldebt(borrowerUserId, borrowedAmount.toDouble(), null)
-                            BalanceHelper.updateTotalreceivable(lenderUserId, borrowedAmount.toDouble(), null)
-
-                            Toast.makeText(this@BorrowNowActivity, "Borrowed successfully", Toast.LENGTH_SHORT).show()
-                            dialogProgressBar?.visibility = View.GONE
-                            finish()
-                        } catch (e: Exception) {
-                            Log.e("BorrowNowActivity", "Failed to Borrow: ${e.message}")
-                            dialogProgressBar?.visibility = View.GONE
-                            Toast.makeText(this@BorrowNowActivity, "Failed to Borrow", Toast.LENGTH_SHORT).show()
-                        }
-                    }
-                }
-
-                override fun onError(error: String?) {
-                    Log.e("BorrowNowActivity", "Error getting lender ID: $error")
-                    dialogProgressBar?.visibility = View.GONE
-                    Toast.makeText(this@BorrowNowActivity, "Error retrieving lender info", Toast.LENGTH_SHORT).show()
-                }
-            })
+                )
+                toast("Borrowed successfully!")
+                finish()
+            } catch (e: Exception) {
+                Log.e("BorrowNowActivity", "Failed to borrow: ${e.message}")
+                toast("Failed to borrow: ${e.message}")
+            } finally {
+                dialogProgressBar?.visibility = View.GONE
+            }
         }
     }
 
     private fun setupBorrowBtn() {
         borrowBtn?.setOnClickListener {
             val borrowEditText: EditText = findViewById(R.id.dialogBorrowEditText)
-            val amountStr = borrowEditText.text.toString()
-            if (amountStr.isNotEmpty() && !lender.isNullOrEmpty()) {
-                try {
-                    borrowedAmount = amountStr.toInt()
-                    borrowedAmountSTR = amountStr
+            val amountStr = borrowEditText.text.toString().trim()
+            val amount = amountStr.toDoubleOrNull()
 
-                    if (borrowedAmount <= 0) {
-                        Toast.makeText(this, "Please enter a valid amount", Toast.LENGTH_SHORT).show()
-                        return@setOnClickListener
-                    }
-
+            when {
+                amountStr.isEmpty()          -> toast("Please enter an amount")
+                amount == null || amount <= 0 -> toast("Please enter a valid amount")
+                selectedLenderUser == null   -> toast("Please select a lender")
+                else -> {
                     dialogProgressBar?.visibility = View.VISIBLE
-                    addBorrowTransaction()
-                } catch (e: NumberFormatException) {
-                    Toast.makeText(this, "Invalid amount", Toast.LENGTH_SHORT).show()
+                    addBorrowTransaction(amount)
                 }
-            } else {
-                Toast.makeText(this, "Please select a lender and enter amount", Toast.LENGTH_SHORT).show()
             }
         }
     }
@@ -296,11 +255,7 @@ class BorrowNowActivity : AppCompatActivity() {
     @SuppressLint("ClickableViewAccessibility")
     fun exitEditText() {
         val borrowEditText: EditText? = findViewById(R.id.dialogBorrowEditText)
-        borrowEditText?.setOnTouchListener { v, _ ->
-            v.performClick()
-            false
-        }
-
+        borrowEditText?.setOnTouchListener { v, _ -> v.performClick(); false }
         findViewById<View>(android.R.id.content)?.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_DOWN) {
                 borrowEditText?.let { hideKeyboard(it) }
@@ -310,7 +265,9 @@ class BorrowNowActivity : AppCompatActivity() {
     }
 
     private fun hideKeyboard(view: View) {
-        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.hideSoftInputFromWindow(view.windowToken, 0)
+        (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
+            .hideSoftInputFromWindow(view.windowToken, 0)
     }
+
+    private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 }
