@@ -11,6 +11,7 @@
     android:paddingHorizontal="12dp"
     android:paddingVertical="12dp">
 
+    <!-- Main row (always visible) -->
     <LinearLayout
         android:id="@+id/main_content"
         android:layout_width="match_parent"
@@ -38,17 +39,18 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/montserratalternatess_bold"
-                android:text="Electricity"
+                android:text="Transaction"
                 android:textColor="@color/black"
-                android:textSize="16sp" />
+                android:textSize="15sp" />
 
+            <!-- Status replaces "See Details >" -->
             <TextView
                 android:id="@+id/detailsTextView"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="See Details >"
-                android:textSize="12sp" />
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:text="Unpaid"
+                android:textSize="11sp" />
 
         </LinearLayout>
 
@@ -65,8 +67,8 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/montserratalternatess_bold"
                 android:text="₱1,000"
-                android:textColor="@color/black"
-                android:textSize="16sp" />
+                android:textColor="@color/darkBlue"
+                android:textSize="15sp" />
 
             <TextView
                 android:id="@+id/dateTextView"
@@ -74,11 +76,13 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/montserratalternatess_regular"
                 android:text="Jun 27"
-                android:textSize="12sp" />
+                android:textColor="@color/grey"
+                android:textSize="11sp" />
 
         </LinearLayout>
     </LinearLayout>
 
+    <!-- Expandable section -->
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content">
@@ -97,14 +101,71 @@
                 android:layout_marginBottom="8dp"
                 android:background="#DDDDDD" />
 
+            <!-- Items table header -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
+                android:orientation="horizontal"
+                android:paddingHorizontal="4dp"
+                android:paddingBottom="4dp">
+
+                <TextView
+                    android:layout_width="28dp"
+                    android:layout_height="wrap_content"
+                    android:text=""
+                    android:layout_weight="0" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="2"
+                    android:layout_marginStart="6dp"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Amount"
+                    android:textColor="@color/grey"
+                    android:textSize="10sp" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="2"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Paid by"
+                    android:textColor="@color/grey"
+                    android:textSize="10sp" />
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="3"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Description"
+                    android:textColor="@color/grey"
+                    android:textSize="10sp" />
+
+            </LinearLayout>
+
+            <!-- Items table rows container -->
+            <LinearLayout
+                android:id="@+id/itemsTableContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="8dp"
+                android:background="#DDDDDD" />
+
+            <!-- Payors header + edit buttons -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="6dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <!-- Payors Section -->
                 <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
@@ -121,69 +182,75 @@
                     <Button
                         android:id="@+id/saveTransaction_btn"
                         android:layout_width="wrap_content"
-                        android:layout_height="40dp"
+                        android:layout_height="36dp"
                         android:layout_marginEnd="4dp"
                         android:backgroundTint="@color/green"
                         android:fontFamily="@font/montserratalternatess_regular"
                         android:text="Save"
-                        android:textSize="12sp"
+                        android:textSize="11sp"
                         android:visibility="gone" />
 
                     <Button
                         android:id="@+id/cancelTransaction_btn"
                         android:layout_width="wrap_content"
-                        android:layout_height="40dp"
+                        android:layout_height="36dp"
                         android:layout_marginEnd="4dp"
                         android:backgroundTint="@color/red"
                         android:fontFamily="@font/montserratalternatess_regular"
                         android:text="Cancel"
-                        android:textSize="12sp"
+                        android:textSize="11sp"
                         android:visibility="gone" />
 
                     <Button
                         android:id="@+id/editTransaction_btn"
                         android:layout_width="wrap_content"
-                        android:layout_height="40dp"
+                        android:layout_height="36dp"
                         android:backgroundTint="@color/yellow"
                         android:fontFamily="@font/montserratalternatess_regular"
                         android:text="Edit"
-                        android:textSize="12sp" />
-                </LinearLayout>
+                        android:textSize="11sp"
+                        android:visibility="gone" />
 
+                </LinearLayout>
             </LinearLayout>
 
+            <!-- Payors horizontal list -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/payorsRecyclerView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal" />
 
-            <!-- Created By Section -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="8dp"
+                android:background="#DDDDDD" />
+
+            <!-- Created By -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginVertical="8dp"
-                android:gravity="start"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:layout_marginBottom="4dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/montserratalternatess_bold"
-                    android:text="Created By:"
+                    android:text="Created by: "
                     android:textSize="12sp" />
 
                 <TextView
                     android:id="@+id/createdByTextView"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
                     android:fontFamily="@font/montserratalternatess_regular"
-                    android:text="John Doe"
                     android:textSize="12sp" />
+
             </LinearLayout>
 
-            <!-- Details Section -->
+            <!-- Details -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -193,33 +260,31 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/montserratalternatess_bold"
-                    android:text="Details:"
+                    android:text="Details: "
                     android:textSize="12sp" />
 
                 <TextView
                     android:id="@+id/fullDetailsTextView"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
                     android:fontFamily="@font/montserratalternatess_regular"
-                    android:text="No additional details"
                     android:textSize="12sp" />
 
             </LinearLayout>
 
         </LinearLayout>
 
-        <!-- Loading Overlay -->
+        <!-- Loading overlay -->
         <LinearLayout
             android:id="@+id/loadingOverlay_transaction"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="@color/white"
+            android:clickable="true"
+            android:focusable="true"
             android:gravity="center"
             android:orientation="vertical"
-            android:visibility="gone"
-            android:clickable="true"
-            android:focusable="true">
+            android:visibility="gone">
 
             <ProgressBar
                 style="@style/CustomProgressBarStyle"
@@ -233,7 +298,9 @@
                 android:fontFamily="@font/montserratalternatess_regular"
                 android:text="Loading details..."
                 android:textSize="10sp" />
+
         </LinearLayout>
+
     </FrameLayout>
 
 </LinearLayout>

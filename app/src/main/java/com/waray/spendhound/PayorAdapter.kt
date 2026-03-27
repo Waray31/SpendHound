@@ -19,6 +19,7 @@ import com.bumptech.glide.request.target.Target
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
 
 class PayorAdapter(
@@ -81,8 +82,9 @@ class PayorAdapter(
             } else {
                 scope.launch {
                     try {
-                        // Use numeric user_id as folder and filename
-                        val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
+                        val url = withContext(Dispatchers.IO) {
+                            DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
+                        }
                         sDownloadUrlCache[userId] = url
                         preloadProfileImage(context, url, i)
                     } catch (e: Exception) {
@@ -189,8 +191,9 @@ class PayorAdapter(
             } else {
                 scope.launch {
                     try {
-                        // Use numeric user_id as folder and filename
-                        val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
+                        val url = withContext(Dispatchers.IO) {
+                            DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
+                        }
                         sDownloadUrlCache[userId] = url
                         loadGlideImage(holder, url, position)
                     } catch (e: Exception) {
@@ -281,18 +284,12 @@ class PayorAdapter(
             val scope = CoroutineScope(Dispatchers.IO)
             for (userId in userIds) {
                 if (userId == null) continue
-                val cachedUrl = sDownloadUrlCache[userId]
-                if (cachedUrl != null) {
-                    preloadOnly(context, cachedUrl)
-                } else {
-                    scope.launch {
-                        try {
-                            // Use numeric user_id as folder and filename
-                            val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
-                            sDownloadUrlCache[userId] = url
-                            preloadOnly(context, url)
-                        } catch (e: Exception) {}
-                    }
+                if (sDownloadUrlCache.containsKey(userId)) continue
+                scope.launch {
+                    try {
+                        val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
+                        sDownloadUrlCache[userId] = url
+                    } catch (e: Exception) {}
                 }
             }
         }

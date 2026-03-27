@@ -67,7 +67,7 @@
             android:textAlignment="center"
             android:textColor="@color/darkBlue"
             android:fontFamily="@font/montserratalternatess_bold"
-            android:text="@string/tab_all"
+            android:text="All"
             android:textSize="14sp"
             android:paddingVertical="8dp"
             android:background="@drawable/bg_status_tab_selected"
@@ -80,7 +80,7 @@
             android:textAlignment="center"
             android:textColor="@color/darkBlue"
             android:fontFamily="@font/montserratalternatess_bold"
-            android:text="@string/tab_paid"
+            android:text="Settled"
             android:textSize="14sp"
             android:paddingVertical="8dp"
             android:clickable="true"/>
@@ -92,7 +92,7 @@
             android:textAlignment="center"
             android:textColor="@color/darkBlue"
             android:fontFamily="@font/montserratalternatess_bold"
-            android:text="@string/tab_unpaid"
+            android:text="Pending"
             android:textSize="14sp"
             android:paddingVertical="8dp"
             android:clickable="true" />
@@ -100,14 +100,9 @@
             android:id="@+id/pendingTabTV"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textAlignment="center"
-            android:textColor="@color/darkBlue"
-            android:fontFamily="@font/montserratalternatess_bold"
-            android:text="@string/tab_pending"
-            android:textSize="14sp"
-            android:paddingVertical="8dp"
-            android:clickable="true" />
+            android:layout_weight="0"
+            android:visibility="gone"
+            android:clickable="false" />
     </LinearLayout>
 
     <View

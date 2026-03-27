@@ -41,64 +41,79 @@ class MultiTransactionRepository {
         try {
             val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault())
             val createdAt = isoFormat.format(Date())
-
             val totalAmount = entries.sumOf { it.amount }
 
             // 1. Insert into transactions
-            val txInsert = TransactionInsert(
-                totalAmount = totalAmount,
-                description = title.ifBlank { null },
-                groupId = groupId,
-                createdBy = createdBy,
-                createdAt = createdAt,
-                status = 0
-            )
-            val txResponse = client.postgrest.from("transactions").insert(txInsert) {
-                select()
-            }.decodeSingle<TransactionResponse>()
+            val txResponse = client.postgrest.from("transactions").insert(
+                TransactionInsert(
+                    totalAmount = totalAmount,
+                    description = title.ifBlank { null },
+                    groupId = groupId,
+                    createdBy = createdBy,
+                    createdAt = createdAt,
+                    status = 2 // starts as Pending
+                )
+            ) { select() }.decodeSingle<TransactionResponse>()
 
             val txId = txResponse.id ?: throw Exception("Failed to get transaction ID")
 
-            // 2-4. Per entry: insert item, then payors and splits referencing that item
             entries.forEach { entry ->
-                val itemInsert = TransactionItemInsert(
-                    transactionId = txId,
-                    amount = entry.amount,
-                    category = entry.category,
-                    itemDescription = entry.title.ifBlank { null },
-                    createdAt = createdAt
-                )
-                val itemResponse = client.postgrest.from("transaction_items").insert(itemInsert) {
-                    select()
-                }.decodeSingle<TransactionItemFull>()
+                // 2. Insert transaction_item
+                val itemResponse = client.postgrest.from("transaction_items").insert(
+                    TransactionItemInsert(
+                        transactionId = txId,
+                        amount = entry.amount,
+                        category = entry.category,
+                        itemDescription = entry.title.ifBlank { null },
+                        createdAt = createdAt
+                    )
+                ) { select() }.decodeSingle<TransactionItemFull>()
 
                 val itemId = itemResponse.id ?: throw Exception("Failed to get transaction_item ID")
 
-                // 3. Insert payors for this item
-                val payorRecords = entry.payors.map { payor ->
-                    TransactionPayorInsert(
-                        transactionId = txId,
-                        userId = payor.userId,
-                        amount = if (payor.amount > 0) payor.amount else entry.amount,
-                        transactionItemsId = itemId
-                    )
-                }
-                if (payorRecords.isNotEmpty()) {
-                    client.postgrest.from("transaction_payors").insert(payorRecords)
-                }
-
-                // 4. Equal split across all group members for this item
+                // 3. Insert ALL group members into transaction_payors at amount=0,
+                //    then update actual payors with their real paid amount.
+                //    This ensures every member has a row so the creator can later
+                //    update any member's payment with a simple UPDATE (no INSERT needed).
                 if (groupMembers.isNotEmpty()) {
-                    val splitAmount = entry.amount / groupMembers.size
-                    val splitRecords = groupMembers.map { member ->
-                        TransactionSplitInsert(
+                    val allMemberRecords = groupMembers.map { member ->
+                        TransactionPayorInsert(
                             transactionId = txId,
                             userId = member.id!!,
-                            amount = splitAmount,
+                            amount = 0.0,
                             transactionItemsId = itemId
                         )
                     }
-                    client.postgrest.from("transaction_splits").insert(splitRecords)
+                    client.postgrest.from("transaction_payors").insert(allMemberRecords)
+
+                    // Update actual payors with their real paid amount
+                    entry.payors.forEach { payor ->
+                        val paidAmount = if (payor.amount > 0) payor.amount else entry.amount
+                        client.postgrest.from("transaction_payors").update({
+                            set("amount", paidAmount)
+                        }) {
+                            filter {
+                                eq("transaction_id", txId)
+                                eq("user_id", payor.userId)
+                                eq("transaction_items_id", itemId)
+                            }
+                        }
+                    }
+                }
+
+                // 4. Equal split across all group members
+                if (groupMembers.isNotEmpty()) {
+                    val splitAmount = entry.amount / groupMembers.size
+                    client.postgrest.from("transaction_splits").insert(
+                        groupMembers.map { member ->
+                            TransactionSplitInsert(
+                                transactionId = txId,
+                                userId = member.id!!,
+                                amount = splitAmount,
+                                transactionItemsId = itemId
+                            )
+                        }
+                    )
                 }
             }
 

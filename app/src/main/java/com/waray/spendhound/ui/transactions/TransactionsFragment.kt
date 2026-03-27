@@ -29,6 +29,7 @@ import com.waray.spendhound.RecentTransactionAdapter
 import com.waray.spendhound.SpinnerItemMonths
 import com.waray.spendhound.User
 import com.waray.spendhound.ui.multi_transaction.TransactionFull
+import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
 import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
 import io.github.jan.supabase.gotrue.Auth
@@ -126,12 +127,12 @@ class TransactionsFragment : Fragment() {
             refreshTransactions()
         }
         paidTabTV?.setOnClickListener {
-            selectedStatusTab = "Paid"
+            selectedStatusTab = "Settled"
             paidTabTV?.let { setStatusTabSelected(it) }
             refreshTransactions()
         }
         unpaidTabTV?.setOnClickListener {
-            selectedStatusTab = "Unpaid"
+            selectedStatusTab = "Pending"
             unpaidTabTV?.let { setStatusTabSelected(it) }
             refreshTransactions()
         }
@@ -166,6 +167,7 @@ class TransactionsFragment : Fragment() {
                 if (user != null) {
                     currentUserNumericId = user.id
                     loadUserGroups()
+                    fetchTransactionsInRange(startDate, endDate)
                 }
             } catch (e: Exception) {
                 Log.e("TransactionsFragment", "Error getting user info", e)
@@ -232,8 +234,7 @@ class TransactionsFragment : Fragment() {
         endDate = cal.timeInMillis
 
         updateDatePickerButtonText()
-        fetchTransactionsInRange(startDate, endDate)
-
+        // Do NOT fetch here — wait for user ID to be loaded in getCurrentUserAndGroups
         datePickerButton?.setOnClickListener { showDateRangePickerDialog() }
     }
 
@@ -271,15 +272,17 @@ class TransactionsFragment : Fragment() {
                 val allTransactions = DeclareDatabase.transactionsTable.select().decodeList<TransactionFull>()
                 val allPayors = DeclareDatabase.transactionPayorsTable.select().decodeList<TransactionPayorTable>()
                 val allSplits = DeclareDatabase.transactionSplitsTable.select().decodeList<TransactionSplitTable>()
+                val allItems = DeclareDatabase.transactionItemsTable.select().decodeList<TransactionItemFull>()
 
-                // Transactions where current user is a payor or has a split entry
                 val involvedIds = (allPayors.filter { it.userId == currentUserId }.map { it.transactionId } +
                         allSplits.filter { it.userId == currentUserId }.map { it.transactionId }).toSet()
 
                 val payorsByTx = allPayors.groupBy { it.transactionId }
                 val splitsByTx = allSplits.groupBy { it.transactionId }
+                val itemsByTx  = allItems.groupBy { it.transactionId }
+                // payors keyed by item id for "who paid" column
+                val payorsByItem = allPayors.groupBy { it.transactionItemsId }
 
-                // Resolve usernames for all referenced user IDs
                 val allUserIds = (allPayors.map { it.userId } + allSplits.map { it.userId }).toSet().toList()
                 val usersById: Map<Long, String> = if (allUserIds.isNotEmpty()) {
                     DeclareDatabase.usersTable.select {
@@ -297,6 +300,7 @@ class TransactionsFragment : Fragment() {
 
                     val payors = payorsByTx[txId] ?: emptyList()
                     val splits = splitsByTx[txId] ?: emptyList()
+                    val items  = itemsByTx[txId]  ?: emptyList()
                     if (!matchesStatusFilter(payors, splits, selectedStatusTab)) continue
 
                     val cal = Calendar.getInstance().apply { timeInMillis = timestamp }
@@ -305,14 +309,35 @@ class TransactionsFragment : Fragment() {
                     val day = cal.get(Calendar.DAY_OF_MONTH).toString()
                     val timeKey = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(cal.time)
 
+                    // Unique contributors across all payors + splits
                     val contributorIds = (payors.map { it.userId } + splits.map { it.userId }).distinct()
                     val payorUserIds = contributorIds.map { it.toString() }.toMutableList<String?>()
                     val payorNames = contributorIds.map { usersById[it] ?: "Unknown" }.toMutableList<String?>()
-                    val amountsPaid = payors.map { it.amount as Double? }.toMutableList()
-                    val individualPayment = if (splits.isNotEmpty()) splits.first().amount else 0.0
+
+                    // amountsPaid per contributor = sum of their payor amounts across all items
+                    val amountsPaid = contributorIds.map { uid ->
+                        payors.filter { it.userId == uid }.sumOf { it.amount } as Double?
+                    }.toMutableList()
+
+                    // individualPayment per contributor = sum of their split amounts across all items
+                    val individualPayment = if (splits.isNotEmpty()) {
+                        val splitPerUser = splits.groupBy { it.userId }
+                        splitPerUser.values.firstOrNull()?.sumOf { it.amount } ?: 0.0
+                    } else 0.0
+
+                    // Compute overall status
+                    val txStatus = computeStatus(payors, splits)
+
+                    // itemPayorMap: itemId -> payor username
+                    val itemPayorMap = items.associate { item ->
+                        val itemId = item.id ?: 0L
+                        val payorName = payorsByItem[itemId]?.firstOrNull()?.let { usersById[it.userId] } ?: "-"
+                        itemId to payorName
+                    }
+
                     val createdByName = tx.createdBy?.let { usersById[it] } ?: "Unknown"
 
-                    transactionList.add(RecentTransaction(
+                    val rt = RecentTransaction(
                         txId,
                         "$monthName - $day",
                         tx.description,
@@ -330,7 +355,14 @@ class TransactionsFragment : Fragment() {
                         "$monthName-$year",
                         day,
                         timeKey
-                    ))
+                    )
+                    rt.transactionItems = items
+                    rt.transactionStatus = txStatus
+                    rt.itemPayorMap = itemPayorMap
+                    rt.creatorNumericId = tx.createdBy
+                    rt.rawPayorRows = payors
+                    rt.rawSplitRows = splits
+                    transactionList.add(rt)
                 }
 
                 transactionList.sortWith { t1, t2 ->
@@ -366,21 +398,25 @@ class TransactionsFragment : Fragment() {
         } catch (e: Exception) { 0L }
     }
 
+    private fun computeStatus(
+        payors: List<TransactionPayorTable>,
+        splits: List<TransactionSplitTable>
+    ): String {
+        if (payors.isEmpty()) return "Pending"
+        val individualOwed = splits.groupBy { it.userId }.values.firstOrNull()?.sumOf { it.amount } ?: 0.0
+        val paidByUser = payors.groupBy { it.userId }.mapValues { e -> e.value.sumOf { it.amount } }
+        val allSettled = paidByUser.values.all { it >= individualOwed }
+        return if (allSettled) "Settled" else "Pending"
+    }
+
     private fun matchesStatusFilter(
         payors: List<TransactionPayorTable>,
         splits: List<TransactionSplitTable>,
         statusFilter: String?
     ): Boolean {
         if ("All".equals(statusFilter, ignoreCase = true)) return true
-        if (payors.isEmpty()) return "Unpaid".equals(statusFilter, ignoreCase = true)
-        val individualOwed = if (splits.isNotEmpty()) splits.first().amount else 0.0
-        var allPaid = true; var allUnpaid = true
-        for (p in payors) {
-            if (p.amount < individualOwed) allPaid = false
-            if (p.amount > 0) allUnpaid = false
-        }
-        val status = if (allPaid) "Paid" else if (allUnpaid) "Unpaid" else "Pending"
-        return status.equals(statusFilter, ignoreCase = true)
+        val computed = computeStatus(payors, splits)
+        return computed.equals(statusFilter, ignoreCase = true)
     }
 
     private fun getIconForTransactionType(transactionType: String?): Int {

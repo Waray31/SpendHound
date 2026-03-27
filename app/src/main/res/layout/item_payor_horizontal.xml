@@ -2,79 +2,82 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
     android:gravity="center"
+    android:orientation="vertical"
     android:padding="8dp">
 
     <ImageView
         android:id="@+id/payorProfileImage"
-        android:layout_width="48dp"
-        android:layout_height="48dp"
-        android:src="@drawable/placeholder_profile_image"
-        android:scaleType="centerCrop"/>
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/placeholder_profile_image" />
 
     <TextView
         android:id="@+id/payorNameTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
         android:fontFamily="@font/montserratalternatess_regular"
-        android:textSize="12sp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:maxWidth="72dp"
         android:text="Name"
-        android:layout_marginTop="2dp"/>
+        android:textSize="11sp" />
 
     <TextView
         android:id="@+id/payorPaymentTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:fontFamily="@font/montserratalternatess_bold"
-        android:textSize="14sp"
-        android:text="0.00/0.00"
-        android:textColor="@color/black"/>
+        android:text="0/0"
+        android:textColor="@color/darkBlue"
+        android:textSize="11sp" />
 
     <TextView
         android:id="@+id/payorStatusTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:fontFamily="@font/montserratalternatess_regular"
-        android:textSize="12sp"
-        android:text="Unpaid"/>
+        android:text="Unpaid"
+        android:textSize="11sp" />
 
     <LinearLayout
         android:id="@+id/editButtonsLayout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
         android:layout_marginTop="4dp"
+        android:orientation="vertical"
         android:visibility="gone">
 
         <Button
             android:id="@+id/unpaid_btn"
             android:layout_width="80dp"
-            android:layout_height="32dp"
-            android:text="Unpaid"
-            android:textSize="10sp"
+            android:layout_height="30dp"
             android:backgroundTint="@color/red"
+            android:layout_marginBottom="2dp"
             android:padding="0dp"
-            android:layout_marginBottom="2dp"/>
+            android:text="Unpaid"
+            android:textSize="10sp" />
 
         <Button
             android:id="@+id/paid_btn"
             android:layout_width="80dp"
-            android:layout_height="32dp"
-            android:text="Paid"
-            android:textSize="10sp"
+            android:layout_height="30dp"
             android:backgroundTint="@color/green"
+            android:layout_marginBottom="2dp"
             android:padding="0dp"
-            android:layout_marginBottom="2dp"/>
+            android:text="Paid"
+            android:textSize="10sp" />
 
         <Button
             android:id="@+id/partial_btn"
             android:layout_width="80dp"
-            android:layout_height="32dp"
-            android:text="Partial"
-            android:textSize="10sp"
+            android:layout_height="30dp"
             android:backgroundTint="@color/yellow"
-            android:padding="0dp"/>
+            android:padding="0dp"
+            android:text="Partial"
+            android:textSize="10sp" />
 
     </LinearLayout>
 

@@ -1,5 +1,9 @@
 package com.waray.spendhound
 
+import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
+import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
+import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
+
 class RecentTransaction {
     var transactionId: Long? = null
     var mostRecentDate: String? = null
@@ -15,70 +19,20 @@ class RecentTransaction {
     var fullDateWithYear: String? = null
     var createdBy: String? = null
     var createdByUserId: String? = null
-
     var monthYear: String? = null
     var day: String? = null
     var timeKey: String? = null
-
     var isExpanded: Boolean = false
 
+    var transactionItems: List<TransactionItemFull> = emptyList()
+    var transactionStatus: String = "Pending"
+    var payorAmountMap: Map<Long, Double> = emptyMap()
+    var itemPayorMap: Map<Long, String> = emptyMap()
+    var creatorNumericId: Long? = null
+    var rawPayorRows: List<TransactionPayorTable> = emptyList()
+    var rawSplitRows: List<TransactionSplitTable> = emptyList()
+
     constructor()
-
-    constructor(
-        mostRecentDate: String?,
-        mostRecentTransactionType: String?,
-        mostRecentDetails: String?,
-        mostRecentPaymentAmountStr: String?,
-        iconResource: Int
-    ) {
-        this.mostRecentDate = mostRecentDate
-        this.mostRecentTransactionType = mostRecentTransactionType
-        this.mostRecentDetails = mostRecentDetails
-        this.mostRecentPaymentAmountStr = mostRecentPaymentAmountStr
-        this.iconResource = iconResource
-    }
-
-    constructor(
-        mostRecentDate: String?,
-        mostRecentTransactionType: String?,
-        mostRecentDetails: String?,
-        mostRecentPaymentAmountStr: String?,
-        iconResource: Int,
-        sortDateTime: String?
-    ) {
-        this.mostRecentDate = mostRecentDate
-        this.mostRecentTransactionType = mostRecentTransactionType
-        this.mostRecentDetails = mostRecentDetails
-        this.mostRecentPaymentAmountStr = mostRecentPaymentAmountStr
-        this.iconResource = iconResource
-        this.sortDateTime = sortDateTime
-    }
-
-    constructor(
-        mostRecentDate: String?,
-        mostRecentTransactionType: String?,
-        mostRecentDetails: String?,
-        mostRecentPaymentAmountStr: String?,
-        iconResource: Int,
-        sortDateTime: String?,
-        payorsList: MutableList<String?>?,
-        amountsPaidList: MutableList<Double?>?,
-        fullDateWithYear: String?,
-        createdBy: String?,
-        createdByUserId: String?
-    ) {
-        this.mostRecentDate = mostRecentDate
-        this.mostRecentTransactionType = mostRecentTransactionType
-        this.mostRecentDetails = mostRecentDetails
-        this.mostRecentPaymentAmountStr = mostRecentPaymentAmountStr
-        this.iconResource = iconResource
-        this.sortDateTime = sortDateTime
-        this.payorsList = payorsList
-        this.amountsPaidList = amountsPaidList
-        this.fullDateWithYear = fullDateWithYear
-        this.createdBy = createdBy
-        this.createdByUserId = createdByUserId
-    }
 
     constructor(
         transactionId: Long?,
