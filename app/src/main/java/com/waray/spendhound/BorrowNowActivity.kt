@@ -3,6 +3,8 @@ package com.waray.spendhound
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.MenuItem
 import android.view.MotionEvent
@@ -18,6 +20,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.RecyclerView
 import androidx.recyclerview.widget.SnapHelper
+import com.google.android.material.textfield.TextInputEditText
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.launch
@@ -53,6 +56,7 @@ class BorrowNowActivity : AppCompatActivity() {
 
     private var currentUserNumericId: Long? = null
     private var selectedLenderUser: User? = null
+    private var allLenders: List<User> = emptyList() // full unfiltered list
 
     @SuppressLint("MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -73,6 +77,7 @@ class BorrowNowActivity : AppCompatActivity() {
         setDate()
         setupLenderRecyclerView()
         setupBorrowBtn()
+        setupSearch()
         cancelBtn?.setOnClickListener { finish() }
         exitEditText()
         loadCurrentUser()
@@ -145,18 +150,53 @@ class BorrowNowActivity : AppCompatActivity() {
         }
     }
 
+    private fun setupSearch() {
+        val etSearch = findViewById<TextInputEditText>(R.id.etSearchLender)
+        etSearch?.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                filterLenders(s.toString().trim())
+            }
+        })
+    }
+
+    private fun filterLenders(query: String) {
+        val filtered = if (query.isBlank()) allLenders
+        else allLenders.filter { it.username?.contains(query, ignoreCase = true) == true }
+
+        lenders?.clear()
+        lenders?.add(User(username = ""))
+        lenders?.add(User(username = ""))
+        lenders?.addAll(filtered)
+        lenders?.add(User(username = ""))
+        lenders?.add(User(username = ""))
+
+        adapter?.notifyDataSetChanged()
+
+        // Reset selection to first visible result
+        if (filtered.isNotEmpty()) {
+            lenderRecyclerView?.scrollToPosition(2)
+            lenderRecyclerView?.post {
+                selectedLenderUser = adapter?.getLenderAt(2)
+                lenderRecyclerView?.let { updateLayoutEffect(it) }
+            }
+        } else {
+            selectedLenderUser = null
+        }
+    }
+
     private fun fetchLenders() {
         val authId = mAuth?.currentUserOrNull()?.id ?: return
         lifecycleScope.launch {
             try {
                 val users = DeclareDatabase.usersTable.select().decodeList<User>()
+                allLenders = users.filter { !it.username.isNullOrEmpty() && it.authId != authId }
                 lenders?.clear()
                 lenders?.add(User(username = ""))
                 lenders?.add(User(username = ""))
-                for (user in users) {
-                    if (!user.username.isNullOrEmpty() && user.authId != authId) {
-                        lenders?.add(user)
-                    }
+                for (user in allLenders) {
+                    lenders?.add(user)
                 }
                 lenders?.add(User(username = ""))
                 lenders?.add(User(username = ""))
