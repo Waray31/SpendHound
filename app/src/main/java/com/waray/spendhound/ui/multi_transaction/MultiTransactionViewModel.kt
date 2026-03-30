@@ -98,12 +98,7 @@ class MultiTransactionViewModel(
 
     fun addTransaction() {
         val currentList = _transactions.value.toMutableList()
-        val lastEntry = currentList.lastOrNull()
-        val newEntry = TransactionEntry(
-            category = lastEntry?.category ?: "General",
-            payors = lastEntry?.payors?.map { it.copy() }?.toMutableList() ?: mutableListOf()
-        )
-        currentList.add(newEntry)
+        currentList.add(TransactionEntry())
         _transactions.value = currentList
         calculateTotals()
     }

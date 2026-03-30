@@ -18,7 +18,6 @@ import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
-import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.waray.spendhound.CurrencyUtils
@@ -48,6 +47,25 @@ class MultiTransactionActivity : AppCompatActivity() {
         observeState()
     }
 
+    private fun setPaymentMode(isMultiple: Boolean) {
+        if (isMultiple) {
+            binding.btnMultiplePayors.setBackgroundResource(R.drawable.bg_toggle_selected)
+            binding.btnMultiplePayors.setTypeface(resources.getFont(R.font.montserratalternatess_bold))
+            binding.btnMultiplePayors.setTextColor(getColor(R.color.darkBlue))
+            binding.btnSinglePayor.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            binding.btnSinglePayor.setTypeface(resources.getFont(R.font.montserratalternatess_regular))
+            binding.btnSinglePayor.setTextColor(getColor(R.color.grey))
+        } else {
+            binding.btnSinglePayor.setBackgroundResource(R.drawable.bg_toggle_selected)
+            binding.btnSinglePayor.setTypeface(resources.getFont(R.font.montserratalternatess_bold))
+            binding.btnSinglePayor.setTextColor(getColor(R.color.darkBlue))
+            binding.btnMultiplePayors.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            binding.btnMultiplePayors.setTypeface(resources.getFont(R.font.montserratalternatess_regular))
+            binding.btnMultiplePayors.setTextColor(getColor(R.color.grey))
+        }
+        viewModel.setMultiplePayorsMode(isMultiple)
+    }
+
     private fun setupToolbar() {
         setSupportActionBar(binding.toolbar)
         binding.toolbar.setNavigationOnClickListener { finish() }
@@ -56,26 +74,17 @@ class MultiTransactionActivity : AppCompatActivity() {
     private fun setupRecyclerView() {
         adapter = MultiTransactionAdapter(
             onAmountChanged = { viewModel.calculateTotals() },
-            onValidationChanged = { validateSubmission() }
+            onValidationChanged = { validateSubmission() },
+            onRemoveItem = { position -> viewModel.removeTransaction(position) }
         )
         binding.rvTransactions.layoutManager = LinearLayoutManager(this)
         binding.rvTransactions.adapter = adapter
-
-        val swipeHandler = object : ItemTouchHelper.SimpleCallback(0, ItemTouchHelper.LEFT or ItemTouchHelper.RIGHT) {
-            override fun onMove(rv: RecyclerView, vh: RecyclerView.ViewHolder, t: RecyclerView.ViewHolder) = false
-            override fun onSwiped(viewHolder: RecyclerView.ViewHolder, direction: Int) {
-                viewModel.removeTransaction(viewHolder.adapterPosition)
-            }
-        }
-        ItemTouchHelper(swipeHandler).attachToRecyclerView(binding.rvTransactions)
     }
 
     private fun setupListeners() {
-        binding.togglePaymentMode.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (isChecked) {
-                viewModel.setMultiplePayorsMode(checkedId == binding.btnMultiplePayors.id)
-            }
-        }
+        // Custom pill toggle
+        binding.btnSinglePayor.setOnClickListener { setPaymentMode(false) }
+        binding.btnMultiplePayors.setOnClickListener { setPaymentMode(true) }
 
         binding.btnAddRow.setOnClickListener {
             viewModel.addTransaction()

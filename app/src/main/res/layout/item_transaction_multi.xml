@@ -18,6 +18,34 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginBottom="12dp">
+
+            <TextView
+                android:id="@+id/tvItemNumber"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Item 1"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:textColor="@color/darkBlue"
+                android:textSize="16sp" />
+
+            <ImageButton
+                android:id="@+id/btnRemoveItem"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_close_24dp"
+                android:contentDescription="Remove item"
+                app:tint="@color/grey" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
             android:baselineAligned="false"
             android:gravity="center_vertical"
             android:orientation="horizontal">
@@ -72,32 +100,328 @@
             </com.google.android.material.textfield.TextInputLayout>
         </LinearLayout>
 
-        <LinearLayout
+        <HorizontalScrollView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal">
+            android:layout_marginTop="12dp"
+            android:scrollbars="none">
 
-            <Spinner
-                android:id="@+id/spinnerCategory"
-                android:layout_width="0dp"
-                android:background="@drawable/round_border_glassy"
+            <LinearLayout
+                android:id="@+id/layoutCategories"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:minHeight="48dp" />
+                android:orientation="horizontal"
+                android:paddingBottom="4dp">
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/btnToggleSplit"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
-                android:layout_width="120dp"
-                android:layout_height="wrap_content"
-                android:text="Split"
-                android:layout_marginStart="8dp"
-                android:textSize="12sp"
-                android:visibility="gone"
-                tools:visibility="visible" />
-        </LinearLayout>
+                <!-- Food -->
+                <LinearLayout
+                    android:id="@+id/catFood"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/bg_category_chip"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="10dp"
+                    android:clickable="true"
+                    android:focusable="true">
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@drawable/hamburger"
+                        android:scaleType="fitCenter" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Foods"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <!-- Transport -->
+                <LinearLayout
+                    android:id="@+id/catTransport"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/bg_category_chip"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="10dp"
+                    android:clickable="true"
+                    android:focusable="true">
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@drawable/vehicles"
+                        android:scaleType="fitCenter" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Transportation"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <!-- Accommodation -->
+                <LinearLayout
+                    android:id="@+id/catAccommodation"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/bg_category_chip"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="10dp"
+                    android:clickable="true"
+                    android:focusable="true">
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@drawable/necessities"
+                        android:scaleType="fitCenter" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="House Necessity"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <!-- Groceries -->
+                <LinearLayout
+                    android:id="@+id/catGroceries"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/bg_category_chip"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="10dp"
+                    android:clickable="true"
+                    android:focusable="true">
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@drawable/groceries"
+                        android:scaleType="fitCenter" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Groceries"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <!-- Travel -->
+                <LinearLayout
+                    android:id="@+id/catTravel"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/bg_category_chip"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="10dp"
+                    android:clickable="true"
+                    android:focusable="true">
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@drawable/travel"
+                        android:scaleType="fitCenter" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Travel"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <!-- Online Shopping -->
+                <LinearLayout
+                    android:id="@+id/catShopping"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/bg_category_chip"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="10dp"
+                    android:clickable="true"
+                    android:focusable="true">
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@drawable/online_shopping"
+                        android:scaleType="fitCenter" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Online Shopping"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <!-- Electricity -->
+                <LinearLayout
+                    android:id="@+id/catElectricity"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/bg_category_chip"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="10dp"
+                    android:clickable="true"
+                    android:focusable="true">
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@drawable/lightning_bolt"
+                        android:scaleType="fitCenter" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Electricity"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <!-- Water -->
+                <LinearLayout
+                    android:id="@+id/catWater"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/bg_category_chip"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="10dp"
+                    android:clickable="true"
+                    android:focusable="true">
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@drawable/faucet"
+                        android:scaleType="fitCenter" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Water"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <!-- Rent -->
+                <LinearLayout
+                    android:id="@+id/catRent"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/bg_category_chip"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="10dp"
+                    android:clickable="true"
+                    android:focusable="true">
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@drawable/house"
+                        android:scaleType="fitCenter" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Rent"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <!-- Internet -->
+                <LinearLayout
+                    android:id="@+id/catInternet"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/bg_category_chip"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="10dp"
+                    android:clickable="true"
+                    android:focusable="true">
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@drawable/internet"
+                        android:scaleType="fitCenter" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Internet"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+                <!-- Others -->
+                <LinearLayout
+                    android:id="@+id/catOthers"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_category_chip"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="10dp"
+                    android:clickable="true"
+                    android:focusable="true">
+                    <ImageView
+                        android:layout_width="32dp"
+                        android:layout_height="32dp"
+                        android:src="@drawable/others"
+                        android:scaleType="fitCenter" />
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="Others"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="11sp" />
+                </LinearLayout>
+
+            </LinearLayout>
+        </HorizontalScrollView>
 
         <!-- Payor Detail Section (Visible in Multi-Payor Mode) -->
         <LinearLayout

@@ -7,10 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
-import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.Spinner
-import android.widget.TextView
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import com.google.android.material.textfield.TextInputEditText
@@ -22,7 +19,8 @@ import com.waray.spendhound.databinding.ItemTransactionMultiBinding
 
 class MultiTransactionAdapter(
     private val onAmountChanged: () -> Unit,
-    private val onValidationChanged: () -> Unit
+    private val onValidationChanged: () -> Unit,
+    private val onRemoveItem: (Int) -> Unit
 ) : RecyclerView.Adapter<MultiTransactionAdapter.TransactionViewHolder>() {
 
     private val transactions = mutableListOf<TransactionEntry>()
@@ -46,20 +44,6 @@ class MultiTransactionAdapter(
         notifyDataSetChanged()
     }
 
-    fun addRow(entry: TransactionEntry) {
-        transactions.add(entry)
-        notifyItemInserted(transactions.size - 1)
-    }
-
-    fun removeRow(position: Int) {
-        if (position in transactions.indices) {
-            transactions.removeAt(position)
-            expandedSplits.remove(position)
-            notifyItemRemoved(position)
-            onAmountChanged()
-        }
-    }
-
     fun getTransactions() = transactions
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TransactionViewHolder {
@@ -81,19 +65,48 @@ class MultiTransactionAdapter(
         fun bind(entry: TransactionEntry, position: Int) {
             binding.etTitle.setText(entry.title)
             binding.etAmount.setText(if (entry.amount > 0) entry.amount.toString() else "")
-            
-            binding.layoutPayerRow.isVisible = isMultiplePayorsMode
-            binding.btnToggleSplit.isVisible = isMultiplePayorsMode
-            
-            // Setup Category Spinner
-            val categories = listOf("Electricity", "Water", "Rent", "Internet", "Online Shopping", "Travel", "Groceries", "Foods", "House Necessity", "Transportation", "Others")
-            val catAdapter = CategorySpinnerAdapter(itemView.context, categories)
-            binding.spinnerCategory.adapter = catAdapter
-            binding.spinnerCategory.setSelection(categories.indexOf(entry.category).coerceAtLeast(0))
-            binding.spinnerCategory.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(p0: AdapterView<*>?, p1: View?, pos: Int, p3: Long) { entry.category = categories[pos] }
-                override fun onNothingSelected(p0: AdapterView<*>?) {}
+
+            // 1. Item number
+            binding.tvItemNumber.text = "Item ${position + 1}"
+
+            // 2. Hide remove button when only 1 item
+            binding.btnRemoveItem.isVisible = transactions.size > 1
+            binding.btnRemoveItem.setOnClickListener {
+                onRemoveItem(adapterPosition)
             }
+
+            binding.layoutPayerRow.isVisible = isMultiplePayorsMode
+            
+            // 1. Category chips using CategorySpinnerAdapter icons
+            val chipMap = mapOf(
+                binding.catFood to "Foods",
+                binding.catTransport to "Transportation",
+                binding.catAccommodation to "House Necessity",
+                binding.catGroceries to "Groceries",
+                binding.catTravel to "Travel",
+                binding.catShopping to "Online Shopping",
+                binding.catElectricity to "Electricity",
+                binding.catWater to "Water",
+                binding.catRent to "Rent",
+                binding.catInternet to "Internet",
+                binding.catOthers to "Others"
+            )
+            fun updateChipSelection(selected: LinearLayout) {
+                chipMap.keys.forEach { chip ->
+                    chip.setBackgroundResource(
+                        if (chip == selected) R.drawable.bg_category_chip_selected
+                        else R.drawable.bg_category_chip
+                    )
+                }
+            }
+            chipMap.forEach { (chip, category) ->
+                chip.setOnClickListener {
+                    entry.category = category
+                    updateChipSelection(chip)
+                }
+            }
+            val selectedChip = chipMap.entries.firstOrNull { it.value == entry.category }?.key
+            if (selectedChip != null) updateChipSelection(selectedChip)
 
             if (isMultiplePayorsMode) {
                 setupPayorLogic(entry, position)
@@ -109,7 +122,7 @@ class MultiTransactionAdapter(
                     if (!expandedSplits.contains(position) && entry.payors.size == 1) {
                         entry.payors[0].amount = entry.amount
                     }
-                    updateRemainingAmount(entry)
+                    if (isMultiplePayorsMode) updateRemainingAmount(entry)
                     onAmountChanged()
                 }
             }
@@ -134,7 +147,6 @@ class MultiTransactionAdapter(
             binding.spinnerSinglePayor.isVisible = !isExpanded
             binding.layoutMultiPayorContainer.isVisible = isExpanded
             binding.tvRemainingAmount.isVisible = isExpanded
-            binding.btnToggleSplit.text = if (isExpanded) "Cancel Split" else "Split Payors"
 
             // Initial selection for Single Payor
             if (!isExpanded && entry.payors.isNotEmpty()) {
@@ -152,30 +164,6 @@ class MultiTransactionAdapter(
                     }
                 }
                 override fun onNothingSelected(p0: AdapterView<*>?) {}
-            }
-
-            binding.btnToggleSplit.setOnClickListener {
-                if (expandedSplits.contains(position)) {
-                    expandedSplits.remove(position)
-                    // Reset to single payor (first member or current selection)
-                    val selectedPos = binding.spinnerSinglePayor.selectedItemPosition.coerceAtLeast(0)
-                    if (groupMembers.isNotEmpty()) {
-                        val member = groupMembers[selectedPos]
-                        entry.payors = mutableListOf(PayorEntry(member.id!!, member.username!!, entry.amount))
-                    }
-                } else {
-                    expandedSplits.add(position)
-                    // Initialize multi-payor list if empty
-                    if (entry.payors.size <= 1) {
-                        val currentSingle = entry.payors.firstOrNull()
-                        entry.payors = groupMembers.map { member ->
-                            val amt = if (member.id == currentSingle?.userId) entry.amount else 0.0
-                            PayorEntry(member.id!!, member.username!!, amt)
-                        }.toMutableList()
-                    }
-                }
-                notifyItemChanged(position)
-                onValidationChanged()
             }
 
             if (isExpanded) {
@@ -201,7 +189,7 @@ class MultiTransactionAdapter(
                         override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
                         override fun afterTextChanged(s: Editable?) {
                             payor.amount = s.toString().toDoubleOrNull() ?: 0.0
-                            updateRemainingAmount(entry)
+                            if (isMultiplePayorsMode) updateRemainingAmount(entry)
                             onValidationChanged()
                         }
                     })
@@ -213,6 +201,7 @@ class MultiTransactionAdapter(
         }
 
         private fun updateRemainingAmount(entry: TransactionEntry) {
+            if (!isMultiplePayorsMode) return
             val totalPaid = entry.payors.sumOf { it.amount }
             val remaining = entry.amount - totalPaid
             binding.tvRemainingAmount.text = "Remaining: ${CurrencyUtils.formatAmountWithCurrency(remaining)}"

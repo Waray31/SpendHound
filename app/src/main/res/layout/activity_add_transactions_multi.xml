@@ -108,38 +108,48 @@
                         android:layout_marginVertical="12dp"
                         android:background="#EEEEEE" />
 
-                    <com.google.android.material.button.MaterialButtonToggleGroup
-                        android:id="@+id/togglePaymentMode"
-                        android:layout_width="match_parent"
+                    <TextView
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        app:checkedButton="@+id/btnSinglePayor"
-                        app:singleSelection="true"
-                        app:selectionRequired="true">
+                        android:layout_marginBottom="8dp"
+                        android:text="Payment Mode"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="14sp" />
 
-                        <com.google.android.material.button.MaterialButton
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="52dp"
+                        android:background="@drawable/bg_toggle_container"
+                        android:orientation="horizontal"
+                        android:padding="4dp">
+
+                        <TextView
                             android:id="@+id/btnSinglePayor"
-                            style="?attr/materialButtonOutlinedStyle"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="match_parent"
                             android:layout_weight="1"
-                            android:text="One person paid"
-                            android:textSize="10sp"
-                            android:textColor="@color/toggle_button_text_color"
-                            app:backgroundTint="@color/toggle_button_background_tint"
-                            app:strokeColor="@color/toggle_button_stroke_color" />
+                            android:background="@drawable/bg_toggle_selected"
+                            android:gravity="center"
+                            android:text="One Person Paid"
+                            android:fontFamily="@font/montserratalternatess_bold"
+                            android:textColor="@color/darkBlue"
+                            android:textSize="12sp"
+                            android:elevation="2dp" />
 
-                        <com.google.android.material.button.MaterialButton
+                        <TextView
                             android:id="@+id/btnMultiplePayors"
-                            style="?attr/materialButtonOutlinedStyle"
                             android:layout_width="0dp"
-                            android:layout_height="wrap_content"
+                            android:layout_height="match_parent"
                             android:layout_weight="1"
-                            android:text="Multiple people paid"
-                            android:textSize="10sp"
-                            android:textColor="@color/toggle_button_text_color"
-                            app:backgroundTint="@color/toggle_button_background_tint"
-                            app:strokeColor="@color/toggle_button_stroke_color" />
-                    </com.google.android.material.button.MaterialButtonToggleGroup>
+                            android:background="@android:color/transparent"
+                            android:gravity="center"
+                            android:text="Multiple People Paid"
+                            android:fontFamily="@font/montserratalternatess_regular"
+                            android:textColor="@color/grey"
+                            android:textSize="12sp" />
+
+                    </LinearLayout>
 
                     <LinearLayout
                         android:id="@+id/layoutSinglePayor"
@@ -176,14 +186,38 @@
                 android:nestedScrollingEnabled="false"
                 tools:listitem="@layout/item_transaction_multi" />
 
-            <com.google.android.material.button.MaterialButton
+            <LinearLayout
                 android:id="@+id/btnAddRow"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center"
-                android:text="+ Add another"
-                android:textColor="@color/darkBlue" />
+                android:layout_marginHorizontal="16dp"
+                android:layout_marginTop="4dp"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/bg_add_expense_btn"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:padding="14dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="+"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:textColor="@color/darkBlue"
+                    android:textSize="18sp" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:text="Add Another Item"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:textColor="@color/darkBlue"
+                    android:textSize="14sp" />
+
+            </LinearLayout>
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
