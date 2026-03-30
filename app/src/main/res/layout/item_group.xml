@@ -1,57 +1,191 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.cardview.widget.CardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:orientation="horizontal"
-    android:layout_marginVertical="4dp"
-    android:padding="8dp"
-    android:background="@drawable/rounded_border_transparent_bg"
-    android:elevation="2dp"
-    android:gravity="center_vertical">
+    android:layout_marginVertical="8dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="4dp"
+    app:cardBackgroundColor="@color/whitest">
 
     <LinearLayout
-        android:layout_width="0dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_weight="1"
-        android:elevation="2dp"
-        android:orientation="vertical">
+        android:orientation="vertical"
+        android:padding="16dp">
 
-        <TextView
-            android:id="@+id/groupName"
-            android:layout_width="wrap_content"
+        <!-- Header: Icon + Name + Edit/Delete -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Group Name"
-            android:fontFamily="@font/montserratalternatess_bold"
-            android:textColor="@color/darkBlue"
-            android:textSize="14sp" />
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
+            <FrameLayout
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:background="@drawable/bg_group_icon">
+
+                <ImageView
+                    android:layout_width="28dp"
+                    android:layout_height="28dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/add_group"
+                    app:tint="#7B2FBE" />
+
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/groupName"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="12dp"
+                android:text="Group Name"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:textColor="@color/darkBlue"
+                android:textSize="18sp" />
+
+            <ImageButton
+                android:id="@+id/editGroupBtn"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_edit"
+                android:contentDescription="Edit"
+                app:tint="#4CAF50" />
+
+            <ImageButton
+                android:id="@+id/removeGroupBtn"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:src="@drawable/ic_close_24dp"
+                android:contentDescription="Remove"
+                app:tint="#F44336" />
+
+        </LinearLayout>
+
+        <!-- Members -->
         <TextView
             android:id="@+id/groupMembers"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
             android:text="Members: user1, user2"
             android:fontFamily="@font/montserratalternatess_regular"
             android:textColor="@color/grey"
-            android:textSize="12sp"
+            android:textSize="13sp"
             android:maxLines="2"
             android:ellipsize="end" />
+
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="14dp"
+            android:layout_marginBottom="14dp"
+            android:background="@color/lightgrey" />
+
+        <!-- Stats Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_stat_green"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Total Expenses"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:textColor="#2E7D32"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/tvTotalExpenses"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="₱ 0"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:textColor="#2E7D32"
+                    android:textSize="20sp" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_stat_blue"
+                android:orientation="vertical"
+                android:padding="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Active Transactions"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:textColor="#3949AB"
+                    android:textSize="12sp" />
+
+                <TextView
+                    android:id="@+id/tvActiveTransactions"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="0"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:textColor="#3949AB"
+                    android:textSize="20sp" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
+        <!-- Add Expense Button -->
+        <LinearLayout
+            android:id="@+id/btnAddExpense"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="14dp"
+            android:background="@drawable/bg_add_expense_btn"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:padding="14dp"
+            android:clickable="true"
+            android:focusable="true">
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="+"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:textColor="@color/darkBlue"
+                android:textSize="18sp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:text="Add Expense to Group"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:textColor="@color/darkBlue"
+                android:textSize="14sp" />
+
+        </LinearLayout>
+
     </LinearLayout>
 
-    <Button
-        android:id="@+id/editGroupBtn"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:background="@drawable/pencil"
-        android:layout_marginEnd="8dp" />
-
-    <Button
-        android:id="@+id/removeGroupBtn"
-        android:layout_width="24dp"
-        android:layout_height="24dp"
-        android:background="@android:drawable/ic_menu_close_clear_cancel"
-        android:layout_marginStart="8dp"
-        android:elevation="10dp"
-        android:translationZ="10dp" />
-
-</LinearLayout>
-
+</androidx.cardview.widget.CardView>

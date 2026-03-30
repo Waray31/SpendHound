@@ -5,7 +5,7 @@ import android.app.AlertDialog
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
+import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -22,6 +22,7 @@ class GroupsActivity : AppCompatActivity() {
     private lateinit var emptyState: LinearLayout
     private lateinit var loadingOverlay: View
     private lateinit var fabCreateGroup: FloatingActionButton
+    private lateinit var tvGroupCount: TextView
 
     private var currentUserId: Long? = null
     private var allUsers: List<User> = emptyList()
@@ -31,9 +32,8 @@ class GroupsActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_groups)
 
-        val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
-        setSupportActionBar(toolbar)
-        toolbar.setNavigationOnClickListener { finish() }
+        findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
+        tvGroupCount = findViewById(R.id.tvGroupCount)
 
         rvGroups = findViewById(R.id.rvGroups)
         emptyState = findViewById(R.id.emptyState)
@@ -98,6 +98,7 @@ class GroupsActivity : AppCompatActivity() {
                     val isEmpty = groups.isEmpty()
                     emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
                     rvGroups.visibility = if (isEmpty) View.GONE else View.VISIBLE
+                    tvGroupCount.text = "${groups.size} group${if (groups.size != 1) "s" else ""}"
                     if (!isEmpty) {
                         rvGroups.adapter = GroupAdapter(groups,
                             onEdit = { pos -> launchEditGroup(pos) },
@@ -150,8 +151,11 @@ class GroupsActivity : AppCompatActivity() {
         inner class VH(view: View) : RecyclerView.ViewHolder(view) {
             val name: TextView = view.findViewById(R.id.groupName)
             val members: TextView = view.findViewById(R.id.groupMembers)
-            val editBtn: Button = view.findViewById(R.id.editGroupBtn)
-            val deleteBtn: Button = view.findViewById(R.id.removeGroupBtn)
+            val editBtn: ImageButton = view.findViewById(R.id.editGroupBtn)
+            val deleteBtn: ImageButton = view.findViewById(R.id.removeGroupBtn)
+            val tvTotalExpenses: TextView = view.findViewById(R.id.tvTotalExpenses)
+            val tvActiveTransactions: TextView = view.findViewById(R.id.tvActiveTransactions)
+            val btnAddExpense: LinearLayout = view.findViewById(R.id.btnAddExpense)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
@@ -166,6 +170,13 @@ class GroupsActivity : AppCompatActivity() {
             else "Members: ${members.joinToString(", ") { it.username ?: "?" }}"
             holder.editBtn.setOnClickListener { onEdit(position) }
             holder.deleteBtn.setOnClickListener { onDelete(position) }
+            holder.btnAddExpense.setOnClickListener {
+                val intent = android.content.Intent(this@GroupsActivity, com.waray.spendhound.ui.multi_transaction.MultiTransactionActivity::class.java).apply {
+                    putExtra("group_id", group.groupId)
+                    putExtra("group_name", group.groupName)
+                }
+                startActivity(intent)
+            }
         }
     }
 }
