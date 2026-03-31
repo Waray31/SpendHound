@@ -45,8 +45,18 @@
 
         <Spinner
             android:id="@+id/groupSpinner"
-            android:layout_width="match_parent"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textAlignment="center"
+            android:background="@drawable/transparent_background" />
+
+        <Spinner
+            android:id="@+id/dateRangeSpinner"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:textAlignment="center"
             android:background="@drawable/transparent_background" />
 
     </LinearLayout>
@@ -123,18 +133,8 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <Button
-                android:id="@+id/datePickerButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:background="@drawable/transparent_background"
-                android:textAllCaps="false"
-                android:textColor="@color/darkBlue"
-                android:textSize="14sp"
-                android:textAlignment="center" />
-
             <!-- Current Month Display -->
-            <!--<TextView
+            <TextView
                 android:id="@+id/currentMonthTextView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -143,7 +143,7 @@
                 android:paddingBottom="8dp"
                 android:text="February 2026"
                 android:textColor="@color/darkBlue"
-                android:textSize="18sp" />-->
+                android:textSize="18sp" />
 
             <!-- Transaction Count -->
             <TextView

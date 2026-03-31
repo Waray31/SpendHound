@@ -42,7 +42,8 @@ import java.util.Locale
 import kotlin.math.max
 
 class BorrowFragment : Fragment() {
-    private var datePickerButton: Button? = null
+    private var dateRangeSpinner: android.widget.Spinner? = null
+    private var currentMonthTextView: TextView? = null
     var owedTV: TextView? = null
     var debtTV: TextView? = null
     private var allTabTV: TextView? = null
@@ -77,7 +78,8 @@ class BorrowFragment : Fragment() {
         
         mAuth = DeclareDatabase.auth
         
-        datePickerButton = view.findViewById(R.id.datePickerButton)
+        dateRangeSpinner = view.findViewById(R.id.dateRangeSpinner)
+        currentMonthTextView = view.findViewById(R.id.currentMonthTextView)
         owedTV = view.findViewById(R.id.owedTV)
         debtTV = view.findViewById(R.id.debtTV)
         owedRecyclerList = view.findViewById(R.id.owedRecyclerList)
@@ -95,7 +97,7 @@ class BorrowFragment : Fragment() {
 
         getCurrentNickname()
         setupViews()
-        setupDateRangePicker()
+        setupDateRangeSpinner()
         setupStatusTabs()
         setupClickListeners()
 
@@ -112,50 +114,98 @@ class BorrowFragment : Fragment() {
         debtRecyclerList?.layoutManager = LinearLayoutManager(context)
     }
 
-    private fun setupDateRangePicker() {
-        // Default to current month
-        val cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
-        cal.set(Calendar.DAY_OF_MONTH, 1)
-        startDate = cal.timeInMillis
-        
-        cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
-        cal.set(Calendar.HOUR_OF_DAY, 23)
-        cal.set(Calendar.MINUTE, 59)
-        cal.set(Calendar.SECOND, 59)
-        endDate = cal.timeInMillis
+    private var customDateActive = false
 
-        updateDatePickerButtonText()
-        datePickerButton?.setOnClickListener {
-            showDateRangePickerDialog()
+    private fun setupDateRangeSpinner() {
+        val options = mutableListOf<String?>("This Month", "Last Month", "All", "Custom Date")
+        val spinnerAdapter = com.waray.spendhound.SpinnerItemMonths(requireContext(), options)
+        dateRangeSpinner?.adapter = spinnerAdapter
+        setThisMonth()
+        updateCurrentMonthText()
+
+        currentMonthTextView?.setOnClickListener {
+            if (customDateActive) showDateRangePickerDialog()
         }
+
+        dateRangeSpinner?.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                when (position) {
+                    0 -> { customDateActive = false; setThisMonth(); updateCurrentMonthText(); applyFilters() }
+                    1 -> { customDateActive = false; setLastMonth(); updateCurrentMonthText(); applyFilters() }
+                    2 -> { customDateActive = false; setAllTime(); updateCurrentMonthText(); applyFilters() }
+                    3 -> showDateRangePickerDialog()
+                }
+            }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
+
+    }
+
+    private fun setThisMonth() {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.DAY_OF_MONTH, 1)
+        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+        startDate = cal.timeInMillis
+        cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
+        cal.set(Calendar.HOUR_OF_DAY, 23); cal.set(Calendar.MINUTE, 59); cal.set(Calendar.SECOND, 59)
+        endDate = cal.timeInMillis
+    }
+
+    private fun setLastMonth() {
+        val cal = Calendar.getInstance()
+        cal.add(Calendar.MONTH, -1)
+        cal.set(Calendar.DAY_OF_MONTH, 1)
+        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+        startDate = cal.timeInMillis
+        cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
+        cal.set(Calendar.HOUR_OF_DAY, 23); cal.set(Calendar.MINUTE, 59); cal.set(Calendar.SECOND, 59)
+        endDate = cal.timeInMillis
+    }
+
+    private fun setAllTime() {
+        startDate = 0L
+        endDate = Long.MAX_VALUE
     }
 
     private fun showDateRangePickerDialog() {
-        val builder = MaterialDatePicker.Builder.dateRangePicker()
-        builder.setTitleText("Select Date Range")
-        builder.setSelection(Pair(startDate, endDate))
+        val safeStart = if (startDate == 0L || startDate == Long.MAX_VALUE)
+            Calendar.getInstance().also { it.set(Calendar.DAY_OF_MONTH, 1) }.timeInMillis
+        else startDate
+        val safeEnd = if (endDate == Long.MAX_VALUE) Calendar.getInstance().timeInMillis else endDate
 
-        val picker = builder.build()
+        val picker = MaterialDatePicker.Builder.dateRangePicker()
+            .setTitleText("Select Date Range")
+            .setSelection(Pair(safeStart, safeEnd))
+            .build()
         picker.show(childFragmentManager, "DATE_RANGE_PICKER")
-
         picker.addOnPositiveButtonClickListener { selection ->
-            startDate = selection.first ?: startDate
-            endDate = (selection.second ?: selection.first ?: endDate) + 86400000 - 1
-            updateDatePickerButtonText()
+            startDate = selection.first ?: safeStart
+            val selectedEnd = selection.second ?: selection.first ?: safeEnd
+            endDate = selectedEnd + 86400000 - 1
+            val sdf = SimpleDateFormat("MMM dd", Locale.getDefault())
+            val label = "${sdf.format(startDate)} - ${sdf.format(selectedEnd)}"
+            customDateActive = true
+            updateCurrentMonthText(customLabel = label)
             applyFilters()
+        }
+        picker.addOnCancelListener {
+            if (!customDateActive) dateRangeSpinner?.setSelection(0)
         }
     }
 
-    private fun updateDatePickerButtonText() {
-        val sdf = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-        val startStr = sdf.format(startDate)
-        val endStr = sdf.format(endDate)
-        val displayStr = "$startStr - $endStr"
-        datePickerButton?.text = displayStr
+    private fun updateCurrentMonthText(customLabel: String? = null) {
+        val text = customLabel ?: when {
+            startDate == 0L && endDate == Long.MAX_VALUE -> "All Time"
+            else -> {
+                val sdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+                val start = sdf.format(startDate)
+                val end = sdf.format(endDate)
+                if (start == end) start else "$start - $end"
+            }
+        }
+        currentMonthTextView?.text = text
     }
 
     private fun setupStatusTabs() {

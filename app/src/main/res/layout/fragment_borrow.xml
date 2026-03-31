@@ -115,7 +115,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:layout_marginBottom="8dp"
+                        android:layout_marginBottom="4dp"
                         android:gravity="center_vertical">
 
                         <!-- Month/Year Filter -->
@@ -126,14 +126,25 @@
                             android:layout_marginTop="4dp"
                             android:orientation="horizontal">
 
-                            <Button
-                                android:id="@+id/datePickerButton"
-                                android:layout_width="wrap_content"
+                            <TextView
+                                android:id="@+id/currentMonthTextView"
+                                android:layout_width="0dp"
                                 android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:fontFamily="@font/montserratalternatess_bold"
+                                android:text=""
+                                android:layout_gravity="center"
                                 android:textAlignment="center"
-                                android:background="@drawable/transparent_background"
                                 android:textColor="@color/darkBlue"
                                 android:textSize="14sp" />
+
+                            <Spinner
+                                android:id="@+id/dateRangeSpinner"
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:textAlignment="center"
+                                android:layout_weight="1"
+                                android:background="@drawable/transparent_background" />
 
                         </LinearLayout>
 
@@ -169,6 +180,7 @@
                         </LinearLayout>
 
                     </LinearLayout>
+
 
                     <LinearLayout
                         android:id="@+id/statusTabs_layout"

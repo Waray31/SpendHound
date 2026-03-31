@@ -26,8 +26,7 @@ class AllTransactionsActivity : AppCompatActivity() {
     private var recyclerView: RecyclerView? = null
     private var adapter: RecentTransactionAdapter? = null
     private var transactionList: ArrayList<RecentTransaction> = ArrayList()
-    private var datePickerButton: Button? = null
-    private var currentMonthTextView: TextView? = null
+    private var dateRangeSpinner: android.widget.Spinner? = null
     private var transactionCountTextView: TextView? = null
     private var loadingProgressBar: ProgressBar? = null
     private var emptyStateLayout: LinearLayout? = null
@@ -53,12 +52,12 @@ class AllTransactionsActivity : AppCompatActivity() {
         
         initViews()
         getCurrentNickname()
-        setupDateRangePicker()
+        setupDateRangeSpinner()
     }
 
     private fun initViews() {
         recyclerView = findViewById(R.id.allTransactionsRecyclerView)
-        datePickerButton = findViewById(R.id.datePickerButton)
+        dateRangeSpinner = findViewById(R.id.dateRangeSpinner)
         transactionCountTextView = findViewById(R.id.transactionCountTextView)
         loadingProgressBar = findViewById(R.id.loadingProgressBar)
         emptyStateLayout = findViewById(R.id.emptyStateLayout)
@@ -144,53 +143,75 @@ class AllTransactionsActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupDateRangePicker() {
-        // Default to current month
+    private fun setupDateRangeSpinner() {
+        val options = mutableListOf<String?>("This Month", "Last Month", "All", "Custom Date")
+        val spinnerAdapter = SpinnerItemMonths(this, options)
+        dateRangeSpinner?.adapter = spinnerAdapter
+        setThisMonth()
+        refreshTransactions()
+
+        dateRangeSpinner?.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                when (position) {
+                    0 -> { setThisMonth(); refreshTransactions() }
+                    1 -> { setLastMonth(); refreshTransactions() }
+                    2 -> { setAllTime(); refreshTransactions() }
+                    3 -> showDateRangePickerDialog(spinnerAdapter, options)
+                }
+            }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
+    }
+
+    private fun setThisMonth() {
         val cal = Calendar.getInstance()
-        cal.set(Calendar.HOUR_OF_DAY, 0)
-        cal.set(Calendar.MINUTE, 0)
-        cal.set(Calendar.SECOND, 0)
-        cal.set(Calendar.MILLISECOND, 0)
         cal.set(Calendar.DAY_OF_MONTH, 1)
+        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
         startDate = cal.timeInMillis
-        
         cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
-        cal.set(Calendar.HOUR_OF_DAY, 23)
-        cal.set(Calendar.MINUTE, 59)
-        cal.set(Calendar.SECOND, 59)
+        cal.set(Calendar.HOUR_OF_DAY, 23); cal.set(Calendar.MINUTE, 59); cal.set(Calendar.SECOND, 59)
         endDate = cal.timeInMillis
-
-        updateDatePickerButtonText()
-        fetchTransactionsInRange(startDate, endDate)
-
-        datePickerButton?.setOnClickListener {
-            showDateRangePickerDialog()
-        }
     }
 
-    private fun showDateRangePickerDialog() {
-        val builder = MaterialDatePicker.Builder.dateRangePicker()
-        builder.setTitleText("Select Date Range")
-        builder.setSelection(Pair(startDate, endDate))
+    private fun setLastMonth() {
+        val cal = Calendar.getInstance()
+        cal.add(Calendar.MONTH, -1)
+        cal.set(Calendar.DAY_OF_MONTH, 1)
+        cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0)
+        cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+        startDate = cal.timeInMillis
+        cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH))
+        cal.set(Calendar.HOUR_OF_DAY, 23); cal.set(Calendar.MINUTE, 59); cal.set(Calendar.SECOND, 59)
+        endDate = cal.timeInMillis
+    }
 
-        val picker = builder.build()
+    private fun setAllTime() {
+        startDate = 0L
+        endDate = Long.MAX_VALUE
+    }
+
+    private fun showDateRangePickerDialog(spinnerAdapter: SpinnerItemMonths, options: MutableList<String?>) {
+        val safeStart = if (startDate == 0L || startDate == Long.MAX_VALUE)
+            Calendar.getInstance().also { it.set(Calendar.DAY_OF_MONTH, 1) }.timeInMillis
+        else startDate
+        val safeEnd = if (endDate == Long.MAX_VALUE) Calendar.getInstance().timeInMillis else endDate
+
+        val picker = MaterialDatePicker.Builder.dateRangePicker()
+            .setTitleText("Select Date Range")
+            .setSelection(Pair(safeStart, safeEnd))
+            .build()
         picker.show(supportFragmentManager, "DATE_RANGE_PICKER")
-
         picker.addOnPositiveButtonClickListener { selection ->
-            startDate = selection.first ?: startDate
-            endDate = (selection.second ?: selection.first ?: endDate) + 86400000 - 1
-            updateDatePickerButtonText()
-            fetchTransactionsInRange(startDate, endDate)
+            startDate = selection.first ?: safeStart
+            endDate = (selection.second ?: selection.first ?: safeEnd) + 86400000 - 1
+            val sdf = SimpleDateFormat("MMM dd", Locale.getDefault())
+            options[3] = "${sdf.format(startDate)} - ${sdf.format(endDate)}"
+            spinnerAdapter.notifyDataSetChanged()
+            dateRangeSpinner?.setSelection(3)
+            refreshTransactions()
         }
-    }
-
-    private fun updateDatePickerButtonText() {
-        val sdf = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
-        val startStr = sdf.format(startDate)
-        val endStr = sdf.format(endDate)
-        val displayStr = "$startStr - $endStr"
-        datePickerButton?.text = displayStr
-        currentMonthTextView?.text = displayStr
+        picker.addOnCancelListener { dateRangeSpinner?.setSelection(0) }
     }
 
     @SuppressLint("NotifyDataSetChanged")

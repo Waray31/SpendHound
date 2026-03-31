@@ -119,7 +119,7 @@
 
                     <LinearLayout
                         android:layout_width="match_parent"
-                        android:layout_height="52dp"
+                        android:layout_height="wrap_content"
                         android:background="@drawable/bg_toggle_container"
                         android:orientation="horizontal"
                         android:padding="4dp">
@@ -129,19 +129,20 @@
                             android:layout_width="0dp"
                             android:layout_height="match_parent"
                             android:layout_weight="1"
+                            android:paddingVertical="8dp"
                             android:background="@drawable/bg_toggle_selected"
                             android:gravity="center"
                             android:text="One Person Paid"
                             android:fontFamily="@font/montserratalternatess_bold"
                             android:textColor="@color/darkBlue"
-                            android:textSize="12sp"
-                            android:elevation="2dp" />
+                            android:textSize="12sp" />
 
                         <TextView
                             android:id="@+id/btnMultiplePayors"
                             android:layout_width="0dp"
                             android:layout_height="match_parent"
                             android:layout_weight="1"
+                            android:paddingVertical="8dp"
                             android:background="@android:color/transparent"
                             android:gravity="center"
                             android:text="Multiple People Paid"
