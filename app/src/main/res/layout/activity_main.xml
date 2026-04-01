@@ -146,6 +146,77 @@
             android:focusable="false" />
     </LinearLayout>
 
+    <!-- Sub-FABs for Single and Multiple Transaction -->
+    <LinearLayout
+        android:id="@+id/container_single_transaction"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:elevation="22dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_anchor="@id/fab_main"
+        app:layout_anchorGravity="center">
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_single_transaction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:backgroundTint="@color/darkBlue"
+            android:contentDescription="Single Transaction"
+            android:src="@drawable/ic_paper"
+            app:fabSize="mini"
+            app:tint="@color/white" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="Single"
+            android:textColor="@color/white"
+            android:textSize="10sp"
+            android:clickable="false"
+            android:focusable="false" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/container_multi_transaction"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:elevation="22dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_anchor="@id/fab_main"
+        app:layout_anchorGravity="center">
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_multi_transaction"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:backgroundTint="@color/darkBlue"
+            android:contentDescription="Multiple Transaction"
+            android:src="@drawable/add_transaction"
+            app:fabSize="mini"
+            app:tint="@color/white" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="Multiple"
+            android:textColor="@color/white"
+            android:textSize="10sp"
+            android:clickable="false"
+            android:focusable="false" />
+    </LinearLayout>
+
     <LinearLayout
         android:id="@+id/container_add_group"
         android:layout_width="wrap_content"

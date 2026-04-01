@@ -15,6 +15,7 @@ import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -62,7 +63,7 @@ class RecentTransactionAdapter(
         holder.dateTextView.text = transaction.mostRecentDate
         holder.typeTextView.text = transaction.mostRecentTransactionType ?: "Transaction"
         holder.amountTextView.text = transaction.mostRecentPaymentAmountStr
-        holder.iconImageView.setImageResource(transaction.iconResource)
+        holder.iconImageView.setImageResource(getIconForItems(transaction.transactionItems))
 
         // Status: Settled = green, Pending = yellow
         val status = transaction.transactionStatus
@@ -218,6 +219,12 @@ class RecentTransactionAdapter(
             row.findViewById<TextView>(R.id.tvItemDescription).text = item.itemDescription?.takeIf { it.isNotBlank() } ?: "-"
             holder.itemsTableContainer.addView(row)
         }
+    }
+
+    private fun getIconForItems(items: List<TransactionItemFull>): Int {
+        if (items.isEmpty()) return R.drawable.others
+        val dominant = if (items.size == 1) items[0] else items.maxByOrNull { it.amount }
+        return getCategoryIcon(dominant?.category)
     }
 
     private fun getCategoryIcon(category: String?): Int = when (category) {
