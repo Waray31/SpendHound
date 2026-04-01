@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingVertical="4dp"
+    android:paddingHorizontal="4dp">
+
+    <!-- Category icon -->
+    <ImageView
+        android:id="@+id/ivItemCategory"
+        android:layout_width="28dp"
+        android:layout_height="28dp"
+        android:layout_weight="0"
+        android:background="@drawable/rounded_background9"
+        android:padding="5dp"
+        android:scaleType="fitCenter" />
+
+    <!-- Amount -->
+    <TextView
+        android:id="@+id/tvItemAmount"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="2"
+        android:layout_marginStart="6dp"
+        android:fontFamily="@font/montserratalternatess_bold"
+        android:textColor="@color/darkBlue"
+        android:textSize="12sp" />
+
+    <!-- Who paid -->
+    <TextView
+        android:id="@+id/tvItemPaidBy"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="2"
+        android:fontFamily="@font/montserratalternatess_regular"
+        android:textColor="@color/grey"
+        android:textSize="11sp"
+        android:ellipsize="end"
+        android:maxLines="1" />
+
+    <!-- Description -->
+    <TextView
+        android:id="@+id/tvItemDescription"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="3"
+        android:fontFamily="@font/montserratalternatess_regular"
+        android:textColor="@color/black"
+        android:textSize="11sp"
+        android:ellipsize="end"
+        android:maxLines="2" />
+
+</LinearLayout>
