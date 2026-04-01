@@ -11,7 +11,7 @@
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/gradient_purple_header"
+        android:background="@drawable/gradient_yellow_header"
         android:paddingBottom="28dp">
 
         <LinearLayout
@@ -55,7 +55,7 @@
                 android:layout_marginStart="4dp"
                 android:text="0 groups"
                 android:fontFamily="@font/montserratalternatess_regular"
-                android:textColor="#CCE0F0"
+                android:textColor="@color/whitest"
                 android:textSize="14sp" />
 
         </LinearLayout>

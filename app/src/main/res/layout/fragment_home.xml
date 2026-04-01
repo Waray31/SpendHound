@@ -29,7 +29,7 @@
                     android:background="@color/white"
                     android:gravity="center_vertical"
                     android:orientation="horizontal"
-                    android:paddingHorizontal="20dp"
+                    android:paddingHorizontal="12dp"
                     android:paddingTop="20dp"
                     android:paddingBottom="8dp">
 
@@ -74,9 +74,8 @@
                     android:layout_height="wrap_content"
                     android:background="@color/white"
                     android:orientation="vertical"
-                    android:paddingHorizontal="20dp"
-                    android:paddingTop="12dp"
-                    android:paddingBottom="4dp">
+                    android:paddingHorizontal="16dp"
+                    android:paddingTop="12dp">
 
                     <LinearLayout
                         android:layout_width="match_parent"
@@ -113,11 +112,11 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="16dp"
                             android:background="@drawable/bg_pill_badge"
-                            android:fontFamily="@font/montserratalternatess_bold"
+                            android:fontFamily="@font/montserratalternatess_regular"
                             android:paddingHorizontal="20dp"
                             android:paddingVertical="10dp"
                             android:text="● +0% from last month"
-                            android:textColor="@color/red"
+                            android:textColor="@color/white"
                             android:textSize="14sp" />
 
                     </LinearLayout>
@@ -131,7 +130,7 @@
                     android:baselineAligned="false"
                     android:orientation="horizontal"
                     android:paddingHorizontal="20dp"
-                    android:paddingTop="16dp">
+                    android:layout_marginVertical="24dp">
 
                     <!-- You Owe Card -->
                     <LinearLayout
@@ -224,17 +223,33 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:paddingHorizontal="20dp"
-                    android:paddingBottom="40dp">
+                    android:paddingHorizontal="16dp"
+                    android:paddingBottom="80dp">
+
+
+                    <androidx.cardview.widget.CardView
+                        android:id="@+id/cardView_profile2"
+                        android:layout_width="wrap_content"
+                        android:layout_height="288dp"
+                        android:background="@drawable/glassy_background2"
+                        android:elevation="4dp"
+                        android:innerRadius="0dp"
+                        android:shape="ring"
+                        android:thicknessRatio="1.9"
+                        app:cardCornerRadius="20dp">
+
+                    <ImageView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:background="@drawable/background_card"
+                        android:contentDescription="@string/card_background_description"
+                        android:orientation="vertical" />
 
                     <!-- Analytics Section -->
                     <LinearLayout
                         android:id="@+id/analyticsContainer"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="20dp"
-                        android:background="@drawable/rounded_background8"
-                        android:elevation="4dp"
                         android:orientation="vertical"
                         android:padding="16dp">
 
@@ -622,6 +637,8 @@
                             android:visibility="gone" />
 
                     </LinearLayout>
+
+                    </androidx.cardview.widget.CardView>
 
                     <!-- Recent Transactions -->
                     <LinearLayout
