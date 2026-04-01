@@ -11,7 +11,7 @@ import kotlinx.serialization.Serializable
 data class TransactionEntry(
     var title: String = "",           // maps to transaction_items.item_description
     var amount: Double = 0.0,
-    var category: String = "Others",  // maps to transaction_items.category
+    var category: String = "",        // maps to transaction_items.category
     var payors: MutableList<PayorEntry> = mutableListOf()
 )
 

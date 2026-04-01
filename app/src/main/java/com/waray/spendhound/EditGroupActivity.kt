@@ -1,7 +1,7 @@
 package com.waray.spendhound
 
 import android.annotation.SuppressLint
-import android.app.AlertDialog
+import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -9,16 +9,20 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.textfield.TextInputEditText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -28,6 +32,7 @@ class EditGroupActivity : AppCompatActivity() {
     companion object {
         const val EXTRA_GROUP_ID = "extra_group_id"
         const val EXTRA_GROUP_NAME = "extra_group_name"
+        const val EXTRA_GROUP_IMAGE = "extra_group_image"
     }
 
     private lateinit var etSearch: EditText
@@ -39,6 +44,7 @@ class EditGroupActivity : AppCompatActivity() {
 
     private var groupId: Long = -1
     private var groupName: String = ""
+    private var existingGroupImage: String? = null
     private var currentUserId: Long? = null
     private var currentUser: User? = null
     private var allUsers: List<User> = emptyList()
@@ -47,12 +53,25 @@ class EditGroupActivity : AppCompatActivity() {
 
     private lateinit var userAdapter: UserSelectAdapter
 
+    private var selectedImageUri: Uri? = null
+    private var dialogImageView: ImageView? = null
+
+    private val imagePickerLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri ?: return@registerForActivityResult
+        selectedImageUri = uri
+        dialogImageView?.let {
+            it.imageTintList = null
+            Glide.with(this).load(uri).centerCrop().into(it)
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_create_group) // reuse same layout
+        setContentView(R.layout.activity_create_group)
 
         groupId = intent.getLongExtra(EXTRA_GROUP_ID, -1)
         groupName = intent.getStringExtra(EXTRA_GROUP_NAME) ?: ""
+        existingGroupImage = intent.getStringExtra(EXTRA_GROUP_IMAGE)
 
         val toolbar = findViewById<com.google.android.material.appbar.MaterialToolbar>(R.id.toolbar)
         setSupportActionBar(toolbar)
@@ -188,20 +207,32 @@ class EditGroupActivity : AppCompatActivity() {
     }
 
     private fun showConfirmDialog() {
-        val input = EditText(this).apply {
-            setText(groupName)
-            setPadding(48, 32, 48, 32)
+        selectedImageUri = null
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_group_name, null)
+        val ivGroupImage = dialogView.findViewById<ImageView>(R.id.ivGroupImage)
+        val ivContainer = dialogView.findViewById<FrameLayout>(R.id.ivGroupImageContainer)
+        val etGroupName = dialogView.findViewById<TextInputEditText>(R.id.etGroupName)
+
+        dialogImageView = ivGroupImage
+        etGroupName.setText(groupName)
+
+        if (!existingGroupImage.isNullOrBlank()) {
+            ivGroupImage.imageTintList = null
+            Glide.with(this).load(existingGroupImage).centerCrop()
+                .placeholder(R.drawable.add_group).into(ivGroupImage)
         }
-        AlertDialog.Builder(this)
-            .setTitle("Save Changes")
-            .setMessage("Edit group name and save changes?")
-            .setView(input)
+
+        ivContainer.setOnClickListener { imagePickerLauncher.launch("image/*") }
+
+        MaterialAlertDialogBuilder(this, R.style.AppDialog)
+            .setTitle("Edit Group")
+            .setView(dialogView)
             .setPositiveButton("Save") { _, _ ->
-                val name = input.text.toString().trim()
+                val name = etGroupName.text.toString().trim()
                 if (name.isBlank()) { toast("Enter a group name"); return@setPositiveButton }
                 saveGroup(name)
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton("Cancel") { _, _ -> selectedImageUri = null }
             .show()
     }
 
@@ -210,7 +241,13 @@ class EditGroupActivity : AppCompatActivity() {
         showLoading()
         lifecycleScope.launch {
             try {
-                DeclareDatabase.groupsTable.update(GroupNameUpdate(groupName = newName)) {
+                var imageUrl = existingGroupImage
+                val uri = selectedImageUri
+                if (uri != null) {
+                    imageUrl = uploadGroupImage(uri, groupId)
+                }
+
+                DeclareDatabase.groupsTable.update(GroupNameUpdate(groupName = newName, groupImageUrl = imageUrl)) {
                     filter { eq("group_id", groupId) }
                 }
 
@@ -219,8 +256,7 @@ class EditGroupActivity : AppCompatActivity() {
                 }
 
                 val memberIds = (listOf(creatorId) + selectedUsers.toList()).distinct()
-                val records = memberIds.map { GroupMemberInsert(groupId = groupId, userId = it) }
-                DeclareDatabase.groupMembersTable.insert(records)
+                DeclareDatabase.groupMembersTable.insert(memberIds.map { GroupMemberInsert(groupId, it) })
 
                 toast("Group updated!")
                 finish()
@@ -229,6 +265,17 @@ class EditGroupActivity : AppCompatActivity() {
             } finally {
                 hideLoading()
             }
+        }
+    }
+
+    private suspend fun uploadGroupImage(uri: Uri, groupId: Long): String? = withContext(Dispatchers.IO) {
+        try {
+            val bytes = contentResolver.openInputStream(uri)?.readBytes() ?: return@withContext null
+            val path = "$groupId.jpg"
+            DeclareDatabase.groupImagesBucket.upload(path, bytes, upsert = true)
+            DeclareDatabase.groupImagesBucket.publicUrl(path)
+        } catch (e: Exception) {
+            null
         }
     }
 
@@ -265,10 +312,10 @@ class EditGroupActivity : AppCompatActivity() {
             holder.itemView.alpha = if (isCurrentUser) 0.6f else 1f
 
             loadAvatar(holder.ivAvatar, user.id)
-
             holder.itemView.setOnClickListener { if (!isCurrentUser) onToggle(user) }
         }
 
+        @SuppressLint("NotifyDataSetChanged")
         fun updateList(newList: List<User>) {
             users = newList
             notifyDataSetChanged()

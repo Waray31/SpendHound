@@ -1,7 +1,7 @@
 package com.waray.spendhound
 
 import android.annotation.SuppressLint
-import android.app.AlertDialog
+import android.net.Uri
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -9,21 +9,23 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
+import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import com.google.android.material.textfield.TextInputEditText
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.SerialName
-import kotlinx.serialization.Serializable
 
 class CreateGroupActivity : AppCompatActivity() {
 
@@ -38,9 +40,21 @@ class CreateGroupActivity : AppCompatActivity() {
     private var currentUser: User? = null
     private var allUsers: List<User> = emptyList()
     private var filteredUsers: List<User> = emptyList()
-    private val selectedUsers = mutableSetOf<Long>() // user IDs selected (excludes current user)
+    private val selectedUsers = mutableSetOf<Long>()
 
     private lateinit var userAdapter: UserSelectAdapter
+
+    private var selectedImageUri: Uri? = null
+    private var dialogImageView: ImageView? = null
+
+    private val imagePickerLauncher = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        uri ?: return@registerForActivityResult
+        selectedImageUri = uri
+        dialogImageView?.let {
+            it.imageTintList = null
+            Glide.with(this).load(uri).centerCrop().into(it)
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -59,7 +73,6 @@ class CreateGroupActivity : AppCompatActivity() {
         loadingOverlay = findViewById(R.id.loadingOverlay)
 
         rvUsers.layoutManager = LinearLayoutManager(this)
-
         btnNext.setOnClickListener { showGroupNameDialog() }
 
         etSearch.addTextChangedListener(object : TextWatcher {
@@ -107,11 +120,7 @@ class CreateGroupActivity : AppCompatActivity() {
 
     private fun toggleSelection(user: User) {
         val id = user.id ?: return
-        if (id in selectedUsers) {
-            selectedUsers.remove(id)
-        } else {
-            selectedUsers.add(id)
-        }
+        if (id in selectedUsers) selectedUsers.remove(id) else selectedUsers.add(id)
         userAdapter.notifyDataSetChanged()
         updateSelectedStrip()
         btnNext.visibility = if (selectedUsers.isNotEmpty()) View.VISIBLE else View.GONE
@@ -127,13 +136,8 @@ class CreateGroupActivity : AppCompatActivity() {
     private fun updateSelectedStrip() {
         selectedMembersContainer.removeAllViews()
         val selected = allUsers.filter { it.id in selectedUsers }
-
-        // Current user chip (always shown, no remove button)
         currentUser?.let { addMemberChip(it, removable = false) }
-
-        // Selected users chips
         selected.forEach { user -> addMemberChip(user, removable = true) }
-
         selectedMembersScroll.visibility = if (selected.isNotEmpty()) View.VISIBLE else View.GONE
     }
 
@@ -155,7 +159,6 @@ class CreateGroupActivity : AppCompatActivity() {
                 btnNext.visibility = if (selectedUsers.isNotEmpty()) View.VISIBLE else View.GONE
             }
         }
-
         selectedMembersContainer.addView(chip)
     }
 
@@ -180,19 +183,25 @@ class CreateGroupActivity : AppCompatActivity() {
     }
 
     private fun showGroupNameDialog() {
-        val input = EditText(this).apply {
-            hint = "Enter group name"
-            setPadding(48, 32, 48, 32)
-        }
-        AlertDialog.Builder(this)
-            .setTitle("Group Name")
-            .setView(input)
+        selectedImageUri = null
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_group_name, null)
+        val ivGroupImage = dialogView.findViewById<ImageView>(R.id.ivGroupImage)
+        val ivContainer = dialogView.findViewById<FrameLayout>(R.id.ivGroupImageContainer)
+        val etGroupName = dialogView.findViewById<TextInputEditText>(R.id.etGroupName)
+
+        dialogImageView = ivGroupImage
+
+        ivContainer.setOnClickListener { imagePickerLauncher.launch("image/*") }
+
+        MaterialAlertDialogBuilder(this, R.style.AppDialog)
+            .setTitle("New Group")
+            .setView(dialogView)
             .setPositiveButton("Create") { _, _ ->
-                val name = input.text.toString().trim()
+                val name = etGroupName.text.toString().trim()
                 if (name.isBlank()) { toast("Enter a group name"); return@setPositiveButton }
                 createGroup(name)
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton("Cancel") { _, _ -> selectedImageUri = null }
             .show()
     }
 
@@ -207,9 +216,18 @@ class CreateGroupActivity : AppCompatActivity() {
 
                 val groupId = inserted.groupId ?: throw Exception("No group ID returned")
 
+                val uri = selectedImageUri
+                if (uri != null) {
+                    val imageUrl = uploadGroupImage(uri, groupId)
+                    if (imageUrl != null) {
+                        DeclareDatabase.groupsTable.update(GroupNameUpdate(groupName = name, groupImageUrl = imageUrl)) {
+                            filter { eq("group_id", groupId) }
+                        }
+                    }
+                }
+
                 val memberIds = (listOf(creatorId) + selectedUsers.toList()).distinct()
-                val records = memberIds.map { GroupMemberInsert(groupId = groupId, userId = it) }
-                DeclareDatabase.groupMembersTable.insert(records)
+                DeclareDatabase.groupMembersTable.insert(memberIds.map { GroupMemberInsert(groupId, it) })
 
                 toast("Group \"$name\" created!")
                 finish()
@@ -221,11 +239,20 @@ class CreateGroupActivity : AppCompatActivity() {
         }
     }
 
+    private suspend fun uploadGroupImage(uri: Uri, groupId: Long): String? = withContext(Dispatchers.IO) {
+        try {
+            val bytes = contentResolver.openInputStream(uri)?.readBytes() ?: return@withContext null
+            val path = "$groupId.jpg"
+            DeclareDatabase.groupImagesBucket.upload(path, bytes, upsert = true)
+            DeclareDatabase.groupImagesBucket.publicUrl(path)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     private fun showLoading() { loadingOverlay.visibility = View.VISIBLE }
     private fun hideLoading() { loadingOverlay.visibility = View.GONE }
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-
-    // ─── Adapter ──────────────────────────────────────────────────────────────
 
     inner class UserSelectAdapter(
         private var users: List<User>,
@@ -245,7 +272,6 @@ class CreateGroupActivity : AppCompatActivity() {
 
         override fun getItemCount() = users.size
 
-        @SuppressLint("NotifyDataSetChanged")
         override fun onBindViewHolder(holder: VH, position: Int) {
             val user = users[position]
             val isCurrentUser = user.id == currentUserId
@@ -257,10 +283,7 @@ class CreateGroupActivity : AppCompatActivity() {
             holder.itemView.alpha = if (isCurrentUser) 0.6f else 1f
 
             loadAvatar(holder.ivAvatar, user.id)
-
-            holder.itemView.setOnClickListener {
-                if (!isCurrentUser) onToggle(user)
-            }
+            holder.itemView.setOnClickListener { if (!isCurrentUser) onToggle(user) }
         }
 
         fun updateList(newList: List<User>) {

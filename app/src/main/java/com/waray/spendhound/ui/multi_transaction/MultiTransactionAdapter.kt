@@ -103,6 +103,7 @@ class MultiTransactionAdapter(
                 chip.setOnClickListener {
                     entry.category = category
                     updateChipSelection(chip)
+                    onValidationChanged()
                 }
             }
             val selectedChip = chipMap.entries.firstOrNull { it.value == entry.category }?.key

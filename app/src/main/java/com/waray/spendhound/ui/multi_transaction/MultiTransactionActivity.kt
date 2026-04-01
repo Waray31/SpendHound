@@ -32,7 +32,7 @@ class MultiTransactionActivity : AppCompatActivity() {
     private lateinit var binding: ActivityAddTransactionsMultiBinding
     private val viewModel: MultiTransactionViewModel by viewModels()
     private lateinit var adapter: MultiTransactionAdapter
-    
+
     private var currentGroups: List<PayerGroup> = emptyList()
     private var currentMembers: List<User> = emptyList()
     private var isSingleTransactionMode = false
@@ -42,34 +42,24 @@ class MultiTransactionActivity : AppCompatActivity() {
         binding = ActivityAddTransactionsMultiBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Check transaction mode from intent
         val transactionMode = intent.getStringExtra("TRANSACTION_MODE")
         isSingleTransactionMode = transactionMode == "SINGLE"
-        
+
         setupTransactionMode()
         setupToolbar()
         setupRecyclerView()
         setupListeners()
         observeState()
     }
-    
+
     private fun setupTransactionMode() {
         if (isSingleTransactionMode) {
-            // Hide title section and add row button for single transaction mode
             binding.titleSection.visibility = View.GONE
             binding.btnAddRow.visibility = View.GONE
-            
-            // Update toolbar title
             binding.toolbar.title = "Add Transaction"
-            
-            // Add one transaction by default
-            viewModel.addTransaction()
         } else {
-            // Show all elements for multiple transaction mode
             binding.titleSection.visibility = View.VISIBLE
             binding.btnAddRow.visibility = View.VISIBLE
-            
-            // Update toolbar title
             binding.toolbar.title = "Add Transactions"
         }
     }
@@ -109,7 +99,6 @@ class MultiTransactionActivity : AppCompatActivity() {
     }
 
     private fun setupListeners() {
-        // Custom pill toggle
         binding.btnSinglePayor.setOnClickListener { setPaymentMode(false) }
         binding.btnMultiplePayors.setOnClickListener { setPaymentMode(true) }
 
@@ -159,6 +148,7 @@ class MultiTransactionActivity : AppCompatActivity() {
 
         for (tx in transactions) {
             if (tx.amount <= 0) { allValid = false; break }
+            if (tx.category.isBlank()) { allValid = false; break }
             val totalPaid = tx.payors.sumOf { it.amount }
             if (Math.abs(tx.amount - totalPaid) > 0.01) { allValid = false; break }
         }
@@ -200,8 +190,7 @@ class MultiTransactionActivity : AppCompatActivity() {
                     viewModel.members.collect { members ->
                         currentMembers = members
                         adapter.setMembers(members)
-                        
-                        // Update Global Payor Spinner
+
                         val names = members.map { it.username ?: "Unknown" }
                         val memberAdapter = ArrayAdapter(this@MultiTransactionActivity, android.R.layout.simple_spinner_item, names)
                         memberAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
@@ -213,12 +202,7 @@ class MultiTransactionActivity : AppCompatActivity() {
                 launch {
                     viewModel.transactions.collect { transactions ->
                         adapter.setTransactions(transactions)
-                        val buttonText = if (isSingleTransactionMode) {
-                            "Add Transaction"
-                        } else {
-                            "Add ${transactions.size} Transactions"
-                        }
-                        binding.btnSubmit.text = buttonText
+                        binding.btnSubmit.text = if (isSingleTransactionMode) "Add Transaction" else "Add ${transactions.size} Transactions"
                         viewModel.calculateTotals()
                         validateSubmission()
                     }

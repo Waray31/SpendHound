@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
@@ -13,7 +14,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.waray.spendhound.CurrencyUtils
 import kotlinx.coroutines.launch
 
 class GroupsActivity : AppCompatActivity() {
@@ -119,6 +122,7 @@ class GroupsActivity : AppCompatActivity() {
         val intent = android.content.Intent(this, EditGroupActivity::class.java).apply {
             putExtra(EditGroupActivity.EXTRA_GROUP_ID, group.groupId ?: return)
             putExtra(EditGroupActivity.EXTRA_GROUP_NAME, group.groupName ?: "")
+            putExtra(EditGroupActivity.EXTRA_GROUP_IMAGE, group.groupImageUrl)
         }
         startActivity(intent)
     }
@@ -156,6 +160,7 @@ class GroupsActivity : AppCompatActivity() {
             val tvTotalExpenses: TextView = view.findViewById(R.id.tvTotalExpenses)
             val tvActiveTransactions: TextView = view.findViewById(R.id.tvActiveTransactions)
             val btnAddExpense: LinearLayout = view.findViewById(R.id.btnAddExpense)
+            val ivGroupIcon: ImageView = view.findViewById(R.id.ivGroupIcon)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
@@ -176,6 +181,65 @@ class GroupsActivity : AppCompatActivity() {
                     putExtra("group_name", group.groupName)
                 }
                 startActivity(intent)
+            }
+
+            if (!group.groupImageUrl.isNullOrBlank()) {
+                holder.ivGroupIcon.imageTintList = null
+                Glide.with(this@GroupsActivity)
+                    .load(group.groupImageUrl)
+                    .transform(com.bumptech.glide.load.resource.bitmap.CenterCrop(), com.bumptech.glide.load.resource.bitmap.RoundedCorners(48))
+                    .skipMemoryCache(true)
+                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.NONE)
+                    .listener(object : com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable> {
+                        override fun onLoadFailed(
+                            e: com.bumptech.glide.load.engine.GlideException?,
+                            model: Any?,
+                            target: com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable>,
+                            isFirstResource: Boolean
+                        ): Boolean {
+                            android.util.Log.e("GroupsActivity", "Failed to load image: ${group.groupImageUrl}", e)
+                            holder.ivGroupIcon.setImageResource(R.drawable.add_group)
+                            holder.ivGroupIcon.imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#7B2FBE"))
+                            return true
+                        }
+
+                        override fun onResourceReady(
+                            resource: android.graphics.drawable.Drawable,
+                            model: Any,
+                            target: com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable>?,
+                            dataSource: com.bumptech.glide.load.DataSource,
+                            isFirstResource: Boolean
+                        ): Boolean {
+                            android.util.Log.d("GroupsActivity", "Image loaded successfully: ${group.groupImageUrl}")
+                            return false
+                        }
+                    })
+                    .into(holder.ivGroupIcon)
+            } else {
+                holder.ivGroupIcon.setImageResource(R.drawable.add_group)
+                holder.ivGroupIcon.imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#7B2FBE"))
+            }
+
+            val groupId = group.groupId ?: return
+            lifecycleScope.launch {
+                try {
+                    val transactions = DeclareDatabase.transactionsTable.select {
+                        filter { eq("group_id", groupId) }
+                    }.decodeList<com.waray.spendhound.ui.multi_transaction.TransactionFull>()
+
+                    val totalExpenses = transactions.sumOf { it.totalAmount }
+                    val activeCount = transactions.count { (it.status ?: 0) == 2 }
+
+                    runOnUiThread {
+                        holder.tvTotalExpenses.text = CurrencyUtils.formatAmountWithCurrency(totalExpenses)
+                        holder.tvActiveTransactions.text = activeCount.toString()
+                    }
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        holder.tvTotalExpenses.text = CurrencyUtils.formatAmountWithCurrency(0.0)
+                        holder.tvActiveTransactions.text = "0"
+                    }
+                }
             }
         }
     }

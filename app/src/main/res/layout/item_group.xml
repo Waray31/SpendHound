@@ -28,11 +28,11 @@
                 android:background="@drawable/bg_group_icon">
 
                 <ImageView
-                    android:layout_width="28dp"
-                    android:layout_height="28dp"
+                    android:id="@+id/ivGroupIcon"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
                     android:layout_gravity="center"
-                    android:src="@drawable/add_group"
-                    app:tint="#7B2FBE" />
+                    android:scaleType="centerCrop" />
 
             </FrameLayout>
 

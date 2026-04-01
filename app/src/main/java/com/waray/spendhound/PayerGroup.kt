@@ -14,6 +14,8 @@ data class PayerGroup(
     var createdBy: Long? = null,
     @SerialName("created_at")
     var createdAt: String? = null,
+    @SerialName("group_image_url")
+    var groupImageUrl: String? = null,
     @Transient
     var memberDisplayNames: MutableList<String?>? = null
 )
@@ -33,7 +35,8 @@ data class GroupMember(
 @Serializable
 data class GroupInsert(
     @SerialName("group_name") val groupName: String,
-    @SerialName("createdby_id") val createdById: Long
+    @SerialName("createdby_id") val createdById: Long,
+    @SerialName("group_image_url") val groupImageUrl: String? = null
 )
 
 @Serializable
@@ -44,5 +47,6 @@ data class GroupMemberInsert(
 
 @Serializable
 data class GroupNameUpdate(
-    @SerialName("group_name") val groupName: String
+    @SerialName("group_name") val groupName: String,
+    @SerialName("group_image_url") val groupImageUrl: String? = null
 )

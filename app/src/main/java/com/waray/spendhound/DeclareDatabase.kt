@@ -75,8 +75,9 @@ object DeclareDatabase {
     val borrowsTable get() = client.from("borrows")
     val userBorrowsTable get() = client.from("userBorrows")
 
-    // Storage Bucket Reference
+    // Storage Bucket References
     val profileImagesBucket get() = client.storage.from("profile_images")
+    val groupImagesBucket get() = client.storage.from("group_images")
 
     // Legacy method names updated for Supabase compatibility
     @JvmStatic fun getDatabaseReference() = usersTable
