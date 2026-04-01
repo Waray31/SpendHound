@@ -35,16 +35,43 @@ class MultiTransactionActivity : AppCompatActivity() {
     
     private var currentGroups: List<PayerGroup> = emptyList()
     private var currentMembers: List<User> = emptyList()
+    private var isSingleTransactionMode = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityAddTransactionsMultiBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Check transaction mode from intent
+        val transactionMode = intent.getStringExtra("TRANSACTION_MODE")
+        isSingleTransactionMode = transactionMode == "SINGLE"
+        
+        setupTransactionMode()
         setupToolbar()
         setupRecyclerView()
         setupListeners()
         observeState()
+    }
+    
+    private fun setupTransactionMode() {
+        if (isSingleTransactionMode) {
+            // Hide title section and add row button for single transaction mode
+            binding.titleSection.visibility = View.GONE
+            binding.btnAddRow.visibility = View.GONE
+            
+            // Update toolbar title
+            binding.toolbar.title = "Add Transaction"
+            
+            // Add one transaction by default
+            viewModel.addTransaction()
+        } else {
+            // Show all elements for multiple transaction mode
+            binding.titleSection.visibility = View.VISIBLE
+            binding.btnAddRow.visibility = View.VISIBLE
+            
+            // Update toolbar title
+            binding.toolbar.title = "Add Transactions"
+        }
     }
 
     private fun setPaymentMode(isMultiple: Boolean) {
@@ -127,7 +154,7 @@ class MultiTransactionActivity : AppCompatActivity() {
 
     private fun validateSubmission() {
         val transactions = adapter.getTransactions()
-        val titleFilled = binding.etTransactionTitle.text?.isNotBlank() == true
+        val titleFilled = if (isSingleTransactionMode) true else binding.etTransactionTitle.text?.isNotBlank() == true
         var allValid = transactions.isNotEmpty() && titleFilled
 
         for (tx in transactions) {
@@ -186,7 +213,12 @@ class MultiTransactionActivity : AppCompatActivity() {
                 launch {
                     viewModel.transactions.collect { transactions ->
                         adapter.setTransactions(transactions)
-                        binding.btnSubmit.text = "Add ${transactions.size} Transactions"
+                        val buttonText = if (isSingleTransactionMode) {
+                            "Add Transaction"
+                        } else {
+                            "Add ${transactions.size} Transactions"
+                        }
+                        binding.btnSubmit.text = buttonText
                         viewModel.calculateTotals()
                         validateSubmission()
                     }

@@ -18,6 +18,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.coordinatorlayout.widget.CoordinatorLayout
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
+import androidx.navigation.ui.NavigationUI
 import androidx.navigation.ui.NavigationUI.setupWithNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.LinearSnapHelper
@@ -104,6 +105,11 @@ class MainActivity : AppCompatActivity() {
 
         setupFabMenu()
         fetchCurrentUserDetails()
+
+        navView?.setOnItemSelectedListener { item ->
+            if (isFabMenuOpen) closeFabMenu()
+            NavigationUI.onNavDestinationSelected(item, navController)
+        }
     }
 
     private fun setupFabMenu() {
@@ -141,12 +147,16 @@ class MainActivity : AppCompatActivity() {
 
         fabSingle?.setOnClickListener {
             toggleFabMenu()
-            startActivity(Intent(this, AddTransactionActivity::class.java))
+            val intent = Intent(this, MultiTransactionActivity::class.java)
+            intent.putExtra("TRANSACTION_MODE", "SINGLE")
+            startActivity(intent)
         }
 
         fabMulti?.setOnClickListener {
             toggleFabMenu()
-            startActivity(Intent(this, MultiTransactionActivity::class.java))
+            val intent = Intent(this, MultiTransactionActivity::class.java)
+            intent.putExtra("TRANSACTION_MODE", "MULTIPLE")
+            startActivity(intent)
         }
     }
 

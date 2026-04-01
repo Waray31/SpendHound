@@ -34,12 +34,6 @@
             android:name=".MainActivity"
             android:exported="true"/>
 
-        <activity android:name=".AddTransactionActivity"
-            android:exported="true"
-            android:parentActivityName=".MainActivity"
-            android:label="Add Transaction"
-            android:windowSoftInputMode="adjustPan" />
-
         <activity android:name=".ui.multi_transaction.MultiTransactionActivity"
             android:exported="true"
             android:label="Add Transactions"
