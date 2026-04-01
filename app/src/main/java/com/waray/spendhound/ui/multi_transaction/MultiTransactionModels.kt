@@ -121,6 +121,14 @@ data class TransactionPayorUpdate(
     @SerialName("status")                 val status: Int
 )
 
+/** UPDATE - for excess and status only */
+@OptIn(InternalSerializationApi::class)
+@Serializable
+data class TransactionPayorPartialUpdate(
+    @SerialName("excess_amount")          val excessAmount: Double,
+    @SerialName("status")                 val status: Int
+)
+
 // ─── transaction_splits table ─────────────────────────────────────────────────
 
 /** INSERT */

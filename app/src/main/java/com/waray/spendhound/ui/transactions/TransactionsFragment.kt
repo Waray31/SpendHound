@@ -331,8 +331,6 @@ class TransactionsFragment : Fragment() {
                 val payorsByTx = allPayors.groupBy { it.transactionId }
                 val splitsByTx = allSplits.groupBy { it.transactionId }
                 val itemsByTx  = allItems.groupBy { it.transactionId }
-                // payors keyed by item id for "who paid" column
-                val payorsByItem = allPayors.groupBy { it.transactionItemsId }
 
                 val allUserIds = (allPayors.map { it.userId } + allSplits.map { it.userId }).toSet().toList()
                 val usersById: Map<Long, String> = if (allUserIds.isNotEmpty()) {
@@ -379,11 +377,15 @@ class TransactionsFragment : Fragment() {
                     // Compute overall status
                     val txStatus = computeStatus(payors, splits)
 
-                    // itemPayorMap: itemId -> payor username
+                    // itemPayorMap: itemId -> payor usernames from transaction_payors table
                     val itemPayorMap = items.associate { item ->
                         val itemId = item.id ?: 0L
-                        val payorName = payorsByItem[itemId]?.firstOrNull()?.let { usersById[it.userId] } ?: "-"
-                        itemId to payorName
+                        val itemPayors = payors.filter { it.transactionItemsId == itemId }
+                        val payorNames = itemPayors
+                            .map { it.userId }
+                            .mapNotNull { usersById[it] }
+                            .joinToString(", ").ifEmpty { "-" }
+                        itemId to payorNames
                     }
 
                     val createdByName = tx.createdBy?.let { usersById[it] } ?: "Unknown"

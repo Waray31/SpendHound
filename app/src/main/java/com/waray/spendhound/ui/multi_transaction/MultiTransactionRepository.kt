@@ -83,25 +83,25 @@ class MultiTransactionRepository {
                         (userTotalInitialPayments[payor.userId] ?: 0.0) + payor.amount
                 }
 
-                // 3. Insert ALL group members into transaction_payors
-                if (groupMembers.isNotEmpty()) {
-                    val splitAmountPerMember = entry.amount / groupMembers.size
+                // 3. Insert ONLY payors who paid for this item into transaction_payors
+                if (entry.payors.isNotEmpty()) {
+                    val payorRecords = entry.payors
+                        .filter { it.amount > 0.0 }  // Only insert payors who actually paid
+                        .map { payor ->
+                            TransactionPayorInsert(
+                                transactionId = txId,
+                                userId = payor.userId,
+                                initialAmountPaid = payor.amount,
+                                currentAmountPaid = payor.amount,  // Set to actual amount paid for this item
+                                excessAmount = 0.0,  // Will be calculated after all items
+                                transactionItemsId = itemId,
+                                status = 0  // Will be calculated after all items
+                            )
+                        }
                     
-                    val allMemberRecords = groupMembers.map { member ->
-                        val payorEntry = entry.payors.find { it.userId == member.id }
-                        val initialPaid = payorEntry?.amount ?: 0.0
-                        
-                        TransactionPayorInsert(
-                            transactionId = txId,
-                            userId = member.id!!,
-                            initialAmountPaid = initialPaid,
-                            currentAmountPaid = 0.0, // Will be calculated after all items
-                            excessAmount = 0.0, // Will be calculated after all items
-                            transactionItemsId = itemId,
-                            status = 0 // Will be calculated after all items
-                        )
+                    if (payorRecords.isNotEmpty()) {
+                        client.postgrest.from("transaction_payors").insert(payorRecords)
                     }
-                    client.postgrest.from("transaction_payors").insert(allMemberRecords)
                 }
 
                 // 4. Equal split across all group members
@@ -120,10 +120,8 @@ class MultiTransactionRepository {
                 }
             }
             
-            // 5. Update all payors with calculated current_amount_paid, excess_amount, and status
-            groupMembers.forEach { member ->
-                val totalInitialPaid = userTotalInitialPayments[member.id] ?: 0.0
-                
+            // 5. Update all payors with calculated excess_amount and status based on total payments
+            userTotalInitialPayments.forEach { (userId, totalInitialPaid) ->
                 // Calculate current_amount_paid (capped at total split)
                 val currentPaid = if (totalInitialPaid > totalSplitPerMember) {
                     totalSplitPerMember
@@ -145,16 +143,16 @@ class MultiTransactionRepository {
                     else -> 2  // pending (partial payment)
                 }
                 
+                // Update all payor records for this user across all items
                 client.postgrest.from("transaction_payors").update(
-                    TransactionPayorUpdate(
-                        currentAmountPaid = currentPaid,
+                    TransactionPayorPartialUpdate(
                         excessAmount = excess,
                         status = status
                     )
                 ) {
                     filter {
                         eq("transaction_id", txId)
-                        eq("user_id", member.id!!)
+                        eq("user_id", userId)
                     }
                 }
             }
