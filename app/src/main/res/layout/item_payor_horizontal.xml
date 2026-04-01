@@ -6,12 +6,30 @@
     android:orientation="vertical"
     android:padding="8dp">
 
-    <ImageView
-        android:id="@+id/payorProfileImage"
+    <FrameLayout
         android:layout_width="52dp"
-        android:layout_height="52dp"
-        android:scaleType="centerCrop"
-        android:src="@drawable/placeholder_profile_image" />
+        android:layout_height="52dp">
+
+        <ImageView
+            android:id="@+id/payorProfileImage"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:src="@drawable/placeholder_profile_image" />
+
+        <ImageView
+            android:id="@+id/payorStatusBadge"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_gravity="bottom|end"
+            android:layout_marginEnd="2dp"
+            android:layout_marginBottom="2dp"
+            android:background="@drawable/rounded_background9"
+            android:padding="2dp"
+            android:src="@drawable/ic_circle_checked"
+            android:visibility="gone" />
+
+    </FrameLayout>
 
     <TextView
         android:id="@+id/payorNameTextView"

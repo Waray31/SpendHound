@@ -35,6 +35,7 @@ import com.waray.spendhound.ui.multi_transaction.TransactionFull
 import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
 import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
+import com.waray.spendhound.utils.LoadingManager
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.query.Columns
 import java.text.SimpleDateFormat
@@ -73,9 +74,7 @@ class HomeFragment : Fragment() {
     private var recentTransactionList: ArrayList<RecentTransaction> = ArrayList()
     private var recentAdapter: RecentTransactionAdapter? = null
 
-    private var loadingOverlay_home: View? = null
-    private var pendingLoads = 0
-
+    private var loadingManager: LoadingManager? = null
     private var currentUserNumericId: Long? = null
 
     override fun onCreateView(
@@ -85,7 +84,8 @@ class HomeFragment : Fragment() {
         binding = FragmentHomeBinding.inflate(inflater, container, false)
         val view = binding!!.root
 
-        loadingOverlay_home = view.findViewById(R.id.loadingOverlay_home)
+        val loadingOverlay = view.findViewById<View>(R.id.loadingOverlay_home)
+        loadingManager = LoadingManager(loadingOverlay, viewLifecycleOwner.lifecycle)
 
         day7TextView = view.findViewById(R.id.day7)
         day6TextView = view.findViewById(R.id.day6)
@@ -195,7 +195,7 @@ class HomeFragment : Fragment() {
 
                 for (txId in userSplitsByTx.keys) {
                     val owed = userSplitsByTx[txId]?.sumOf { it.amount } ?: 0.0
-                    val paid = userPayorsByTx[txId]?.sumOf { it.amount } ?: 0.0
+                    val paid = userPayorsByTx[txId]?.sumOf { it.currentAmountPaid } ?: 0.0
                     val diff = paid - owed
                     when {
                         diff < 0 -> youOwe += (-diff)   // paid less than owed
@@ -338,11 +338,11 @@ class HomeFragment : Fragment() {
                     val payorNames = contributorIds.map { usersById[it] ?: "Unknown" }.toMutableList<String?>()
                     val payorUserIds = contributorIds.map { it.toString() }.toMutableList<String?>()
                     val amountsPaid = contributorIds.map { uid ->
-                        payors.filter { it.userId == uid }.sumOf { it.amount } as Double?
+                        payors.filter { it.userId == uid }.sumOf { it.currentAmountPaid } as Double?
                     }.toMutableList()
 
                     val individualPayment = splits.groupBy { it.userId }.values.firstOrNull()?.sumOf { it.amount } ?: 0.0
-                    val allSettled = payors.groupBy { it.userId }.mapValues { e -> e.value.sumOf { it.amount } }
+                    val allSettled = payors.groupBy { it.userId }.mapValues { e -> e.value.sumOf { it.currentAmountPaid } }
                         .values.all { it >= individualPayment }
                     val txStatus = if (payors.isEmpty()) "Pending" else if (allSettled) "Settled" else "Pending"
 
@@ -670,12 +670,10 @@ class HomeFragment : Fragment() {
     }
 
     private fun showLoading() {
-        pendingLoads++
-        loadingOverlay_home?.visibility = View.VISIBLE
+        loadingManager?.showLoading()
     }
 
     private fun hideLoading() {
-        pendingLoads = Math.max(0, pendingLoads - 1)
-        if (pendingLoads == 0) loadingOverlay_home?.visibility = View.GONE
+        loadingManager?.hideLoading()
     }
 }

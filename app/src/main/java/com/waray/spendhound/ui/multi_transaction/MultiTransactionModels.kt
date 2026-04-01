@@ -88,22 +88,37 @@ data class TransactionItemFull(
 @OptIn(InternalSerializationApi::class)
 @Serializable
 data class TransactionPayorInsert(
-    @SerialName("transaction_id")       val transactionId: Long,
-    @SerialName("user_id")              val userId: Long,
-    @SerialName("amount")               val amount: Double,
-    @SerialName("transaction_items_id") val transactionItemsId: Long
+    @SerialName("transaction_id")         val transactionId: Long,
+    @SerialName("user_id")                val userId: Long,
+    @SerialName("initial_amount_paid")    val initialAmountPaid: Double,
+    @SerialName("current_amount_paid")    val currentAmountPaid: Double,
+    @SerialName("excess_amount")          val excessAmount: Double,
+    @SerialName("transaction_items_id")   val transactionItemsId: Long,
+    @SerialName("status")                 val status: Int
 )
 
 /** SELECT */
 @OptIn(InternalSerializationApi::class)
 @Serializable
 data class TransactionPayorTable(
-    @SerialName("id")                   val id: Long? = null,
-    @SerialName("transaction_id")       val transactionId: Long = 0,
-    @SerialName("user_id")              val userId: Long = 0,
-    @SerialName("amount")               val amount: Double = 0.0,
-    @SerialName("created_at")           val createdAt: String? = null,
-    @SerialName("transaction_items_id") val transactionItemsId: Long? = null
+    @SerialName("id")                     val id: Long? = null,
+    @SerialName("transaction_id")         val transactionId: Long = 0,
+    @SerialName("user_id")                val userId: Long = 0,
+    @SerialName("initial_amount_paid")    val initialAmountPaid: Double = 0.0,
+    @SerialName("current_amount_paid")    val currentAmountPaid: Double = 0.0,
+    @SerialName("excess_amount")          val excessAmount: Double = 0.0,
+    @SerialName("created_at")             val createdAt: String? = null,
+    @SerialName("transaction_items_id")   val transactionItemsId: Long? = null,
+    @SerialName("status")                 val status: Int = 0
+)
+
+/** UPDATE - for editing payment amounts */
+@OptIn(InternalSerializationApi::class)
+@Serializable
+data class TransactionPayorUpdate(
+    @SerialName("current_amount_paid")    val currentAmountPaid: Double,
+    @SerialName("excess_amount")          val excessAmount: Double,
+    @SerialName("status")                 val status: Int
 )
 
 // ─── transaction_splits table ─────────────────────────────────────────────────

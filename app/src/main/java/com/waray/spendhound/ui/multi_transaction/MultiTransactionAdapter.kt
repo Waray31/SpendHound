@@ -125,6 +125,7 @@ class MultiTransactionAdapter(
                     }
                     if (isMultiplePayorsMode) updateRemainingAmount(entry)
                     onAmountChanged()
+                    onValidationChanged()
                 }
             }
             binding.etAmount.addTextChangedListener(amountWatcher)

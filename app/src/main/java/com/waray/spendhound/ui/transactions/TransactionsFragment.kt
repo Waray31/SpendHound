@@ -367,7 +367,7 @@ class TransactionsFragment : Fragment() {
 
                     // amountsPaid per contributor = sum of their payor amounts across all items
                     val amountsPaid = contributorIds.map { uid ->
-                        payors.filter { it.userId == uid }.sumOf { it.amount } as Double?
+                        payors.filter { it.userId == uid }.sumOf { it.currentAmountPaid } as Double?
                     }.toMutableList()
 
                     // individualPayment per contributor = sum of their split amounts across all items
@@ -455,7 +455,7 @@ class TransactionsFragment : Fragment() {
     ): String {
         if (payors.isEmpty()) return "Pending"
         val individualOwed = splits.groupBy { it.userId }.values.firstOrNull()?.sumOf { it.amount } ?: 0.0
-        val paidByUser = payors.groupBy { it.userId }.mapValues { e -> e.value.sumOf { it.amount } }
+        val paidByUser = payors.groupBy { it.userId }.mapValues { e -> e.value.sumOf { it.currentAmountPaid } }
         val allSettled = paidByUser.values.all { it >= individualOwed }
         return if (allSettled) "Settled" else "Pending"
     }

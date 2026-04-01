@@ -45,7 +45,6 @@ class MainActivity : AppCompatActivity() {
     private var mAuth: Auth? = null
     var totalMonthSpends: Double = 0.0
     var dailyTotals: DoubleArray = DoubleArray(7)
-    private var progressBar: ProgressBar? = null
     private var currentUserNumericId: Long? = null
     private var currentUserId: String? = null
     var currentNickname: String? = null
@@ -88,8 +87,6 @@ class MainActivity : AppCompatActivity() {
         val binding = com.waray.spendhound.databinding.ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        progressBar = findViewById(R.id.progressBar)
-        progressBar?.visibility = View.VISIBLE
         mAuth = DeclareDatabase.auth
         
         val currentSupabaseUser = mAuth?.currentUserOrNull()
@@ -261,10 +258,8 @@ class MainActivity : AppCompatActivity() {
                 
                 currentUserNumericId = user?.id
                 currentNickname = user?.username
-                progressBar?.visibility = View.GONE
             } catch (e: Exception) {
                 Log.e("MainActivity", "Error fetching user details: ${e.message}")
-                progressBar?.visibility = View.GONE
             }
         }
     }

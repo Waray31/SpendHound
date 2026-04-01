@@ -57,6 +57,12 @@ class MultiTransactionRepository {
 
             val txId = txResponse.id ?: throw Exception("Failed to get transaction ID")
 
+            // Calculate total split amount per member across all items
+            val totalSplitPerMember = totalAmount / groupMembers.size
+            
+            // Track total initial payment per user across all items
+            val userTotalInitialPayments = mutableMapOf<Long, Double>()
+            
             entries.forEach { entry ->
                 // 2. Insert transaction_item
                 val itemResponse = client.postgrest.from("transaction_items").insert(
@@ -71,34 +77,31 @@ class MultiTransactionRepository {
 
                 val itemId = itemResponse.id ?: throw Exception("Failed to get transaction_item ID")
 
-                // 3. Insert ALL group members into transaction_payors at amount=0,
-                //    then update actual payors with their real paid amount.
-                //    This ensures every member has a row so the creator can later
-                //    update any member's payment with a simple UPDATE (no INSERT needed).
+                // Accumulate initial payments per user
+                entry.payors.forEach { payor ->
+                    userTotalInitialPayments[payor.userId] = 
+                        (userTotalInitialPayments[payor.userId] ?: 0.0) + payor.amount
+                }
+
+                // 3. Insert ALL group members into transaction_payors
                 if (groupMembers.isNotEmpty()) {
+                    val splitAmountPerMember = entry.amount / groupMembers.size
+                    
                     val allMemberRecords = groupMembers.map { member ->
+                        val payorEntry = entry.payors.find { it.userId == member.id }
+                        val initialPaid = payorEntry?.amount ?: 0.0
+                        
                         TransactionPayorInsert(
                             transactionId = txId,
                             userId = member.id!!,
-                            amount = 0.0,
-                            transactionItemsId = itemId
+                            initialAmountPaid = initialPaid,
+                            currentAmountPaid = 0.0, // Will be calculated after all items
+                            excessAmount = 0.0, // Will be calculated after all items
+                            transactionItemsId = itemId,
+                            status = 0 // Will be calculated after all items
                         )
                     }
                     client.postgrest.from("transaction_payors").insert(allMemberRecords)
-
-                    // Update actual payors with their real paid amount
-                    entry.payors.forEach { payor ->
-                        val paidAmount = if (payor.amount > 0) payor.amount else entry.amount
-                        client.postgrest.from("transaction_payors").update({
-                            set("amount", paidAmount)
-                        }) {
-                            filter {
-                                eq("transaction_id", txId)
-                                eq("user_id", payor.userId)
-                                eq("transaction_items_id", itemId)
-                            }
-                        }
-                    }
                 }
 
                 // 4. Equal split across all group members
@@ -116,7 +119,92 @@ class MultiTransactionRepository {
                     )
                 }
             }
+            
+            // 5. Update all payors with calculated current_amount_paid, excess_amount, and status
+            groupMembers.forEach { member ->
+                val totalInitialPaid = userTotalInitialPayments[member.id] ?: 0.0
+                
+                // Calculate current_amount_paid (capped at total split)
+                val currentPaid = if (totalInitialPaid > totalSplitPerMember) {
+                    totalSplitPerMember
+                } else {
+                    totalInitialPaid
+                }
+                
+                // Calculate excess
+                val excess = if (totalInitialPaid > totalSplitPerMember) {
+                    totalInitialPaid - totalSplitPerMember
+                } else {
+                    0.0
+                }
+                
+                // Determine status based on current_amount_paid
+                val status = when {
+                    currentPaid == 0.0 -> 0  // unpaid
+                    currentPaid >= totalSplitPerMember -> 1  // settled
+                    else -> 2  // pending (partial payment)
+                }
+                
+                client.postgrest.from("transaction_payors").update(
+                    TransactionPayorUpdate(
+                        currentAmountPaid = currentPaid,
+                        excessAmount = excess,
+                        status = status
+                    )
+                ) {
+                    filter {
+                        eq("transaction_id", txId)
+                        eq("user_id", member.id!!)
+                    }
+                }
+            }
 
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Update a transaction payor's payment amount.
+     * Recalculates current_amount_paid, excess_amount, and status.
+     */
+    suspend fun updatePayorPayment(
+        transactionId: Long,
+        userId: Long,
+        transactionItemsId: Long,
+        newAmountPaid: Double,
+        splitAmountPerMember: Double
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            // Calculate excess: if paid more than their split share
+            val excess = if (newAmountPaid > splitAmountPerMember) {
+                newAmountPaid - splitAmountPerMember
+            } else {
+                0.0
+            }
+            
+            // Determine status: 0=unpaid, 1=settled, 2=pending
+            val status = when {
+                newAmountPaid == 0.0 -> 0  // unpaid
+                newAmountPaid >= splitAmountPerMember -> 1  // settled
+                else -> 2  // pending (partial payment)
+            }
+            
+            client.postgrest.from("transaction_payors").update(
+                TransactionPayorUpdate(
+                    currentAmountPaid = newAmountPaid,
+                    excessAmount = excess,
+                    status = status
+                )
+            ) {
+                filter {
+                    eq("transaction_id", transactionId)
+                    eq("user_id", userId)
+                    eq("transaction_items_id", transactionItemsId)
+                }
+            }
+            
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

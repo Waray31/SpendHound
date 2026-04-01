@@ -236,14 +236,19 @@ class PayorAdapter(
             paid <= 0 -> {
                 holder.payorStatus.text = "Unpaid"
                 holder.payorStatus.setTextColor(ContextCompat.getColor(context, android.R.color.holo_red_dark))
+                holder.payorStatusBadge.visibility = View.GONE
             }
             paid < individualPayment -> {
                 holder.payorStatus.text = "Paid Partially"
                 holder.payorStatus.setTextColor(ContextCompat.getColor(context, android.R.color.holo_orange_dark))
+                holder.payorStatusBadge.visibility = View.VISIBLE
+                holder.payorStatusBadge.setColorFilter(ContextCompat.getColor(context, android.R.color.holo_orange_dark))
             }
             else -> {
                 holder.payorStatus.text = "Paid"
                 holder.payorStatus.setTextColor(ContextCompat.getColor(context, android.R.color.holo_green_dark))
+                holder.payorStatusBadge.visibility = View.VISIBLE
+                holder.payorStatusBadge.setColorFilter(ContextCompat.getColor(context, android.R.color.holo_green_dark))
             }
         }
     }
@@ -268,6 +273,7 @@ class PayorAdapter(
 
     class PayorViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val payorImage: ImageView = itemView.findViewById(R.id.payorProfileImage)
+        val payorStatusBadge: ImageView = itemView.findViewById(R.id.payorStatusBadge)
         val payorName: TextView = itemView.findViewById(R.id.payorNameTextView)
         val payorPayment: TextView = itemView.findViewById(R.id.payorPaymentTextView)
         val payorStatus: TextView = itemView.findViewById(R.id.payorStatusTextView)

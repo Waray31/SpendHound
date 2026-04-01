@@ -295,8 +295,18 @@ class RecentTransactionAdapter(
 
                             val existingRow = userPayorRows.firstOrNull { it.transactionItemsId == itemId }
                             if (existingRow != null) {
+                                // Calculate excess and status
+                                val excess = if (itemPaidAmount > splitAmount) itemPaidAmount - splitAmount else 0.0
+                                val status = when {
+                                    itemPaidAmount == 0.0 -> 0
+                                    itemPaidAmount >= splitAmount -> 1
+                                    else -> 2
+                                }
+                                
                                 DeclareDatabase.transactionPayorsTable.update({
-                                    set("amount", itemPaidAmount)
+                                    set("current_amount_paid", itemPaidAmount)
+                                    set("excess_amount", excess)
+                                    set("status", status)
                                 }) {
                                     filter {
                                         eq("transaction_id", id)
@@ -305,12 +315,23 @@ class RecentTransactionAdapter(
                                     }
                                 }
                             } else {
+                                // Calculate excess and status for new insert
+                                val excess = if (itemPaidAmount > splitAmount) itemPaidAmount - splitAmount else 0.0
+                                val status = when {
+                                    itemPaidAmount == 0.0 -> 0
+                                    itemPaidAmount >= splitAmount -> 1
+                                    else -> 2
+                                }
+                                
                                 DeclareDatabase.transactionPayorsTable.insert(
                                     com.waray.spendhound.ui.multi_transaction.TransactionPayorInsert(
                                         transactionId = id,
                                         userId = userId,
-                                        amount = itemPaidAmount,
-                                        transactionItemsId = itemId
+                                        initialAmountPaid = itemPaidAmount,
+                                        currentAmountPaid = itemPaidAmount,
+                                        excessAmount = excess,
+                                        transactionItemsId = itemId,
+                                        status = status
                                     )
                                 )
                             }

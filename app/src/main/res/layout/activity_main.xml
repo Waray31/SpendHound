@@ -252,21 +252,6 @@
             android:focusable="false" />
     </LinearLayout>
 
-    <FrameLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="center"
-        android:elevation="20dp">
 
-        <ProgressBar
-            android:id="@+id/progressBar"
-            style="@style/CustomProgressBarStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:background="@drawable/glassy_background"
-            android:padding="20dp"
-            android:visibility="gone" />
-    </FrameLayout>
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

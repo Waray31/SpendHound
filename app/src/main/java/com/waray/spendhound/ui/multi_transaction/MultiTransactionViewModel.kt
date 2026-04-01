@@ -127,7 +127,13 @@ class MultiTransactionViewModel(
     }
 
     fun updateGlobalPayors(selectedPayors: List<PayorEntry>) {
-        val currentList = _transactions.value.map { it.copy(payors = selectedPayors.toMutableList()) }
+        val currentList = _transactions.value.map { transaction ->
+            // In single payor mode, set the payor amount to the transaction amount
+            val payorsWithAmounts = selectedPayors.map { payor ->
+                payor.copy(amount = transaction.amount)
+            }.toMutableList()
+            transaction.copy(payors = payorsWithAmounts)
+        }
         _transactions.value = currentList
     }
 

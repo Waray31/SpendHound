@@ -135,6 +135,7 @@ class MultiTransactionActivity : AppCompatActivity() {
                 val member = currentMembers.getOrNull(pos)
                 if (member != null && !viewModel.isMultiplePayorsMode.value) {
                     viewModel.updateGlobalPayors(listOf(PayorEntry(member.id!!, member.username!!)))
+                    validateSubmission()
                 }
             }
             override fun onNothingSelected(p0: AdapterView<*>?) {}
