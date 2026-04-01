@@ -118,17 +118,21 @@ class MainActivity : AppCompatActivity() {
             if (isFabMenuOpen) toggleFabMenu()
         }
 
-        containerBorrow?.setOnClickListener {
+        val fabBorrow = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_borrow)
+        val fabAddTransaction = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_add_transaction)
+        val fabAddGroup = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_add_group)
+
+        fabBorrow?.setOnClickListener {
             toggleFabMenu()
             startActivity(Intent(this, BorrowNowActivity::class.java))
         }
 
-        containerAddTransaction?.setOnClickListener {
+        fabAddTransaction?.setOnClickListener {
             toggleFabMenu()
             startActivity(Intent(this, MultiTransactionActivity::class.java))
         }
 
-        containerAddGroup?.setOnClickListener {
+        fabAddGroup?.setOnClickListener {
             toggleFabMenu()
             startActivity(Intent(this, GroupsActivity::class.java))
         }
@@ -220,17 +224,33 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun getTotalMonthSpends(monthYear: String? = null, onComplete: (Double) -> Unit) {
-        val targetMonthYear = monthYear ?: SimpleDateFormat("MMMM-yyyy", Locale.getDefault()).format(Calendar.getInstance().time)
+        val sdf = SimpleDateFormat("MMMM-yyyy", Locale.getDefault())
+        val targetMonthYear = monthYear ?: sdf.format(Calendar.getInstance().time)
         lifecycleScope.launch {
             try {
-                // Fetch all and filter locally because monthYear is @Transient
-                val result = DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
+                val allTransactions = DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
+                val allSplits = DeclareDatabase.transactionSplitsTable.select()
+                    .decodeList<com.waray.spendhound.ui.multi_transaction.TransactionSplitTable>()
+
+                val currentUserIdLong = currentUserNumericId
+                val involvedTxIds = allSplits
+                    .filter { it.userId == currentUserIdLong }
+                    .map { it.transactionId }.toSet()
 
                 var total = 0.0
-                for (transaction in result) {
-                    if (isUserInvolved(transaction, currentNickname) && transaction.monthYear == targetMonthYear) {
-                        total += transaction.paymentAmount
-                    }
+                for (tx in allTransactions) {
+                    val txId = tx.id ?: continue
+                    if (txId !in involvedTxIds) continue
+                    // parse createdAt to check month-year
+                    val parsedDate = try {
+                        SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).parse(tx.createdAt ?: "")
+                    } catch (e: Exception) { null } ?: continue
+                    if (sdf.format(parsedDate) != targetMonthYear) continue
+                    // sum only this user's split for the transaction
+                    val userSplit = allSplits
+                        .filter { it.transactionId == txId && it.userId == currentUserIdLong }
+                        .sumOf { it.amount }
+                    total += userSplit
                 }
                 totalMonthSpends = total
                 onComplete(total)
@@ -450,27 +470,41 @@ class MainActivity : AppCompatActivity() {
 
     fun getEverydaySpends(startMillis: Long? = null, endMillis: Long? = null, onComplete: () -> Unit) {
         val now = Calendar.getInstance()
-        val sMillis = startMillis ?: now.apply { set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0) }.timeInMillis
-        val eMillis = endMillis ?: now.apply { set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59) }.timeInMillis
+        val weekStart = now.clone() as Calendar
+        weekStart.set(Calendar.DAY_OF_WEEK, Calendar.SUNDAY)
+        weekStart.set(Calendar.HOUR_OF_DAY, 0); weekStart.set(Calendar.MINUTE, 0)
+        weekStart.set(Calendar.SECOND, 0); weekStart.set(Calendar.MILLISECOND, 0)
+        val weekEnd = weekStart.clone() as Calendar
+        weekEnd.add(Calendar.DAY_OF_YEAR, 6)
+        weekEnd.set(Calendar.HOUR_OF_DAY, 23); weekEnd.set(Calendar.MINUTE, 59); weekEnd.set(Calendar.SECOND, 59)
+
+        val sMillis = startMillis ?: weekStart.timeInMillis
+        val eMillis = endMillis ?: weekEnd.timeInMillis
 
         lifecycleScope.launch {
             try {
-                val result = DeclareDatabase.postgrest.from("transactions")
-                    .select()
-                    .decodeList<Transaction>()
+                val allTransactions = DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
+                val allSplits = DeclareDatabase.transactionSplitsTable.select()
+                    .decodeList<com.waray.spendhound.ui.multi_transaction.TransactionSplitTable>()
+
+                val currentUserIdLong = currentUserNumericId
+                val userSplitsByTx = allSplits
+                    .filter { it.userId == currentUserIdLong }
+                    .groupBy { it.transactionId }
 
                 val totals = DoubleArray(7) { 0.0 }
-                for (transaction in result) {
-                    val transTime = transaction.timestamp
-                    if (transTime in sMillis..eMillis && isUserInvolved(transaction, currentNickname)) {
-                        val transCal = Calendar.getInstance()
-                        transCal.timeInMillis = transTime
-                        val dayOfWeek = transCal.get(Calendar.DAY_OF_WEEK)
-                        val index = dayOfWeek - 1
-                        if (index in 0..6) {
-                            totals[index] += transaction.paymentAmount
-                        }
-                    }
+                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+
+                for (tx in allTransactions) {
+                    val txId = tx.id ?: continue
+                    if (txId !in userSplitsByTx) continue
+                    val timestamp = try { sdf.parse(tx.createdAt ?: "")?.time ?: 0L } catch (e: Exception) { 0L }
+                    if (timestamp !in sMillis..eMillis) continue
+
+                    val transCal = Calendar.getInstance().apply { timeInMillis = timestamp }
+                    val index = transCal.get(Calendar.DAY_OF_WEEK) - 1 // 0=Sun..6=Sat
+                    val userSplit = userSplitsByTx[txId]?.sumOf { it.amount } ?: 0.0
+                    totals[index] += userSplit
                 }
                 dailyTotals = totals
                 onComplete()

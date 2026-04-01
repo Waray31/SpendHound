@@ -23,14 +23,12 @@ import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
-import com.waray.spendhound.BorrowNowTransaction
 import com.waray.spendhound.CurrencyUtils
 import com.waray.spendhound.DeclareDatabase
 import com.waray.spendhound.MainActivity
 import com.waray.spendhound.R
 import com.waray.spendhound.RecentTransaction
 import com.waray.spendhound.RecentTransactionAdapter
-import com.waray.spendhound.Transaction
 import com.waray.spendhound.User
 import com.waray.spendhound.databinding.FragmentHomeBinding
 import com.waray.spendhound.ui.multi_transaction.TransactionFull
@@ -38,7 +36,6 @@ import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
 import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
 import io.github.jan.supabase.gotrue.Auth
-import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -112,12 +109,8 @@ class HomeFragment : Fragment() {
         youreOwedAmountTV = view.findViewById(R.id.youreOwedAmount)
 
         transactionListRecycler = view.findViewById(R.id.transactionListRecycler)
-        recentAdapter = RecentTransactionAdapter(recentTransactionList) { transaction ->
-            if (transaction?.isExpanded == true) {
-                (activity as? MainActivity)?.hideNavigation()
-            } else {
-                (activity as? MainActivity)?.unhideNavigation()
-            }
+        recentAdapter = RecentTransactionAdapter(recentTransactionList) {
+            (activity as? MainActivity)?.navView?.selectedItemId = R.id.navigation_transactions
         }
         transactionListRecycler?.layoutManager = LinearLayoutManager(context)
         transactionListRecycler?.adapter = recentAdapter
@@ -154,11 +147,12 @@ class HomeFragment : Fragment() {
                     currentUserNumericId = user.id
                 }
 
-                mainActivity.getTotalMonthSpends {
+                mainActivity.getTotalMonthSpends { currentTotal ->
                     activity?.runOnUiThread {
                         updateTotalMonthSpendsUI()
                         hideLoading()
                     }
+                    fetchMonthChangeText(currentTotal)
                 }
 
                 mainActivity.getEverydaySpends {
@@ -185,27 +179,103 @@ class HomeFragment : Fragment() {
         showLoading()
         lifecycleScope.launch {
             try {
-                val borrows = withContext(Dispatchers.IO) {
-                    DeclareDatabase.borrowsTable.select().decodeList<BorrowNowTransaction>()
+                val allSplits = withContext(Dispatchers.IO) {
+                    DeclareDatabase.transactionSplitsTable.select().decodeList<TransactionSplitTable>()
                 }
-                // You Owe: user is borrower, status not Paid(3)/Declined(4)/Removed(6)
-                val youOwe = borrows
-                    .filter { it.borrowerId == userId && it.statusInt !in listOf(3, 4, 6) }
-                    .sumOf { it.borrowedAmount ?: 0.0 }
+                val allPayors = withContext(Dispatchers.IO) {
+                    DeclareDatabase.transactionPayorsTable.select().decodeList<TransactionPayorTable>()
+                }
 
-                // You're Owed: user is lender, status not Paid(3)/Declined(4)/Removed(6)
-                val youreOwed = borrows
-                    .filter { it.lenderId == userId && it.statusInt !in listOf(3, 4, 6) }
-                    .sumOf { it.borrowedAmount ?: 0.0 }
+                // Group splits and payors by transaction for this user
+                val userSplitsByTx = allSplits.filter { it.userId == userId }.groupBy { it.transactionId }
+                val userPayorsByTx = allPayors.filter { it.userId == userId }.groupBy { it.transactionId }
+
+                var youOwe = 0.0
+                var youreOwed = 0.0
+
+                for (txId in userSplitsByTx.keys) {
+                    val owed = userSplitsByTx[txId]?.sumOf { it.amount } ?: 0.0
+                    val paid = userPayorsByTx[txId]?.sumOf { it.amount } ?: 0.0
+                    val diff = paid - owed
+                    when {
+                        diff < 0 -> youOwe += (-diff)   // paid less than owed
+                        diff > 0 -> youreOwed += diff   // paid more than owed (excess)
+                    }
+                }
 
                 withContext(Dispatchers.Main) {
                     youOweAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(youOwe)
                     youreOwedAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(youreOwed)
                 }
             } catch (e: Exception) {
-                Log.e("HomeFragment", "Error fetching borrow summary: ${e.message}")
+                Log.e("HomeFragment", "Error fetching owe/owed summary: ${e.message}")
             } finally {
                 withContext(Dispatchers.Main) { hideLoading() }
+            }
+        }
+    }
+
+    private fun fetchMonthChangeText(currentTotal: Double) {
+        val userId = currentUserNumericId ?: return
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+        val monthSdf = SimpleDateFormat("MMMM-yyyy", Locale.getDefault())
+
+        val lastMonth = Calendar.getInstance().apply { add(Calendar.MONTH, -1) }
+        val lastMonthYear = monthSdf.format(lastMonth.time)
+
+        val lastStart = (lastMonth.clone() as Calendar).apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }
+        val lastEnd = (lastMonth.clone() as Calendar).apply {
+            set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
+            set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59)
+        }
+
+        lifecycleScope.launch {
+            try {
+                val allTransactions = withContext(Dispatchers.IO) {
+                    DeclareDatabase.transactionsTable.select().decodeList<TransactionFull>()
+                }
+                val allSplits = withContext(Dispatchers.IO) {
+                    DeclareDatabase.transactionSplitsTable.select().decodeList<TransactionSplitTable>()
+                }
+
+                val userSplitsByTx = allSplits.filter { it.userId == userId }.groupBy { it.transactionId }
+
+                var lastMonthTotal = 0.0
+                for (tx in allTransactions) {
+                    val txId = tx.id ?: continue
+                    if (txId !in userSplitsByTx) continue
+                    val timestamp = try { sdf.parse(tx.createdAt ?: "")?.time ?: 0L } catch (e: Exception) { 0L }
+                    if (timestamp !in lastStart.timeInMillis..lastEnd.timeInMillis) continue
+                    lastMonthTotal += userSplitsByTx[txId]?.sumOf { it.amount } ?: 0.0
+                }
+
+                    withContext(Dispatchers.Main) {
+                        val (label, bgColorHex, arrow) = when {
+                            lastMonthTotal == 0.0 && currentTotal == 0.0 -> Triple("● No data yet", "#33FFFFFF", "↗")
+                            lastMonthTotal == 0.0 -> Triple("● No data from last month", "#33FFFFFF", "↗")
+                            currentTotal == lastMonthTotal -> Triple("● No change from last month", "#33FFFFFF", "↗")
+                            else -> {
+                                val pct = ((currentTotal - lastMonthTotal) / lastMonthTotal * 100).toInt()
+                                if (currentTotal > lastMonthTotal)
+                                    Triple("↑ +$pct% from last month", "#55FF4444", "↗")
+                                else
+                                    Triple("↓ ${pct}% from last month", "#5500CC66", "↗")
+                            }
+                        }
+                        binding?.monthChangeText?.text = label
+                        val pill = android.graphics.drawable.GradientDrawable().apply {
+                            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
+                            cornerRadius = 50f * resources.displayMetrics.density
+                            setColor(Color.parseColor(bgColorHex))
+                        }
+                        binding?.monthChangeText?.background = pill
+                        binding?.textView2?.text = "$arrow  THIS MONTH'S SPENDING"
+                    }
+            } catch (e: Exception) {
+                Log.e("HomeFragment", "Error fetching month change: ${e.message}")
             }
         }
     }
@@ -285,7 +355,7 @@ class HomeFragment : Fragment() {
                         txId, "$monthName - $day", tx.description, tx.description,
                         CurrencyUtils.formatAmountWithCurrency(tx.totalAmount),
                         getIconForType(tx.description),
-                        "$year-$monthName-$day $timeKey",
+                        timestamp.toString(),
                         payorNames, payorUserIds, amountsPaid, individualPayment,
                         "$monthName $day, $year", usersById[tx.createdBy] ?: "Unknown",
                         tx.createdBy?.toString(), "$monthName-$year", day, timeKey
@@ -299,10 +369,7 @@ class HomeFragment : Fragment() {
                     newList.add(rt)
                 }
 
-                newList.sortWith { t1, t2 ->
-                    val d1 = t1.sortDateTime; val d2 = t2.sortDateTime
-                    if (d1 != null && d2 != null) d2.compareTo(d1) else 0
-                }
+                newList.sortByDescending { it.sortDateTime?.toLongOrNull() }
 
                 // Keep only 5 most recent
                 val recent = ArrayList(newList.take(5))
@@ -498,17 +565,11 @@ class HomeFragment : Fragment() {
     }
 
     private fun loadMonthlyChartData() {
-        val mainActivity = activity as? MainActivity ?: return
         showLoading()
-        val username = mainActivity.currentNickname
-        if (username.isNullOrEmpty()) {
-            mainActivity.getCurrentNickname { nickname -> fetchMonthlyChartData(nickname) }
-        } else {
-            fetchMonthlyChartData(username)
-        }
+        fetchMonthlyChartData()
     }
 
-    private fun fetchMonthlyChartData(username: String?) {
+    private fun fetchMonthlyChartData() {
         val startOfMonth = currentMonth.clone() as Calendar
         startOfMonth.set(Calendar.DAY_OF_MONTH, 1)
         startOfMonth.set(Calendar.HOUR_OF_DAY, 0); startOfMonth.set(Calendar.MINUTE, 0)
@@ -519,26 +580,35 @@ class HomeFragment : Fragment() {
         endOfMonth.set(Calendar.HOUR_OF_DAY, 23); endOfMonth.set(Calendar.MINUTE, 59)
         endOfMonth.set(Calendar.SECOND, 59); endOfMonth.set(Calendar.MILLISECOND, 999)
 
+        val userId = currentUserNumericId ?: return
+
         viewLifecycleOwner.lifecycleScope.launch {
             try {
-                val transactions = DeclareDatabase.client.from("transactions").select {
-                    filter {
-                        gte("timestamp", startOfMonth.timeInMillis)
-                        lte("timestamp", endOfMonth.timeInMillis)
-                    }
-                }.decodeList<Transaction>()
+                val allTransactions = withContext(Dispatchers.IO) {
+                    DeclareDatabase.transactionsTable.select().decodeList<TransactionFull>()
+                }
+                val allSplits = withContext(Dispatchers.IO) {
+                    DeclareDatabase.transactionSplitsTable.select().decodeList<TransactionSplitTable>()
+                }
 
+                val userSplitsByTx = allSplits
+                    .filter { it.userId == userId }
+                    .groupBy { it.transactionId }
+
+                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
                 val daysInMonth = endOfMonth.get(Calendar.DAY_OF_MONTH)
                 val dailySpends = mutableMapOf<Int, Double>()
                 val labels = mutableListOf<String>()
                 for (day in 1..daysInMonth) { dailySpends[day] = 0.0; labels.add(day.toString()) }
 
-                val mainActivity = activity as? MainActivity
-                for (transaction in transactions) {
-                    if (mainActivity?.isUserInvolved(transaction, username) == true) {
-                        val d = Calendar.getInstance().apply { timeInMillis = transaction.timestamp }.get(Calendar.DAY_OF_MONTH)
-                        dailySpends[d] = (dailySpends[d] ?: 0.0) + transaction.paymentAmount
-                    }
+                for (tx in allTransactions) {
+                    val txId = tx.id ?: continue
+                    if (txId !in userSplitsByTx) continue
+                    val timestamp = try { sdf.parse(tx.createdAt ?: "")?.time ?: 0L } catch (e: Exception) { 0L }
+                    if (timestamp !in startOfMonth.timeInMillis..endOfMonth.timeInMillis) continue
+                    val day = Calendar.getInstance().apply { timeInMillis = timestamp }.get(Calendar.DAY_OF_MONTH)
+                    val userSplit = userSplitsByTx[txId]?.sumOf { it.amount } ?: 0.0
+                    dailySpends[day] = (dailySpends[day] ?: 0.0) + userSplit
                 }
 
                 val entries = dailySpends.entries.sortedBy { it.key }.map { (day, amount) ->

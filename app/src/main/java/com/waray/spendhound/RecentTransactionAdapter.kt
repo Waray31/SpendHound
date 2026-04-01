@@ -78,9 +78,6 @@ class RecentTransactionAdapter(
         if (isExpanded) {
             holder.loadingOverlay.visibility = View.VISIBLE
             holder.createdByTextView.text = transaction.createdBy ?: "Unknown"
-            holder.fullDetailsTextView.text =
-                transaction.mostRecentDetails?.takeIf { it.isNotBlank() } ?: "No additional details"
-
             buildItemsTable(holder, transaction)
             setupPayors(holder, transaction)
         } else {
@@ -88,9 +85,12 @@ class RecentTransactionAdapter(
         }
 
         holder.mainContent.setOnClickListener {
-            transaction.isExpanded = !transaction.isExpanded
-            notifyItemChanged(holder.adapterPosition)
-            clickListener?.onTransactionClick(transaction)
+            if (clickListener != null) {
+                clickListener?.onTransactionClick(transaction)
+            } else {
+                transaction.isExpanded = !transaction.isExpanded
+                notifyItemChanged(holder.adapterPosition)
+            }
         }
     }
 
@@ -349,7 +349,6 @@ class RecentTransactionAdapter(
         val itemsTableContainer: LinearLayout = itemView.findViewById(R.id.itemsTableContainer)
         val createdByTextView: TextView      = itemView.findViewById(R.id.createdByTextView)
         val payorsRecyclerView: RecyclerView = itemView.findViewById(R.id.payorsRecyclerView)
-        val fullDetailsTextView: TextView    = itemView.findViewById(R.id.fullDetailsTextView)
         val loadingOverlay: View             = itemView.findViewById(R.id.loadingOverlay_transaction)
         val editTransactionBtn: Button       = itemView.findViewById(R.id.editTransaction_btn)
         val saveTransactionBtn: Button       = itemView.findViewById(R.id.saveTransaction_btn)

@@ -106,13 +106,7 @@ class TransactionsFragment : Fragment() {
 
         setupStatusTabs()
 
-        adapter = RecentTransactionAdapter(transactionList) { transaction ->
-            if (transaction?.isExpanded == true) {
-                (activity as? MainActivity)?.hideNavigation()
-            } else {
-                (activity as? MainActivity)?.unhideNavigation()
-            }
-        }
+        adapter = RecentTransactionAdapter(transactionList, null)
         recyclerView?.layoutManager = LinearLayoutManager(context)
         recyclerView?.adapter = adapter
     }

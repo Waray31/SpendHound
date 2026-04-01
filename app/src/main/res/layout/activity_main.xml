@@ -97,10 +97,7 @@
             android:contentDescription="@string/label_borrow_money"
             android:src="@drawable/borrow_money"
             app:fabSize="mini"
-            app:rippleColor="@android:color/transparent"
-            app:tint="@null"
-            android:clickable="false"
-            android:focusable="false" />
+            app:tint="@null" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -135,10 +132,7 @@
             android:contentDescription="@string/label_add_transaction"
             android:src="@drawable/add_transaction"
             app:fabSize="mini"
-            app:rippleColor="@android:color/transparent"
-            app:tint="@null"
-            android:clickable="false"
-            android:focusable="false" />
+            app:tint="@null" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -173,10 +167,7 @@
             android:contentDescription="@string/label_add_group"
             android:src="@drawable/add_group"
             app:fabSize="mini"
-            app:rippleColor="@android:color/transparent"
-            app:tint="@null"
-            android:clickable="false"
-            android:focusable="false" />
+            app:tint="@null" />
 
         <TextView
             android:layout_width="wrap_content"

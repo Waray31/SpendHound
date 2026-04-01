@@ -125,7 +125,6 @@
     <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingBottom="20dp"
         android:fillViewport="true">
 
         <LinearLayout
@@ -200,6 +199,10 @@
                 android:layout_height="wrap_content"
                 android:nestedScrollingEnabled="false"
                 tools:listitem="@layout/fragment_transaction" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="120dp"/>
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 </LinearLayout>
