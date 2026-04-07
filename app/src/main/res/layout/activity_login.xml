@@ -88,17 +88,17 @@
         </com.google.android.material.textfield.TextInputLayout>
 
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/loginButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:cornerRadius="12dp"
-            android:backgroundTint="@color/yellow"
+            android:background="@drawable/rounded_button"
             android:fontFamily="@font/montserratalternatess_bold"
-            android:paddingVertical="16dp"
-            android:text="Login"
-            android:textColor="#ffffff" />
-
+            android:paddingVertical="12dp"
+            android:text="Log in"
+            android:textColor="@color/whitest"
+            android:textSize="12sp"
+            app:backgroundTint="@null" />
 
         <LinearLayout
             android:layout_width="match_parent"

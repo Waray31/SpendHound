@@ -9,7 +9,7 @@
 
     <!-- Optional border -->
     <stroke
-        android:width="2dp"
-        android:color="#FFFFFF" />
+        android:width="1dp"
+        android:color="@color/grey" />
 
 </shape>
