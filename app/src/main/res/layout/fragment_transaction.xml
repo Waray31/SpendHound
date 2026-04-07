@@ -111,6 +111,7 @@
 
             <!-- Items table header -->
             <LinearLayout
+                android:id="@+id/itemsTableHeader"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
@@ -161,10 +162,22 @@
                 android:orientation="vertical" />
 
             <View
+                android:id="@+id/dividerBelowItems"
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginVertical="8dp"
                 android:background="#DDDDDD" />
+
+            <!-- Single item description (shown only for single-item transactions) -->
+            <TextView
+                android:id="@+id/tvSingleDescription"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:textColor="@color/grey"
+                android:textSize="12sp"
+                android:visibility="gone" />
 
             <!-- Payors header + edit buttons -->
             <LinearLayout

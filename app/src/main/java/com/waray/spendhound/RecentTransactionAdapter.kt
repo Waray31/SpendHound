@@ -61,7 +61,11 @@ class RecentTransactionAdapter(
         val transaction = recentTransactionList?.get(position) ?: return
 
         holder.dateTextView.text = transaction.mostRecentDate
-        holder.typeTextView.text = transaction.mostRecentTransactionType ?: "Transaction"
+        val isSingle = transaction.transactionItems.size == 1
+        holder.typeTextView.text = if (isSingle)
+            transaction.transactionItems[0].category ?: transaction.mostRecentTransactionType ?: "Transaction"
+        else
+            transaction.mostRecentTransactionType ?: "Transaction"
         holder.amountTextView.text = transaction.mostRecentPaymentAmountStr
         holder.iconImageView.setImageResource(getIconForItems(transaction.transactionItems))
 
@@ -79,7 +83,25 @@ class RecentTransactionAdapter(
         if (isExpanded) {
             holder.loadingOverlay.visibility = View.VISIBLE
             holder.createdByTextView.text = transaction.createdBy ?: "Unknown"
-            buildItemsTable(holder, transaction)
+            if (isSingle) {
+                val item = transaction.transactionItems[0]
+                holder.itemsTableHeader.visibility = View.GONE
+                holder.itemsTableContainer.visibility = View.GONE
+                holder.dividerBelowItems.visibility = View.GONE
+                val desc = item.itemDescription?.takeIf { it.isNotBlank() }
+                if (desc != null) {
+                    holder.tvSingleDescription.text = desc
+                    holder.tvSingleDescription.visibility = View.VISIBLE
+                } else {
+                    holder.tvSingleDescription.visibility = View.GONE
+                }
+            } else {
+                holder.itemsTableHeader.visibility = View.VISIBLE
+                holder.itemsTableContainer.visibility = View.VISIBLE
+                holder.dividerBelowItems.visibility = View.VISIBLE
+                holder.tvSingleDescription.visibility = View.GONE
+                buildItemsTable(holder, transaction)
+            }
             setupPayors(holder, transaction)
         } else {
             holder.loadingOverlay.visibility = View.GONE
@@ -379,7 +401,10 @@ class RecentTransactionAdapter(
         val iconImageView: ImageView         = itemView.findViewById(R.id.iconImageView)
         val mainContent: View                = itemView.findViewById(R.id.main_content)
         val expandableLayout: View           = itemView.findViewById(R.id.expandable_layout)
+        val itemsTableHeader: View           = itemView.findViewById(R.id.itemsTableHeader)
         val itemsTableContainer: LinearLayout = itemView.findViewById(R.id.itemsTableContainer)
+        val dividerBelowItems: View          = itemView.findViewById(R.id.dividerBelowItems)
+        val tvSingleDescription: TextView    = itemView.findViewById(R.id.tvSingleDescription)
         val createdByTextView: TextView      = itemView.findViewById(R.id.createdByTextView)
         val payorsRecyclerView: RecyclerView = itemView.findViewById(R.id.payorsRecyclerView)
         val loadingOverlay: View             = itemView.findViewById(R.id.loadingOverlay_transaction)
