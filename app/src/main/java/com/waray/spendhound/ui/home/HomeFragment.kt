@@ -327,9 +327,10 @@ class HomeFragment : Fragment() {
                     }.toMutableList()
 
                     val individualPayment = splits.groupBy { it.userId }.values.firstOrNull()?.sumOf { it.amount } ?: 0.0
-                    val allSettled = payors.groupBy { it.userId }.mapValues { e -> e.value.sumOf { it.currentAmountPaid } }
-                        .values.all { it >= individualPayment }
-                    val txStatus = if (payors.isEmpty()) "Pending" else if (allSettled) "Settled" else "Pending"
+                    val allMemberIds = splits.map { it.userId }.distinct()
+                    val paidByUser = payors.groupBy { it.userId }.mapValues { e -> e.value.sumOf { it.currentAmountPaid } }
+                    val allSettled = allMemberIds.isNotEmpty() && allMemberIds.all { (paidByUser[it] ?: 0.0) >= individualPayment }
+                    val txStatus = if (allSettled) "Settled" else "Pending"
 
                     val itemPayorMap = items.associate { item ->
                         val itemId = item.id ?: 0L

@@ -340,7 +340,12 @@ class RecentTransactionAdapter(
                 }
 
                 // Update transaction status: 3=Settled, 2=Pending
-                val allSettled = updatedAmounts.all { (it ?: 0.0) >= transaction.totalIndividualPayment }
+                val allMemberIds = transaction.rawSplitRows.map { it.userId }.distinct()
+                val paidByUser = transaction.rawPayorRows
+                    .groupBy { it.userId }
+                    .mapValues { e -> e.value.sumOf { it.currentAmountPaid } }
+                val allSettled = allMemberIds.isNotEmpty() &&
+                    allMemberIds.all { (paidByUser[it] ?: 0.0) >= transaction.totalIndividualPayment }
                 val newStatus = if (allSettled) 3 else 2
                 withContext(Dispatchers.IO) {
                     DeclareDatabase.transactionsTable.update({ set("status", newStatus) }) {

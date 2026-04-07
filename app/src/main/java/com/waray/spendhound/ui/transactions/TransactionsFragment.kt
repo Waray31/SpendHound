@@ -455,10 +455,11 @@ class TransactionsFragment : Fragment() {
         payors: List<TransactionPayorTable>,
         splits: List<TransactionSplitTable>
     ): String {
-        if (payors.isEmpty()) return "Pending"
+        if (splits.isEmpty()) return "Pending"
         val individualOwed = splits.groupBy { it.userId }.values.firstOrNull()?.sumOf { it.amount } ?: 0.0
+        val allMemberIds = splits.map { it.userId }.distinct()
         val paidByUser = payors.groupBy { it.userId }.mapValues { e -> e.value.sumOf { it.currentAmountPaid } }
-        val allSettled = paidByUser.values.all { it >= individualOwed }
+        val allSettled = allMemberIds.all { (paidByUser[it] ?: 0.0) >= individualOwed }
         return if (allSettled) "Settled" else "Pending"
     }
 
