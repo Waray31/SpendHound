@@ -228,7 +228,7 @@
                         android:layout_height="36dp"
                         android:backgroundTint="@color/yellow"
                         android:fontFamily="@font/montserratalternatess_regular"
-                        android:text="Edit"
+                        android:text="Settle"
                         android:textSize="11sp"
                         android:visibility="gone" />
 
