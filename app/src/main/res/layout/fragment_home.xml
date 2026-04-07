@@ -111,13 +111,13 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="16dp"
-                            android:background="@drawable/bg_pill_badge"
-                            android:fontFamily="@font/montserratalternatess_regular"
-                            android:paddingHorizontal="20dp"
+                            android:background="@drawable/glassy_background3"
+                            android:fontFamily="@font/montserratalternatess_bold"
+                            android:paddingHorizontal="16dp"
                             android:paddingVertical="10dp"
                             android:text="● +0% from last month"
                             android:textColor="@color/white"
-                            android:textSize="14sp" />
+                            android:textSize="12sp" />
 
                     </LinearLayout>
                 </LinearLayout>
@@ -138,10 +138,10 @@
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginEnd="8dp"
+                        android:background="@drawable/bg_circle_red"
                         android:layout_weight="1"
                         android:layout_margin="8dp"
-                        android:background="@drawable/bg_summary_card"
-                        android:elevation="4dp"
+                        android:elevation="2dp"
                         android:orientation="vertical"
                         android:padding="16dp">
 
@@ -149,7 +149,7 @@
                         <ImageView
                             android:layout_width="48dp"
                             android:layout_height="48dp"
-                            android:background="@drawable/bg_circle_red"
+                            android:background="@drawable/glassy_background3"
                             android:src="@drawable/ic_you_owe"
                             app:tint="@color/red" />
 
@@ -159,7 +159,7 @@
                             android:layout_marginTop="20dp"
                             android:fontFamily="@font/montserratalternatess_regular"
                             android:text="You Owe"
-                            android:textColor="@color/grey"
+                            android:textColor="@color/darkBlue"
                             android:textSize="13sp" />
 
                         <TextView
@@ -183,15 +183,15 @@
                         android:layout_marginStart="8dp"
                         android:layout_weight="1"
                         android:layout_margin="8dp"
-                        android:background="@drawable/bg_summary_card"
-                        android:elevation="4dp"
+                        android:background="@drawable/bg_circle_green"
+                        android:elevation="2dp"
                         android:orientation="vertical"
                         android:padding="16dp">
 
                         <ImageView
                             android:layout_width="48dp"
                             android:layout_height="48dp"
-                            android:background="@drawable/bg_circle_green"
+                            android:background="@drawable/glassy_background3"
                             android:src="@drawable/ic_youre_owed"
                             app:tint="@color/green" />
 
@@ -200,8 +200,8 @@
                             android:layout_height="wrap_content"
                             android:layout_marginTop="20dp"
                             android:fontFamily="@font/montserratalternatess_regular"
-                            android:text="You're Owed"
-                            android:textColor="@color/grey"
+                            android:text="You'll receive"
+                            android:textColor="@color/darkBlue"
                             android:textSize="13sp" />
 
                         <TextView

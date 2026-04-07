@@ -239,26 +239,31 @@ class HomeFragment : Fragment() {
                 }
 
                     withContext(Dispatchers.Main) {
-                        val (label, bgColorHex, arrow) = when {
-                            lastMonthTotal == 0.0 && currentTotal == 0.0 -> Triple("● No data yet", "#33FFFFFF", "↗")
-                            lastMonthTotal == 0.0 -> Triple("● No data from last month", "#33FFFFFF", "↗")
-                            currentTotal == lastMonthTotal -> Triple("● No change from last month", "#33FFFFFF", "↗")
+                        val (label, arrowColor, arrow) = when {
+                            lastMonthTotal == 0.0 && currentTotal == 0.0 -> Triple("● No data yet", "#FFFFFF", "●")
+                            lastMonthTotal == 0.0 -> Triple("● No data from last month", "#FFFFFF", "●")
+                            currentTotal == lastMonthTotal -> Triple("● No change from last month", "#FFFFFF", "●")
                             else -> {
                                 val pct = ((currentTotal - lastMonthTotal) / lastMonthTotal * 100).toInt()
                                 if (currentTotal > lastMonthTotal)
-                                    Triple("↑ +$pct% from last month", "#55FF4444", "↗")
+                                    Triple("↑ +$pct% from last month", "#FF4444", "↑")
                                 else
-                                    Triple("↓ ${pct}% from last month", "#5500CC66", "↗")
+                                    Triple("↓ ${pct}% from last month", "#00CC66", "↓")
                             }
                         }
-                        binding?.monthChangeText?.text = label
-                        val pill = android.graphics.drawable.GradientDrawable().apply {
-                            shape = android.graphics.drawable.GradientDrawable.RECTANGLE
-                            cornerRadius = 50f * resources.displayMetrics.density
-                            setColor(Color.parseColor(bgColorHex))
-                        }
-                        binding?.monthChangeText?.background = pill
-                        binding?.textView2?.text = "$arrow  THIS MONTH'S SPENDING"
+                        val spannable = android.text.SpannableString(label)
+                        spannable.setSpan(
+                            android.text.style.ForegroundColorSpan(Color.parseColor(arrowColor)),
+                            0, arrow.length,
+                            android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                        )
+                        spannable.setSpan(
+                            android.text.style.ForegroundColorSpan(Color.parseColor("#FFFFFF")),
+                            arrow.length, label.length,
+                            android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
+                        )
+                        binding?.monthChangeText?.text = spannable
+                        binding?.textView2?.text = "↗  THIS MONTH'S SPENDING"
                     }
             } catch (e: Exception) {
                 Log.e("HomeFragment", "Error fetching month change: ${e.message}")
