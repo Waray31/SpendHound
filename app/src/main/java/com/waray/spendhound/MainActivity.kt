@@ -45,7 +45,7 @@ class MainActivity : AppCompatActivity() {
     private var mAuth: Auth? = null
     var totalMonthSpends: Double = 0.0
     var dailyTotals: DoubleArray = DoubleArray(7)
-    private var currentUserNumericId: Long? = null
+    internal var currentUserNumericId: Long? = null
     private var currentUserId: String? = null
     var currentNickname: String? = null
     

@@ -46,13 +46,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class HomeFragment : Fragment() {
-    private var day7TextView: TextView? = null
-    private var day6TextView: TextView? = null
-    private var day5TextView: TextView? = null
-    private var day4TextView: TextView? = null
-    private var day3TextView: TextView? = null
-    private var day2TextView: TextView? = null
-    private var day1TextView: TextView? = null
     private var binding: FragmentHomeBinding? = null
     private var mAuth: Auth? = null
 
@@ -86,14 +79,6 @@ class HomeFragment : Fragment() {
 
         val loadingOverlay = view.findViewById<View>(R.id.loadingOverlay_home)
         loadingManager = LoadingManager(loadingOverlay, viewLifecycleOwner.lifecycle)
-
-        day7TextView = view.findViewById(R.id.day7)
-        day6TextView = view.findViewById(R.id.day6)
-        day5TextView = view.findViewById(R.id.day5)
-        day4TextView = view.findViewById(R.id.day4)
-        day3TextView = view.findViewById(R.id.day3)
-        day2TextView = view.findViewById(R.id.day2)
-        day1TextView = view.findViewById(R.id.day1)
 
         mAuth = DeclareDatabase.auth
 
@@ -145,6 +130,7 @@ class HomeFragment : Fragment() {
                 if (user != null) {
                     mainActivity.currentNickname = user.username
                     currentUserNumericId = user.id
+                    mainActivity.currentUserNumericId = user.id
                 }
 
                 mainActivity.getTotalMonthSpends { currentTotal ->
@@ -413,28 +399,43 @@ class HomeFragment : Fragment() {
 
     private fun updateWeeklyChartUI() {
         val mainActivity = activity as? MainActivity ?: return
+        val b = binding ?: return
         val dailyTotals = mainActivity.dailyTotals
-        val maxTotal = dailyTotals.maxOrNull() ?: 1.0
-        val scaleFactor = if (maxTotal > 0) 100.0 / maxTotal else 0.0
+
+        val maxHeightDp = 120.0
+        val minHeightDp = 10.0
+        val maxAmount = 1000.0
 
         val totalTextViews = arrayOf(
-            binding?.totalday7, binding?.totalday6, binding?.totalday5,
-            binding?.totalday4, binding?.totalday3, binding?.totalday2, binding?.totalday1
+            b.totalday7, b.totalday6, b.totalday5,
+            b.totalday4, b.totalday3, b.totalday2, b.totalday1
         )
         val barViews = arrayOf(
-            binding?.day7Bar, binding?.day6Bar, binding?.day5Bar,
-            binding?.day4Bar, binding?.day3Bar, binding?.day2Bar, binding?.day1Bar
+            b.day7Bar, b.day6Bar, b.day5Bar,
+            b.day4Bar, b.day3Bar, b.day2Bar, b.day1Bar
         )
 
         for (i in 0..6) {
             val amount = dailyTotals[i]
-            totalTextViews[i]?.text = if (amount > 0) CurrencyUtils.formatAmount(amount) else "0"
-            barViews[i]?.let {
-                val params = it.layoutParams
-                val heightInDp = (amount * scaleFactor).coerceAtLeast(10.0).toInt()
-                params.height = (heightInDp * resources.displayMetrics.density).toInt()
-                it.layoutParams = params
+            totalTextViews[i].text = if (amount > 0) CurrencyUtils.formatAmount(amount) else "0"
+            if (amount > 0) {
+                totalTextViews[i].setTextColor(Color.parseColor("#FFBA08"))
+                totalTextViews[i].setTypeface(null, android.graphics.Typeface.BOLD)
+            } else {
+                totalTextViews[i].setTextColor(Color.parseColor("#6c757d"))
+                totalTextViews[i].setTypeface(null, android.graphics.Typeface.NORMAL)
             }
+            val heightDp = if (amount <= 0) {
+                minHeightDp
+            } else {
+                val scaled = (amount / maxAmount) * (maxHeightDp - minHeightDp) + minHeightDp
+                scaled.coerceIn(minHeightDp, maxHeightDp)
+            }
+            val heightPx = (heightDp * resources.displayMetrics.density).toInt()
+            val params = barViews[i].layoutParams
+            params.height = heightPx
+            barViews[i].layoutParams = params
+            barViews[i].requestLayout()
         }
     }
 
@@ -536,19 +537,18 @@ class HomeFragment : Fragment() {
     }
 
     private fun setTextViewsForWeek() {
+        val b = binding ?: return
         val calendar = currentWeekStart.clone() as Calendar
         val today = Calendar.getInstance()
-        val dayTextViews = arrayOf(day7TextView, day6TextView, day5TextView, day4TextView, day3TextView, day2TextView, day1TextView)
+        val dayTextViews = arrayOf(b.day7, b.day6, b.day5, b.day4, b.day3, b.day2, b.day1)
         for (i in 0..6) {
-            dayTextViews[i]?.let {
-                it.text = getFormattedDay(calendar)
-                if (isSameDay(calendar, today)) {
-                    it.setTextColor(ContextCompat.getColor(requireContext(), R.color.yellow))
-                    it.setTypeface(null, Typeface.BOLD)
-                } else {
-                    it.setTextColor(Color.WHITE)
-                    it.setTypeface(null, Typeface.NORMAL)
-                }
+            dayTextViews[i].text = getFormattedDay(calendar)
+            if (isSameDay(calendar, today)) {
+                dayTextViews[i].setTextColor(ContextCompat.getColor(requireContext(), R.color.yellow))
+                dayTextViews[i].setTypeface(null, Typeface.BOLD)
+            } else {
+                dayTextViews[i].setTextColor(Color.WHITE)
+                dayTextViews[i].setTypeface(null, Typeface.NORMAL)
             }
             calendar.add(Calendar.DAY_OF_YEAR, 1)
         }
@@ -602,8 +602,6 @@ class HomeFragment : Fragment() {
                 val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
                 val daysInMonth = endOfMonth.get(Calendar.DAY_OF_MONTH)
                 val dailySpends = mutableMapOf<Int, Double>()
-                val labels = mutableListOf<String>()
-                for (day in 1..daysInMonth) { dailySpends[day] = 0.0; labels.add(day.toString()) }
 
                 for (tx in allTransactions) {
                     val txId = tx.id ?: continue
@@ -615,9 +613,16 @@ class HomeFragment : Fragment() {
                     dailySpends[day] = (dailySpends[day] ?: 0.0) + userSplit
                 }
 
-                val entries = dailySpends.entries.sortedBy { it.key }.map { (day, amount) ->
-                    Entry((day - 1).toFloat(), amount.toFloat())
+                // Only include days that have data
+                val daysWithData = dailySpends.entries
+                    .filter { it.value > 0 }
+                    .sortedBy { it.key }
+
+                val entries = daysWithData.mapIndexed { index, (_, amount) ->
+                    Entry(index.toFloat(), amount.toFloat())
                 }
+                val labels = daysWithData.map { it.key.toString() }
+
                 withContext(Dispatchers.Main) { setupLineChart(entries, labels) }
             } catch (e: Exception) {
                 Log.e("HomeFragment", "Error fetching monthly chart data: ${e.message}")
@@ -628,6 +633,15 @@ class HomeFragment : Fragment() {
     }
 
     private fun setupLineChart(entries: List<Entry>, labels: List<String>) {
+        val chart = monthlyLineChart ?: return
+
+        if (entries.isEmpty()) {
+            chart.clear()
+            chart.setNoDataText("No spending data this month")
+            chart.setNoDataTextColor(Color.parseColor("#adb5bd"))
+            chart.invalidate()
+            return
+        }
         val dataSet = LineDataSet(entries, "Daily Spending")
         dataSet.color = Color.parseColor("#FFBA08")
         dataSet.valueTextColor = Color.WHITE
@@ -641,36 +655,37 @@ class HomeFragment : Fragment() {
         dataSet.fillColor = Color.parseColor("#FFBA08")
         dataSet.fillAlpha = 50
 
-        monthlyLineChart?.data = LineData(dataSet)
-        monthlyLineChart?.description?.isEnabled = false
-        monthlyLineChart?.setDrawGridBackground(false)
-        monthlyLineChart?.setDrawBorders(false)
-        monthlyLineChart?.legend?.isEnabled = false
+        chart.data = LineData(dataSet)
+        chart.description?.isEnabled = false
+        chart.setDrawGridBackground(false)
+        chart.setDrawBorders(false)
+        chart.legend?.isEnabled = false
 
-        val xAxis = monthlyLineChart!!.xAxis
+        val xAxis = chart.xAxis
         xAxis.position = XAxis.XAxisPosition.BOTTOM
         xAxis.textColor = Color.WHITE
         xAxis.setDrawGridLines(false)
         xAxis.setDrawAxisLine(false)
         xAxis.valueFormatter = IndexAxisValueFormatter(labels)
         xAxis.granularity = 1f
+        xAxis.labelCount = labels.size
         xAxis.labelRotationAngle = -45f
         xAxis.textSize = 10f
 
-        val leftAxis = monthlyLineChart!!.axisLeft
+        val leftAxis = chart.axisLeft
         leftAxis.textColor = Color.parseColor("#adb5bd")
         leftAxis.setDrawGridLines(true)
         leftAxis.gridColor = Color.parseColor("#3A3D4E")
         leftAxis.setDrawAxisLine(false)
         leftAxis.textSize = 10f
 
-        monthlyLineChart?.axisRight?.isEnabled = false
-        monthlyLineChart?.setTouchEnabled(true)
-        monthlyLineChart?.isDragEnabled = true
-        monthlyLineChart?.setScaleEnabled(true)
-        monthlyLineChart?.setPinchZoom(true)
-        monthlyLineChart?.animateX(500)
-        monthlyLineChart?.invalidate()
+        chart.axisRight?.isEnabled = false
+        chart.setTouchEnabled(true)
+        chart.isDragEnabled = true
+        chart.setScaleEnabled(true)
+        chart.setPinchZoom(true)
+        chart.animateX(500)
+        chart.invalidate()
     }
 
     private fun showLoading() {

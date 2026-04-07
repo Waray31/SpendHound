@@ -35,6 +35,9 @@ class MultiTransactionViewModel(
 
     private val _currentUserNumericId = MutableStateFlow<Long?>(null)
     
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
     private val _uiState = MutableStateFlow<UiState>(UiState.Idle)
     val uiState: StateFlow<UiState> = _uiState.asStateFlow()
 
@@ -64,17 +67,19 @@ class MultiTransactionViewModel(
                 _groups.value = fetchedGroups
             } catch (e: Exception) {
                 _uiState.value = UiState.Error(e.message ?: "Failed to fetch groups")
+            } finally {
+                _isLoading.value = false
             }
         }
     }
 
     fun onGroupSelected(groupId: Long) {
+        _isLoading.value = true
         viewModelScope.launch {
             try {
                 val fetchedMembers = repository.getGroupMembers(groupId)
                 _members.value = fetchedMembers
-                
-                // If in single mode, default payor to current user if they are in the group
+
                 if (!_isMultiplePayorsMode.value) {
                     val currentId = _currentUserNumericId.value
                     val user = fetchedMembers.find { it.id == currentId }
@@ -84,6 +89,8 @@ class MultiTransactionViewModel(
                 }
             } catch (e: Exception) {
                 _uiState.value = UiState.Error(e.message ?: "Failed to fetch members")
+            } finally {
+                _isLoading.value = false
             }
         }
     }
@@ -137,14 +144,14 @@ class MultiTransactionViewModel(
         _transactions.value = currentList
     }
 
-    fun submit(groupId: Long) {
+    fun submit(groupId: Long, requireTitle: Boolean = true) {
         val creatorId = _currentUserNumericId.value
         if (creatorId == null) {
             _uiState.value = UiState.Error("User session not found")
             return
         }
 
-        if (_transactionTitle.value.isBlank()) {
+        if (requireTitle && _transactionTitle.value.isBlank()) {
             _uiState.value = UiState.Error("Please enter a transaction title")
             return
         }

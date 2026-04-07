@@ -72,6 +72,7 @@ class MultiTransactionActivity : AppCompatActivity() {
             binding.btnSinglePayor.setBackgroundColor(android.graphics.Color.TRANSPARENT)
             binding.btnSinglePayor.setTypeface(resources.getFont(R.font.montserratalternatess_regular))
             binding.btnSinglePayor.setTextColor(getColor(R.color.grey))
+            binding.titleSection.visibility = View.VISIBLE
         } else {
             binding.btnSinglePayor.setBackgroundResource(R.drawable.bg_toggle_selected)
             binding.btnSinglePayor.setTypeface(resources.getFont(R.font.montserratalternatess_bold))
@@ -79,8 +80,12 @@ class MultiTransactionActivity : AppCompatActivity() {
             binding.btnMultiplePayors.setBackgroundColor(android.graphics.Color.TRANSPARENT)
             binding.btnMultiplePayors.setTypeface(resources.getFont(R.font.montserratalternatess_regular))
             binding.btnMultiplePayors.setTextColor(getColor(R.color.grey))
+            binding.titleSection.visibility = View.GONE
+            binding.etTransactionTitle.text?.clear()
+            viewModel.setTransactionTitle("")
         }
         viewModel.setMultiplePayorsMode(isMultiple)
+        validateSubmission()
     }
 
     private fun setupToolbar() {
@@ -119,7 +124,8 @@ class MultiTransactionActivity : AppCompatActivity() {
         binding.btnSubmit.setOnClickListener {
             val selectedGroup = currentGroups.getOrNull(binding.spinnerGroup.selectedItemPosition)
             if (selectedGroup?.groupId != null) {
-                viewModel.submit(selectedGroup.groupId!!)
+                val requireTitle = binding.titleSection.visibility == View.VISIBLE
+                viewModel.submit(selectedGroup.groupId!!, requireTitle)
             }
         }
 
@@ -142,9 +148,21 @@ class MultiTransactionActivity : AppCompatActivity() {
         }
     }
 
+    private fun setContentEnabled(enabled: Boolean) {
+        binding.etTransactionTitle.isEnabled = enabled
+        binding.spinnerGroup.isEnabled = enabled
+        binding.spinnerGlobalPayor.isEnabled = enabled
+        binding.btnSinglePayor.isClickable = enabled
+        binding.btnMultiplePayors.isClickable = enabled
+        binding.btnAddRow.isClickable = enabled
+        binding.rvTransactions.isEnabled = enabled
+        binding.btnSubmit.isEnabled = enabled && binding.btnSubmit.isVisible
+    }
+
     private fun validateSubmission() {
         val transactions = adapter.getTransactions()
-        val titleFilled = if (isSingleTransactionMode) true else binding.etTransactionTitle.text?.isNotBlank() == true
+        val titleRequired = binding.titleSection.visibility == View.VISIBLE
+        val titleFilled = !titleRequired || binding.etTransactionTitle.text?.isNotBlank() == true
         var allValid = transactions.isNotEmpty() && titleFilled
 
         for (tx in transactions) {
@@ -224,8 +242,19 @@ class MultiTransactionActivity : AppCompatActivity() {
                     }
                 }
                 launch {
+                    viewModel.isLoading.collect { loading ->
+                        binding.progressOverlay.isVisible = loading
+                        binding.appBarLayout.isEnabled = !loading
+                        // Disable all interactive content during loading
+                        setContentEnabled(!loading)
+                    }
+                }
+                launch {
                     viewModel.uiState.collect { state ->
-                        binding.progressOverlay.isVisible = state is MultiTransactionViewModel.UiState.Loading
+                        if (state is MultiTransactionViewModel.UiState.Loading) {
+                            binding.progressOverlay.isVisible = true
+                            setContentEnabled(false)
+                        }
                         when (state) {
                             is MultiTransactionViewModel.UiState.Success -> {
                                 Toast.makeText(this@MultiTransactionActivity, "Transactions added!", Toast.LENGTH_SHORT).show()
