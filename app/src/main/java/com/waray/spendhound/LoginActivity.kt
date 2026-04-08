@@ -1,9 +1,11 @@
 package com.waray.spendhound
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
+import android.graphics.Rect
 import android.os.Bundle
+import android.text.Editable
+import android.text.TextWatcher
 import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.InputMethodManager
@@ -38,7 +40,17 @@ class LoginActivity : AppCompatActivity() {
         val loginButton = findViewById<Button>(R.id.loginButton)
         progressBar = findViewById<ProgressBar>(R.id.progressBar)
 
-        exitEditText()
+        loginButton.isEnabled = false
+        val watcher = object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                loginButton.isEnabled = usernameEditText?.text?.isNotBlank() == true &&
+                        passwordEditText?.text?.isNotBlank() == true
+            }
+        }
+        usernameEditText?.addTextChangedListener(watcher)
+        passwordEditText?.addTextChangedListener(watcher)
 
         loginButton.setOnClickListener {
             progressBar?.visibility = View.VISIBLE
@@ -117,30 +129,19 @@ class LoginActivity : AppCompatActivity() {
         }
     }
 
-    @SuppressLint("ClickableViewAccessibility")
-    fun exitEditText() {
-        val usernameEditText: EditText = findViewById(R.id.usernameEditText)
-        val passwordEditText: EditText = findViewById(R.id.passwordEditText)
-        usernameEditText.setOnTouchListener { v, _ ->
-            v.performClick()
-            false
+    override fun dispatchTouchEvent(event: MotionEvent): Boolean {
+        if (event.action == MotionEvent.ACTION_DOWN) {
+            val v = currentFocus
+            if (v is EditText) {
+                val outRect = android.graphics.Rect()
+                v.getGlobalVisibleRect(outRect)
+                if (!outRect.contains(event.rawX.toInt(), event.rawY.toInt())) {
+                    v.clearFocus()
+                    val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                    imm.hideSoftInputFromWindow(v.windowToken, 0)
+                }
+            }
         }
-
-        passwordEditText.setOnTouchListener { v, _ ->
-            v.performClick()
-            false
-        }
-
-        val rootView = findViewById<View>(android.R.id.content)
-        rootView.setOnTouchListener { _, _ ->
-            hideKeyboard(usernameEditText)
-            hideKeyboard(passwordEditText)
-            false
-        }
-    }
-
-    private fun hideKeyboard(editText: EditText) {
-        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.hideSoftInputFromWindow(editText.windowToken, 0)
+        return super.dispatchTouchEvent(event)
     }
 }

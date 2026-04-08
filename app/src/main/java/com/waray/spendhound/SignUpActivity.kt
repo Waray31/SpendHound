@@ -1,12 +1,13 @@
 package com.waray.spendhound
 
-import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.MediaStore
+import android.text.Editable
 import android.text.TextUtils
+import android.text.TextWatcher
 import android.util.Log
 import android.view.View
 import android.view.inputmethod.InputMethodManager
@@ -74,13 +75,34 @@ class SignUpActivity : AppCompatActivity() {
 
         mAuth = DeclareDatabase.auth
 
+        btnNextStep?.isEnabled = false
+        val step1Watcher = object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                btnNextStep?.isEnabled = emailEditText?.text?.isNotBlank() == true &&
+                        passwordEditText?.text?.isNotBlank() == true &&
+                        confirmPasswordEditText?.text?.isNotBlank() == true
+            }
+        }
+        emailEditText?.addTextChangedListener(step1Watcher)
+        passwordEditText?.addTextChangedListener(step1Watcher)
+        confirmPasswordEditText?.addTextChangedListener(step1Watcher)
+
+        signUpButton?.isEnabled = false
+        usernameEditText?.addTextChangedListener(object : TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: Editable?) {
+                signUpButton?.isEnabled = s?.isNotBlank() == true
+            }
+        })
+
         btnNextStep?.setOnClickListener {
             if (validateStep1()) {
                 signUpStep1()
             }
         }
-
-        exitEditText()
 
         // Handle back button behavior
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
@@ -484,21 +506,20 @@ class SignUpActivity : AppCompatActivity() {
         finish()
     }
 
-    @SuppressLint("ClickableViewAccessibility")
-    fun exitEditText() {
-        val rootView = findViewById<View>(android.R.id.content)
-        rootView.setOnTouchListener { _, _ ->
-            hideKeyboard(usernameEditText)
-            hideKeyboard(emailEditText)
-            hideKeyboard(passwordEditText)
-            hideKeyboard(confirmPasswordEditText)
-            false
+    override fun dispatchTouchEvent(event: android.view.MotionEvent): Boolean {
+        if (event.action == android.view.MotionEvent.ACTION_DOWN) {
+            val v = currentFocus
+            if (v is EditText) {
+                val outRect = android.graphics.Rect()
+                v.getGlobalVisibleRect(outRect)
+                if (!outRect.contains(event.rawX.toInt(), event.rawY.toInt())) {
+                    v.clearFocus()
+                    val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                    imm.hideSoftInputFromWindow(v.windowToken, 0)
+                }
+            }
         }
-    }
-
-    private fun hideKeyboard(editText: EditText?) {
-        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-        imm.hideSoftInputFromWindow(editText?.windowToken, 0)
+        return super.dispatchTouchEvent(event)
     }
 
     companion object {

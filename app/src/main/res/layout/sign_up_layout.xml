@@ -65,10 +65,10 @@
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
                     android:hint="Email"
-                    app:boxCornerRadiusBottomEnd="12dp"
-                    app:boxCornerRadiusBottomStart="12dp"
-                    app:boxCornerRadiusTopEnd="12dp"
-                    app:boxCornerRadiusTopStart="12dp"
+                    app:boxCornerRadiusBottomEnd="24dp"
+                    app:boxCornerRadiusBottomStart="24dp"
+                    app:boxCornerRadiusTopEnd="24dp"
+                    app:boxCornerRadiusTopStart="24dp"
                     app:boxStrokeColor="@color/yellow"
                     app:hintTextColor="@color/yellow">
 
@@ -88,10 +88,10 @@
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="12dp"
                     android:hint="Password"
-                    app:boxCornerRadiusBottomEnd="12dp"
-                    app:boxCornerRadiusBottomStart="12dp"
-                    app:boxCornerRadiusTopEnd="12dp"
-                    app:boxCornerRadiusTopStart="12dp"
+                    app:boxCornerRadiusBottomEnd="24dp"
+                    app:boxCornerRadiusBottomStart="24dp"
+                    app:boxCornerRadiusTopEnd="24dp"
+                    app:boxCornerRadiusTopStart="24dp"
                     app:boxStrokeColor="@color/yellow"
                     app:endIconDrawable="@drawable/password_eye_selector"
                     app:endIconMode="password_toggle"
@@ -114,10 +114,10 @@
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="24dp"
                     android:hint="Confirm Password"
-                    app:boxCornerRadiusBottomEnd="12dp"
-                    app:boxCornerRadiusBottomStart="12dp"
-                    app:boxCornerRadiusTopEnd="12dp"
-                    app:boxCornerRadiusTopStart="12dp"
+                    app:boxCornerRadiusBottomEnd="24dp"
+                    app:boxCornerRadiusBottomStart="24dp"
+                    app:boxCornerRadiusTopEnd="24dp"
+                    app:boxCornerRadiusTopStart="24dp"
                     app:boxStrokeColor="@color/yellow"
                     app:endIconDrawable="@drawable/password_eye_selector"
                     app:endIconMode="password_toggle"
@@ -140,12 +140,11 @@
                     android:layout_height="wrap_content"
                     android:background="@drawable/rounded_button"
                     android:fontFamily="@font/montserratalternatess_bold"
-                    android:padding="4dp"
-                    android:paddingVertical="12dp"
+                    android:layout_marginBottom="8dp"
                     android:text="Sign Up"
                     android:textColor="@color/whitest"
-                    android:textSize="12sp"
-                    app:backgroundTint="@null" />
+                    android:textSize="16sp"
+                    app:backgroundTint="@null"/>
             </LinearLayout>
 
             <!-- Step 2: Profile Info -->
@@ -155,6 +154,7 @@
                 android:layout_height="wrap_content"
                 android:gravity="center_horizontal"
                 android:orientation="vertical"
+                android:paddingBottom="8dp"
                 android:visibility="gone">
 
                 <FrameLayout
@@ -195,10 +195,10 @@
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="24dp"
                     android:hint="Username"
-                    app:boxCornerRadiusBottomEnd="12dp"
-                    app:boxCornerRadiusBottomStart="12dp"
-                    app:boxCornerRadiusTopEnd="12dp"
-                    app:boxCornerRadiusTopStart="12dp"
+                    app:boxCornerRadiusBottomEnd="24dp"
+                    app:boxCornerRadiusBottomStart="24dp"
+                    app:boxCornerRadiusTopEnd="24dp"
+                    app:boxCornerRadiusTopStart="24dp"
                     app:boxStrokeColor="@color/yellow"
                     app:hintTextColor="@color/yellow">
 
@@ -219,11 +219,11 @@
                     android:background="@drawable/rounded_button"
                     android:fontFamily="@font/montserratalternatess_bold"
                     android:onClick="onSignUpClicked"
-                    android:padding="4dp"
-                    android:paddingVertical="12dp"
+                    android:layout_margin="4dp"
+                    android:layout_marginBottom="8dp"
                     android:text="Continue"
                     android:textColor="@color/whitest"
-                    android:textSize="12sp"
+                    android:textSize="16sp"
                     app:backgroundTint="@null" />
             </LinearLayout>
 
@@ -231,7 +231,7 @@
                 android:id="@+id/layoutFooter"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="20dp"
+                android:layout_marginTop="12dp"
                 android:gravity="center_horizontal"
                 android:orientation="horizontal">
 
