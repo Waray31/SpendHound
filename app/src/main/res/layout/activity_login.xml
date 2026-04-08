@@ -92,7 +92,7 @@
             android:id="@+id/loginButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/rounded_button"
+            android:background="@drawable/rounded_button_selector"
             android:fontFamily="@font/montserratalternatess_bold"
             android:text="Log in"
             android:textColor="@color/whitest"
