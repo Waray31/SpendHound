@@ -72,7 +72,7 @@ class LoginActivity : AppCompatActivity() {
             BiometricHelper.promptToGetCredentials(
                 activity = this,
                 title = "Login to SpendHound",
-                subtitle = "Use your fingerprint to log in",
+                subtitle = "Use your fingerprint or face to log in",
                 onSuccess = { email, password -> performLogin(email, password, saveForBiometric = false) }
             )
         }

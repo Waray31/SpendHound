@@ -3,7 +3,7 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/darkBlue"
+    android:background="@color/white"
     android:orientation="vertical">
 
     <!-- Close button -->
@@ -13,9 +13,9 @@
         android:layout_height="40dp"
         android:layout_margin="16dp"
         android:background="@drawable/transparent_background"
-        android:src="@drawable/ic_close_24dp"
         android:contentDescription="Close"
-        app:tint="@color/whitest" />
+        android:src="@drawable/ic_close_24dp"
+        app:tint="@color/darkBlue" />
 
     <!-- Hero illustration area -->
     <LinearLayout
@@ -30,32 +30,50 @@
             android:layout_width="160dp"
             android:layout_height="160dp"
             android:layout_marginBottom="32dp"
-            android:src="@drawable/ic_lock"
             android:contentDescription="Passkey"
+            android:src="@drawable/ic_lock"
             app:tint="@color/yellow" />
 
+        <!-- Title changes based on state -->
         <TextView
+            android:id="@+id/tvPasskeyTitle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
             android:fontFamily="@font/montserratalternatess_bold"
             android:text="Next time, skip your password"
-            android:textColor="@color/whitest"
-            android:textSize="24sp"
-            android:layout_marginBottom="24dp" />
+            android:textColor="@color/yellow"
+            android:textSize="24sp" />
+
+        <!-- Active passkey status badge -->
+        <TextView
+            android:id="@+id/tvPasskeyActiveBadge"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:background="@drawable/round_border_glassy"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="6dp"
+            android:text="● Active on this device"
+            android:textColor="@color/yellow"
+            android:textSize="12sp"
+            android:visibility="gone" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:layout_marginBottom="16dp">
+            android:layout_marginBottom="16dp"
+            android:orientation="horizontal">
 
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:layout_marginEnd="12dp"
+                android:layout_gravity="center"
                 android:layout_marginTop="2dp"
-                android:src="@drawable/ic_lock"
+                android:layout_marginEnd="12dp"
                 android:contentDescription=""
+                android:src="@drawable/ic_lock"
                 app:tint="@color/grey" />
 
             <TextView
@@ -76,10 +94,11 @@
             <ImageView
                 android:layout_width="24dp"
                 android:layout_height="24dp"
-                android:layout_marginEnd="12dp"
+                android:layout_gravity="center"
                 android:layout_marginTop="2dp"
-                android:src="@drawable/ic_lock"
+                android:layout_marginEnd="12dp"
                 android:contentDescription=""
+                android:src="@drawable/ic_lock"
                 app:tint="@color/grey" />
 
             <TextView
@@ -104,33 +123,63 @@
         <View
             android:layout_width="match_parent"
             android:layout_height="1dp"
-            android:background="#33FFFFFF"
-            android:layout_marginBottom="16dp" />
+            android:layout_marginBottom="16dp"
+            android:background="#33FFFFFF" />
 
+        <!-- Shown when NO passkey exists -->
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnCreatePasskey"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
             android:background="@drawable/rounded_button_selector"
             android:fontFamily="@font/montserratalternatess_bold"
             android:text="Create passkey"
             android:textColor="@color/whitest"
-            android:textSize="16sp"
-            android:layout_marginBottom="8dp"
+            android:textSize="14sp"
+            android:visibility="visible"
             app:backgroundTint="@null" />
 
-        <TextView
+        <!-- Shown when passkey EXISTS -->
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnEditPasskey"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/rounded_button_selector"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="Edit passkey"
+            android:textColor="@color/whitest"
+            android:textSize="16sp"
+            android:visibility="gone"
+            app:backgroundTint="@null" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnRemovePasskey"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/rounded_button_red"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="Remove passkey"
+            android:textColor="@color/whitest"
+            android:textSize="14sp"
+            android:visibility="gone"
+            app:backgroundTint="@null" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnNotNow"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:background="@drawable/round_border_glassy"
+            android:clickable="true"
+            android:focusable="true"
             android:fontFamily="@font/montserratalternatess_regular"
             android:text="Not now"
             android:textAlignment="center"
             android:textColor="@color/grey"
-            android:textSize="16sp"
-            android:padding="12dp"
-            android:clickable="true"
-            android:focusable="true" />
+            android:textSize="14sp"
+            app:backgroundTint="@null" />
 
         <ProgressBar
             android:id="@+id/progressBar"

@@ -57,6 +57,7 @@ class EditProfileActivity : AppCompatActivity() {
         findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
         findViewById<TextView>(R.id.changePhotoText).setOnClickListener { pickImage() }
         findViewById<View>(R.id.btnSaveProfile).setOnClickListener { showSaveConfirmation() }
+        findViewById<View>(R.id.btnCancel).setOnClickListener { finish() }
         emailInputLayout.setEndIconOnClickListener { promptUnlockEmail() }
 
         findViewById<TextView>(R.id.tvChangePassword).setOnClickListener {

@@ -80,7 +80,6 @@ class ProfileFragment : Fragment() {
     private var oweDebtDrawableTransparent: Drawable? = null
     private var profileLogout: Button? = null
     private var breakdownBtn: Button? = null
-    private var btnAdminSettings: Button? = null
 
     private var loadingOverlayProfile: View? = null
     private var pendingLoads = 0
@@ -107,7 +106,6 @@ class ProfileFragment : Fragment() {
         oweDebtLayout = view.findViewById(R.id.oweDebtLayout)
         profileLogout = view.findViewById(R.id.profileLogout)
         breakdownBtn = view.findViewById(R.id.breakdown_btn)
-        btnAdminSettings = view.findViewById(R.id.btnAdminSettings)
 
         balanceUnpaidDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.round_border_glassy)
         balanceUnpaidDrawableTransparent = ContextCompat.getDrawable(requireContext(), R.drawable.transparent_background)
@@ -130,7 +128,6 @@ class ProfileFragment : Fragment() {
         setupDebtButton()
         setupProfileLogoutButton()
         setupBreakdownButton()
-        setupAdminSettingsButton()
 
         val activity: AppCompatActivity? = getActivity() as AppCompatActivity?
         activity?.supportActionBar?.hide()
@@ -517,54 +514,6 @@ class ProfileFragment : Fragment() {
 
     private fun setupBreakdownButton() {
         breakdownBtn?.setOnClickListener { showBreakdownDialog() }
-    }
-
-    private fun setupAdminSettingsButton() {
-        btnAdminSettings?.setOnClickListener {
-            showAdminLoginDialog()
-        }
-    }
-
-    private fun showAdminLoginDialog() {
-        val dialogView = layoutInflater.inflate(R.layout.dialog_admin_login, null)
-        val etAdminUsername = dialogView.findViewById<EditText>(R.id.etAdminUsername)
-        val etAdminPassword = dialogView.findViewById<EditText>(R.id.etAdminPassword)
-        
-        AlertDialog.Builder(requireContext())
-            .setView(dialogView)
-            .setPositiveButton("Login") { _, _ ->
-                val username = etAdminUsername.text.toString()
-                val password = etAdminPassword.text.toString()
-                handleAdminLogin(username, password)
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
-    private fun handleAdminLogin(username: String, pass: String) {
-        lifecycleScope.launch {
-            try {
-                val hashedPassword = SecurityUtils.hashPassword(pass)
-                val admin = withContext(Dispatchers.IO) {
-                    DeclareDatabase.usersTable.select {
-                        filter {
-                            eq("username", username)
-                            eq("password", hashedPassword)
-                        }
-                    }.decodeSingleOrNull<User>()
-                }
-
-                if (admin != null) {
-                    Toast.makeText(requireContext(), "Admin access granted", Toast.LENGTH_SHORT).show()
-                    // TODO: Open admin panel
-                } else {
-                    Toast.makeText(requireContext(), "Invalid admin credentials", Toast.LENGTH_SHORT).show()
-                }
-            } catch (e: Exception) {
-                Log.e("Supabase", "Admin login error: ${e.message}", e)
-                Toast.makeText(requireContext(), "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-            }
-        }
     }
 
     private fun showBreakdownDialog() {

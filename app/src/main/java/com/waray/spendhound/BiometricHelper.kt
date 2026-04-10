@@ -24,44 +24,25 @@ object BiometricHelper {
     private const val KEY_IV = "iv_combined"
     private const val TRANSFORMATION = "AES/CBC/PKCS7Padding"
 
-    // BIOMETRIC_STRONG = fingerprint / face (Class 3) — required for crypto-bound key operations
-    // DEVICE_CREDENTIAL = PIN / pattern / password — allowed for verification-only prompts
+    // Only fingerprint / face (Class 3) — required for crypto-bound key operations
     private const val AUTH_STRONG = BIOMETRIC_STRONG
+    // Any screen lock — used for verification-only prompts
     private const val AUTH_ANY = BIOMETRIC_STRONG or DEVICE_CREDENTIAL
 
-    /**
-     * Returns true if the device has ANY screen lock set up (fingerprint, face, PIN, pattern).
-     * Used to decide whether to show the passkey option at all.
-     */
     fun isAvailable(context: Context): Boolean =
-        BiometricManager.from(context).canAuthenticate(AUTH_ANY) == BiometricManager.BIOMETRIC_SUCCESS
-
-    /**
-     * Returns true if strong biometric (fingerprint/face) is available.
-     * Required for crypto-bound key operations (save/load credentials).
-     */
-    fun isStrongBiometricAvailable(context: Context): Boolean =
         BiometricManager.from(context).canAuthenticate(AUTH_STRONG) == BiometricManager.BIOMETRIC_SUCCESS
 
     fun hasStoredCredentials(context: Context): Boolean =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
             .getString(KEY_COMBINED_ENC, null) != null
 
-    fun getStoredEmail(context: Context): String? {
-        val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val encCombined = prefs.getString(KEY_COMBINED_ENC, null) ?: return null
-        val ivStr = prefs.getString(KEY_IV, null) ?: return null
-        // Note: these are encrypted — only usable after biometric auth.
-        // This method returns null; actual decryption happens inside promptToGetCredentials.
-        // For the forgot password flow, we store a plain email separately for display only.
-        return prefs.getString("plain_email", null)
-    }
+    fun getStoredEmail(context: Context): String? =
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString("plain_email", null)
 
     fun getStoredPassword(context: Context): String? =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getString("plain_password", null)
 
     fun saveCredentials(context: Context, email: String, password: String) {
-        // Save plain versions temporarily for the forgot-password re-auth flow
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
             .putString("plain_email", email)
             .putString("plain_password", password)
@@ -79,8 +60,7 @@ object BiometricHelper {
     }
 
     /**
-     * Prompts biometric to ENCRYPT and save credentials.
-     * Call after a successful manual login or on sign-up Step 3.
+     * Prompts fingerprint/face to ENCRYPT and save credentials.
      */
     fun promptToSaveCredentials(
         activity: FragmentActivity,
@@ -89,29 +69,6 @@ object BiometricHelper {
         onSaved: () -> Unit,
         onCancelled: () -> Unit = {}
     ) {
-        if (!isStrongBiometricAvailable(activity)) {
-            // Device only has PIN/pattern — save credentials without crypto binding
-            // and use device credential for verification-only prompts
-            activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
-                .putString("plain_email", email)
-                .putString("plain_password", password)
-                .putBoolean("pin_only_mode", true)
-                .apply()
-            // Prompt device credential to confirm the user intends to set this up
-            buildPrompt(activity, object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) = onSaved()
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) = onCancelled()
-                override fun onAuthenticationFailed() {}
-            }).authenticate(
-                BiometricPrompt.PromptInfo.Builder()
-                    .setTitle("Enable Passkey")
-                    .setSubtitle("Confirm with your screen lock to save your passkey")
-                    .setAllowedAuthenticators(AUTH_ANY)
-                    .build()
-            )
-            return
-        }
-
         val cipher = getEncryptCipher() ?: run { onCancelled(); return }
         buildPrompt(activity, object : BiometricPrompt.AuthenticationCallback() {
             override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) {
@@ -121,7 +78,6 @@ object BiometricHelper {
                 activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).edit()
                     .putString(KEY_COMBINED_ENC, Base64.encodeToString(encBytes, Base64.DEFAULT))
                     .putString(KEY_IV, Base64.encodeToString(c.iv, Base64.DEFAULT))
-                    .putBoolean("pin_only_mode", false)
                     .apply()
                 onSaved()
             }
@@ -139,38 +95,16 @@ object BiometricHelper {
     }
 
     /**
-     * Prompts biometric to DECRYPT and return credentials.
-     * Credentials are only accessible inside onSuccess — never exposed otherwise.
+     * Prompts fingerprint/face to DECRYPT and return credentials.
      */
     fun promptToGetCredentials(
         activity: FragmentActivity,
         title: String = "Login to SpendHound",
-        subtitle: String = "Use your fingerprint, face, or PIN to log in",
+        subtitle: String = "Use your fingerprint or face to log in",
         onSuccess: (email: String, password: String) -> Unit,
         onCancelled: () -> Unit = {}
     ) {
         val prefs = activity.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-        val isPinOnlyMode = prefs.getBoolean("pin_only_mode", false)
-
-        if (isPinOnlyMode) {
-            // PIN-only mode: verify with device credential then return plain stored credentials
-            val email = prefs.getString("plain_email", null) ?: return
-            val password = prefs.getString("plain_password", null) ?: return
-            buildPrompt(activity, object : BiometricPrompt.AuthenticationCallback() {
-                override fun onAuthenticationSucceeded(result: BiometricPrompt.AuthenticationResult) =
-                    onSuccess(email, password)
-                override fun onAuthenticationError(errorCode: Int, errString: CharSequence) = onCancelled()
-                override fun onAuthenticationFailed() {}
-            }).authenticate(
-                BiometricPrompt.PromptInfo.Builder()
-                    .setTitle(title)
-                    .setSubtitle(subtitle)
-                    .setAllowedAuthenticators(AUTH_ANY)
-                    .build()
-            )
-            return
-        }
-
         val encCombined = prefs.getString(KEY_COMBINED_ENC, null) ?: return
         val ivStr = prefs.getString(KEY_IV, null) ?: return
         val cipher = getDecryptCipher(Base64.decode(ivStr, Base64.DEFAULT)) ?: return
@@ -198,8 +132,8 @@ object BiometricHelper {
     }
 
     /**
-     * Prompts biometric for identity verification only (no crypto object).
-     * Use for: forgot password, change password confirmation.
+     * Prompts for identity verification only (no crypto).
+     * Allows any screen lock — fingerprint, face, PIN, pattern.
      */
     fun promptForVerification(
         activity: FragmentActivity,

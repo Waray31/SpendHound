@@ -9,6 +9,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.button.MaterialButton
 import com.google.android.material.textfield.TextInputEditText
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +19,12 @@ import kotlinx.coroutines.withContext
 class PasskeySetupActivity : AppCompatActivity() {
 
     private lateinit var progressBar: ProgressBar
+    private lateinit var btnCreatePasskey: MaterialButton
+    private lateinit var btnEditPasskey: MaterialButton
+    private lateinit var btnRemovePasskey: MaterialButton
+    private lateinit var tvPasskeyTitle: TextView
+    private lateinit var tvPasskeyActiveBadge: TextView
+
     private var userEmail: String? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -26,10 +33,37 @@ class PasskeySetupActivity : AppCompatActivity() {
 
         userEmail = intent.getStringExtra(EditProfileActivity.EXTRA_USER_EMAIL)
         progressBar = findViewById(R.id.progressBar)
+        btnCreatePasskey = findViewById(R.id.btnCreatePasskey)
+        btnEditPasskey = findViewById(R.id.btnEditPasskey)
+        btnRemovePasskey = findViewById(R.id.btnRemovePasskey)
+        tvPasskeyTitle = findViewById(R.id.tvPasskeyTitle)
+        tvPasskeyActiveBadge = findViewById(R.id.tvPasskeyActiveBadge)
 
         findViewById<ImageButton>(R.id.btnClose).setOnClickListener { finish() }
         findViewById<TextView>(R.id.btnNotNow).setOnClickListener { finish() }
-        findViewById<View>(R.id.btnCreatePasskey).setOnClickListener { showPasswordConfirmThenEnroll() }
+
+        btnCreatePasskey.setOnClickListener { showPasswordConfirmThenEnroll() }
+        btnEditPasskey.setOnClickListener { showPasswordConfirmThenEnroll() }
+        btnRemovePasskey.setOnClickListener { confirmRemovePasskey() }
+
+        updateUI()
+    }
+
+    private fun updateUI() {
+        val hasPasskey = BiometricHelper.hasStoredCredentials(this)
+        if (hasPasskey) {
+            tvPasskeyTitle.text = "Your passkey is active"
+            tvPasskeyActiveBadge.visibility = View.VISIBLE
+            btnCreatePasskey.visibility = View.GONE
+            btnEditPasskey.visibility = View.VISIBLE
+            btnRemovePasskey.visibility = View.VISIBLE
+        } else {
+            tvPasskeyTitle.text = "Next time, skip your password"
+            tvPasskeyActiveBadge.visibility = View.GONE
+            btnCreatePasskey.visibility = View.VISIBLE
+            btnEditPasskey.visibility = View.GONE
+            btnRemovePasskey.visibility = View.GONE
+        }
     }
 
     private fun showPasswordConfirmThenEnroll() {
@@ -64,6 +98,7 @@ class PasskeySetupActivity : AppCompatActivity() {
                         this.password = enteredPassword
                     }
                 }
+                progressBar.visibility = View.GONE
                 enrollPasskey(email, enteredPassword)
             } catch (e: Exception) {
                 progressBar.visibility = View.GONE
@@ -74,11 +109,13 @@ class PasskeySetupActivity : AppCompatActivity() {
 
     private fun enrollPasskey(email: String, password: String) {
         if (!BiometricHelper.isAvailable(this)) {
+            progressBar.visibility = View.GONE
             Toast.makeText(this, "Biometric authentication is not available on this device", Toast.LENGTH_LONG).show()
             return
         }
 
-        progressBar.visibility = View.VISIBLE
+        // Clear old credentials first so a fresh key is generated
+        BiometricHelper.clearCredentials(this)
 
         BiometricHelper.promptToSaveCredentials(
             activity = this,
@@ -87,14 +124,60 @@ class PasskeySetupActivity : AppCompatActivity() {
             onSaved = {
                 BiometricHelper.saveCredentials(this, email, password)
                 progressBar.visibility = View.GONE
-                Toast.makeText(this, "Passkey created successfully!", Toast.LENGTH_SHORT).show()
+                val msg = if (BiometricHelper.hasStoredCredentials(this)) "Passkey updated!" else "Passkey created!"
+                Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
                 setResult(RESULT_OK)
-                finish()
+                updateUI()
             },
             onCancelled = {
                 progressBar.visibility = View.GONE
                 Toast.makeText(this, "Passkey setup cancelled", Toast.LENGTH_SHORT).show()
             }
         )
+    }
+
+    private fun confirmRemovePasskey() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_unlock_email, null)
+        val etInput = dialogView.findViewById<TextInputEditText>(R.id.etUnlockEmailPassword)
+
+        AlertDialog.Builder(this)
+            .setTitle("Remove Passkey")
+            .setView(dialogView)
+            .setPositiveButton("Remove") { _, _ ->
+                val entered = etInput.text.toString()
+                if (entered.isEmpty()) {
+                    Toast.makeText(this, "Password cannot be empty", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                verifyThenRemove(entered)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun verifyThenRemove(enteredPassword: String) {
+        val email = userEmail ?: run {
+            Toast.makeText(this, "User email not found", Toast.LENGTH_SHORT).show()
+            return
+        }
+        progressBar.visibility = View.VISIBLE
+        lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    DeclareDatabase.auth.signInWith(Email) {
+                        this.email = email
+                        this.password = enteredPassword
+                    }
+                }
+                BiometricHelper.clearCredentials(this@PasskeySetupActivity)
+                progressBar.visibility = View.GONE
+                Toast.makeText(this@PasskeySetupActivity, "Passkey removed", Toast.LENGTH_SHORT).show()
+                setResult(RESULT_OK)
+                updateUI()
+            } catch (e: Exception) {
+                progressBar.visibility = View.GONE
+                Toast.makeText(this@PasskeySetupActivity, "Incorrect password", Toast.LENGTH_SHORT).show()
+            }
+        }
     }
 }
