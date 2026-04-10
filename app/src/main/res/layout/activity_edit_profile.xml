@@ -79,21 +79,18 @@
                             android:src="@drawable/placeholder_profile_image" />
                     </androidx.cardview.widget.CardView>
 
-                    <TextView
+                    <com.google.android.material.floatingactionbutton.FloatingActionButton
                         android:id="@+id/changePhotoText"
-                        android:layout_width="match_parent"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_gravity="bottom"
-                        android:background="#88000000"
-                        android:clickable="true"
-                        android:elevation="2dp"
-                        android:focusable="true"
-                        android:fontFamily="@font/montserratalternatess_regular"
-                        android:paddingVertical="4dp"
-                        android:text="Change"
-                        android:textAlignment="center"
-                        android:textColor="@color/whitest"
-                        android:textSize="10sp" />
+                        android:layout_gravity="bottom|end"
+                        android:contentDescription="Edit Photo"
+                        android:src="@drawable/edit_photo"
+                        app:backgroundTint="@color/yellow"
+                        app:elevation="4dp"
+                        app:fabCustomSize="28dp"
+                        app:maxImageSize="14dp"
+                        app:tint="@color/whitest" />
                 </FrameLayout>
 
                 <!-- Nickname -->
@@ -278,9 +275,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="20dp"
-        android:background="@color/whitest"
-        android:elevation="8dp">
+        android:padding="20dp">
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSaveProfile"
@@ -310,8 +305,7 @@
 
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone">
+        android:layout_height="wrap_content">
 
         <ProgressBar
             android:id="@+id/progressBar"

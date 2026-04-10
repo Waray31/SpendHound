@@ -1,18 +1,15 @@
 package com.waray.spendhound
 
-import android.app.AlertDialog
 import android.content.Context
-import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
-import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.fragment.app.FragmentActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
@@ -135,12 +132,7 @@ class RecentTransactionAdapter(
             individualPayment,
             object : PayorAdapter.OnPayorClickListener {
                 override fun onPayorClick(index: Int, paid: Double) {}
-                override fun onPartialClick(index: Int, currentPaid: Double) {
-                    showEditAmountDialog(holder.itemView.context, { newAmount ->
-                        (holder.payorsRecyclerView.adapter as? PayorAdapter)
-                            ?.updatePartialAmount(index, newAmount)
-                    }, currentPaid)
-                }
+                override fun onPartialClick(index: Int, currentPaid: Double) {}
             })
 
         payorAdapter.setOnLoadingCompleteListener(object : PayorAdapter.OnLoadingCompleteListener {
@@ -166,36 +158,14 @@ class RecentTransactionAdapter(
             if (isCreator) {
                 holder.editTransactionBtn.visibility = View.VISIBLE
                 holder.editTransactionBtn.setOnClickListener {
-                    payorAdapter.setEditMode(true)
-                    holder.editTransactionBtn.visibility = View.GONE
-                    holder.saveTransactionBtn.visibility = View.VISIBLE
-                    holder.cancelTransactionBtn.visibility = View.VISIBLE
-                    holder.saveTransactionBtn.isEnabled = false
-                    holder.saveTransactionBtn.alpha = 0.5f
-                }
-                holder.cancelTransactionBtn.setOnClickListener {
-                    payorAdapter.setEditMode(false)
-                    holder.editTransactionBtn.visibility = View.VISIBLE
-                    holder.saveTransactionBtn.visibility = View.GONE
-                    holder.cancelTransactionBtn.visibility = View.GONE
-                }
-                holder.saveTransactionBtn.setOnClickListener {
-                    holder.loadingOverlay.visibility = View.VISIBLE
-                    val updated = payorAdapter.amountsPaid
-                    if (updated != null) {
-                        saveTransactionChanges(
-                            holder.itemView.context, transaction, updated,
-                            holder.adapterPosition,
-                            {
-                                payorAdapter.saveChanges()
-                                holder.editTransactionBtn.visibility = View.VISIBLE
-                                holder.saveTransactionBtn.visibility = View.GONE
-                                holder.cancelTransactionBtn.visibility = View.GONE
-                                holder.loadingOverlay.visibility = View.GONE
-                            },
-                            { holder.loadingOverlay.visibility = View.GONE }
-                        )
+                    val sheet = SettleBottomSheet().apply {
+                        this.transaction = transaction
+                        onSettleSaved = {
+                            notifyItemChanged(holder.adapterPosition)
+                        }
                     }
+                    val fm = (holder.itemView.context as? FragmentActivity)?.supportFragmentManager ?: return@setOnClickListener
+                    sheet.show(fm, "SettleBottomSheet")
                 }
             } else {
                 holder.editTransactionBtn.visibility = View.GONE
@@ -263,133 +233,6 @@ class RecentTransactionAdapter(
         else              -> R.drawable.others
     }
 
-    private fun showEditAmountDialog(context: Context, onAmountEntered: (Double) -> Unit, currentAmount: Double) {
-        val input = EditText(context).apply {
-            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL
-            setText(currentAmount.toString())
-        }
-        AlertDialog.Builder(context)
-            .setTitle("Edit Amount Paid")
-            .setView(input)
-            .setPositiveButton("Save") { _, _ ->
-                onAmountEntered(input.text.toString().toDoubleOrNull() ?: 0.0)
-            }
-            .setNegativeButton("Cancel") { d, _ -> d.cancel() }
-            .show()
-    }
-
-    private fun saveTransactionChanges(
-        context: Context,
-        transaction: RecentTransaction,
-        updatedAmounts: MutableList<Double?>,
-        position: Int,
-        onSuccess: Runnable,
-        onComplete: Runnable
-    ) {
-        val id = transaction.transactionId ?: run {
-            Toast.makeText(context, "Error: Transaction ID not found", Toast.LENGTH_SHORT).show()
-            onComplete.run(); return
-        }
-
-        scope.launch {
-            try {
-                val payorUserIds = transaction.payorUserIds ?: emptyList()
-
-                payorUserIds.forEachIndexed { index, userIdStr ->
-                    val userId = userIdStr?.toLongOrNull() ?: return@forEachIndexed
-                    val newTotalAmount = updatedAmounts.getOrNull(index) ?: return@forEachIndexed
-
-                    val userSplitRows = transaction.rawSplitRows.filter { it.userId == userId }
-                    val userPayorRows = transaction.rawPayorRows.filter { it.userId == userId }
-                    val totalOwed = userSplitRows.sumOf { it.amount }.takeIf { it > 0 } ?: 1.0
-
-                    withContext(Dispatchers.IO) {
-                        userSplitRows.forEach { splitRow ->
-                            val itemId = splitRow.transactionItemsId ?: return@forEach
-                            val splitAmount = splitRow.amount // what this user owes for this item
-
-                            // Compute how much of newTotalAmount applies to this item
-                            val itemPaidAmount = when {
-                                newTotalAmount <= 0.0 -> 0.0
-                                newTotalAmount >= totalOwed -> splitAmount  // fully paid → exact split amount
-                                else -> newTotalAmount * (splitAmount / totalOwed) // partial → proportional
-                            }
-
-                            val existingRow = userPayorRows.firstOrNull { it.transactionItemsId == itemId }
-                            if (existingRow != null) {
-                                // Calculate excess and status
-                                val excess = if (itemPaidAmount > splitAmount) itemPaidAmount - splitAmount else 0.0
-                                val status = when {
-                                    itemPaidAmount == 0.0 -> 0
-                                    itemPaidAmount >= splitAmount -> 1
-                                    else -> 2
-                                }
-                                
-                                DeclareDatabase.transactionPayorsTable.update({
-                                    set("current_amount_paid", itemPaidAmount)
-                                    set("excess_amount", excess)
-                                    set("status", status)
-                                }) {
-                                    filter {
-                                        eq("transaction_id", id)
-                                        eq("user_id", userId)
-                                        eq("transaction_items_id", itemId)
-                                    }
-                                }
-                            } else {
-                                // Calculate excess and status for new insert
-                                val excess = if (itemPaidAmount > splitAmount) itemPaidAmount - splitAmount else 0.0
-                                val status = when {
-                                    itemPaidAmount == 0.0 -> 0
-                                    itemPaidAmount >= splitAmount -> 1
-                                    else -> 2
-                                }
-                                
-                                DeclareDatabase.transactionPayorsTable.insert(
-                                    com.waray.spendhound.ui.multi_transaction.TransactionPayorInsert(
-                                        transactionId = id,
-                                        userId = userId,
-                                        initialAmountPaid = itemPaidAmount,
-                                        currentAmountPaid = itemPaidAmount,
-                                        excessAmount = excess,
-                                        transactionItemsId = itemId,
-                                        status = status
-                                    )
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // Update transaction status: 3=Settled, 2=Pending
-                val allMemberIds = transaction.rawSplitRows.map { it.userId }.distinct()
-                val paidByUser = transaction.rawPayorRows
-                    .groupBy { it.userId }
-                    .mapValues { e -> e.value.sumOf { it.currentAmountPaid } }
-                val allSettled = allMemberIds.isNotEmpty() &&
-                    allMemberIds.all { (paidByUser[it] ?: 0.0) >= transaction.totalIndividualPayment }
-                val newStatus = if (allSettled) 3 else 2
-                withContext(Dispatchers.IO) {
-                    DeclareDatabase.transactionsTable.update({ set("status", newStatus) }) {
-                        filter { eq("id", id) }
-                    }
-                }
-
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Transaction updated", Toast.LENGTH_SHORT).show()
-                    transaction.amountsPaidList = updatedAmounts
-                    transaction.transactionStatus = if (allSettled) "Settled" else "Pending"
-                    onSuccess.run()
-                    notifyItemChanged(position)
-                }
-            } catch (e: Exception) {
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Update failed: ${e.message}", Toast.LENGTH_SHORT).show()
-                    onComplete.run()
-                }
-            }
-        }
-    }
 
     override fun getItemCount(): Int = recentTransactionList?.size ?: 0
 

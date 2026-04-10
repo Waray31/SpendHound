@@ -174,7 +174,7 @@
             android:background="@drawable/round_border_glassy"
             android:clickable="true"
             android:focusable="true"
-            android:fontFamily="@font/montserratalternatess_regular"
+            android:fontFamily="@font/montserratalternatess_bold"
             android:text="Not now"
             android:textAlignment="center"
             android:textColor="@color/grey"

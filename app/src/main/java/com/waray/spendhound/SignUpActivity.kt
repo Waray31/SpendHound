@@ -59,7 +59,7 @@ class SignUpActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.sign_up_layout)
+        setContentView(R.layout.activity_signup)
 
         layoutStep1 = findViewById(R.id.layoutStep1)
         layoutStep2 = findViewById(R.id.layoutStep2)

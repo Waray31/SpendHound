@@ -55,7 +55,7 @@ class EditProfileActivity : AppCompatActivity() {
         tvPasskeyStatus = findViewById(R.id.tvPasskeyStatus)
 
         findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
-        findViewById<TextView>(R.id.changePhotoText).setOnClickListener { pickImage() }
+        findViewById<View>(R.id.changePhotoText).setOnClickListener { pickImage() }
         findViewById<View>(R.id.btnSaveProfile).setOnClickListener { showSaveConfirmation() }
         findViewById<View>(R.id.btnCancel).setOnClickListener { finish() }
         emailInputLayout.setEndIconOnClickListener { promptUnlockEmail() }

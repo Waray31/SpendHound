@@ -20,8 +20,8 @@
     <color name="selected_color">#03071e</color>
     <color name="default_color">#FF000000</color>
     <color name="glassy_background">#60FFFFFF</color>
-    <color name="red">#d00000</color>
-    <color name="red_orange">#dc2f02</color>
+    <color name="red">#FF4B2B</color>
+    <color name="red_orange">#FF7A7A</color>
     <color name="green">#2ecc71</color>
     <color name="orange">#fd7e14</color>
     <color name="blue">#007bff</color>
