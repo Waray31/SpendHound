@@ -1,16 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- Bottom shape with square corners -->
     <item>
         <shape android:shape="rectangle">
-            <solid android:color="#FFFFFF" />
-            <corners android:radius="12dp" />
+            <gradient
+                android:startColor="@color/yellow"
+                android:endColor="@color/yellow_orange"
+                android:angle="0" />
+            <corners android:radius="24dp" />
         </shape>
     </item>
 
-    <item android:bottom="12dp">
+    <item android:bottom="24dp">
         <shape android:shape="rectangle">
-            <solid android:color="#FFFFFF" />
+            <gradient
+                android:startColor="@color/yellow"
+                android:endColor="@color/yellow_orange"
+                android:angle="0" />
         </shape>
     </item>
 </layer-list>

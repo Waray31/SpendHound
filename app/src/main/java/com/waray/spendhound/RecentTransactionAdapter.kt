@@ -4,7 +4,6 @@ import android.content.Context
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -142,10 +141,7 @@ class RecentTransactionAdapter(
         })
 
         payorAdapter.setOnDataChangedListener(object : PayorAdapter.OnDataChangedListener {
-            override fun onDataChanged(hasChanges: Boolean) {
-                holder.saveTransactionBtn.isEnabled = hasChanges
-                holder.saveTransactionBtn.alpha = if (hasChanges) 1f else 0.5f
-            }
+            override fun onDataChanged(hasChanges: Boolean) {}
         })
 
         holder.payorsRecyclerView.layoutManager =
@@ -156,7 +152,7 @@ class RecentTransactionAdapter(
         // Resolve creator check asynchronously using numeric ID
         resolveIsCreator(transaction) { isCreator ->
             if (isCreator) {
-                holder.editTransactionBtn.visibility = View.VISIBLE
+                holder.settlementLL.visibility = View.VISIBLE
                 holder.editTransactionBtn.setOnClickListener {
                     val sheet = SettleBottomSheet().apply {
                         this.transaction = transaction
@@ -168,7 +164,7 @@ class RecentTransactionAdapter(
                     sheet.show(fm, "SettleBottomSheet")
                 }
             } else {
-                holder.editTransactionBtn.visibility = View.GONE
+                holder.settlementLL.visibility = View.GONE
             }
         }
     }
@@ -251,8 +247,7 @@ class RecentTransactionAdapter(
         val createdByTextView: TextView      = itemView.findViewById(R.id.createdByTextView)
         val payorsRecyclerView: RecyclerView = itemView.findViewById(R.id.payorsRecyclerView)
         val loadingOverlay: View             = itemView.findViewById(R.id.loadingOverlay_transaction)
-        val editTransactionBtn: Button       = itemView.findViewById(R.id.editTransaction_btn)
-        val saveTransactionBtn: Button       = itemView.findViewById(R.id.saveTransaction_btn)
-        val cancelTransactionBtn: Button     = itemView.findViewById(R.id.cancelTransaction_btn)
+        val editTransactionBtn: TextView       = itemView.findViewById(R.id.editTransaction_btn)
+        val settlementLL: View               = itemView.findViewById(R.id.settlement_LL)
     }
 }

@@ -4,12 +4,11 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="4dp"
-    android:layout_marginVertical="4dp"
-    android:background="@drawable/rounded_background10"
+    android:layout_marginVertical="8dp"
+    android:background="@drawable/transaction_rounded_background"
     android:elevation="2dp"
     android:orientation="vertical"
-    android:paddingHorizontal="12dp"
-    android:paddingVertical="12dp">
+    android:paddingTop="12dp">
 
     <!-- Main row (always visible) -->
     <LinearLayout
@@ -17,6 +16,8 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="center_vertical"
+        android:paddingHorizontal="12dp"
+        android:layout_marginBottom="12dp"
         android:orientation="horizontal">
 
         <ImageView
@@ -58,16 +59,16 @@
                     android:textColor="@color/grey"
                     android:textSize="11sp" />
 
-            <!-- Status replaces "See Details >" -->
-            <TextView
-                android:id="@+id/detailsTextView"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="12dp"
-                android:fontFamily="@font/montserratalternatess_bold"
-                android:text="Unpaid"
-                android:textSize="12sp" />
-        </LinearLayout>
+                <!-- Status replaces "See Details >" -->
+                <TextView
+                    android:id="@+id/detailsTextView"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="12dp"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Unpaid"
+                    android:textSize="12sp" />
+            </LinearLayout>
 
         </LinearLayout>
 
@@ -96,183 +97,178 @@
         android:layout_height="wrap_content">
 
         <LinearLayout
-            android:id="@+id/expandable_layout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingTop="8dp"
-            android:visibility="visible">
+            android:orientation="vertical">
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginBottom="8dp"
-                android:background="#DDDDDD" />
-
-            <!-- Items table header -->
             <LinearLayout
-                android:id="@+id/itemsTableHeader"
+                android:id="@+id/expandable_layout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:paddingHorizontal="4dp"
-                android:paddingBottom="4dp">
+                android:orientation="vertical"
+                android:paddingTop="8dp"
+                android:visibility="visible">
 
-                <TextView
-                    android:layout_width="28dp"
-                    android:layout_height="wrap_content"
-                    android:text=""
-                    android:layout_weight="0" />
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginBottom="8dp"
 
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="2"
-                    android:layout_marginStart="6dp"
-                    android:fontFamily="@font/montserratalternatess_bold"
-                    android:text="Amount"
-                    android:textColor="@color/grey"
-                    android:textSize="10sp" />
+                    android:background="#DDDDDD" />
 
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="2"
-                    android:fontFamily="@font/montserratalternatess_bold"
-                    android:text="Paid by"
-                    android:textColor="@color/grey"
-                    android:textSize="10sp" />
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="3"
-                    android:fontFamily="@font/montserratalternatess_bold"
-                    android:text="Description"
-                    android:textColor="@color/grey"
-                    android:textSize="10sp" />
-
-            </LinearLayout>
-
-            <!-- Items table rows container -->
-            <LinearLayout
-                android:id="@+id/itemsTableContainer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical" />
-
-            <View
-                android:id="@+id/dividerBelowItems"
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginVertical="8dp"
-                android:background="#DDDDDD" />
-
-            <!-- Single item description (shown only for single-item transactions) -->
-            <TextView
-                android:id="@+id/tvSingleDescription"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="8dp"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:textColor="@color/grey"
-                android:textSize="12sp"
-                android:visibility="gone" />
-
-            <!-- Payors header + edit buttons -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="6dp"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <TextView
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:fontFamily="@font/montserratalternatess_bold"
-                    android:text="Payors"
-                    android:textSize="12sp" />
-
+                <!-- Items table header -->
                 <LinearLayout
-                    android:layout_width="wrap_content"
+                    android:id="@+id/itemsTableHeader"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal">
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="12dp"
+                    android:paddingBottom="4dp">
 
-                    <Button
-                        android:id="@+id/saveTransaction_btn"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:layout_marginEnd="4dp"
-                        android:backgroundTint="@color/green"
-                        android:fontFamily="@font/montserratalternatess_regular"
-                        android:text="Save"
-                        android:textSize="11sp"
-                        android:visibility="gone" />
+                    <TextView
+                        android:layout_width="28dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="0"
+                        android:text="" />
 
-                    <Button
-                        android:id="@+id/cancelTransaction_btn"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:layout_marginEnd="4dp"
-                        android:backgroundTint="@color/red"
-                        android:fontFamily="@font/montserratalternatess_regular"
-                        android:text="Cancel"
-                        android:textSize="11sp"
-                        android:visibility="gone" />
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:layout_weight="2"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:text="Amount"
+                        android:textColor="@color/grey"
+                        android:textSize="10sp" />
 
-                    <Button
-                        android:id="@+id/editTransaction_btn"
-                        android:layout_width="wrap_content"
-                        android:layout_height="36dp"
-                        android:backgroundTint="@color/yellow"
-                        android:fontFamily="@font/montserratalternatess_regular"
-                        android:text="Settle"
-                        android:textSize="11sp"
-                        android:visibility="gone" />
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:text="Paid by"
+                        android:textColor="@color/grey"
+                        android:textSize="10sp" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="3"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:text="Description"
+                        android:textColor="@color/grey"
+                        android:textSize="10sp" />
 
                 </LinearLayout>
-            </LinearLayout>
 
-            <!-- Payors horizontal list -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/payorsRecyclerView"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal" />
+                <!-- Items table rows container -->
+                <LinearLayout
+                    android:id="@+id/itemsTableContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="12dp"
+                    android:orientation="vertical" />
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginVertical="8dp"
-                android:background="#DDDDDD" />
+                <View
+                    android:id="@+id/dividerBelowItems"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginHorizontal="12dp"
+                    android:layout_marginVertical="8dp"
+                    android:background="#DDDDDD" />
 
-            <!-- Created By -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:layout_marginBottom="4dp">
-
+                <!-- Single item description (shown only for single-item transactions) -->
                 <TextView
+                    android:id="@+id/tvSingleDescription"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:fontFamily="@font/montserratalternatess_bold"
-                    android:text="Created by: "
-                    android:textSize="12sp" />
-
-                <TextView
-                    android:id="@+id/createdByTextView"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
                     android:fontFamily="@font/montserratalternatess_regular"
-                    android:textSize="12sp" />
+                    android:textColor="@color/grey"
+                    android:textSize="12sp"
+                    android:visibility="gone" />
+
+                <!-- Payors header + edit buttons -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="6dp"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="12dp"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:text="Payors"
+                        android:textSize="12sp" />
+
+                </LinearLayout>
+
+                <!-- Payors horizontal list -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/payorsRecyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="12dp"
+                    android:orientation="horizontal" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginHorizontal="12dp"
+                    android:layout_marginVertical="8dp"
+                    android:background="#DDDDDD" />
+
+                <!-- Created By -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:paddingHorizontal="12dp"
+                    android:orientation="horizontal">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:text="Created by: "
+                        android:textSize="12sp" />
+
+                    <TextView
+                        android:id="@+id/createdByTextView"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:textSize="12sp" />
+
+                </LinearLayout>
+
+                <!-- Settlement section -->
+                <LinearLayout
+                    android:id="@+id/settlement_LL"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:orientation="vertical"
+                    android:visibility="visible">
+
+                    <TextView
+                        android:id="@+id/editTransaction_btn"
+                        android:background="@drawable/bottom_round_border"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:text="Settle"
+                        android:textAlignment="center"
+                        android:paddingVertical="12dp"
+                        android:textColor="@color/whitest"
+                        android:textSize="14sp" />
+
+                </LinearLayout>
 
             </LinearLayout>
-
-
-
         </LinearLayout>
 
         <!-- Loading overlay -->
