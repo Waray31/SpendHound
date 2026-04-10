@@ -2,6 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:orientation="vertical"
     android:paddingHorizontal="20dp"
     android:paddingTop="16dp"
@@ -62,23 +63,26 @@
         android:layout_height="wrap_content"
         android:orientation="horizontal">
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/settleCancelBtn"
             android:layout_width="0dp"
+            app:backgroundTint="@null"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
             android:layout_marginEnd="8dp"
-            android:backgroundTint="@color/lightgrey"
+            android:layout_weight="1"
+            android:background="@drawable/round_border_glassy"
             android:fontFamily="@font/montserratalternatess_regular"
             android:text="Cancel"
             android:textColor="@color/darkBlue" />
 
-        <Button
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/settleSaveBtn"
+            app:backgroundTint="@null"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:backgroundTint="@color/green"
+            android:layout_marginBottom="8dp"
+            android:background="@drawable/rounded_button_selector"
             android:fontFamily="@font/montserratalternatess_bold"
             android:text="Save" />
 
