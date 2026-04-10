@@ -227,6 +227,70 @@
                     app:backgroundTint="@null" />
             </LinearLayout>
 
+            <!-- Step 3: Biometric Setup -->
+            <LinearLayout
+                android:id="@+id/layoutStep3"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_horizontal"
+                android:orientation="vertical"
+                android:paddingBottom="8dp"
+                android:visibility="gone">
+
+                <ImageView
+                    android:layout_width="80dp"
+                    android:layout_height="80dp"
+                    android:layout_marginBottom="16dp"
+                    android:src="@drawable/ic_lock"
+                    app:tint="@color/yellow"
+                    android:contentDescription="Secure account" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Secure Your Account"
+                    android:textAlignment="center"
+                    android:textColor="@color/darkBlue"
+                    android:textSize="20sp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:text="Enable fingerprint login to log in faster and reset your password without email."
+                    android:textAlignment="center"
+                    android:textColor="#666666"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="32dp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnEnableBiometric"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/rounded_button_selector"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Enable Fingerprint Login"
+                    android:textColor="@color/whitest"
+                    android:textSize="16sp"
+                    android:layout_marginBottom="12dp"
+                    app:backgroundTint="@null" />
+
+                <TextView
+                    android:id="@+id/btnSkipBiometric"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:text="Skip for now"
+                    android:textColor="#666666"
+                    android:textSize="14sp"
+                    android:padding="8dp"
+                    android:clickable="true"
+                    android:focusable="true" />
+
+            </LinearLayout>
+
             <LinearLayout
                 android:id="@+id/layoutFooter"
                 android:layout_width="match_parent"

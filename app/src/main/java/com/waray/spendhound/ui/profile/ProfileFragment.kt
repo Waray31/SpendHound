@@ -12,7 +12,6 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageView
@@ -35,6 +34,7 @@ import com.waray.spendhound.BreakdownAdapter
 import com.waray.spendhound.BreakdownItem
 import com.waray.spendhound.CurrencyUtils
 import com.waray.spendhound.DeclareDatabase
+import com.waray.spendhound.EditProfileActivity
 import com.waray.spendhound.LoginActivity
 import com.waray.spendhound.MainActivity
 import com.waray.spendhound.PayorAdapter
@@ -64,11 +64,7 @@ class ProfileFragment : Fragment() {
     private var unpaidTextView: TextView? = null
     private var oweTextView: TextView? = null
     private var debtTextView: TextView? = null
-    private var nicknameEditText: EditText? = null
     private var editProfileTV: TextView? = null
-    private var cancelProfileTV: TextView? = null
-    private var saveProfileTV: TextView? = null
-    private var pendingImageUri: Uri? = null
     var mAuth: Auth? = null
     private var currentNickname: String? = ""
     private var balance = 0.0
@@ -100,10 +96,7 @@ class ProfileFragment : Fragment() {
 
         profileImageView = view.findViewById(R.id.profileImageView)
         nicknameTextView = view.findViewById(R.id.nicknameTextView)
-        nicknameEditText = view.findViewById(R.id.nicknameEditText)
         editProfileTV = view.findViewById(R.id.editProfile_TV)
-        cancelProfileTV = view.findViewById(R.id.cancelProfile_TV)
-        saveProfileTV = view.findViewById(R.id.saveProfile_TV)
         totalBalancedTextView = view.findViewById(R.id.totalBalancedTextView)
         totalTextView = view.findViewById(R.id.totalTextView)
         balanceTextView = view.findViewById(R.id.balanceTextView)
@@ -131,8 +124,6 @@ class ProfileFragment : Fragment() {
         profileImageView?.let { setProfileImage(it) }
         loadNicknameAndData()
         setupEditProfileTV()
-        setupCancelProfileTV()
-        setupSaveProfileTV()
         setupUnpaidButton()
         setupBalanceButton()
         setupOweButton()
@@ -230,27 +221,10 @@ class ProfileFragment : Fragment() {
 
     private fun setupEditProfileTV() {
         editProfileTV?.setOnClickListener {
-            switchToEditMode()
-            nicknameEditText?.requestFocus()
-            val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.showSoftInput(nicknameEditText, InputMethodManager.SHOW_IMPLICIT)
-        }
-    }
-
-    private fun setupCancelProfileTV() {
-        cancelProfileTV?.setOnClickListener {
-            switchToDisplayMode()
-            profileImageView?.let { setProfileImage(it) }
-            val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.hideSoftInputFromWindow(nicknameEditText?.windowToken, 0)
-        }
-    }
-
-    private fun setupSaveProfileTV() {
-        saveProfileTV?.setOnClickListener {
-            val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
-            imm.hideSoftInputFromWindow(nicknameEditText?.windowToken, 0)
-            saveProfileAndSwitchMode()
+            startActivityForResult(
+                Intent(requireContext(), EditProfileActivity::class.java),
+                REQUEST_EDIT_PROFILE
+            )
         }
     }
 
@@ -278,111 +252,6 @@ class ProfileFragment : Fragment() {
         }
     }
 
-    private fun switchToEditMode() {
-        nicknameTextView?.visibility = View.GONE
-        nicknameEditText?.visibility = View.VISIBLE
-        nicknameEditText?.setText(currentNickname)
-        editProfileTV?.visibility = View.GONE
-        cancelProfileTV?.visibility = View.VISIBLE
-        saveProfileTV?.visibility = View.VISIBLE
-        profileImageView?.isClickable = true
-        profileImageView?.setOnClickListener { showChangeProfilePhotoDialog() }
-    }
-
-    private fun switchToDisplayMode() {
-        nicknameTextView?.visibility = View.VISIBLE
-        nicknameEditText?.visibility = View.GONE
-        nicknameTextView?.text = currentNickname
-        editProfileTV?.visibility = View.VISIBLE
-        cancelProfileTV?.visibility = View.GONE
-        saveProfileTV?.visibility = View.GONE
-        profileImageView?.isClickable = false
-        profileImageView?.setOnClickListener(null)
-        pendingImageUri = null
-    }
-
-    private fun saveProfileAndSwitchMode() {
-        val updatedNickname = nicknameEditText?.text.toString().trim()
-        if (updatedNickname.isEmpty()) {
-            Toast.makeText(requireContext(), "Nickname cannot be empty", Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
-        showLoading()
-        lifecycleScope.launch {
-            try {
-                val existingUser = withContext(Dispatchers.IO) {
-                    DeclareDatabase.usersTable.select(Columns.list("user_id")) {
-                        filter {
-                            eq("username", updatedNickname)
-                            neq("auth_id", currentUserId)
-                        }
-                    }.decodeSingleOrNull<User>()
-                }
-
-                if (existingUser != null) {
-                    Toast.makeText(requireContext(), "Username already taken", Toast.LENGTH_SHORT).show()
-                    hideLoading()
-                    return@launch
-                }
-
-                val user = withContext(Dispatchers.IO) {
-                    DeclareDatabase.usersTable.select(Columns.list("user_id")) {
-                        filter { eq("auth_id", currentUserId) }
-                    }.decodeSingleOrNull<User>()
-                }
-                val numericUserId = user?.id ?: throw Exception("User ID not found")
-
-                // Upload image if one was selected
-                val imageUri = pendingImageUri
-                if (imageUri != null) {
-                    val bytes = withContext(Dispatchers.IO) {
-                        requireContext().contentResolver.openInputStream(imageUri)?.use { it.readBytes() }
-                    } ?: throw Exception("Failed to read image")
-
-                    val path = "$numericUserId/$numericUserId.jpg"
-                    withContext(Dispatchers.IO) {
-                        DeclareDatabase.profileImagesBucket.upload(path, bytes, upsert = true)
-                    }
-
-                    val publicUrl = "${DeclareDatabase.profileImagesBucket.publicUrl(path)}?t=${System.currentTimeMillis()}"
-                    PayorAdapter.sDownloadUrlCache[currentUserId] = publicUrl
-
-                    withContext(Dispatchers.IO) {
-                        DeclareDatabase.usersTable.update(buildJsonObject { put("profile_image_url", publicUrl) }) {
-                            filter { eq("auth_id", currentUserId) }
-                        }
-                    }
-
-                    imageSignature = System.currentTimeMillis()
-                    profileImageView?.let { loadGlideProfileImage(it, publicUrl) }
-                }
-
-                // Update username
-                withContext(Dispatchers.IO) {
-                    DeclareDatabase.usersTable.update(buildJsonObject { put("username", updatedNickname) }) {
-                        filter { eq("auth_id", currentUserId) }
-                    }
-                    mAuth?.updateUser {
-                        data = buildJsonObject { put("display_name", updatedNickname) }
-                    }
-                    UserHelper.updateCache(numericUserId, updatedNickname)
-                }
-
-                currentNickname = updatedNickname
-                switchToDisplayMode()
-                (activity as? MainActivity)?.currentNickname = currentNickname
-                totalBalanceUnpaid()
-                Toast.makeText(requireContext(), "Profile updated", Toast.LENGTH_SHORT).show()
-            } catch (e: Exception) {
-                Log.e("Supabase", "Error saving profile: ${e.message}", e)
-                Toast.makeText(requireContext(), "Failed to update profile: ${e.message}", Toast.LENGTH_LONG).show()
-            } finally {
-                hideLoading()
-            }
-        }
-    }
 
     private fun fetchOwe() {
         val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
@@ -571,6 +440,12 @@ class ProfileFragment : Fragment() {
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_EDIT_PROFILE && resultCode == Activity.RESULT_OK) {
+            loadNicknameAndData()
+            imageSignature = System.currentTimeMillis()
+            profileImageView?.let { setProfileImage(it) }
+            return
+        }
         if (resultCode == Activity.RESULT_OK) {
             when (requestCode) {
                 REQUEST_IMAGE_CAPTURE -> {
@@ -579,7 +454,6 @@ class ProfileFragment : Fragment() {
                     imageBitmap?.let { bmp ->
                         val imageUri = getImageUri(requireContext(), bmp)
                         if (imageUri != null) {
-                            pendingImageUri = imageUri
                             imageSignature = System.currentTimeMillis()
                             Glide.with(this)
                                 .load(imageUri)
@@ -592,7 +466,6 @@ class ProfileFragment : Fragment() {
                 REQUEST_IMAGE_PICK -> {
                     val imageUri = data?.data
                     if (imageUri != null) {
-                        pendingImageUri = imageUri
                         imageSignature = System.currentTimeMillis()
                         Glide.with(this)
                             .load(imageUri)
@@ -970,5 +843,6 @@ class ProfileFragment : Fragment() {
     companion object {
         private const val REQUEST_IMAGE_CAPTURE = 1
         private const val REQUEST_IMAGE_PICK = 2
+        private const val REQUEST_EDIT_PROFILE = 3
     }
 }

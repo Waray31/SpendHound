@@ -2,7 +2,6 @@ package com.waray.spendhound
 
 import android.content.Context
 import android.content.Intent
-import android.graphics.Rect
 import android.os.Bundle
 import android.text.Editable
 import android.text.TextWatcher
@@ -10,23 +9,28 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
-import android.widget.CheckBox
-import android.widget.CompoundButton
 import android.widget.EditText
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
+import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.textfield.TextInputLayout
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 
 class LoginActivity : AppCompatActivity() {
+
     private var usernameEditText: EditText? = null
     private var passwordEditText: EditText? = null
     private var mAuth: Auth? = null
-    private var rememberMeCheckbox: CheckBox? = null
     private var progressBar: ProgressBar? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,11 +38,17 @@ class LoginActivity : AppCompatActivity() {
         setContentView(R.layout.activity_login)
 
         mAuth = DeclareDatabase.auth
+        usernameEditText = findViewById(R.id.usernameEditText)
+        passwordEditText = findViewById(R.id.passwordEditText)
+        progressBar = findViewById(R.id.progressBar)
 
-        usernameEditText = findViewById<EditText>(R.id.usernameEditText)
-        passwordEditText = findViewById<EditText>(R.id.passwordEditText)
         val loginButton = findViewById<Button>(R.id.loginButton)
-        progressBar = findViewById<ProgressBar>(R.id.progressBar)
+        val biometricButton = findViewById<Button>(R.id.biometricLoginButton)
+        val forgotPasswordText = findViewById<TextView>(R.id.forgotPasswordText)
+
+        if (BiometricHelper.isAvailable(this) && BiometricHelper.hasStoredCredentials(this)) {
+            biometricButton.visibility = View.VISIBLE
+        }
 
         loginButton.isEnabled = false
         val watcher = object : TextWatcher {
@@ -53,78 +63,119 @@ class LoginActivity : AppCompatActivity() {
         passwordEditText?.addTextChangedListener(watcher)
 
         loginButton.setOnClickListener {
-            progressBar?.visibility = View.VISIBLE
-            val username = usernameEditText?.text.toString().trim()
+            val email = usernameEditText?.text.toString().trim()
             val password = passwordEditText?.text.toString().trim()
+            performLogin(email, password, saveForBiometric = true)
+        }
 
-            if (username.isEmpty() || password.isEmpty()) {
-                Toast.makeText(
-                    this@LoginActivity,
-                    "Please enter both username and password",
-                    Toast.LENGTH_SHORT
-                ).show()
-                progressBar?.visibility = View.GONE
-            } else {
-                lifecycleScope.launch {
-                    try {
-                        mAuth?.signInWith(Email) {
-                            email = username
-                            this.password = password
-                        }
-                        progressBar?.visibility = View.GONE
-                        Toast.makeText(
-                            this@LoginActivity,
-                            "Login successful",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        // Transition to MainActivity
-                        val intent = Intent(this@LoginActivity, MainActivity::class.java)
-                        startActivity(intent)
-                        finish()
-                    } catch (e: Exception) {
-                        Toast.makeText(
-                            this@LoginActivity,
-                            "Invalid username or password: ${e.message}",
-                            Toast.LENGTH_SHORT
-                        ).show()
-                        progressBar?.visibility = View.GONE
-                    }
+        biometricButton.setOnClickListener {
+            BiometricHelper.promptToGetCredentials(
+                activity = this,
+                title = "Login to SpendHound",
+                subtitle = "Use your fingerprint to log in",
+                onSuccess = { email, password -> performLogin(email, password, saveForBiometric = false) }
+            )
+        }
+
+        forgotPasswordText.setOnClickListener { showForgotPasswordDialog() }
+
+        findViewById<TextView>(R.id.signUpHere).setOnClickListener {
+            startActivity(Intent(this, SignUpActivity::class.java))
+        }
+    }
+
+    private fun performLogin(email: String, password: String, saveForBiometric: Boolean) {
+        progressBar?.visibility = View.VISIBLE
+        lifecycleScope.launch {
+            try {
+                mAuth?.signInWith(Email) {
+                    this.email = email
+                    this.password = password
                 }
-            }
-        }
-
-        val signUpHereText: TextView = findViewById(R.id.signUpHere)
-        signUpHereText.setOnClickListener {
-            signUpHere()
-        }
-
-        rememberMeCheckbox?.setOnCheckedChangeListener { _, isChecked ->
-            if (isChecked) {
-                Toast.makeText(this@LoginActivity, "Remember account", Toast.LENGTH_SHORT)
-                    .show()
-            } else {
-                Toast.makeText(
-                    this@LoginActivity,
-                    "Do not remember account",
-                    Toast.LENGTH_SHORT
-                ).show()
+                if (saveForBiometric && BiometricHelper.isAvailable(this@LoginActivity)) {
+                    BiometricHelper.saveCredentials(this@LoginActivity, email, password)
+                }
+                progressBar?.visibility = View.GONE
+                startActivity(Intent(this@LoginActivity, MainActivity::class.java))
+                finish()
+            } catch (e: Exception) {
+                progressBar?.visibility = View.GONE
+                Toast.makeText(this@LoginActivity, "Invalid email or password", Toast.LENGTH_SHORT).show()
             }
         }
     }
 
-    private fun signUpHere() {
-        // Handle "Sign up here" click event
-        Toast.makeText(this, "Please Sign Up", Toast.LENGTH_SHORT).show()
-        val intent = Intent(this@LoginActivity, SignUpActivity::class.java)
-        startActivity(intent)
+    private fun showForgotPasswordDialog() {
+        if (!BiometricHelper.isAvailable(this) || !BiometricHelper.hasStoredCredentials(this)) {
+            Toast.makeText(this, "No biometric credentials saved. Please log in first to enable this feature.", Toast.LENGTH_LONG).show()
+            return
+        }
+        BiometricHelper.promptForVerification(
+            activity = this,
+            title = "Verify Identity",
+            subtitle = "Confirm it's you before resetting your password",
+            onVerified = { showNewPasswordDialog() }
+        )
+    }
+
+    private fun showNewPasswordDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_change_password, null)
+        val etNew = dialogView.findViewById<TextInputEditText>(R.id.etNewPassword)
+        val etConfirm = dialogView.findViewById<TextInputEditText>(R.id.etConfirmPassword)
+
+        AlertDialog.Builder(this)
+            .setTitle("Set New Password")
+            .setView(dialogView)
+            .setPositiveButton("Save") { _, _ ->
+                val newPass = etNew.text.toString()
+                val confirmPass = etConfirm.text.toString()
+                if (newPass != confirmPass) {
+                    Toast.makeText(this, "Passwords don't match", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                if (newPass.length < 6) {
+                    Toast.makeText(this, "Password must be at least 6 characters", Toast.LENGTH_SHORT).show()
+                    return@setPositiveButton
+                }
+                updatePassword(newPass)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun updatePassword(newPassword: String) {
+        progressBar?.visibility = View.VISIBLE
+        lifecycleScope.launch {
+            try {
+                val storedEmail = BiometricHelper.getStoredEmail(this@LoginActivity)
+                    ?: throw Exception("No stored email")
+                val storedPassword = BiometricHelper.getStoredPassword(this@LoginActivity)
+                    ?: throw Exception("No stored password")
+
+                mAuth?.signInWith(Email) {
+                    email = storedEmail
+                    password = storedPassword
+                }
+                withContext(Dispatchers.IO) {
+                    mAuth?.updateUser { password = newPassword }
+                    DeclareDatabase.usersTable.update(
+                        buildJsonObject { put("password", SecurityUtils.hashPassword(newPassword)) }
+                    ) { filter { eq("email", storedEmail) } }
+                }
+                BiometricHelper.saveCredentials(this@LoginActivity, storedEmail, newPassword)
+                progressBar?.visibility = View.GONE
+                Toast.makeText(this@LoginActivity, "Password updated successfully", Toast.LENGTH_SHORT).show()
+            } catch (e: Exception) {
+                progressBar?.visibility = View.GONE
+                Toast.makeText(this@LoginActivity, "Failed to update password: ${e.message}", Toast.LENGTH_LONG).show()
+            }
+        }
     }
 
     override fun onStart() {
         super.onStart()
-        val currentSession = mAuth?.currentSessionOrNull()
-        if (currentSession != null) {
-            // User is already signed in, redirect to MainActivity
-            startActivity(Intent(this@LoginActivity, MainActivity::class.java))
+        if (mAuth?.currentSessionOrNull() != null) {
+            startActivity(Intent(this, MainActivity::class.java))
             finish()
         }
     }

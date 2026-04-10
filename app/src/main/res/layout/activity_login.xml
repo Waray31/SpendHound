@@ -99,6 +99,33 @@
             android:textSize="16sp"
             app:backgroundTint="@null" />
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/biometricLoginButton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="Login with Fingerprint"
+            android:textColor="@color/yellow"
+            android:textSize="16sp"
+            android:visibility="gone"
+            app:backgroundTint="@color/whitest"
+            app:strokeColor="@color/yellow"
+            app:strokeWidth="1dp" />
+
+        <TextView
+            android:id="@+id/forgotPasswordText"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:clickable="true"
+            android:focusable="true"
+            android:fontFamily="@font/montserratalternatess_regular"
+            android:text="Forgot password?"
+            android:textAlignment="center"
+            android:textColor="@color/yellow"
+            android:textSize="14sp" />
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"

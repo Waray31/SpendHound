@@ -50,7 +50,10 @@ class SignUpActivity : AppCompatActivity() {
     
     private var layoutStep1: LinearLayout? = null
     private var layoutStep2: LinearLayout? = null
+    private var layoutStep3: LinearLayout? = null
     private var tvSignUpTitle: TextView? = null
+    private var pendingEmail: String = ""
+    private var pendingPassword: String = ""
 
     private val tag = "SignUpActivity"
 
@@ -60,6 +63,7 @@ class SignUpActivity : AppCompatActivity() {
 
         layoutStep1 = findViewById(R.id.layoutStep1)
         layoutStep2 = findViewById(R.id.layoutStep2)
+        layoutStep3 = findViewById(R.id.layoutStep3)
         tvSignUpTitle = findViewById(R.id.tvSignUpTitle)
         ivBack = findViewById(R.id.ivBack)
         layoutFooter = findViewById(R.id.layoutFooter)
@@ -107,8 +111,8 @@ class SignUpActivity : AppCompatActivity() {
         // Handle back button behavior
         onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
             override fun handleOnBackPressed() {
-                if (layoutStep2?.visibility == View.VISIBLE) {
-                    // Do nothing - back button is disabled in Step 2
+                if (layoutStep2?.visibility == View.VISIBLE || layoutStep3?.visibility == View.VISIBLE) {
+                    // Do nothing - back is disabled after Step 1
                 } else {
                     finish()
                 }
@@ -499,10 +503,43 @@ class SignUpActivity : AppCompatActivity() {
     }
 
     private fun signUpSuccess() {
+        pendingEmail = emailEditText?.text.toString().trim()
+        pendingPassword = passwordEditText?.text.toString().trim()
+        showStep3()
+    }
+
+    private fun showStep3() {
+        layoutStep2?.visibility = View.GONE
+        layoutStep3?.visibility = View.VISIBLE
+        tvSignUpTitle?.text = "One Last Step"
+
+        if (!BiometricHelper.isAvailable(this)) {
+            goToMain()
+            return
+        }
+
+        findViewById<View>(R.id.btnEnableBiometric).setOnClickListener {
+            BiometricHelper.promptToSaveCredentials(
+                activity = this,
+                email = pendingEmail,
+                password = pendingPassword,
+                onSaved = {
+                    BiometricHelper.saveCredentials(this, pendingEmail, pendingPassword)
+                    Toast.makeText(this, "Fingerprint login enabled!", Toast.LENGTH_SHORT).show()
+                    goToMain()
+                },
+                onCancelled = { goToMain() }
+            )
+        }
+
+        findViewById<View>(R.id.btnSkipBiometric).setOnClickListener { goToMain() }
+    }
+
+    private fun goToMain() {
         Toast.makeText(this, "Welcome to SpendHound!", Toast.LENGTH_SHORT).show()
-        val intent = Intent(this, MainActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-        startActivity(intent)
+        startActivity(Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        })
         finish()
     }
 

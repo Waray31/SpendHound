@@ -127,17 +127,6 @@
                             android:textColor="@color/darkBlue"
                             android:textSize="28sp" />
 
-                        <EditText
-                            android:id="@+id/nicknameEditText"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:background="@android:color/transparent"
-                            android:fontFamily="@font/montserratalternatess_bold"
-                            android:padding="4dp"
-                            android:textColor="@color/darkBlue"
-                            android:textSize="28sp"
-                            android:visibility="gone" />
-
                     </LinearLayout>
 
                     <View
@@ -161,27 +150,6 @@
                             android:textColor="@color/darkBlue"
                             android:fontFamily="@font/montserratalternatess_regular"
                             android:text="Edit Profile" />
-
-                        <TextView
-                            android:id="@+id/cancelProfile_TV"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:textSize="12sp"
-                            android:textColor="@color/darkBlue"
-                            android:fontFamily="@font/montserratalternatess_regular"
-                            android:text="Cancel"
-                            android:layout_marginEnd="8dp"
-                            android:visibility="gone" />
-
-                        <TextView
-                            android:id="@+id/saveProfile_TV"
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:textSize="12sp"
-                            android:textColor="@color/darkBlue"
-                            android:fontFamily="@font/montserratalternatess_bold"
-                            android:text="Save"
-                            android:visibility="gone" />
 
                     </LinearLayout>
                 </LinearLayout>
