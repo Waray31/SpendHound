@@ -137,9 +137,11 @@
                         android:background="@drawable/border_line_darkblue" />
 
                     <LinearLayout
-                        android:layout_width="match_parent"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
+                        android:layout_marginTop="4dp"
+                        android:padding="8dp"
+                        android:background="@drawable/glassy_background"
                         android:orientation="horizontal">
 
                         <TextView

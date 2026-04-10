@@ -94,9 +94,10 @@
             android:layout_height="wrap_content"
             android:background="@drawable/rounded_button_selector"
             android:fontFamily="@font/montserratalternatess_bold"
-            android:text="Log in"
+            android:text="Continue"
+            android:elevation="2dp"
             android:textColor="@color/whitest"
-            android:textSize="16sp"
+            android:textSize="14sp"
             app:backgroundTint="@null" />
 
         <com.google.android.material.button.MaterialButton
@@ -104,14 +105,14 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
+            android:background="@drawable/round_border_glassy"
             android:fontFamily="@font/montserratalternatess_bold"
-            android:text="Login with Fingerprint"
+            android:text="Login using Fingerprint"
             android:textColor="@color/yellow"
-            android:textSize="16sp"
-            android:visibility="gone"
-            app:backgroundTint="@color/whitest"
-            app:strokeColor="@color/yellow"
-            app:strokeWidth="1dp" />
+            android:textSize="14sp"
+            android:elevation="2dp"
+            android:visibility="visible"
+            app:backgroundTint="@null" />
 
         <TextView
             android:id="@+id/forgotPasswordText"
@@ -138,7 +139,7 @@
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/montserratalternatess_regular"
                 android:text="Don't have an account? "
-                android:textColor="#666666" />
+                android:textColor="@color/grey" />
 
             <TextView
                 android:id="@+id/signUpHere"
@@ -148,6 +149,7 @@
                 android:focusable="true"
                 android:fontFamily="@font/montserratalternatess_bold"
                 android:text="Sign up here"
+                android:layout_marginStart="8dp"
                 android:textColor="@color/yellow"
                 tools:ignore="TouchTargetSizeCheck" />
         </LinearLayout>
