@@ -155,7 +155,7 @@ class PayorAdapter(
         val paid = if (amountsPaid != null && position < amountsPaid!!.size) amountsPaid!![position] ?: 0.0 else 0.0
 
         holder.payorName.text = name
-        holder.payorPayment.text = "${CurrencyUtils.formatAmount(paid)}/${CurrencyUtils.formatAmount(individualPayment)}"
+
 
         updateStatusUI(holder, paid)
 
@@ -275,7 +275,7 @@ class PayorAdapter(
         val payorImage: ImageView = itemView.findViewById(R.id.payorProfileImage)
         val payorStatusBadge: ImageView = itemView.findViewById(R.id.payorStatusBadge)
         val payorName: TextView = itemView.findViewById(R.id.payorNameTextView)
-        val payorPayment: TextView = itemView.findViewById(R.id.payorPaymentTextView)
+
         val payorStatus: TextView = itemView.findViewById(R.id.payorStatusTextView)
         val editButtonsLayout: View = itemView.findViewById(R.id.editButtonsLayout)
         val unpaidBtn: Button = itemView.findViewById(R.id.unpaid_btn)

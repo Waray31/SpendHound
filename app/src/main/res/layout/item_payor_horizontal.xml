@@ -44,15 +44,6 @@
         android:textSize="11sp" />
 
     <TextView
-        android:id="@+id/payorPaymentTextView"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:fontFamily="@font/montserratalternatess_bold"
-        android:text="0/0"
-        android:textColor="@color/darkBlue"
-        android:textSize="11sp" />
-
-    <TextView
         android:id="@+id/payorStatusTextView"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

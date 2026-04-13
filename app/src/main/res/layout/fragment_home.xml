@@ -291,7 +291,7 @@
                                         android:paddingHorizontal="14dp"
                                         android:paddingVertical="6dp"
                                         android:text="Weekly"
-                                        android:textColor="@color/darkBlue"
+                                        android:textColor="@color/whitest"
                                         android:textSize="12sp" />
 
                                     <TextView
