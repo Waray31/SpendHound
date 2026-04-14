@@ -13,6 +13,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -69,6 +70,7 @@ class HomeFragment : Fragment() {
 
     private var loadingManager: LoadingManager? = null
     private var currentUserNumericId: Long? = null
+    private var swipeRefreshLayout: SwipeRefreshLayout? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -105,9 +107,18 @@ class HomeFragment : Fragment() {
         setupNavigationListeners()
         updateDateRangeDisplay()
         setTextViews()
+        setupSwipeRefresh(view)
         (activity as? AppCompatActivity)?.supportActionBar?.hide()
 
         return view
+    }
+
+    private fun setupSwipeRefresh(view: View) {
+        swipeRefreshLayout = view.findViewById(R.id.swipeRefreshLayout_home)
+        swipeRefreshLayout?.setOnRefreshListener {
+            refreshAllData()
+            swipeRefreshLayout?.isRefreshing = false
+        }
     }
 
     override fun onResume() {
@@ -115,7 +126,7 @@ class HomeFragment : Fragment() {
         refreshAllData()
     }
 
-    private fun refreshAllData() {
+    internal fun refreshAllData() {
         val mainActivity = activity as? MainActivity ?: return
         val authId = mAuth?.currentUserOrNull()?.id ?: return
 

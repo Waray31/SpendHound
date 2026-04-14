@@ -225,7 +225,7 @@ class ProfileFragment : Fragment() {
         }
     }
 
-    private fun loadNicknameAndData() {
+    internal fun loadNicknameAndData() {
         showLoading()
         val currentUserId = mAuth?.currentUserOrNull()?.id ?: return hideLoading()
         lifecycleScope.launch {

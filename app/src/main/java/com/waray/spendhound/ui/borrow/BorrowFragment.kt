@@ -68,6 +68,7 @@ class BorrowFragment : Fragment() {
 
     private val uiScope = CoroutineScope(Dispatchers.Main)
     private var pendingLoads = 0
+    private var isTabClickEnabled = true
 
     @SuppressLint("MissingInflatedId")
     override fun onCreateView(
@@ -212,24 +213,28 @@ class BorrowFragment : Fragment() {
         allTabTV?.let { setStatusTabSelected(it) }
 
         allTabTV?.setOnClickListener {
+            if (!isTabClickEnabled) return@setOnClickListener
             selectedStatusTab = "All"
             allTabTV?.let { setStatusTabSelected(it) }
             applyFilters()
         }
 
         paidTabTV?.setOnClickListener {
+            if (!isTabClickEnabled) return@setOnClickListener
             selectedStatusTab = "Paid"
             paidTabTV?.let { setStatusTabSelected(it) }
             applyFilters()
         }
 
         unpaidTabTV?.setOnClickListener {
+            if (!isTabClickEnabled) return@setOnClickListener
             selectedStatusTab = "Unpaid"
             unpaidTabTV?.let { setStatusTabSelected(it) }
             applyFilters()
         }
 
         pendingTabTV?.setOnClickListener {
+            if (!isTabClickEnabled) return@setOnClickListener
             selectedStatusTab = "Pending"
             pendingTabTV?.let { setStatusTabSelected(it) }
             applyFilters()
@@ -249,7 +254,7 @@ class BorrowFragment : Fragment() {
         debtTV?.setOnClickListener { handleDebtClick() }
     }
 
-    private fun applyFilters() {
+    internal fun applyFilters() {
         val mainActivity = activity as? MainActivity ?: return
         showLoading()
 
@@ -559,12 +564,14 @@ class BorrowFragment : Fragment() {
 
     private fun showLoading() {
         pendingLoads++
+        isTabClickEnabled = false
         loadingOverlay?.visibility = View.VISIBLE
     }
 
     private fun hideLoading() {
         pendingLoads = max(0, pendingLoads - 1)
         if (pendingLoads == 0) {
+            isTabClickEnabled = true
             loadingOverlay?.visibility = View.GONE
         }
     }

@@ -107,6 +107,16 @@ class MainActivity : AppCompatActivity() {
             if (isFabMenuOpen) closeFabMenu()
             NavigationUI.onNavDestinationSelected(item, navController)
         }
+
+        navView?.setOnItemReselectedListener { item ->
+            val fragment = navHostFragment.childFragmentManager.primaryNavigationFragment
+            when (item.itemId) {
+                R.id.navigation_home -> (fragment as? com.waray.spendhound.ui.home.HomeFragment)?.refreshAllData()
+                R.id.navigation_transactions -> (fragment as? com.waray.spendhound.ui.transactions.TransactionsFragment)?.refreshTransactions()
+                R.id.navigation_borrow -> (fragment as? com.waray.spendhound.ui.borrow.BorrowFragment)?.applyFilters()
+                R.id.navigation_profile -> (fragment as? com.waray.spendhound.ui.profile.ProfileFragment)?.loadNicknameAndData()
+            }
+        }
     }
 
     private fun setupFabMenu() {

@@ -15,6 +15,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.waray.spendhound.CurrencyUtils
 import com.waray.spendhound.DeclareDatabase
@@ -65,6 +66,8 @@ class TransactionsFragment : Fragment() {
     private var selectedStatusTab = "All"
 
     private var pendingLoads = 0
+    private var isTabClickEnabled = true
+    private var swipeRefreshLayout: SwipeRefreshLayout? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -106,6 +109,12 @@ class TransactionsFragment : Fragment() {
 
         setupStatusTabs()
 
+        swipeRefreshLayout = root.findViewById(R.id.swipeRefreshLayout_transactions)
+        swipeRefreshLayout?.setOnRefreshListener {
+            refreshTransactions()
+            swipeRefreshLayout?.isRefreshing = false
+        }
+
         adapter = RecentTransactionAdapter(transactionList, { refreshTransactions() }, null)
         recyclerView?.layoutManager = LinearLayoutManager(context)
         recyclerView?.adapter = adapter
@@ -115,21 +124,25 @@ class TransactionsFragment : Fragment() {
         allTabTV?.let { setStatusTabSelected(it) }
 
         allTabTV?.setOnClickListener {
+            if (!isTabClickEnabled) return@setOnClickListener
             selectedStatusTab = "All"
             allTabTV?.let { setStatusTabSelected(it) }
             refreshTransactions()
         }
         paidTabTV?.setOnClickListener {
+            if (!isTabClickEnabled) return@setOnClickListener
             selectedStatusTab = "Settled"
             paidTabTV?.let { setStatusTabSelected(it) }
             refreshTransactions()
         }
         unpaidTabTV?.setOnClickListener {
+            if (!isTabClickEnabled) return@setOnClickListener
             selectedStatusTab = "Pending"
             unpaidTabTV?.let { setStatusTabSelected(it) }
             refreshTransactions()
         }
         pendingTabTV?.setOnClickListener {
+            if (!isTabClickEnabled) return@setOnClickListener
             selectedStatusTab = "Pending"
             pendingTabTV?.let { setStatusTabSelected(it) }
             refreshTransactions()
@@ -144,7 +157,7 @@ class TransactionsFragment : Fragment() {
         selectedTab.setBackgroundResource(R.drawable.bg_status_tab_selected)
     }
 
-    private fun refreshTransactions() {
+    internal fun refreshTransactions() {
         fetchTransactionsInRange(startDate, endDate)
     }
 
@@ -491,11 +504,15 @@ class TransactionsFragment : Fragment() {
 
     private fun showLoading() {
         pendingLoads++
+        isTabClickEnabled = false
         loadingProgressBar?.visibility = View.VISIBLE
     }
 
     private fun hideLoading() {
         pendingLoads = max(0, pendingLoads - 1)
-        if (pendingLoads == 0) loadingProgressBar?.visibility = View.GONE
+        if (pendingLoads == 0) {
+            isTabClickEnabled = true
+            loadingProgressBar?.visibility = View.GONE
+        }
     }
 }
