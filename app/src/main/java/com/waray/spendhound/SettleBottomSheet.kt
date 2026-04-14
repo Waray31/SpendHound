@@ -135,6 +135,9 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
 
                     val existingRow = transaction.rawPayorRows.firstOrNull { it.userId == userId }
 
+                    // Skip if already settled via initial excess payment
+                    if (existingRow != null && existingRow.initialAmountPaid >= totalOwed) return@forEachIndexed
+
                     withContext(Dispatchers.IO) {
                         if (existingRow != null) {
                             DeclareDatabase.transactionPayorsTable.update({
