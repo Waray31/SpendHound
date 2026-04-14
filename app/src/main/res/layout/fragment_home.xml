@@ -661,6 +661,33 @@
                             android:textColor="@color/grey"
                             android:textSize="16sp" />
 
+                        <LinearLayout
+                            android:id="@+id/recentEmptyState"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:orientation="vertical"
+                            android:paddingVertical="32dp"
+                            android:visibility="gone">
+
+                            <ImageView
+                                android:layout_width="48dp"
+                                android:layout_height="48dp"
+                                android:alpha="0.4"
+                                android:contentDescription="No transactions"
+                                android:src="@drawable/others" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="12dp"
+                                android:fontFamily="@font/montserratalternatess_regular"
+                                android:text="No transactions found"
+                                android:textColor="@color/grey"
+                                android:textSize="14sp" />
+
+                        </LinearLayout>
+
                         <androidx.recyclerview.widget.RecyclerView
                             android:id="@+id/transactionListRecycler"
                             android:layout_width="match_parent"
@@ -668,6 +695,10 @@
                             android:layout_marginTop="8dp"
                             android:nestedScrollingEnabled="false"
                             tools:listitem="@layout/fragment_transaction" />
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="60dp"/>
 
                     </LinearLayout>
                 </LinearLayout>

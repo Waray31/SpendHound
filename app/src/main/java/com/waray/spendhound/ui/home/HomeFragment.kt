@@ -23,6 +23,7 @@ import com.github.mikephil.charting.data.Entry
 import com.github.mikephil.charting.data.LineData
 import com.github.mikephil.charting.data.LineDataSet
 import com.github.mikephil.charting.formatter.IndexAxisValueFormatter
+import com.waray.spendhound.BalanceHelper
 import com.waray.spendhound.CurrencyUtils
 import com.waray.spendhound.DeclareDatabase
 import com.waray.spendhound.MainActivity
@@ -65,6 +66,7 @@ class HomeFragment : Fragment() {
     private var youreOwedAmountTV: TextView? = null
 
     private var transactionListRecycler: RecyclerView? = null
+    private var recentEmptyState: LinearLayout? = null
     private var recentTransactionList: ArrayList<RecentTransaction> = ArrayList()
     private var recentAdapter: RecentTransactionAdapter? = null
 
@@ -96,6 +98,7 @@ class HomeFragment : Fragment() {
         youreOwedAmountTV = view.findViewById(R.id.youreOwedAmount)
 
         transactionListRecycler = view.findViewById(R.id.transactionListRecycler)
+        recentEmptyState = view.findViewById(R.id.recentEmptyState)
         recentAdapter = RecentTransactionAdapter(recentTransactionList) {
             (activity as? MainActivity)?.navView?.selectedItemId = R.id.navigation_transactions
         }
@@ -175,36 +178,17 @@ class HomeFragment : Fragment() {
         showLoading()
         lifecycleScope.launch {
             try {
-                val allSplits = withContext(Dispatchers.IO) {
-                    DeclareDatabase.transactionSplitsTable.select().decodeList<TransactionSplitTable>()
+                val balance = withContext(Dispatchers.IO) {
+                    DeclareDatabase.userBalanceTable.select {
+                        filter { eq("user_id", userId) }
+                    }.decodeSingleOrNull<com.waray.spendhound.UserBalance>()
                 }
-                val allPayors = withContext(Dispatchers.IO) {
-                    DeclareDatabase.transactionPayorsTable.select().decodeList<TransactionPayorTable>()
-                }
-
-                // Group splits and payors by transaction for this user
-                val userSplitsByTx = allSplits.filter { it.userId == userId }.groupBy { it.transactionId }
-                val userPayorsByTx = allPayors.filter { it.userId == userId }.groupBy { it.transactionId }
-
-                var youOwe = 0.0
-                var youreOwed = 0.0
-
-                for (txId in userSplitsByTx.keys) {
-                    val owed = userSplitsByTx[txId]?.sumOf { it.amount } ?: 0.0
-                    val paid = userPayorsByTx[txId]?.sumOf { it.currentAmountPaid } ?: 0.0
-                    val diff = paid - owed
-                    when {
-                        diff < 0 -> youOwe += (-diff)   // paid less than owed
-                        diff > 0 -> youreOwed += diff   // paid more than owed (excess)
-                    }
-                }
-
                 withContext(Dispatchers.Main) {
-                    youOweAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(youOwe)
-                    youreOwedAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(youreOwed)
+                    youOweAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(balance?.unpaidTotalGroup ?: 0.0)
+                    youreOwedAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(balance?.receivableTotalGroup ?: 0.0)
                 }
             } catch (e: Exception) {
-                Log.e("HomeFragment", "Error fetching owe/owed summary: ${e.message}")
+                Log.e("HomeFragment", "Error fetching balance: ${e.message}")
             } finally {
                 withContext(Dispatchers.Main) { hideLoading() }
             }
@@ -385,6 +369,13 @@ class HomeFragment : Fragment() {
                     recentTransactionList.addAll(recent)
                     recentAdapter?.notifyDataSetChanged()
                     context?.let { recentAdapter?.preloadAllImages(it) }
+                    if (recent.isEmpty()) {
+                        recentEmptyState?.visibility = View.VISIBLE
+                        transactionListRecycler?.visibility = View.GONE
+                    } else {
+                        recentEmptyState?.visibility = View.GONE
+                        transactionListRecycler?.visibility = View.VISIBLE
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("HomeFragment", "Error fetching recent transactions: ${e.message}")

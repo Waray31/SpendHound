@@ -1,5 +1,6 @@
 package com.waray.spendhound.ui.multi_transaction
 
+import com.waray.spendhound.BalanceHelper
 import com.waray.spendhound.DeclareDatabase
 import com.waray.spendhound.GroupMember
 import com.waray.spendhound.PayerGroup
@@ -122,39 +123,23 @@ class MultiTransactionRepository {
             
             // 5. Update all payors with calculated excess_amount and status based on total payments
             userTotalInitialPayments.forEach { (userId, totalInitialPaid) ->
-                // Calculate current_amount_paid (capped at total split)
-                val currentPaid = if (totalInitialPaid > totalSplitPerMember) {
-                    totalSplitPerMember
-                } else {
-                    totalInitialPaid
-                }
-                
-                // Calculate excess
-                val excess = if (totalInitialPaid > totalSplitPerMember) {
-                    totalInitialPaid - totalSplitPerMember
-                } else {
-                    0.0
-                }
-                
-                // Determine status based on current_amount_paid
+                val currentPaid = if (totalInitialPaid > totalSplitPerMember) totalSplitPerMember else totalInitialPaid
+                val excess = if (totalInitialPaid > totalSplitPerMember) totalInitialPaid - totalSplitPerMember else 0.0
                 val status = when {
-                    currentPaid == 0.0 -> 0  // unpaid
-                    currentPaid >= totalSplitPerMember -> 1  // settled
-                    else -> 2  // pending (partial payment)
+                    currentPaid == 0.0 -> 0
+                    currentPaid >= totalSplitPerMember -> 1
+                    else -> 2
                 }
-                
-                // Update all payor records for this user across all items
                 client.postgrest.from("transaction_payors").update(
-                    TransactionPayorPartialUpdate(
-                        excessAmount = excess,
-                        status = status
-                    )
+                    TransactionPayorPartialUpdate(excessAmount = excess, status = status)
                 ) {
-                    filter {
-                        eq("transaction_id", txId)
-                        eq("user_id", userId)
-                    }
+                    filter { eq("transaction_id", txId); eq("user_id", userId) }
                 }
+            }
+
+            // 6. Refresh user_balance for all involved members
+            groupMembers.forEach { member ->
+                member.id?.let { BalanceHelper.refreshUserBalance(it) }
             }
 
             Result.success(Unit)

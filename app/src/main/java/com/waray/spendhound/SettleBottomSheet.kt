@@ -32,6 +32,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import io.github.jan.supabase.postgrest.query.Columns
 
 class SettleBottomSheet : BottomSheetDialogFragment() {
 
@@ -174,6 +175,13 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
                     DeclareDatabase.transactionsTable.update({
                         set("status", txStatus)
                     }) { filter { eq("id", id) } }
+                }
+
+                // Refresh user_balance for all involved users
+                val involvedUserIds = (transaction.payorUserIds ?: emptyList())
+                    .mapNotNull { it?.toLongOrNull() }.distinct()
+                involvedUserIds.forEach { uid ->
+                    BalanceHelper.refreshUserBalance(uid)
                 }
 
                 withContext(Dispatchers.Main) {
