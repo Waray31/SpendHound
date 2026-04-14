@@ -15,7 +15,8 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.waray.spendhound.utils.PullInterceptLayout
+import com.waray.spendhound.utils.PullToRefreshHelper
 import com.google.android.material.datepicker.MaterialDatePicker
 import com.waray.spendhound.CurrencyUtils
 import com.waray.spendhound.DeclareDatabase
@@ -67,7 +68,7 @@ class TransactionsFragment : Fragment() {
 
     private var pendingLoads = 0
     private var isTabClickEnabled = true
-    private var swipeRefreshLayout: SwipeRefreshLayout? = null
+    private var pullToRefreshHelper: PullToRefreshHelper? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -109,11 +110,11 @@ class TransactionsFragment : Fragment() {
 
         setupStatusTabs()
 
-        swipeRefreshLayout = root.findViewById(R.id.swipeRefreshLayout_transactions)
-        swipeRefreshLayout?.setOnRefreshListener {
-            refreshTransactions()
-            swipeRefreshLayout?.isRefreshing = false
-        }
+        val scrollView = root.findViewById<androidx.core.widget.NestedScrollView>(R.id.transactionsNestedScrollView)
+        val indicator = root.findViewById<View>(R.id.pullRefreshIndicator_transactions)
+        val rootLayout = root as PullInterceptLayout
+        pullToRefreshHelper = PullToRefreshHelper(scrollView, indicator, { refreshTransactions() }, rootLayout)
+        rootLayout.onInterceptCallback = { event -> pullToRefreshHelper?.onInterceptTouch(event) ?: false }
 
         adapter = RecentTransactionAdapter(transactionList, { refreshTransactions() }, null)
         recyclerView?.layoutManager = LinearLayoutManager(context)
@@ -453,6 +454,7 @@ class TransactionsFragment : Fragment() {
                 Log.e("TransactionsFragment", "Error fetching transactions", e)
             } finally {
                 hideLoading()
+                pullToRefreshHelper?.stopRefreshing()
             }
         }
     }

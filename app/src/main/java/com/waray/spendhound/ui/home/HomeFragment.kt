@@ -13,7 +13,6 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -37,6 +36,7 @@ import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
 import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
 import com.waray.spendhound.utils.LoadingManager
+import com.waray.spendhound.utils.PullToRefreshHelper
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.query.Columns
 import java.text.SimpleDateFormat
@@ -70,7 +70,7 @@ class HomeFragment : Fragment() {
 
     private var loadingManager: LoadingManager? = null
     private var currentUserNumericId: Long? = null
-    private var swipeRefreshLayout: SwipeRefreshLayout? = null
+    private var pullToRefreshHelper: PullToRefreshHelper? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -114,11 +114,9 @@ class HomeFragment : Fragment() {
     }
 
     private fun setupSwipeRefresh(view: View) {
-        swipeRefreshLayout = view.findViewById(R.id.swipeRefreshLayout_home)
-        swipeRefreshLayout?.setOnRefreshListener {
-            refreshAllData()
-            swipeRefreshLayout?.isRefreshing = false
-        }
+        val scrollView = view.findViewById<androidx.core.widget.NestedScrollView>(R.id.homeNestedScrollView)
+        val indicator = view.findViewById<View>(R.id.pullRefreshIndicator_home)
+        pullToRefreshHelper = PullToRefreshHelper(scrollView, indicator, { refreshAllData() })
     }
 
     override fun onResume() {
@@ -147,6 +145,7 @@ class HomeFragment : Fragment() {
                 mainActivity.getTotalMonthSpends { currentTotal ->
                     activity?.runOnUiThread {
                         updateTotalMonthSpendsUI()
+                        pullToRefreshHelper?.stopRefreshing()
                         hideLoading()
                     }
                     fetchMonthChangeText(currentTotal)
