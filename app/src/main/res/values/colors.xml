@@ -21,8 +21,10 @@
     <color name="default_color">#FF000000</color>
     <color name="glassy_background">#1FFFFFFF</color>
     <color name="red">#FF4B2B</color>
+    <color name="deep_red">#B71C1C</color>
     <color name="red_orange">#FF7A7A</color>
     <color name="green">#2ecc71</color>
+    <color name="deep_green">#1B5E20</color>
     <color name="orange">#fd7e14</color>
     <color name="blue">#007bff</color>
     <color name="pending_payment_bg">#FFF9E6</color>

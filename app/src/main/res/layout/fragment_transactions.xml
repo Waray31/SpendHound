@@ -216,8 +216,8 @@
         <!-- Pull to Refresh Indicator -->
         <FrameLayout
             android:id="@+id/pullRefreshIndicator_transactions"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:layout_gravity="top|center_horizontal"
             android:layout_marginTop="8dp"
             android:background="@drawable/rounded_glassy_bg"

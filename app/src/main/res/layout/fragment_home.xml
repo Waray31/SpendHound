@@ -74,15 +74,13 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:background="@color/white"
-                    android:orientation="vertical"
-                    android:paddingHorizontal="16dp"
-                    android:paddingTop="12dp">
+                    android:orientation="vertical">
 
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:background="@drawable/bg_spending_card"
-                        android:layout_margin="4dp"
+                        android:layout_margin="16dp"
                         android:elevation="4dp"
                         android:orientation="vertical"
                         android:padding="24dp">
@@ -130,19 +128,19 @@
                     android:background="@color/white"
                     android:baselineAligned="false"
                     android:orientation="horizontal"
-                    android:paddingHorizontal="20dp"
-                    android:layout_marginVertical="20dp">
+                    android:layout_marginHorizontal="16dp">
 
                     <!-- You Owe Card -->
                     <LinearLayout
                         android:id="@+id/youOweCard"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginEnd="8dp"
                         android:background="@drawable/bg_circle_red"
                         android:layout_weight="1"
-                        android:layout_margin="8dp"
-                        android:elevation="2dp"
+                        android:layout_marginVertical="8dp"
+                        android:layout_marginLeft="8dp"
+                        android:layout_marginRight="12dp"
+                        android:elevation="3dp"
                         android:orientation="vertical"
                         android:padding="16dp">
 
@@ -150,7 +148,7 @@
                         <ImageView
                             android:layout_width="48dp"
                             android:layout_height="48dp"
-                            android:background="@drawable/glassy_background3"
+                            android:background="@drawable/glassy_background2"
                             android:src="@drawable/ic_you_owe"
                             app:tint="@color/red" />
 
@@ -158,10 +156,10 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="20dp"
-                            android:fontFamily="@font/montserratalternatess_regular"
+                            android:fontFamily="@font/montserratalternatess_bold"
                             android:text="You Owe"
                             android:textColor="@color/darkBlue"
-                            android:textSize="13sp" />
+                            android:textSize="16sp" />
 
                         <TextView
                             android:id="@+id/youOweAmount"
@@ -181,18 +179,19 @@
                         android:id="@+id/youreOwedCard"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
                         android:layout_weight="1"
-                        android:layout_margin="8dp"
+                        android:layout_marginVertical="8dp"
+                        android:layout_marginLeft="12dp"
+                        android:layout_marginRight="8dp"
                         android:background="@drawable/bg_circle_green"
-                        android:elevation="2dp"
+                        android:elevation="3dp"
                         android:orientation="vertical"
                         android:padding="16dp">
 
                         <ImageView
                             android:layout_width="48dp"
                             android:layout_height="48dp"
-                            android:background="@drawable/glassy_background3"
+                            android:background="@drawable/glassy_background2"
                             android:src="@drawable/ic_youre_owed"
                             app:tint="@color/green" />
 
@@ -200,10 +199,10 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginTop="20dp"
-                            android:fontFamily="@font/montserratalternatess_regular"
+                            android:fontFamily="@font/montserratalternatess_bold"
                             android:text="You'll receive"
                             android:textColor="@color/darkBlue"
-                            android:textSize="13sp" />
+                            android:textSize="16sp" />
 
                         <TextView
                             android:id="@+id/youreOwedAmount"
@@ -224,8 +223,7 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="vertical"
-                    android:paddingHorizontal="16dp"
-                    android:paddingBottom="80dp">
+                    android:layout_margin="16dp">
 
 
                     <androidx.cardview.widget.CardView
@@ -254,8 +252,7 @@
                             android:clipChildren="false"
                             android:clipToPadding="false"
                             android:orientation="vertical"
-                            android:paddingHorizontal="12dp"
-                            android:paddingVertical="20dp">
+                            android:padding="16dp">
 
                             <!-- Header Row: Title + Toggle -->
                             <LinearLayout
@@ -681,8 +678,8 @@
         <!-- Pull to Refresh Indicator -->
         <FrameLayout
             android:id="@+id/pullRefreshIndicator_home"
-            android:layout_width="56dp"
-            android:layout_height="56dp"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
             android:layout_gravity="top|center_horizontal"
             android:layout_marginTop="8dp"
             android:background="@drawable/rounded_glassy_bg"
