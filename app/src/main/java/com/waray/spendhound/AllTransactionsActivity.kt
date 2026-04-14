@@ -71,6 +71,7 @@ class AllTransactionsActivity : AppCompatActivity() {
 
         adapter = RecentTransactionAdapter(
             transactionList,
+            null,
             RecentTransactionAdapter.OnTransactionClickListener { transaction ->
                 onTransactionTap(transaction)
             })

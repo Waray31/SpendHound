@@ -17,6 +17,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.google.android.material.button.MaterialButton
 import androidx.recyclerview.widget.RecyclerView
@@ -82,7 +83,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         recycler.adapter = adapter
         buildSummary(tx, amounts, summaryContainer)
 
-        val loadingLayout = view.findViewById<LinearLayout>(R.id.settleLoadingLayout)
+        val loadingLayout = view.findViewById<View>(R.id.settleLoadingLayout)
         val saveBtn = view.findViewById<MaterialButton>(R.id.settleSaveBtn)
         val cancelBtn = view.findViewById<MaterialButton>(R.id.settleCancelBtn)
 
@@ -140,10 +141,13 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
 
                     withContext(Dispatchers.IO) {
                         if (existingRow != null) {
+                            val paid: Double = newTotalAmount
+                            val exc: Double = excess
+                            val st: Int = status
                             DeclareDatabase.transactionPayorsTable.update({
-                                set("current_amount_paid", newTotalAmount as Double?)
-                                set("excess_amount", excess as Double?)
-                                set("status", status as Int?)
+                                set("current_amount_paid", paid)
+                                set("excess_amount", exc)
+                                set("status", st)
                             }) { filter { eq("transaction_id", id); eq("user_id", userId) } }
                         } else {
                             DeclareDatabase.transactionPayorsTable.insert(
@@ -165,9 +169,10 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
                 val allSettled = updatedAmounts.isNotEmpty() &&
                     updatedAmounts.all { it >= transaction.totalIndividualPayment }
 
+                val txStatus: Int = if (allSettled) 3 else 2
                 withContext(Dispatchers.IO) {
                     DeclareDatabase.transactionsTable.update({
-                        set("status", (if (allSettled) 3 else 2) as Int?)
+                        set("status", txStatus)
                     }) { filter { eq("id", id) } }
                 }
 
@@ -202,7 +207,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
 
         if (excessCreditors.isEmpty() || excessDebtors.isEmpty()) { container.visibility = View.GONE; return }
 
-        val lines = mutableListOf<String>()
+        val totals = mutableMapOf<Pair<String, String>, Double>()
         var creditorName = excessCreditors.first().first
         var creditorAmt  = excessCreditors.first().second
         excessCreditors.removeFirst()
@@ -212,7 +217,8 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
 
         while (true) {
             val transfer = minOf(creditorAmt, debtorAmt)
-            lines.add("$debtorName owes ${CurrencyUtils.formatAmountWithCurrency(transfer)} to $creditorName")
+            val key = Pair(debtorName, creditorName)
+            totals[key] = (totals[key] ?: 0.0) + transfer
             creditorAmt -= transfer
             debtorAmt   -= transfer
             if (creditorAmt < 0.01) {
@@ -230,12 +236,12 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         }
 
         container.visibility = View.VISIBLE
-        lines.forEach { line ->
+        totals.forEach { (pair, amount) ->
             val tv = TextView(container.context).apply {
-                text = line
+                text = "${pair.first} owes ${CurrencyUtils.formatAmountWithCurrency(amount)} to ${pair.second}"
                 textSize = 12f
                 setTextColor(ContextCompat.getColor(container.context, R.color.darkBlue))
-                typeface = resources.getFont(R.font.montserratalternatess_regular)
+                typeface = ResourcesCompat.getFont(container.context, R.font.montserratalternatess_regular)
                 setPadding(0, 4, 0, 4)
             }
             container.addView(tv)

@@ -106,7 +106,7 @@ class TransactionsFragment : Fragment() {
 
         setupStatusTabs()
 
-        adapter = RecentTransactionAdapter(transactionList, null)
+        adapter = RecentTransactionAdapter(transactionList, { refreshTransactions() }, null)
         recyclerView?.layoutManager = LinearLayoutManager(context)
         recyclerView?.adapter = adapter
     }

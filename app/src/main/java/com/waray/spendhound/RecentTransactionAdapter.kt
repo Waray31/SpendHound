@@ -19,6 +19,7 @@ import kotlinx.coroutines.withContext
 
 class RecentTransactionAdapter(
     private val recentTransactionList: ArrayList<RecentTransaction>?,
+    private val onSettleRefresh: (() -> Unit)? = null,
     private var clickListener: OnTransactionClickListener? = null
 ) : RecyclerView.Adapter<RecentTransactionAdapter.ViewHolder>() {
 
@@ -31,7 +32,7 @@ class RecentTransactionAdapter(
         fun onTransactionClick(transaction: RecentTransaction?)
     }
 
-    constructor(recentTransactionList: ArrayList<RecentTransaction>?) : this(recentTransactionList, null)
+    constructor(recentTransactionList: ArrayList<RecentTransaction>?) : this(recentTransactionList, null, null)
 
     fun setOnTransactionClickListener(listener: OnTransactionClickListener?) {
         this.clickListener = listener
@@ -156,9 +157,7 @@ class RecentTransactionAdapter(
                 holder.editTransactionBtn.setOnClickListener {
                     val sheet = SettleBottomSheet().apply {
                         this.transaction = transaction
-                        onSettleSaved = {
-                            notifyItemChanged(holder.adapterPosition)
-                        }
+                        onSettleSaved = { onSettleRefresh?.invoke() }
                     }
                     val fm = (holder.itemView.context as? FragmentActivity)?.supportFragmentManager ?: return@setOnClickListener
                     sheet.show(fm, "SettleBottomSheet")
