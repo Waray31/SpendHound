@@ -177,9 +177,10 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
                     }) { filter { eq("id", id) } }
                 }
 
-                // Refresh user_balance for all involved users
-                val involvedUserIds = (transaction.payorUserIds ?: emptyList())
-                    .mapNotNull { it?.toLongOrNull() }.distinct()
+                // Refresh user_balance for all involved users + creator
+                val involvedUserIds = ((transaction.payorUserIds ?: emptyList())
+                    .mapNotNull { it?.toLongOrNull() } + listOfNotNull(transaction.creatorNumericId))
+                    .distinct()
                 involvedUserIds.forEach { uid ->
                     BalanceHelper.refreshUserBalance(uid)
                 }
@@ -201,11 +202,17 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         if (owed <= 0) { container.visibility = View.GONE; return }
 
         val names = tx.payorsList ?: emptyList()
-        // excess[i] > 0 = overpaid (creditor), < 0 = underpaid (debtor)
         val excessCreditors = ArrayDeque<Pair<String, Double>>()
         val excessDebtors   = ArrayDeque<Pair<String, Double>>()
-        (tx.payorUserIds ?: emptyList()).forEachIndexed { i, _ ->
-            val diff = amounts.getOrElse(i) { 0.0 } - owed
+        (tx.payorUserIds ?: emptyList()).forEachIndexed { i, uid ->
+            val userId = uid?.toLongOrNull()
+            val existingRow = tx.rawPayorRows.firstOrNull { it.userId == userId }
+            // Use initialAmountPaid for already-settled excess payers, otherwise use current amounts
+            val effectivePaid = if (existingRow != null && existingRow.initialAmountPaid >= owed)
+                existingRow.initialAmountPaid
+            else
+                amounts.getOrElse(i) { 0.0 }
+            val diff = effectivePaid - owed
             val name = names.getOrNull(i) ?: "User"
             when {
                 diff >  0.01 -> excessCreditors.add(Pair(name,  diff))

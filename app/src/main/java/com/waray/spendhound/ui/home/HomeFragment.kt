@@ -100,7 +100,7 @@ class HomeFragment : Fragment() {
         transactionListRecycler = view.findViewById(R.id.transactionListRecycler)
         recentEmptyState = view.findViewById(R.id.recentEmptyState)
         recentAdapter = RecentTransactionAdapter(recentTransactionList) {
-            (activity as? MainActivity)?.navView?.selectedItemId = R.id.navigation_transactions
+            refreshAllData()
         }
         transactionListRecycler?.layoutManager = LinearLayoutManager(context)
         transactionListRecycler?.adapter = recentAdapter

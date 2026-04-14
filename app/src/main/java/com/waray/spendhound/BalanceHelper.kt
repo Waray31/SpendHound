@@ -33,13 +33,27 @@ object BalanceHelper {
             var youOwe = 0.0
             var youreOwed = 0.0
 
+            // What the current user still owes
             for (txId in userSplitsByTx.keys) {
                 val owed = userSplitsByTx[txId]?.sumOf { it.amount } ?: 0.0
                 val paid = userPayorsByTx[txId]?.sumOf { it.currentAmountPaid } ?: 0.0
-                val diff = paid - owed
-                when {
-                    diff < 0 -> youOwe += (-diff)
-                    diff > 0 -> youreOwed += diff
+                if (paid < owed) youOwe += (owed - paid)
+            }
+
+            // What other members owe (unpaid share per member per transaction)
+            val allTxIds = allSplits.map { it.transactionId }.toSet()
+            val payorsByTx = allPayors.groupBy { it.transactionId }
+            val splitsByTx = allSplits.groupBy { it.transactionId }
+            for (txId in allTxIds) {
+                if (txId !in userSplitsByTx) continue // user not involved
+                val splits = splitsByTx[txId] ?: continue
+                val payors = payorsByTx[txId] ?: emptyList()
+                val individualOwed = splits.groupBy { it.userId }.values.firstOrNull()?.sumOf { it.amount } ?: 0.0
+                for (split in splits.groupBy { it.userId }) {
+                    val memberId = split.key
+                    if (memberId == userId) continue // skip self
+                    val memberPaid = payors.filter { it.userId == memberId }.sumOf { it.currentAmountPaid }
+                    if (memberPaid < individualOwed) youreOwed += (individualOwed - memberPaid)
                 }
             }
 
