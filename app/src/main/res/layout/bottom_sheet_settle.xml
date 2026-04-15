@@ -1,140 +1,286 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content">
 
-<LinearLayout
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:paddingHorizontal="20dp"
-    android:paddingTop="16dp"
-    android:paddingBottom="24dp">
-
-    <!-- Handle -->
-    <View
-        android:layout_width="40dp"
-        android:layout_height="4dp"
-        android:layout_gravity="center_horizontal"
-        android:layout_marginBottom="16dp"
-        android:background="@color/lightgrey" />
-
-    <!-- Title -->
-    <TextView
-        android:id="@+id/settleTitleTV"
+    <androidx.core.widget.NestedScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:fontFamily="@font/montserratalternatess_bold"
-        android:text="Settle Transaction"
-        android:textColor="@color/darkBlue"
-        android:textSize="18sp" />
+        android:fillViewport="true">
 
-    <!-- Subtitle: total amount -->
-    <TextView
-        android:id="@+id/settleTotalTV"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="2dp"
-        android:layout_marginBottom="16dp"
-        android:fontFamily="@font/montserratalternatess_regular"
-        android:textColor="@color/grey"
-        android:textSize="13sp" />
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginBottom="4dp"
-        android:background="@color/lightgrey" />
-
-    <!-- Payor rows -->
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/settlePayorsRecyclerView"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:nestedScrollingEnabled="false" />
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginTop="12dp"
-        android:background="@color/lightgrey" />
-
-    <!-- Debt summary -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Summary"
-        android:fontFamily="@font/montserratalternatess_bold"
-        android:textColor="@color/darkBlue"
-        android:textSize="18sp"
-        android:layout_marginTop="12dp"/>
-
-    <LinearLayout
-        android:id="@+id/settleSummaryContainer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingVertical="10dp"
-        android:layout_marginStart="8dp"
-        android:visibility="gone"/>
-
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginBottom="16dp"
-        android:background="@color/lightgrey" />
-
-    <!-- Action buttons -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/settleCancelBtn"
-            android:layout_width="0dp"
-            app:backgroundTint="@null"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
-            android:layout_weight="1"
-            android:background="@drawable/round_border_glassy"
-            android:fontFamily="@font/montserratalternatess_bold"
-            android:text="Cancel"
-            android:textColor="@color/darkBlue" />
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="24dp">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/settleSaveBtn"
-            app:backgroundTint="@null"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginBottom="8dp"
-            android:textColor="@color/whitest"
-            android:background="@drawable/rounded_button_selector"
-            android:fontFamily="@font/montserratalternatess_bold"
-            android:text="Save" />
+            <View
+                android:layout_width="40dp"
+                android:layout_height="4dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="16dp"
+                android:background="@color/lightgrey" />
 
-    </LinearLayout>
+            <TextView
+                android:id="@+id/settleTitleTV"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:text="Settle Transaction"
+                android:textColor="@color/darkBlue"
+                android:textSize="18sp" />
 
-</LinearLayout>
+            <TextView
+                android:id="@+id/settleTotalTV"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:textColor="@color/grey"
+                android:textSize="13sp" />
 
-    <!-- Full-cover loading overlay -->
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginTop="16dp"
+                android:background="@color/lightgrey" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:text="Payment Status"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="18sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:text="Review current paid amounts and statuses."
+                        android:textColor="@color/grey"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/settleAdvancedToggleTV"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:paddingHorizontal="8dp"
+                    android:paddingVertical="6dp"
+                    android:text="Show"
+                    android:textColor="@color/darkBlue"
+                    android:textSize="12sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/settleAdvancedContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/settlePayorsRecyclerView"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:nestedScrollingEnabled="false" />
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="16dp"
+                android:background="@color/lightgrey" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:text="Summary"
+                android:textColor="@color/darkBlue"
+                android:textSize="18sp" />
+
+            <LinearLayout
+                android:id="@+id/settleSummaryContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:orientation="vertical"
+                android:paddingVertical="10dp"
+                android:visibility="gone" />
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="16dp"
+                android:background="@color/lightgrey" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:text="Settlement"
+                android:textColor="@color/darkBlue"
+                android:textSize="18sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:text="Choose who pays whom and how much."
+                android:textColor="@color/grey"
+                android:textSize="12sp" />
+
+            <LinearLayout
+                android:id="@+id/settleInstructionContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:orientation="vertical" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/settleAddInstructionBtn"
+                app:backgroundTint="@null"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/round_border_glassy"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:paddingHorizontal="18dp"
+                android:text="Add Payment"
+                android:textAllCaps="false"
+                android:textColor="@color/darkBlue" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/round_border_glassy"
+                android:orientation="vertical"
+                android:padding="14dp">
+
+                <TextView
+                    android:id="@+id/settleAssignedTV"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Assigned: ₱ 0"
+                    android:textColor="@color/darkBlue"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/settleRemainingTV"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Remaining to assign: ₱ 0"
+                    android:textColor="@color/red"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/settleInstructionMessageTV"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:textColor="@color/grey"
+                    android:textSize="11sp" />
+            </LinearLayout>
+
+
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="16dp"
+                android:background="@color/lightgrey" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/settleCancelBtn"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/round_border_glassy"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Cancel"
+                    android:textColor="@color/darkBlue"
+                    app:backgroundTint="@null" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/settleSaveBtn"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="8dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/rounded_button_selector"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Save"
+                    android:textColor="@color/whitest"
+                    app:backgroundTint="@null" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
     <FrameLayout
         android:id="@+id/settleLoadingLayout"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:background="#CC000000"
+        android:background="@color/glassy_background"
         android:clickable="true"
         android:focusable="true"
         android:visibility="gone">
 
-        <ProgressBar
-            style="@style/CustomProgressBarStyle"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:layout_gravity="center" />
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:gravity="center"
+            android:orientation="vertical">
 
+            <ProgressBar
+                android:id="@+id/settlement_progressBar"
+                style="@style/CustomProgressBarStyle"
+                android:layout_width="48dp"
+                android:layout_height="48dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:text="Saving settlement..."
+                android:textColor="@color/darkBlue"
+                android:textSize="14sp" />
+        </LinearLayout>
     </FrameLayout>
 
 </FrameLayout>

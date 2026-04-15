@@ -19,7 +19,7 @@
     <color name="white_70">#B2FFFFFF</color>
     <color name="selected_color">#03071e</color>
     <color name="default_color">#FF000000</color>
-    <color name="glassy_background">#1FFFFFFF</color>
+    <color name="glassy_background">#4DE0E0E0</color>
     <color name="red">#FF4B2B</color>
     <color name="deep_red">#B71C1C</color>
     <color name="red_orange">#FF7A7A</color>

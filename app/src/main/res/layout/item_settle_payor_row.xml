@@ -2,35 +2,32 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:orientation="vertical"
-    android:background="@drawable/bg_add_expense_btn"
-    android:paddingHorizontal="4dp"
     android:layout_marginTop="8dp"
-    android:paddingVertical="10dp">
+    android:background="@drawable/bg_add_expense_btn"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="12dp"
+    android:paddingVertical="12dp">
 
-    <!-- Row 1: Avatar + Name/Owed -->
+    <ImageView
+        android:id="@+id/settlePayorImage"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginEnd="12dp"
+        android:scaleType="centerCrop"
+        android:src="@drawable/placeholder_profile_image" />
+
     <LinearLayout
-        android:layout_width="match_parent"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal"
-        android:paddingHorizontal="8dp"
-        android:layout_marginBottom="8dp">
-
-        <ImageView
-            android:id="@+id/settlePayorImage"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:layout_marginEnd="12dp"
-            android:scaleType="centerCrop"
-            android:src="@drawable/placeholder_profile_image" />
+        android:layout_weight="1"
+        android:orientation="vertical">
 
         <LinearLayout
-            android:layout_width="0dp"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:orientation="vertical">
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
             <TextView
                 android:id="@+id/settlePayorName"
@@ -41,97 +38,38 @@
                 android:textSize="13sp" />
 
             <TextView
-                android:id="@+id/settlePayorOwed"
+                android:id="@+id/settlePayorExcess"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:textColor="@color/grey"
-                android:textSize="11sp" />
-
+                android:layout_marginStart="6dp"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:textColor="@color/green"
+                android:textSize="12sp"
+                android:visibility="gone" />
         </LinearLayout>
 
-        <com.google.android.material.textfield.TextInputLayout
-            android:layout_width="0dp"
-            android:layout_weight="1"
+        <TextView
+            android:id="@+id/settlePayorOwed"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:boxBackgroundColor="@color/whitest"
-            app:boxCornerRadiusBottomEnd="8dp"
-            app:boxCornerRadiusBottomStart="8dp"
-            app:boxCornerRadiusTopEnd="8dp"
-            app:boxCornerRadiusTopStart="8dp"
-            app:boxStrokeColor="@color/darkBlue"
-            app:boxStrokeWidth="1dp"
-            app:boxStrokeWidthFocused="1dp"
-            app:hintTextColor="@color/grey"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
-
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/settleAmountInput"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:background="@null"
-                android:inputType="numberDecimal" />
-        </com.google.android.material.textfield.TextInputLayout>
-
+            android:layout_marginTop="2dp"
+            android:fontFamily="@font/montserratalternatess_regular"
+            android:textColor="@color/grey"
+            android:textSize="11sp" />
     </LinearLayout>
 
-    <!-- Row 2: Toggle buttons + Amount input -->
-    <LinearLayout
-        android:layout_width="match_parent"
+    <TextView
+        android:id="@+id/settlePayorStatus"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:gravity="center_vertical"
-        android:orientation="horizontal">
-
-        <LinearLayout
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:padding="3dp"
-            android:layout_marginHorizontal="8dp"
-            android:background="@drawable/bg_status_tab_selected"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/settleUnpaidBtn"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:background="@drawable/toggle_selected_background"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:paddingVertical="6dp"
-                android:text="Unpaid"
-                android:textColor="@color/whitest"
-                android:textSize="11sp" />
-
-            <TextView
-                android:id="@+id/settlePendingBtn"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:gravity="center"
-                android:background="@android:color/transparent"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:paddingVertical="6dp"
-                android:text="Pending"
-                android:textColor="@color/grey"
-                android:textSize="11sp" />
-
-            <TextView
-                android:id="@+id/settlePaidBtn"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:background="@android:color/transparent"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:gravity="center"
-                android:paddingVertical="6dp"
-                android:text="Settled"
-                android:textColor="@color/grey"
-                android:textSize="11sp" />
-
-        </LinearLayout>
-
-    </LinearLayout>
+        android:background="@drawable/toggle_selected_background"
+        android:fontFamily="@font/montserratalternatess_bold"
+        android:gravity="center"
+        android:minWidth="72dp"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp"
+        android:text="Unpaid"
+        android:textColor="@color/whitest"
+        android:textSize="11sp" />
 
 </LinearLayout>

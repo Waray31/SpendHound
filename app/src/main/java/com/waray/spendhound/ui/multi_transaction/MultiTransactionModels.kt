@@ -93,7 +93,7 @@ data class TransactionPayorInsert(
     @SerialName("initial_amount_paid")    val initialAmountPaid: Double,
     @SerialName("current_amount_paid")    val currentAmountPaid: Double,
     @SerialName("excess_amount")          val excessAmount: Double,
-    @SerialName("transaction_items_id")   val transactionItemsId: Long,
+    @SerialName("transaction_items_id")   val transactionItemsId: Long?,
     @SerialName("status")                 val status: Int
 )
 

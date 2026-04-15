@@ -29,32 +29,24 @@ object BalanceHelper {
 
             val userSplitsByTx = allSplits.filter { it.userId == userId }.groupBy { it.transactionId }
             val userPayorsByTx = allPayors.filter { it.userId == userId }.groupBy { it.transactionId }
+            val involvedTxIds = (userSplitsByTx.keys + userPayorsByTx.keys).toSet()
 
             var youOwe = 0.0
             var youreOwed = 0.0
 
             // What the current user still owes
-            for (txId in userSplitsByTx.keys) {
+            for (txId in involvedTxIds) {
                 val owed = userSplitsByTx[txId]?.sumOf { it.amount } ?: 0.0
                 val paid = userPayorsByTx[txId]?.sumOf { it.currentAmountPaid } ?: 0.0
                 if (paid < owed) youOwe += (owed - paid)
             }
 
-            // What other members owe (unpaid share per member per transaction)
-            val allTxIds = allSplits.map { it.transactionId }.toSet()
             val payorsByTx = allPayors.groupBy { it.transactionId }
             val splitsByTx = allSplits.groupBy { it.transactionId }
-            for (txId in allTxIds) {
-                if (txId !in userSplitsByTx) continue // user not involved
+            for (txId in involvedTxIds) {
                 val splits = splitsByTx[txId] ?: continue
                 val payors = payorsByTx[txId] ?: emptyList()
-                val individualOwed = splits.groupBy { it.userId }.values.firstOrNull()?.sumOf { it.amount } ?: 0.0
-                for (split in splits.groupBy { it.userId }) {
-                    val memberId = split.key
-                    if (memberId == userId) continue // skip self
-                    val memberPaid = payors.filter { it.userId == memberId }.sumOf { it.currentAmountPaid }
-                    if (memberPaid < individualOwed) youreOwed += (individualOwed - memberPaid)
-                }
+                youreOwed += calculateReceivableForUser(userId, splits, payors)
             }
 
             val data = buildJsonObject {
@@ -71,6 +63,61 @@ object BalanceHelper {
         } catch (e: Exception) {
             Log.e(TAG, "Failed to refresh user_balance: ${e.message}")
         }
+    }
+
+    private fun calculateReceivableForUser(
+        userId: Long,
+        splits: List<TransactionSplitTable>,
+        payors: List<TransactionPayorTable>
+    ): Double {
+        val splitsByUser = splits.groupBy { it.userId }
+        val payorsByUser = payors.groupBy { it.userId }
+        val participantIds = (splitsByUser.keys + payorsByUser.keys).toSet()
+
+        if (participantIds.isEmpty()) return 0.0
+
+        data class ParticipantBalance(val userId: Long, var amount: Double)
+
+        val creditors = ArrayDeque<ParticipantBalance>()
+        val debtors = ArrayDeque<ParticipantBalance>()
+
+        participantIds.forEach { participantId ->
+            val owed = splitsByUser[participantId]?.sumOf { it.amount } ?: 0.0
+            val payorRows = payorsByUser[participantId] ?: emptyList()
+            val totalInitialPaid = payorRows.sumOf { it.initialAmountPaid }
+            val totalCurrentPaid = payorRows.sumOf { it.currentAmountPaid }
+
+            val effectivePaid = if (owed > 0.0 && totalInitialPaid >= owed) {
+                totalInitialPaid
+            } else {
+                totalCurrentPaid
+            }
+
+            val diff = effectivePaid - owed
+            when {
+                diff > 0.01 -> creditors.add(ParticipantBalance(participantId, diff))
+                diff < -0.01 -> debtors.add(ParticipantBalance(participantId, -diff))
+            }
+        }
+
+        var receivable = 0.0
+        while (creditors.isNotEmpty() && debtors.isNotEmpty()) {
+            val creditor = creditors.first()
+            val debtor = debtors.first()
+            val transfer = minOf(creditor.amount, debtor.amount)
+
+            if (creditor.userId == userId) {
+                receivable += transfer
+            }
+
+            creditor.amount -= transfer
+            debtor.amount -= transfer
+
+            if (creditor.amount < 0.01) creditors.removeFirst()
+            if (debtor.amount < 0.01) debtors.removeFirst()
+        }
+
+        return receivable
     }
 
     fun initializeBalancesForNewUser(userId: String?, callback: BalanceCallback?) {
