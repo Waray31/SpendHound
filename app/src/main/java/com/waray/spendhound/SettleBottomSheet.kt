@@ -39,6 +39,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import android.util.TypedValue
 import android.graphics.Typeface
 
 class SettleBottomSheet : BottomSheetDialogFragment() {
@@ -535,7 +536,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
             container.visibility = View.VISIBLE
             val emptyText = TextView(container.context).apply {
                 text = "No transfers needed."
-                textSize = 12f
+                setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14f)
                 setTextColor(ContextCompat.getColor(container.context, R.color.grey))
                 typeface = ResourcesCompat.getFont(container.context, R.font.montserratalternatess_regular)
                 setPadding(0, 4, 0, 4)
@@ -545,26 +546,52 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         }
 
         container.visibility = View.VISIBLE
-        val currentUserId = transaction?.creatorNumericId
-        val participantById = participants.associateBy { it.userId }
-        plan.instructions
-            .groupBy { it.payerId }
-            .toList()
-            .sortedByDescending { (payerId, _) -> payerId == currentUserId }
-            .forEach { (payerId, payerInstructions) ->
-            val participant = payerId?.let { participantById[it] }
-            val payerName = if (payerId == currentUserId) "You" else participant?.name ?: resolveParticipantName(payerId)
-            val clauses = payerInstructions.map { instruction ->
-                val receiverName = if (instruction.receiverId == currentUserId) {
-                    "you"
-                } else {
-                    resolveParticipantName(instruction.receiverId)
+        val currentUserId = (activity as? MainActivity)?.currentUserNumericId
+        val totalParticipants = transaction?.payorUserIds?.size ?: 0
+
+        val groupedInstructions = plan.instructions.groupBy { it.receiverId to it.amount }
+        val summaryItems = mutableListOf<Pair<Boolean, SpannableStringBuilder>>()
+
+        groupedInstructions.forEach { (key, instructions) ->
+            val receiverId = key.first
+            val amount = key.second
+            val payerIds = instructions.mapNotNull { it.payerId }
+
+            val isEveryone = payerIds.size > 1 && payerIds.size == totalParticipants - 1
+
+            val builder = SpannableStringBuilder()
+            if (isEveryone) {
+                appendHighlighted(builder, "Everyone")
+            } else {
+                val payerNames = payerIds.map { id ->
+                    if (id == currentUserId) "You" else resolveParticipantName(id)
+                }.sortedByDescending { it == "You" }
+
+                payerNames.forEachIndexed { index, name ->
+                    appendHighlighted(builder, name)
+                    if (index < payerNames.size - 2) {
+                        builder.append(", ")
+                    } else if (index == payerNames.size - 2) {
+                        builder.append(" and ")
+                    }
                 }
-                SummaryClause(receiverName, instruction.amount)
             }
+
+            builder.append(" owed ")
+            appendHighlighted(builder, CurrencyUtils.formatAmountWithCurrency(amount), R.color.green)
+            builder.append(" to ")
+
+            val receiverName = if (receiverId == currentUserId) "you" else resolveParticipantName(receiverId)
+            appendHighlighted(builder, receiverName)
+
+            val hasYou = payerIds.contains(currentUserId) || receiverId == currentUserId
+            summaryItems.add(hasYou to builder)
+        }
+
+        summaryItems.sortedByDescending { it.first }.forEach { (_, sentence) ->
             val tv = TextView(container.context).apply {
-                text = buildSummarySentence(payerName, clauses)
-                textSize = 12f
+                text = sentence
+                setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14f)
                 setTextColor(ContextCompat.getColor(container.context, R.color.darkBlue))
                 typeface = ResourcesCompat.getFont(container.context, R.font.montserratalternatess_regular)
                 setPadding(0, 4, 0, 4)
@@ -573,30 +600,11 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         }
     }
 
-    private fun buildSummarySentence(payerName: String, clauses: List<SummaryClause>): SpannableStringBuilder {
-        val builder = SpannableStringBuilder()
-        appendHighlighted(builder, payerName)
-        builder.append(" owed ")
-        clauses.forEachIndexed { index, clause ->
-            if (index > 0) builder.append(" and ")
-            if (clause.receiverName == "you") {
-                appendHighlighted(builder, clause.receiverName)
-                builder.append(" ")
-                appendHighlighted(builder, CurrencyUtils.formatAmountWithCurrency(clause.amount))
-            } else {
-                appendHighlighted(builder, CurrencyUtils.formatAmountWithCurrency(clause.amount))
-                builder.append(" to ")
-                appendHighlighted(builder, clause.receiverName)
-            }
-        }
-        return builder
-    }
-
-    private fun appendHighlighted(builder: SpannableStringBuilder, text: String) {
+    private fun appendHighlighted(builder: SpannableStringBuilder, text: String, colorRes: Int = R.color.darkBlue) {
         val start = builder.length
         builder.append(text)
         builder.setSpan(
-            ForegroundColorSpan(ContextCompat.getColor(requireContext(), R.color.darkBlue)),
+            ForegroundColorSpan(ContextCompat.getColor(requireContext(), colorRes)),
             start,
             builder.length,
             Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -625,7 +633,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
 
         fun applyAmountHighlight(start: Int, end: Int) {
             text.setSpan(
-                ForegroundColorSpan(ContextCompat.getColor(requireContext(), R.color.darkBlue)),
+                ForegroundColorSpan(ContextCompat.getColor(requireContext(), R.color.green)),
                 start,
                 end,
                 Spannable.SPAN_EXCLUSIVE_EXCLUSIVE
@@ -803,10 +811,5 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         val remaining: Double,
         val canSave: Boolean,
         val message: String
-    )
-
-    private data class SummaryClause(
-        val receiverName: String,
-        val amount: Double
     )
 }
