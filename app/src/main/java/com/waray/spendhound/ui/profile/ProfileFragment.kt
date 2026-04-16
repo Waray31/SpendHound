@@ -43,6 +43,7 @@ import com.waray.spendhound.SecurityUtils
 import com.waray.spendhound.Transaction
 import com.waray.spendhound.User
 import com.waray.spendhound.UserHelper
+import com.waray.spendhound.utils.LoadingManager
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.Dispatchers
@@ -81,17 +82,15 @@ class ProfileFragment : Fragment() {
     private var profileLogout: Button? = null
     private var breakdownBtn: Button? = null
 
-    private var loadingOverlayProfile: View? = null
-    private var pendingLoads = 0
     private var imageSignature = System.currentTimeMillis()
+    private lateinit var loadingManager: LoadingManager
+    private var isTabClickEnabled = true
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
         val view: View = inflater.inflate(R.layout.fragment_profile, container, false)
-
-        loadingOverlayProfile = view.findViewById(R.id.loadingOverlay_profile)
 
         profileImageView = view.findViewById(R.id.profileImageView)
         nicknameTextView = view.findViewById(R.id.nicknameTextView)
@@ -118,6 +117,11 @@ class ProfileFragment : Fragment() {
 
         mAuth = DeclareDatabase.auth
 
+        loadingManager = LoadingManager(null, viewLifecycleOwner.lifecycle) { isLoading ->
+            (activity as? MainActivity)?.navView?.menu?.findItem(R.id.navigation_profile)?.isEnabled = !isLoading
+            isTabClickEnabled = !isLoading
+        }
+
         profileImageView?.isClickable = false
         profileImageView?.let { setProfileImage(it) }
         loadNicknameAndData()
@@ -138,8 +142,8 @@ class ProfileFragment : Fragment() {
     private fun setProfileImage(imageView: ImageView) {
         if (!isAdded) return
 
-        showLoading()
-        val authId = mAuth?.currentUserOrNull()?.id ?: return hideLoading()
+        loadingManager.showLoading()
+        val authId = mAuth?.currentUserOrNull()?.id ?: return loadingManager.hideLoading()
 
         val cachedUrl: String? = PayorAdapter.sDownloadUrlCache[authId]
 
@@ -167,13 +171,13 @@ class ProfileFragment : Fragment() {
                     } else {
                         withContext(Dispatchers.Main) {
                             imageView.setImageResource(R.drawable.placeholder_profile_image)
-                            hideLoading()
+                            loadingManager.hideLoading()
                         }
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
                         imageView.setImageResource(R.drawable.placeholder_profile_image)
-                        hideLoading()
+                        loadingManager.hideLoading()
                     }
                 }
             }
@@ -182,7 +186,7 @@ class ProfileFragment : Fragment() {
 
     private fun loadGlideProfileImage(imageView: ImageView, url: String?) {
         if (!isAdded) {
-            hideLoading()
+            loadingManager.hideLoading()
             return
         }
 
@@ -198,7 +202,7 @@ class ProfileFragment : Fragment() {
                     target: Target<Drawable?>?,
                     isFirstResource: Boolean
                 ): Boolean {
-                    hideLoading()
+                    loadingManager.hideLoading()
                     return false
                 }
 
@@ -209,7 +213,7 @@ class ProfileFragment : Fragment() {
                     dataSource: DataSource?,
                     isFirstResource: Boolean
                 ): Boolean {
-                    hideLoading()
+                    loadingManager.hideLoading()
                     return false
                 }
             })
@@ -226,8 +230,8 @@ class ProfileFragment : Fragment() {
     }
 
     internal fun loadNicknameAndData() {
-        showLoading()
-        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return hideLoading()
+        loadingManager.showLoading()
+        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return loadingManager.hideLoading()
         lifecycleScope.launch {
             try {
                 val user = withContext(Dispatchers.IO) {
@@ -242,9 +246,9 @@ class ProfileFragment : Fragment() {
                 fetchDebt()
                 fetchOwe()
             } catch (e: Exception) {
-                Log.e("Supabase", "Error loading profile data: ${e.message}")
+                Log.e("Supabase", "Error loading profile data: "+e.message)
             } finally {
-                hideLoading()
+                loadingManager.hideLoading()
             }
         }
     }
@@ -252,7 +256,7 @@ class ProfileFragment : Fragment() {
 
     private fun fetchOwe() {
         val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
-        showLoading()
+        loadingManager.showLoading()
         lifecycleScope.launch {
             try {
                 val user = withContext(Dispatchers.IO) {
@@ -275,14 +279,14 @@ class ProfileFragment : Fragment() {
             } catch (e: Exception) {
                 Log.e("Supabase", "Error fetching owe: ${e.message}")
             } finally {
-                hideLoading()
+                loadingManager.hideLoading()
             }
         }
     }
 
     private fun fetchDebt() {
         val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
-        showLoading()
+        loadingManager.showLoading()
         lifecycleScope.launch {
             try {
                 val user = withContext(Dispatchers.IO) {
@@ -305,13 +309,13 @@ class ProfileFragment : Fragment() {
             } catch (e: Exception) {
                 Log.e("Supabase", "Error fetching debt: ${e.message}")
             } finally {
-                hideLoading()
+                loadingManager.hideLoading()
             }
         }
     }
 
     private fun totalBalanceUnpaid() {
-        showLoading()
+        loadingManager.showLoading()
         lifecycleScope.launch {
             try {
                 val transactions = withContext(Dispatchers.IO) {
@@ -347,7 +351,7 @@ class ProfileFragment : Fragment() {
             } catch (e: Exception) {
                 Log.e("Supabase", "Error fetching balance/unpaid: ${e.message}")
             } finally {
-                hideLoading()
+                loadingManager.hideLoading()
             }
         }
     }
@@ -774,18 +778,6 @@ class ProfileFragment : Fragment() {
             recyclerView.visibility = View.VISIBLE
             emptyStateLayout.visibility = View.GONE
             adapter.updateData(items)
-        }
-    }
-
-    private fun showLoading() {
-        pendingLoads++
-        loadingOverlayProfile?.visibility = View.VISIBLE
-    }
-
-    private fun hideLoading() {
-        pendingLoads = max(0, pendingLoads - 1)
-        if (pendingLoads == 0) {
-            loadingOverlayProfile?.visibility = View.GONE
         }
     }
 

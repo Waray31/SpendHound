@@ -15,6 +15,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.github.mikephil.charting.charts.LineChart
@@ -38,6 +39,7 @@ import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
 import com.waray.spendhound.utils.LoadingManager
 import com.waray.spendhound.utils.PullToRefreshHelper
+import android.widget.Toast
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.query.Columns
 import java.text.SimpleDateFormat
@@ -82,7 +84,9 @@ class HomeFragment : Fragment() {
         val view = binding!!.root
 
         val loadingOverlay = view.findViewById<View>(R.id.loadingOverlay_home)
-        loadingManager = LoadingManager(loadingOverlay, viewLifecycleOwner.lifecycle)
+        loadingManager = LoadingManager(loadingOverlay, viewLifecycleOwner.lifecycle) { isLoading ->
+            (activity as? MainActivity)?.navView?.menu?.findItem(R.id.navigation_home)?.isEnabled = !isLoading
+        }
 
         mAuth = DeclareDatabase.auth
 
@@ -104,6 +108,17 @@ class HomeFragment : Fragment() {
         }
         transactionListRecycler?.layoutManager = LinearLayoutManager(context)
         transactionListRecycler?.adapter = recentAdapter
+
+        recentAdapter?.setOnTransactionClickListener(object : RecentTransactionAdapter.OnTransactionClickListener {
+            override fun onTransactionClick(transaction: RecentTransaction?) {
+                try {
+                    val navController = findNavController()
+                    navController.navigate(R.id.navigation_transactions)
+                } catch (e: Exception) {
+                    Log.e("HomeFragment", "Error navigating to transactions", e)
+                }
+            }
+        })
 
         initializeCurrentWeekStart()
         setupToggleListeners()
@@ -411,7 +426,7 @@ class HomeFragment : Fragment() {
 
         val maxHeightDp = 120.0
         val minHeightDp = 10.0
-        val maxAmount = 1000.0
+        val maxAmount = 2000.0
 
         val totalTextViews = arrayOf(
             b.totalday7, b.totalday6, b.totalday5,
@@ -424,7 +439,7 @@ class HomeFragment : Fragment() {
 
         for (i in 0..6) {
             val amount = dailyTotals[i]
-            totalTextViews[i].text = if (amount > 0) CurrencyUtils.formatAmount(amount) else "0"
+            totalTextViews[i].text = if (amount > 0) String.format("%,d", Math.round(amount)) else "0"
             if (amount > 0) {
                 totalTextViews[i].setTextColor(Color.parseColor("#FFBA08"))
                 totalTextViews[i].setTypeface(null, android.graphics.Typeface.BOLD)

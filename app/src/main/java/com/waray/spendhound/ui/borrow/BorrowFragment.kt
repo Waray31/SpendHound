@@ -40,6 +40,8 @@ import java.util.Calendar
 import java.text.SimpleDateFormat
 import java.util.Locale
 import kotlin.math.max
+import com.waray.spendhound.utils.RefreshCooldownManager
+import com.waray.spendhound.utils.LoadingManager
 
 class BorrowFragment : Fragment() {
     private var dateRangeSpinner: android.widget.Spinner? = null
@@ -69,6 +71,7 @@ class BorrowFragment : Fragment() {
     private val uiScope = CoroutineScope(Dispatchers.Main)
     private var pendingLoads = 0
     private var isTabClickEnabled = true
+    private var loadingManager: LoadingManager? = null
 
     @SuppressLint("MissingInflatedId")
     override fun onCreateView(
@@ -113,6 +116,11 @@ class BorrowFragment : Fragment() {
     private fun setupViews() {
         owedRecyclerList?.layoutManager = LinearLayoutManager(context)
         debtRecyclerList?.layoutManager = LinearLayoutManager(context)
+
+        loadingManager = LoadingManager(loadingOverlay, viewLifecycleOwner.lifecycle) { isLoading ->
+            (activity as? MainActivity)?.navView?.menu?.findItem(R.id.navigation_borrow)?.isEnabled = !isLoading
+            isTabClickEnabled = !isLoading
+        }
     }
 
     private var customDateActive = false
@@ -563,16 +571,14 @@ class BorrowFragment : Fragment() {
     }
 
     private fun showLoading() {
-        pendingLoads++
+        loadingManager?.showLoading()
         isTabClickEnabled = false
-        loadingOverlay?.visibility = View.VISIBLE
     }
 
     private fun hideLoading() {
-        pendingLoads = max(0, pendingLoads - 1)
+        loadingManager?.hideLoading()
         if (pendingLoads == 0) {
             isTabClickEnabled = true
-            loadingOverlay?.visibility = View.GONE
         }
     }
 

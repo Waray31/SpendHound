@@ -8,7 +8,6 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.LinearLayout
-import android.widget.ProgressBar
 import android.widget.Spinner
 import android.widget.TextView
 import androidx.fragment.app.Fragment
@@ -32,12 +31,14 @@ import com.waray.spendhound.ui.multi_transaction.TransactionFull
 import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
 import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
+import com.waray.spendhound.utils.LoadingManager
 import io.github.jan.supabase.gotrue.Auth
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
-import kotlin.math.max
 
 class TransactionsFragment : Fragment() {
     private var recyclerView: RecyclerView? = null
@@ -47,7 +48,7 @@ class TransactionsFragment : Fragment() {
     private var groupSpinner: Spinner? = null
     private var currentMonthTextView: TextView? = null
     private var transactionCountTextView: TextView? = null
-    private var loadingProgressBar: ProgressBar? = null
+    private var loadingProgressBar: View? = null
     private var emptyStateLayout: LinearLayout? = null
     private var mAuth: Auth? = null
     private var currentUserNumericId: Long? = null
@@ -66,9 +67,9 @@ class TransactionsFragment : Fragment() {
     private var pendingTabTV: TextView? = null
     private var selectedStatusTab = "All"
 
-    private var pendingLoads = 0
     private var isTabClickEnabled = true
     private var pullToRefreshHelper: PullToRefreshHelper? = null
+    private var loadingManager: LoadingManager? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -102,6 +103,11 @@ class TransactionsFragment : Fragment() {
         transactionCountTextView = root.findViewById(R.id.transactionCountTextView)
         loadingProgressBar = root.findViewById(R.id.loadingProgressBar)
         emptyStateLayout = root.findViewById(R.id.emptyStateLayout)
+
+        loadingManager = LoadingManager(loadingProgressBar, viewLifecycleOwner.lifecycle) { isLoading ->
+            (activity as? MainActivity)?.navView?.menu?.findItem(R.id.navigation_transactions)?.isEnabled = !isLoading
+            isTabClickEnabled = !isLoading
+        }
 
         allTabTV = root.findViewById(R.id.allTabTV)
         paidTabTV = root.findViewById(R.id.paidTabTV)
@@ -437,18 +443,21 @@ class TransactionsFragment : Fragment() {
                     if (d1 != null && d2 != null) d2.compareTo(d1) else 0
                 }
 
-                adapter?.notifyDataSetChanged()
-                context?.let { adapter?.preloadAllImages(it) }
+                withContext(Dispatchers.Main) {
+                    if (!isAdded) return@withContext
+                    adapter?.notifyDataSetChanged()
+                    context?.let { adapter?.preloadAllImages(it) }
 
-                val count = transactionList.size
-                transactionCountTextView?.text = String.format(Locale.getDefault(), "%d %s", count, if (count == 1) "transaction" else "transactions")
+                    val count = transactionList.size
+                    transactionCountTextView?.text = String.format(Locale.getDefault(), "%d %s", count, if (count == 1) "transaction" else "transactions")
 
-                if (transactionList.isEmpty()) {
-                    emptyStateLayout?.visibility = View.VISIBLE
-                    recyclerView?.visibility = View.GONE
-                } else {
-                    emptyStateLayout?.visibility = View.GONE
-                    recyclerView?.visibility = View.VISIBLE
+                    if (transactionList.isEmpty()) {
+                        emptyStateLayout?.visibility = View.VISIBLE
+                        recyclerView?.visibility = View.GONE
+                    } else {
+                        emptyStateLayout?.visibility = View.GONE
+                        recyclerView?.visibility = View.VISIBLE
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("TransactionsFragment", "Error fetching transactions", e)
@@ -505,16 +514,12 @@ class TransactionsFragment : Fragment() {
     }
 
     private fun showLoading() {
-        pendingLoads++
+        loadingManager?.showLoading()
         isTabClickEnabled = false
-        loadingProgressBar?.visibility = View.VISIBLE
     }
 
     private fun hideLoading() {
-        pendingLoads = max(0, pendingLoads - 1)
-        if (pendingLoads == 0) {
-            isTabClickEnabled = true
-            loadingProgressBar?.visibility = View.GONE
-        }
+        loadingManager?.hideLoading()
+        isTabClickEnabled = true
     }
 }

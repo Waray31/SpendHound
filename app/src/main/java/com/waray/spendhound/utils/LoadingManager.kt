@@ -12,7 +12,8 @@ import androidx.lifecycle.OnLifecycleEvent
  */
 class LoadingManager(
     private val loadingOverlay: View?,
-    private val lifecycle: Lifecycle
+    private val lifecycle: Lifecycle,
+    private val onLoadingStateChanged: ((isLoading: Boolean) -> Unit)? = null
 ) : LifecycleObserver {
 
     private var pendingLoads = 0
@@ -27,7 +28,11 @@ class LoadingManager(
      */
     fun showLoading() {
         if (isStopped) return
+        val wasLoading = pendingLoads > 0
         pendingLoads++
+        if (!wasLoading && pendingLoads == 1) {
+            onLoadingStateChanged?.invoke(true)
+        }
         loadingOverlay?.apply {
             visibility = View.VISIBLE
             isClickable = true
@@ -40,7 +45,11 @@ class LoadingManager(
      */
     fun hideLoading() {
         if (isStopped) return
+        val wasLoading = pendingLoads > 0
         pendingLoads = maxOf(0, pendingLoads - 1)
+        if (wasLoading && pendingLoads == 0) {
+            onLoadingStateChanged?.invoke(false)
+        }
         if (pendingLoads == 0) {
             loadingOverlay?.visibility = View.GONE
         }
@@ -50,7 +59,11 @@ class LoadingManager(
      * Force hide loading overlay regardless of pending loads
      */
     fun forceHide() {
+        val wasLoading = pendingLoads > 0
         pendingLoads = 0
+        if (wasLoading) {
+            onLoadingStateChanged?.invoke(false)
+        }
         loadingOverlay?.visibility = View.GONE
     }
 
