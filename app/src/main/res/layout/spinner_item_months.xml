@@ -12,11 +12,11 @@
         android:textSize="13sp"
         android:textAlignment="center"
         android:text="September"
-        android:layout_marginHorizontal="4dp"
-        android:layout_marginVertical="4dp"
-        android:background="@drawable/custom_spinner_background"
+        android:layout_margin="4dp"
+        android:padding="8dp"
+        android:background="@drawable/spinner_border_grey"
         android:fontFamily="@font/montserratalternatess_regular"
-        android:textColor="@color/yellow"
+        android:textColor="@color/darkBlue"
     />
 
 </LinearLayout>

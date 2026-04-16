@@ -120,8 +120,8 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginBottom="8dp"
-                        android:text="Payment Mode"
                         android:fontFamily="@font/montserratalternatess_bold"
+                        android:text="Payment Mode"
                         android:textColor="@color/darkBlue"
                         android:textSize="14sp" />
 
@@ -171,15 +171,17 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Paid by"
+                            android:fontFamily="@font/montserratalternatess_bold"
                             android:textColor="@color/darkBlue"
-                            android:textSize="12sp" />
+                            android:textSize="14sp" />
 
                         <Spinner
                             android:id="@+id/spinnerGlobalPayor"
                             android:layout_width="match_parent"
-                            android:background="@drawable/round_border_glassy"
+                            android:background="@drawable/spinner_border_grey"
                             android:layout_height="wrap_content"
-                            android:textAlignment="center"
+                            android:textAlignment="textStart"
+                            android:paddingStart="8dp"
                             android:layout_marginTop="4dp"
                             android:minHeight="48dp" />
                     </LinearLayout>

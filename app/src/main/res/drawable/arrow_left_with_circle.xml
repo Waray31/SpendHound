@@ -4,7 +4,10 @@
     <!-- Circle background -->
     <item>
         <shape android:shape="oval">
-            <solid android:color="#ffba08" /> <!-- Set the desired circle background color -->
+            <gradient
+                android:angle="270"
+                android:startColor="#FF9833"
+                android:endColor="#F57C00" />
         </shape>
     </item>
 

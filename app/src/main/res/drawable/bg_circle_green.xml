@@ -1,11 +1,12 @@
-<?xml version="1.0" encoding="utf-8"?>
+<!-- res/drawable/bg_green_gradient.xml -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
 
     <gradient
-        android:startColor="#F1F8F2"
-        android:endColor="#DFF3E3"
-        android:angle="270" />
+        android:angle="270"
+        android:startColor="#60AD5E"
+        android:endColor="#2E7D32"
+        android:type="linear" />
 
     <corners android:radius="12dp" />
 

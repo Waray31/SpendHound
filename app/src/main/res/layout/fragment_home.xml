@@ -63,13 +63,13 @@
                             android:layout_height="wrap_content"
                             android:fontFamily="@font/montserratalternatess_regular"
                             android:text="Track expenses effortlessly"
-                            android:textColor="@color/yellow"
+                            android:textColor="@color/orange"
                             android:textSize="13sp" />
                     </LinearLayout>
 
                 </LinearLayout>
 
-                <!-- Blue Spending Card -->
+                <!-- Orange Spending Card -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -79,8 +79,8 @@
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:background="@drawable/bg_spending_card"
                         android:layout_margin="16dp"
+                        android:background="@drawable/bg_spending_card"
                         android:elevation="4dp"
                         android:orientation="vertical"
                         android:padding="24dp">
@@ -125,21 +125,23 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="16dp"
                     android:background="@color/white"
                     android:baselineAligned="false"
-                    android:orientation="horizontal"
-                    android:layout_marginHorizontal="16dp">
+                    android:orientation="horizontal">
 
                     <!-- You Owe Card -->
+
+                    <!-- You're Owed Card -->
                     <LinearLayout
                         android:id="@+id/youOweCard"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:background="@drawable/bg_circle_red"
-                        android:layout_weight="1"
                         android:layout_marginVertical="8dp"
                         android:layout_marginLeft="8dp"
                         android:layout_marginRight="12dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/rounded_white_background"
                         android:elevation="3dp"
                         android:orientation="vertical"
                         android:padding="16dp">
@@ -148,25 +150,26 @@
                         <ImageView
                             android:layout_width="48dp"
                             android:layout_height="48dp"
-                            android:background="@drawable/glassy_background2"
+                            android:background="@drawable/bg_circle_red"
                             android:src="@drawable/ic_you_owe"
-                            app:tint="@color/red" />
+                            app:tint="@color/whitest" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="20dp"
+                            android:layout_marginTop="12dp"
                             android:fontFamily="@font/montserratalternatess_bold"
-                            android:text="You Owe"
-                            android:textColor="@color/darkBlue"
-                            android:textSize="16sp" />
+                            android:text="Debt"
+                            android:textAllCaps="true"
+                            android:textColor="@color/grey"
+                            android:textSize="14sp" />
 
                         <TextView
                             android:id="@+id/youOweAmount"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="8dp"
                             android:layout_gravity="center_horizontal"
+                            android:layout_marginTop="8dp"
                             android:fontFamily="@font/montserratalternatess_bold"
                             android:text="₱ 0"
                             android:textColor="@color/red"
@@ -174,16 +177,15 @@
                             android:textStyle="bold" />
                     </LinearLayout>
 
-                    <!-- You're Owed Card -->
                     <LinearLayout
                         android:id="@+id/youreOwedCard"
                         android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
                         android:layout_marginVertical="8dp"
                         android:layout_marginLeft="12dp"
                         android:layout_marginRight="8dp"
-                        android:background="@drawable/bg_circle_green"
+                        android:layout_weight="1"
+                        android:background="@drawable/rounded_white_background"
                         android:elevation="3dp"
                         android:orientation="vertical"
                         android:padding="16dp">
@@ -191,18 +193,19 @@
                         <ImageView
                             android:layout_width="48dp"
                             android:layout_height="48dp"
-                            android:background="@drawable/glassy_background2"
+                            android:background="@drawable/bg_circle_green"
                             android:src="@drawable/ic_youre_owed"
-                            app:tint="@color/green" />
+                            app:tint="@color/whitest" />
 
                         <TextView
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:layout_marginTop="20dp"
+                            android:layout_marginTop="12dp"
                             android:fontFamily="@font/montserratalternatess_bold"
-                            android:text="You'll receive"
-                            android:textColor="@color/darkBlue"
-                            android:textSize="16sp" />
+                            android:text="Receivable"
+                            android:textAllCaps="true"
+                            android:textColor="@color/grey"
+                            android:textSize="14sp" />
 
                         <TextView
                             android:id="@+id/youreOwedAmount"
@@ -222,8 +225,8 @@
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:layout_margin="16dp">
+                    android:layout_margin="16dp"
+                    android:orientation="vertical">
 
 
                     <androidx.cardview.widget.CardView
@@ -448,9 +451,9 @@
                                     android:layout_height="120dp"
                                     android:layout_marginVertical="4dp"
                                     android:baselineAligned="false"
+                                    android:clipChildren="false"
                                     android:gravity="bottom"
-                                    android:orientation="horizontal"
-                                    android:clipChildren="false">
+                                    android:orientation="horizontal">
 
                                     <LinearLayout
                                         android:layout_width="0dp"
@@ -698,7 +701,7 @@
 
                         <View
                             android:layout_width="match_parent"
-                            android:layout_height="60dp"/>
+                            android:layout_height="60dp" />
 
                     </LinearLayout>
                 </LinearLayout>

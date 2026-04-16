@@ -447,7 +447,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
-                android:background="@drawable/round_border_glassy"
+                android:background="@drawable/spinner_border_grey"
                 android:minHeight="48dp" />
 
             <!-- Multi Payor Split Container -->

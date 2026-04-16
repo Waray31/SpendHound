@@ -591,7 +591,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         summaryItems.sortedByDescending { it.first }.forEach { (_, sentence) ->
             val tv = TextView(container.context).apply {
                 text = sentence
-                setTextSize(TypedValue.COMPLEX_UNIT_DIP, 14f)
+                setTextSize(TypedValue.COMPLEX_UNIT_DIP, 12f)
                 setTextColor(ContextCompat.getColor(container.context, R.color.darkBlue))
                 typeface = ResourcesCompat.getFont(container.context, R.font.montserratalternatess_regular)
                 setPadding(0, 4, 0, 4)

@@ -484,12 +484,12 @@ class HomeFragment : Fragment() {
     private fun updateToggleUI() {
         if (isWeeklyMode) {
             btnWeekly?.setBackgroundResource(R.drawable.toggle_selected_background)
-            btnWeekly?.setTextColor(ContextCompat.getColor(requireContext(), R.color.darkBlue))
+            btnWeekly?.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
             btnMonthly?.setBackgroundColor(Color.TRANSPARENT)
             btnMonthly?.setTextColor(Color.parseColor("#adb5bd"))
         } else {
             btnMonthly?.setBackgroundResource(R.drawable.toggle_selected_background)
-            btnMonthly?.setTextColor(ContextCompat.getColor(requireContext(), R.color.darkBlue))
+            btnMonthly?.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
             btnWeekly?.setBackgroundColor(Color.TRANSPARENT)
             btnWeekly?.setTextColor(Color.parseColor("#adb5bd"))
         }
