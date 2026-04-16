@@ -10,11 +10,11 @@
     <!-- Category icon -->
     <ImageView
         android:id="@+id/ivItemCategory"
-        android:layout_width="28dp"
+        android:layout_width="0dp"
         android:layout_height="28dp"
-        android:layout_weight="0"
-        android:background="@drawable/rounded_background9"
+        android:layout_weight="1"
         android:padding="5dp"
+        android:background="@drawable/rounded_background9"
         android:scaleType="fitCenter" />
 
     <!-- Amount -->

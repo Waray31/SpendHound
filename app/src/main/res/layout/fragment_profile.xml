@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:backgroundTint="@color/white"
     android:orientation="vertical"
-    android:paddingHorizontal="20dp"
+    android:paddingHorizontal="12dp"
     android:paddingTop="20dp"
     android:paddingBottom="92dp"
     tools:context=".ui.profile.ProfileFragment">

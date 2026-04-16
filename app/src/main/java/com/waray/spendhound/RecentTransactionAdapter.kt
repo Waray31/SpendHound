@@ -11,6 +11,8 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.bumptech.glide.Glide
+import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -150,9 +152,13 @@ class RecentTransactionAdapter(
         holder.payorsRecyclerView.adapter = payorAdapter
         payorAdapter.startLoadingAllImages(holder.itemView.context)
 
+        // Load creator image and update text
+        loadCreatorImage(holder, transaction)
+
         // Resolve creator check asynchronously using numeric ID
         resolveIsCreator(transaction) { isCreator ->
             if (isCreator) {
+                holder.createdByTextView.text = "you"
                 holder.settlementLL.visibility = View.VISIBLE
                 holder.editTransactionBtn.setOnClickListener {
                     val sheet = SettleBottomSheet().apply {
@@ -163,6 +169,7 @@ class RecentTransactionAdapter(
                     sheet.show(fm, "SettleBottomSheet")
                 }
             } else {
+                holder.createdByTextView.text = transaction.createdBy ?: "Unknown"
                 holder.settlementLL.visibility = View.GONE
             }
         }
@@ -193,6 +200,42 @@ class RecentTransactionAdapter(
                 callback(false)
             }
         }
+    }
+
+    /** Loads the creator's profile image into createdByImageView. */
+    private fun loadCreatorImage(holder: ViewHolder, transaction: RecentTransaction) {
+        val creatorUserId = transaction.createdByUserId
+        if (creatorUserId.isNullOrBlank()) {
+            holder.createdByImageView.setImageResource(R.drawable.placeholder_profile_image)
+            return
+        }
+
+        val cachedUrl = PayorAdapter.sDownloadUrlCache[creatorUserId]
+        if (cachedUrl != null) {
+            loadGlideImageForCreator(holder, cachedUrl)
+        } else {
+            scope.launch {
+                try {
+                    val url = withContext(Dispatchers.IO) {
+                        DeclareDatabase.profileImagesBucket.publicUrl("$creatorUserId/$creatorUserId.jpg")
+                    }
+                    PayorAdapter.sDownloadUrlCache[creatorUserId] = url
+                    loadGlideImageForCreator(holder, url)
+                } catch (e: Exception) {
+                    holder.createdByImageView.setImageResource(R.drawable.placeholder_profile_image)
+                }
+            }
+        }
+    }
+
+    /** Loads image using Glide for the creator profile. */
+    private fun loadGlideImageForCreator(holder: ViewHolder, url: String) {
+        Glide.with(holder.itemView.context)
+            .load(url)
+            .placeholder(R.drawable.placeholder_profile_image)
+            .diskCacheStrategy(DiskCacheStrategy.ALL)
+            .circleCrop()
+            .into(holder.createdByImageView)
     }
 
     private fun buildItemsTable(holder: ViewHolder, transaction: RecentTransaction) {
@@ -243,6 +286,7 @@ class RecentTransactionAdapter(
         val itemsTableContainer: LinearLayout = itemView.findViewById(R.id.itemsTableContainer)
         val dividerBelowItems: View          = itemView.findViewById(R.id.dividerBelowItems)
         val tvSingleDescription: TextView    = itemView.findViewById(R.id.tvSingleDescription)
+        val createdByImageView: ImageView    = itemView.findViewById(R.id.createdByImageView)
         val createdByTextView: TextView      = itemView.findViewById(R.id.createdByTextView)
         val payorsRecyclerView: RecyclerView = itemView.findViewById(R.id.payorsRecyclerView)
         val loadingOverlay: View             = itemView.findViewById(R.id.loadingOverlay_transaction)
