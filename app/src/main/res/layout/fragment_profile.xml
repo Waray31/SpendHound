@@ -118,7 +118,7 @@
                             android:layout_weight="1"
                             android:fontFamily="@font/montserratalternatess_bold"
                             android:padding="4dp"
-                            android:text="@string/nickname_placeholder"
+                            android:text=""
                             android:textColor="@color/darkBlue"
                             android:textSize="28sp" />
 
@@ -255,7 +255,7 @@
                                 android:fontFamily="@font/montserratalternatess_regular"
                                 android:paddingHorizontal="12dp"
                                 android:paddingVertical="8dp"
-                                android:text="@string/balance_label"
+                                android:text="Receivable"
                                 android:textAlignment="center"
                                 android:textColor="@color/whitest"
                                 android:textSize="12sp" />
@@ -268,7 +268,7 @@
                                 android:fontFamily="@font/montserratalternatess_regular"
                                 android:paddingHorizontal="12dp"
                                 android:paddingVertical="8dp"
-                                android:text="@string/unpaid_label"
+                                android:text="Debt"
                                 android:textAlignment="center"
                                 android:textColor="@color/whitest"
                                 android:textSize="12sp" />
@@ -289,7 +289,7 @@
                                 android:fontFamily="@font/montserratalternatess_regular"
                                 android:paddingHorizontal="12dp"
                                 android:paddingVertical="8dp"
-                                android:text="@string/owe_label"
+                                android:text="Owed"
                                 android:textAlignment="center"
                                 android:textColor="@color/whitest"
                                 android:textSize="12sp" />
@@ -302,7 +302,7 @@
                                 android:fontFamily="@font/montserratalternatess_regular"
                                 android:paddingHorizontal="12dp"
                                 android:paddingVertical="8dp"
-                                android:text="@string/debt_label"
+                                android:text="Owe"
                                 android:textAlignment="center"
                                 android:textColor="@color/whitest"
                                 android:textSize="12sp" />

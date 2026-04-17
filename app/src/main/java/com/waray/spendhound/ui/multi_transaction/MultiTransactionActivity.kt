@@ -14,6 +14,7 @@ import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.res.ResourcesCompat
 import androidx.core.view.isVisible
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
@@ -67,18 +68,18 @@ class MultiTransactionActivity : AppCompatActivity() {
     private fun setPaymentMode(isMultiple: Boolean) {
         if (isMultiple) {
             binding.btnMultiplePayors.setBackgroundResource(R.drawable.bg_toggle_selected)
-            binding.btnMultiplePayors.setTypeface(resources.getFont(R.font.montserratalternatess_bold))
+            binding.btnMultiplePayors.setTypeface(ResourcesCompat.getFont(this, R.font.montserratalternatess_bold))
             binding.btnMultiplePayors.setTextColor(getColor(R.color.darkBlue))
             binding.btnSinglePayor.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-            binding.btnSinglePayor.setTypeface(resources.getFont(R.font.montserratalternatess_regular))
+            binding.btnSinglePayor.setTypeface(ResourcesCompat.getFont(this, R.font.montserratalternatess_regular))
             binding.btnSinglePayor.setTextColor(getColor(R.color.grey))
             binding.titleSection.visibility = View.VISIBLE
         } else {
             binding.btnSinglePayor.setBackgroundResource(R.drawable.bg_toggle_selected)
-            binding.btnSinglePayor.setTypeface(resources.getFont(R.font.montserratalternatess_bold))
+            binding.btnSinglePayor.setTypeface(ResourcesCompat.getFont(this, R.font.montserratalternatess_bold))
             binding.btnSinglePayor.setTextColor(getColor(R.color.darkBlue))
             binding.btnMultiplePayors.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-            binding.btnMultiplePayors.setTypeface(resources.getFont(R.font.montserratalternatess_regular))
+            binding.btnMultiplePayors.setTypeface(ResourcesCompat.getFont(this, R.font.montserratalternatess_regular))
             binding.btnMultiplePayors.setTextColor(getColor(R.color.grey))
             binding.titleSection.visibility = View.GONE
             binding.etTransactionTitle.text?.clear()

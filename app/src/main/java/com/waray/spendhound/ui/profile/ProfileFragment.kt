@@ -13,7 +13,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
-import android.widget.EditText
 import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
@@ -39,20 +38,16 @@ import com.waray.spendhound.LoginActivity
 import com.waray.spendhound.MainActivity
 import com.waray.spendhound.PayorAdapter
 import com.waray.spendhound.R
-import com.waray.spendhound.SecurityUtils
 import com.waray.spendhound.Transaction
 import com.waray.spendhound.User
-import com.waray.spendhound.UserHelper
+import com.waray.spendhound.UserBalance
 import com.waray.spendhound.utils.LoadingManager
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import java.io.ByteArrayOutputStream
-import kotlin.math.max
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 
@@ -94,6 +89,7 @@ class ProfileFragment : Fragment() {
 
         profileImageView = view.findViewById(R.id.profileImageView)
         nicknameTextView = view.findViewById(R.id.nicknameTextView)
+        Log.d("ProfileFragment", "Views initialized - nicknameTextView: $nicknameTextView")
         editProfileTV = view.findViewById(R.id.editProfile_TV)
         totalBalancedTextView = view.findViewById(R.id.totalBalancedTextView)
         totalTextView = view.findViewById(R.id.totalTextView)
@@ -175,7 +171,7 @@ class ProfileFragment : Fragment() {
                             loadingManager.hideLoading()
                         }
                     }
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     withContext(Dispatchers.Main) {
                         imageView.setImageResource(R.drawable.placeholder_profile_image)
                         loadingManager.hideLoading()
@@ -231,124 +227,80 @@ class ProfileFragment : Fragment() {
     }
 
     internal fun loadNicknameAndData() {
-        if (!isTabClickEnabled) return // Prevent multiple calls while loading
         loadingManager.showLoading()
-        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return loadingManager.hideLoading()
+        val authId = mAuth?.currentUserOrNull()?.id
+        Log.d("ProfileFragment", "loadNicknameAndData - authId: $authId")
+        if (authId == null) {
+            Log.e("ProfileFragment", "authId is null")
+            loadingManager.hideLoading()
+            return
+        }
         lifecycleScope.launch {
             try {
+                // Step 1: Fetch user from users table
                 val user = withContext(Dispatchers.IO) {
-                    DeclareDatabase.usersTable.select(Columns.list("username")) {
-                        filter { eq("auth_id", currentUserId) }
+                    Log.d("ProfileFragment", "Fetching user with authId: $authId")
+                    DeclareDatabase.usersTable.select(Columns.list("user_id", "username", "profile_image_url")) {
+                        filter { eq("auth_id", authId) }
                     }.decodeSingleOrNull<User>()
                 }
-                currentNickname = user?.username ?: ""
-                nicknameTextView?.text = currentNickname
+                Log.d("ProfileFragment", "User fetched: $user")
+                Log.d("ProfileFragment", "Username: ${user?.username}")
 
-                // Launch all operations concurrently and wait for them to complete
-                val totalBalanceJob = lifecycleScope.launch { totalBalanceUnpaid() }
-                val fetchDebtJob = lifecycleScope.launch { fetchDebt() }
-                val fetchOweJob = lifecycleScope.launch { fetchOwe() }
+                // Step 2: Fetch user balance from user_balance table using user_id
+                var userBalance: UserBalance? = null
+                if (user?.id != null) {
+                    userBalance = withContext(Dispatchers.IO) {
+                        Log.d("ProfileFragment", "Fetching user balance with user_id: ${user.id}")
+                        DeclareDatabase.userBalanceTable.select(Columns.list(
+                            "unpaid_total_group", "unpaid_total_individual",
+                            "receivable_total_group", "receivable_total_individual",
+                            "balance_total_group", "balance_total_individual"
+                        )) {
+                            filter { eq("user_id", user.id) }
+                        }.decodeSingleOrNull<UserBalance>()
+                    }
+                    Log.d("ProfileFragment", "User balance fetched: $userBalance")
+                }
 
-                // Wait for all to complete
-                totalBalanceJob.join()
-                fetchDebtJob.join()
-                fetchOweJob.join()
+                // Update UI on Main thread
+                withContext(Dispatchers.Main) {
+                    currentNickname = user?.username ?: ""
+                    Log.d("ProfileFragment", "Setting nicknameTextView to: $currentNickname")
+                    nicknameTextView?.text = currentNickname
 
+                    // Extract balance data from user_balance table
+                    val unpaidGroup = userBalance?.unpaidTotalGroup ?: 0.0
+                    val unpaidIndividual = userBalance?.unpaidTotalIndividual ?: 0.0
+                    val receivableGroup = userBalance?.receivableTotalGroup ?: 0.0
+                    val receivableIndividual = userBalance?.receivableTotalIndividual ?: 0.0
+                    val balanceGroup = userBalance?.balanceTotalGroup ?: 0.0
+                    val balanceIndividual = userBalance?.balanceTotalIndividual ?: 0.0
+
+                    // Set balance and unpaid values
+                    balance = balanceGroup  // Total balance to show
+                    unpaid = unpaidGroup    // Total unpaid balance
+                    currentOwe = receivableIndividual  // Total owed to user
+                    currentDebt = unpaidIndividual     // Total debt of user
+
+                    // Update the main display with balance
+                    totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(balance)
+                    totalTextView?.text = "Total Balance:"
+
+                    Log.d("ProfileFragment", "UI Updated - balance: $balance, unpaid: $unpaid, owe: $currentOwe, debt: $currentDebt")
+
+                    loadingManager.hideLoading()
+                }
             } catch (e: Exception) {
-                Log.e("Supabase", "Error loading profile data: "+e.message)
-            } finally {
-                loadingManager.hideLoading()
-            }
-        }
-    }
-
-
-    private suspend fun fetchOwe() {
-        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
-        try {
-            val user = withContext(Dispatchers.IO) {
-                DeclareDatabase.usersTable.select(Columns.list("user_id")) {
-                    filter { eq("auth_id", currentUserId) }
-                }.decodeSingleOrNull<User>()
-            }
-
-            if (user?.id != null) {
-                val borrows = withContext(Dispatchers.IO) {
-                    DeclareDatabase.borrowsTable.select {
-                        filter {
-                            eq("lender_id", user.id)
-                            neq("status", 3) // Not Paid
-                        }
-                    }.decodeList<BorrowNowTransaction>()
-                }
-                currentOwe = borrows.sumOf { it.borrowedAmount ?: 0.0 }
-            }
-        } catch (e: Exception) {
-            Log.e("Supabase", "Error fetching owe: ${e.message}")
-        }
-    }
-
-    private suspend fun fetchDebt() {
-        val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
-        try {
-            val user = withContext(Dispatchers.IO) {
-                DeclareDatabase.usersTable.select(Columns.list("user_id")) {
-                    filter { eq("auth_id", currentUserId) }
-                }.decodeSingleOrNull<User>()
-            }
-
-            if (user?.id != null) {
-                val borrows = withContext(Dispatchers.IO) {
-                    DeclareDatabase.borrowsTable.select {
-                        filter {
-                            eq("borrower_id", user.id)
-                            neq("status", 3) // Not Paid
-                        }
-                    }.decodeList<BorrowNowTransaction>()
-                }
-                currentDebt = borrows.sumOf { it.borrowedAmount ?: 0.0 }
-            }
-        } catch (e: Exception) {
-            Log.e("Supabase", "Error fetching debt: ${e.message}")
-        }
-    }
-
-    private suspend fun totalBalanceUnpaid() {
-        try {
-            val transactions = withContext(Dispatchers.IO) {
-                DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
-            }
-            var totalIndividualPaymentSum = 0.0
-            var totalPaymentListSum = 0.0
-
-            for (transaction in transactions) {
-                val individualPayment = transaction.individualPayment
-                val payorsList = transaction.payorsDisplayNames ?: transaction.contributors ?: emptyList()
-                val amountsPaidList = transaction.amountPaidList ?: emptyList()
-
-                val userIndex = payorsList.indexOf(currentNickname)
-                if (userIndex != -1 && userIndex < amountsPaidList.size) {
-                    totalIndividualPaymentSum += individualPayment
-                    totalPaymentListSum += (amountsPaidList[userIndex] ?: 0.0)
+                Log.e("ProfileFragment", "Error loading user data: ${e.message}", e)
+                e.printStackTrace()
+                withContext(Dispatchers.Main) {
+                    loadingManager.hideLoading()
                 }
             }
-
-            if (totalPaymentListSum > totalIndividualPaymentSum) {
-                balance = totalPaymentListSum - totalIndividualPaymentSum
-                unpaid = 0.0
-            } else {
-                unpaid = totalIndividualPaymentSum - totalPaymentListSum
-                balance = 0.0
-            }
-
-            withContext(Dispatchers.Main) {
-                totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(balance)
-                totalTextView?.text = "Total Balance:"
-            }
-        } catch (e: Exception) {
-            Log.e("Supabase", "Error fetching balance/unpaid: ${e.message}")
         }
     }
+
 
     private fun setupBalanceButton() {
         balanceTextView?.setOnClickListener {
@@ -480,22 +432,6 @@ class ProfileFragment : Fragment() {
         return Uri.parse(path)
     }
 
-    private fun showChangeProfilePhotoDialog() {
-        val builder = AlertDialog.Builder(requireContext())
-        builder.setTitle("Change Profile Photo")
-        val options = arrayOf("Take Photo", "Choose from Gallery")
-
-        builder.setItems(options) { _, which ->
-            when (which) {
-                0 -> selectNewProfilePhoto()
-                1 -> {
-                    val pickPhotoIntent = Intent(Intent.ACTION_PICK, MediaStore.Images.Media.EXTERNAL_CONTENT_URI)
-                    startActivityForResult(pickPhotoIntent, REQUEST_IMAGE_PICK)
-                }
-            }
-        }
-        builder.create().show()
-    }
 
     private fun setupProfileLogoutButton() {
         profileLogout?.setOnClickListener {

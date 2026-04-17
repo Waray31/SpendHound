@@ -19,6 +19,16 @@ data class User(
     val password: String? = null,
     @SerialName("profile_image_url")
     val profileImageUrl: String? = null,
+    @SerialName("total_bill_spent")
+    val totalBillSpent: Double? = 0.0,
+    @SerialName("total_bill_payment")
+    val totalBillPayment: Double? = 0.0,
+    @SerialName("total_receivable")
+    val totalReceivable: Double? = 0.0,
+    @SerialName("total_debt")
+    val totalDebt: Double? = 0.0,
+    @SerialName("total_individual_spent")
+    val totalIndividualSpent: Double? = 0.0,
     @SerialName("created_at")
     val createdAt: String? = null
 )
