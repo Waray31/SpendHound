@@ -271,7 +271,7 @@ class AllTransactionsActivity : AppCompatActivity() {
                         val recentTrans = RecentTransaction(
                             transaction.id,
                             displayDate, transactionType, details, paymentAmountStr,
-                            iconResource, sortDateTime, payorsList, payorUserIds,
+                            iconResource, sortDateTime, timestamp, payorsList, payorUserIds,
                             amountsPaidList, totalIndividualPayment, fullDateWithYear,
                             createdBy, createdByUserId, monthYear, day, timeKey
                         )
@@ -280,11 +280,7 @@ class AllTransactionsActivity : AppCompatActivity() {
                 }
 
                 transactionList.sortWith { t1, t2 ->
-                    val dateTime1 = t1.sortDateTime
-                    val dateTime2 = t2.sortDateTime
-                    if (dateTime1 != null && dateTime2 != null) {
-                        dateTime2.compareTo(dateTime1)
-                    } else 0
+                    t2.timestamp.compareTo(t1.timestamp)
                 }
 
                 adapter?.notifyDataSetChanged()

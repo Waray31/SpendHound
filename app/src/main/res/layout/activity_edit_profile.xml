@@ -6,315 +6,339 @@
     android:background="@color/whitest"
     android:orientation="vertical">
 
-    <ScrollView
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             android:orientation="vertical">
 
+            <ScrollView
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="20dp">
+
+                        <!-- Header -->
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="24dp"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal">
+
+                            <ImageButton
+                                android:id="@+id/btnBack"
+                                android:layout_width="32dp"
+                                android:layout_height="32dp"
+                                android:background="@drawable/transparent_background"
+                                android:contentDescription="Back"
+                                android:src="@drawable/ic_back"
+                                app:tint="@color/darkBlue" />
+
+                            <TextView
+                                android:layout_width="0dp"
+                                android:layout_height="wrap_content"
+                                android:layout_weight="1"
+                                android:fontFamily="@font/montserratalternatess_bold"
+                                android:text="Edit Profile"
+                                android:textAlignment="center"
+                                android:textColor="@color/darkBlue"
+                                android:textSize="20sp" />
+
+                            <View
+                                android:layout_width="32dp"
+                                android:layout_height="32dp" />
+                        </LinearLayout>
+
+                        <!-- Profile Photo -->
+                        <FrameLayout
+                            android:layout_width="100dp"
+                            android:layout_height="100dp"
+                            android:layout_gravity="center_horizontal"
+                            android:layout_marginBottom="24dp">
+
+                            <androidx.cardview.widget.CardView
+                                android:layout_width="100dp"
+                                android:layout_height="100dp"
+                                android:elevation="4dp"
+                                android:foreground="@drawable/round_border_profile"
+                                android:shape="ring"
+                                android:thicknessRatio="1.9"
+                                app:cardCornerRadius="15dp">
+
+                                <ImageView
+                                    android:id="@+id/editProfileImage"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="match_parent"
+                                    android:contentDescription="@string/profile_image_description"
+                                    android:scaleType="centerCrop"
+                                    android:src="@drawable/placeholder_profile_image" />
+                            </androidx.cardview.widget.CardView>
+
+                            <com.google.android.material.floatingactionbutton.FloatingActionButton
+                                android:id="@+id/changePhotoText"
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_gravity="bottom|end"
+                                android:contentDescription="Edit Photo"
+                                android:src="@drawable/edit_photo"
+                                app:backgroundTint="@color/yellow"
+                                app:elevation="4dp"
+                                app:fabCustomSize="28dp"
+                                app:maxImageSize="14dp"
+                                app:tint="@color/whitest" />
+                        </FrameLayout>
+
+                        <!-- Nickname -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="16dp"
+                            android:hint="Nickname"
+                            app:boxCornerRadiusBottomEnd="24dp"
+                            app:boxCornerRadiusBottomStart="24dp"
+                            app:boxCornerRadiusTopEnd="24dp"
+                            app:boxCornerRadiusTopStart="24dp"
+                            app:boxStrokeColor="@color/yellow"
+                            app:hintTextColor="@color/yellow">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etNickname"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/montserratalternatess_regular"
+                                android:inputType="text"
+                                android:textColor="@color/darkBlue"
+                                android:textSize="16sp" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <!-- Email locked behind password -->
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/emailInputLayout"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="24dp"
+                            android:hint="Email"
+                            app:boxCornerRadiusBottomEnd="24dp"
+                            app:boxCornerRadiusBottomStart="24dp"
+                            app:boxCornerRadiusTopEnd="24dp"
+                            app:boxCornerRadiusTopStart="24dp"
+                            app:boxStrokeColor="@color/yellow"
+                            app:endIconDrawable="@drawable/ic_lock"
+                            app:endIconMode="custom"
+                            app:endIconTint="@color/yellow"
+                            app:hintTextColor="@color/yellow">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etEmail"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:enabled="false"
+                                android:fontFamily="@font/montserratalternatess_regular"
+                                android:inputType="textEmailAddress"
+                                android:textColor="@color/darkBlue"
+                                android:textSize="16sp" />
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <LinearLayout
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginBottom="32dp"
+                            android:background="@drawable/border_grey_rounded"
+                            android:orientation="vertical"
+                            android:paddingVertical="16dp">
+
+                            <!-- Password row -->
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:layout_marginBottom="16dp"
+                                android:gravity="center_vertical"
+                                android:orientation="horizontal">
+
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:orientation="horizontal"
+                                    android:paddingHorizontal="12dp">
+
+                                    <LinearLayout
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:orientation="vertical">
+
+                                        <TextView
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:fontFamily="@font/montserratalternatess_bold"
+                                            android:text="Password"
+                                            android:textColor="@color/darkBlue"
+                                            android:textSize="14sp" />
+
+                                        <TextView
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:fontFamily="@font/montserratalternatess_regular"
+                                            android:text="••••••••"
+                                            android:textColor="@color/grey"
+                                            android:textSize="12sp" />
+                                    </LinearLayout>
+
+                                    <TextView
+                                        android:id="@+id/tvChangePassword"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:clickable="true"
+                                        android:focusable="true"
+                                        android:fontFamily="@font/montserratalternatess_bold"
+                                        android:padding="8dp"
+                                        android:text="Change"
+                                        android:textColor="@color/yellow"
+                                        android:textSize="14sp" />
+                                </LinearLayout>
+                            </LinearLayout>
+
+                            <View
+                                android:layout_width="match_parent"
+                                android:layout_height="1dp"
+                                android:layout_marginBottom="16dp"
+                                android:background="@drawable/bottom_border_grey" />
+
+                            <LinearLayout
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:orientation="horizontal"
+                                android:paddingHorizontal="12dp">
+
+                                <!-- Passkey row -->
+                                <LinearLayout
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:gravity="center_vertical"
+                                    android:orientation="horizontal">
+
+                                    <LinearLayout
+                                        android:layout_width="0dp"
+                                        android:layout_height="wrap_content"
+                                        android:layout_weight="1"
+                                        android:orientation="vertical">
+
+                                        <TextView
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:fontFamily="@font/montserratalternatess_bold"
+                                            android:text="Passkey"
+                                            android:textColor="@color/darkBlue"
+                                            android:textSize="14sp" />
+
+                                        <TextView
+                                            android:id="@+id/tvPasskeyStatus"
+                                            android:layout_width="wrap_content"
+                                            android:layout_height="wrap_content"
+                                            android:fontFamily="@font/montserratalternatess_regular"
+                                            android:text="Not set up"
+                                            android:textColor="@color/grey"
+                                            android:textSize="12sp" />
+                                    </LinearLayout>
+
+
+                                    <TextView
+                                        android:id="@+id/tvPasskeyAction"
+                                        android:layout_width="wrap_content"
+                                        android:layout_height="wrap_content"
+                                        android:clickable="true"
+                                        android:focusable="true"
+                                        android:fontFamily="@font/montserratalternatess_bold"
+                                        android:padding="8dp"
+                                        android:text="Add Passkey"
+                                        android:textColor="@color/yellow"
+                                        android:textSize="14sp" />
+                                </LinearLayout>
+                            </LinearLayout>
+
+                        </LinearLayout>
+
+                    </LinearLayout>
+
+                </LinearLayout>
+            </ScrollView>
+
             <LinearLayout
+                android:id="@+id/editProfie_buttons"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="20dp">
 
-                <!-- Header -->
-                <LinearLayout
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSaveProfile"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="24dp"
-                    android:gravity="center_vertical"
-                    android:orientation="horizontal">
+                    android:background="@drawable/rounded_button_selector"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Save Changes"
+                    android:textColor="@color/whitest"
+                    android:textSize="14sp"
+                    app:backgroundTint="@null" />
 
-                    <ImageButton
-                        android:id="@+id/btnBack"
-                        android:layout_width="32dp"
-                        android:layout_height="32dp"
-                        android:background="@drawable/transparent_background"
-                        android:contentDescription="Back"
-                        android:src="@drawable/ic_back"
-                        app:tint="@color/darkBlue" />
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:fontFamily="@font/montserratalternatess_bold"
-                        android:text="Edit Profile"
-                        android:textAlignment="center"
-                        android:textColor="@color/darkBlue"
-                        android:textSize="20sp" />
-
-                    <View
-                        android:layout_width="32dp"
-                        android:layout_height="32dp" />
-                </LinearLayout>
-
-                <!-- Profile Photo -->
-                <FrameLayout
-                    android:layout_width="100dp"
-                    android:layout_height="100dp"
-                    android:layout_gravity="center_horizontal"
-                    android:layout_marginBottom="24dp">
-
-                    <androidx.cardview.widget.CardView
-                        android:layout_width="100dp"
-                        android:layout_height="100dp"
-                        android:elevation="4dp"
-                        android:foreground="@drawable/round_border_profile"
-                        android:shape="ring"
-                        android:thicknessRatio="1.9"
-                        app:cardCornerRadius="15dp">
-
-                        <ImageView
-                            android:id="@+id/editProfileImage"
-                            android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:contentDescription="@string/profile_image_description"
-                            android:scaleType="centerCrop"
-                            android:src="@drawable/placeholder_profile_image" />
-                    </androidx.cardview.widget.CardView>
-
-                    <com.google.android.material.floatingactionbutton.FloatingActionButton
-                        android:id="@+id/changePhotoText"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="bottom|end"
-                        android:contentDescription="Edit Photo"
-                        android:src="@drawable/edit_photo"
-                        app:backgroundTint="@color/yellow"
-                        app:elevation="4dp"
-                        app:fabCustomSize="28dp"
-                        app:maxImageSize="14dp"
-                        app:tint="@color/whitest" />
-                </FrameLayout>
-
-                <!-- Nickname -->
-                <com.google.android.material.textfield.TextInputLayout
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnCancel"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginBottom="16dp"
-                    android:hint="Nickname"
-                    app:boxCornerRadiusBottomEnd="24dp"
-                    app:boxCornerRadiusBottomStart="24dp"
-                    app:boxCornerRadiusTopEnd="24dp"
-                    app:boxCornerRadiusTopStart="24dp"
-                    app:boxStrokeColor="@color/yellow"
-                    app:hintTextColor="@color/yellow">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etNickname"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="@font/montserratalternatess_regular"
-                        android:inputType="text"
-                        android:textColor="@color/darkBlue"
-                        android:textSize="16sp" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <!-- Email locked behind password -->
-                <com.google.android.material.textfield.TextInputLayout
-                    android:id="@+id/emailInputLayout"
-                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="24dp"
-                    android:hint="Email"
-                    app:boxCornerRadiusBottomEnd="24dp"
-                    app:boxCornerRadiusBottomStart="24dp"
-                    app:boxCornerRadiusTopEnd="24dp"
-                    app:boxCornerRadiusTopStart="24dp"
-                    app:boxStrokeColor="@color/yellow"
-                    app:endIconDrawable="@drawable/ic_lock"
-                    app:endIconMode="custom"
-                    app:endIconTint="@color/yellow"
-                    app:hintTextColor="@color/yellow">
-
-                    <com.google.android.material.textfield.TextInputEditText
-                        android:id="@+id/etEmail"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:enabled="false"
-                        android:fontFamily="@font/montserratalternatess_regular"
-                        android:inputType="textEmailAddress"
-                        android:textColor="@color/darkBlue"
-                        android:textSize="16sp" />
-                </com.google.android.material.textfield.TextInputLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginBottom="32dp"
-                    android:background="@drawable/border_grey_rounded"
-                    android:orientation="vertical"
-                    android:paddingVertical="16dp">
-
-                    <!-- Password row -->
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginBottom="16dp"
-                        android:gravity="center_vertical"
-                        android:orientation="horizontal">
-
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:orientation="horizontal"
-                            android:paddingHorizontal="12dp">
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:fontFamily="@font/montserratalternatess_bold"
-                                    android:text="Password"
-                                    android:textColor="@color/darkBlue"
-                                    android:textSize="14sp" />
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:fontFamily="@font/montserratalternatess_regular"
-                                    android:text="••••••••"
-                                    android:textColor="@color/grey"
-                                    android:textSize="12sp" />
-                            </LinearLayout>
-
-                            <TextView
-                                android:id="@+id/tvChangePassword"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:clickable="true"
-                                android:focusable="true"
-                                android:fontFamily="@font/montserratalternatess_bold"
-                                android:padding="8dp"
-                                android:text="Change"
-                                android:textColor="@color/yellow"
-                                android:textSize="14sp" />
-                        </LinearLayout>
-                    </LinearLayout>
-
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginBottom="16dp"
-                        android:background="@drawable/bottom_border_grey" />
-
-                    <LinearLayout
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:orientation="horizontal"
-                        android:paddingHorizontal="12dp">
-
-                        <!-- Passkey row -->
-                        <LinearLayout
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:gravity="center_vertical"
-                            android:orientation="horizontal">
-
-                            <LinearLayout
-                                android:layout_width="0dp"
-                                android:layout_height="wrap_content"
-                                android:layout_weight="1"
-                                android:orientation="vertical">
-
-                                <TextView
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:fontFamily="@font/montserratalternatess_bold"
-                                    android:text="Passkey"
-                                    android:textColor="@color/darkBlue"
-                                    android:textSize="14sp" />
-
-                                <TextView
-                                    android:id="@+id/tvPasskeyStatus"
-                                    android:layout_width="wrap_content"
-                                    android:layout_height="wrap_content"
-                                    android:fontFamily="@font/montserratalternatess_regular"
-                                    android:text="Not set up"
-                                    android:textColor="@color/grey"
-                                    android:textSize="12sp" />
-                            </LinearLayout>
-
-
-                            <TextView
-                                android:id="@+id/tvPasskeyAction"
-                                android:layout_width="wrap_content"
-                                android:layout_height="wrap_content"
-                                android:clickable="true"
-                                android:focusable="true"
-                                android:fontFamily="@font/montserratalternatess_bold"
-                                android:padding="8dp"
-                                android:text="Add Passkey"
-                                android:textColor="@color/yellow"
-                                android:textSize="14sp" />
-                        </LinearLayout>
-                    </LinearLayout>
-
-                </LinearLayout>
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/round_border_glassy"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Cancel"
+                    android:textColor="@color/grey"
+                    android:textSize="14sp"
+                    app:backgroundTint="@null" />
 
             </LinearLayout>
+        </LinearLayout>
+
+
+        <!-- Loading Overlay -->
+        <LinearLayout
+            android:id="@+id/progressBar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/glassy_background"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:visibility="gone">
+
+            <ProgressBar
+                style="@style/CustomProgressBarStyle"
+                android:layout_width="48dp"
+                android:layout_height="48dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:text="@string/loading_text"
+                android:textColor="@color/darkBlue"
+                android:textSize="12sp" />
 
         </LinearLayout>
-    </ScrollView>
-
-    <LinearLayout
-        android:id="@+id/editProfie_buttons"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="20dp">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnSaveProfile"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/rounded_button_selector"
-            android:fontFamily="@font/montserratalternatess_bold"
-            android:text="Save Changes"
-            android:textColor="@color/whitest"
-            android:textSize="14sp"
-            app:backgroundTint="@null" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/btnCancel"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:background="@drawable/round_border_glassy"
-            android:fontFamily="@font/montserratalternatess_bold"
-            android:text="Cancel"
-            android:textColor="@color/grey"
-            android:textSize="14sp"
-            app:backgroundTint="@null" />
-
-    </LinearLayout>
-
-
-    <FrameLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content">
-
-        <ProgressBar
-            android:id="@+id/progressBar"
-            style="@style/CustomProgressBarStyle"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:padding="20dp"
-            android:visibility="gone" />
 
     </FrameLayout>
 

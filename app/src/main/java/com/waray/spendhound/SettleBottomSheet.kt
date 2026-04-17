@@ -55,6 +55,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
     private var saveBtn: MaterialButton? = null
     private var advancedContainer: LinearLayout? = null
     private var advancedToggleTV: TextView? = null
+    private var settlementInstructions: LinearLayout? = null
 
     private val instructionRows = mutableListOf<InstructionRowBinding>()
 
@@ -110,6 +111,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         saveBtn = view.findViewById(R.id.settleSaveBtn)
         advancedContainer = view.findViewById(R.id.settleAdvancedContainer)
         advancedToggleTV = view.findViewById(R.id.settleAdvancedToggleTV)
+        settlementInstructions = view.findViewById(R.id.settlement_instructions)
         val recycler = view.findViewById<RecyclerView>(R.id.settlePayorsRecyclerView)
         recycler.layoutManager = LinearLayoutManager(requireContext())
         recycler.adapter = SettlePayorAdapter(tx, amounts)
@@ -168,6 +170,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
             assignedTV?.visibility = View.GONE
             remainingTV?.visibility = View.GONE
             instructionMessageTV?.visibility = View.GONE
+            settlementInstructions?.visibility = View.GONE
             saveBtn?.visibility = View.GONE
             cancelBtn.visibility = View.GONE
             // Show advanced
@@ -191,12 +194,14 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         instructionContainer?.removeAllViews()
 
         if (plan.totalToAssign <= epsilon) {
+            settlementInstructions?.visibility = View.GONE
             addInstructionBtn?.isEnabled = false
             instructionMessageTV?.text = "No payment instructions needed. This settlement is already balanced."
             refreshInstructionFooter(plan)
             return
         }
 
+        settlementInstructions?.visibility = View.VISIBLE
         addInstructionBtn?.isEnabled = true
         plan.instructions.forEach { addInstructionRow(plan, it) }
         if (instructionRows.isEmpty()) {

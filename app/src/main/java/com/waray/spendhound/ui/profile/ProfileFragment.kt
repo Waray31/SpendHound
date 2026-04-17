@@ -117,7 +117,8 @@ class ProfileFragment : Fragment() {
 
         mAuth = DeclareDatabase.auth
 
-        loadingManager = LoadingManager(null, viewLifecycleOwner.lifecycle) { isLoading ->
+        val loadingOverlay = view.findViewById<View>(R.id.loadingOverlay_profile)
+        loadingManager = LoadingManager(loadingOverlay, viewLifecycleOwner.lifecycle) { isLoading ->
             (activity as? MainActivity)?.navView?.menu?.findItem(R.id.navigation_profile)?.isEnabled = !isLoading
             isTabClickEnabled = !isLoading
         }
@@ -230,6 +231,7 @@ class ProfileFragment : Fragment() {
     }
 
     internal fun loadNicknameAndData() {
+        if (!isTabClickEnabled) return // Prevent multiple calls while loading
         loadingManager.showLoading()
         val currentUserId = mAuth?.currentUserOrNull()?.id ?: return loadingManager.hideLoading()
         lifecycleScope.launch {
@@ -242,9 +244,16 @@ class ProfileFragment : Fragment() {
                 currentNickname = user?.username ?: ""
                 nicknameTextView?.text = currentNickname
 
-                totalBalanceUnpaid()
-                fetchDebt()
-                fetchOwe()
+                // Launch all operations concurrently and wait for them to complete
+                val totalBalanceJob = lifecycleScope.launch { totalBalanceUnpaid() }
+                val fetchDebtJob = lifecycleScope.launch { fetchDebt() }
+                val fetchOweJob = lifecycleScope.launch { fetchOwe() }
+
+                // Wait for all to complete
+                totalBalanceJob.join()
+                fetchDebtJob.join()
+                fetchOweJob.join()
+
             } catch (e: Exception) {
                 Log.e("Supabase", "Error loading profile data: "+e.message)
             } finally {
@@ -254,105 +263,90 @@ class ProfileFragment : Fragment() {
     }
 
 
-    private fun fetchOwe() {
+    private suspend fun fetchOwe() {
         val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
-        loadingManager.showLoading()
-        lifecycleScope.launch {
-            try {
-                val user = withContext(Dispatchers.IO) {
-                    DeclareDatabase.usersTable.select(Columns.list("user_id")) {
-                        filter { eq("auth_id", currentUserId) }
-                    }.decodeSingleOrNull<User>()
-                }
-                
-                if (user?.id != null) {
-                    val borrows = withContext(Dispatchers.IO) {
-                        DeclareDatabase.borrowsTable.select {
-                            filter { 
-                                eq("lender_id", user.id)
-                                neq("status", 3) // Not Paid
-                            }
-                        }.decodeList<BorrowNowTransaction>()
-                    }
-                    currentOwe = borrows.sumOf { it.borrowedAmount ?: 0.0 }
-                }
-            } catch (e: Exception) {
-                Log.e("Supabase", "Error fetching owe: ${e.message}")
-            } finally {
-                loadingManager.hideLoading()
+        try {
+            val user = withContext(Dispatchers.IO) {
+                DeclareDatabase.usersTable.select(Columns.list("user_id")) {
+                    filter { eq("auth_id", currentUserId) }
+                }.decodeSingleOrNull<User>()
             }
+
+            if (user?.id != null) {
+                val borrows = withContext(Dispatchers.IO) {
+                    DeclareDatabase.borrowsTable.select {
+                        filter {
+                            eq("lender_id", user.id)
+                            neq("status", 3) // Not Paid
+                        }
+                    }.decodeList<BorrowNowTransaction>()
+                }
+                currentOwe = borrows.sumOf { it.borrowedAmount ?: 0.0 }
+            }
+        } catch (e: Exception) {
+            Log.e("Supabase", "Error fetching owe: ${e.message}")
         }
     }
 
-    private fun fetchDebt() {
+    private suspend fun fetchDebt() {
         val currentUserId = mAuth?.currentUserOrNull()?.id ?: return
-        loadingManager.showLoading()
-        lifecycleScope.launch {
-            try {
-                val user = withContext(Dispatchers.IO) {
-                    DeclareDatabase.usersTable.select(Columns.list("user_id")) {
-                        filter { eq("auth_id", currentUserId) }
-                    }.decodeSingleOrNull<User>()
-                }
-                
-                if (user?.id != null) {
-                    val borrows = withContext(Dispatchers.IO) {
-                        DeclareDatabase.borrowsTable.select {
-                            filter { 
-                                eq("borrower_id", user.id)
-                                neq("status", 3) // Not Paid
-                            }
-                        }.decodeList<BorrowNowTransaction>()
-                    }
-                    currentDebt = borrows.sumOf { it.borrowedAmount ?: 0.0 }
-                }
-            } catch (e: Exception) {
-                Log.e("Supabase", "Error fetching debt: ${e.message}")
-            } finally {
-                loadingManager.hideLoading()
+        try {
+            val user = withContext(Dispatchers.IO) {
+                DeclareDatabase.usersTable.select(Columns.list("user_id")) {
+                    filter { eq("auth_id", currentUserId) }
+                }.decodeSingleOrNull<User>()
             }
+
+            if (user?.id != null) {
+                val borrows = withContext(Dispatchers.IO) {
+                    DeclareDatabase.borrowsTable.select {
+                        filter {
+                            eq("borrower_id", user.id)
+                            neq("status", 3) // Not Paid
+                        }
+                    }.decodeList<BorrowNowTransaction>()
+                }
+                currentDebt = borrows.sumOf { it.borrowedAmount ?: 0.0 }
+            }
+        } catch (e: Exception) {
+            Log.e("Supabase", "Error fetching debt: ${e.message}")
         }
     }
 
-    private fun totalBalanceUnpaid() {
-        loadingManager.showLoading()
-        lifecycleScope.launch {
-            try {
-                val transactions = withContext(Dispatchers.IO) {
-                    DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
-                }
-                var totalIndividualPaymentSum = 0.0
-                var totalPaymentListSum = 0.0
-
-                for (transaction in transactions) {
-                    val individualPayment = transaction.individualPayment
-                    val payorsList = transaction.payorsDisplayNames ?: transaction.contributors ?: emptyList()
-                    val amountsPaidList = transaction.amountPaidList ?: emptyList()
-
-                    val userIndex = payorsList.indexOf(currentNickname)
-                    if (userIndex != -1 && userIndex < amountsPaidList.size) {
-                        totalIndividualPaymentSum += individualPayment
-                        totalPaymentListSum += (amountsPaidList[userIndex] ?: 0.0)
-                    }
-                }
-
-                if (totalPaymentListSum > totalIndividualPaymentSum) {
-                    balance = totalPaymentListSum - totalIndividualPaymentSum
-                    unpaid = 0.0
-                } else {
-                    unpaid = totalIndividualPaymentSum - totalPaymentListSum
-                    balance = 0.0
-                }
-
-                withContext(Dispatchers.Main) {
-                    totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(balance)
-                    totalTextView?.text = "Total Balance:"
-                }
-            } catch (e: Exception) {
-                Log.e("Supabase", "Error fetching balance/unpaid: ${e.message}")
-            } finally {
-                loadingManager.hideLoading()
+    private suspend fun totalBalanceUnpaid() {
+        try {
+            val transactions = withContext(Dispatchers.IO) {
+                DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
             }
+            var totalIndividualPaymentSum = 0.0
+            var totalPaymentListSum = 0.0
+
+            for (transaction in transactions) {
+                val individualPayment = transaction.individualPayment
+                val payorsList = transaction.payorsDisplayNames ?: transaction.contributors ?: emptyList()
+                val amountsPaidList = transaction.amountPaidList ?: emptyList()
+
+                val userIndex = payorsList.indexOf(currentNickname)
+                if (userIndex != -1 && userIndex < amountsPaidList.size) {
+                    totalIndividualPaymentSum += individualPayment
+                    totalPaymentListSum += (amountsPaidList[userIndex] ?: 0.0)
+                }
+            }
+
+            if (totalPaymentListSum > totalIndividualPaymentSum) {
+                balance = totalPaymentListSum - totalIndividualPaymentSum
+                unpaid = 0.0
+            } else {
+                unpaid = totalIndividualPaymentSum - totalPaymentListSum
+                balance = 0.0
+            }
+
+            withContext(Dispatchers.Main) {
+                totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(balance)
+                totalTextView?.text = "Total Balance:"
+            }
+        } catch (e: Exception) {
+            Log.e("Supabase", "Error fetching balance/unpaid: ${e.message}")
         }
     }
 

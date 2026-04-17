@@ -12,6 +12,7 @@ class RecentTransaction {
     var mostRecentPaymentAmountStr: String? = null
     var iconResource: Int = 0
     var sortDateTime: String? = null
+    var timestamp: Long = 0L
     var payorsList: MutableList<String?>? = null
     var payorUserIds: MutableList<String?>? = null
     var amountsPaidList: MutableList<Double?>? = null
@@ -42,6 +43,7 @@ class RecentTransaction {
         mostRecentPaymentAmountStr: String?,
         iconResource: Int,
         sortDateTime: String?,
+        timestamp: Long,
         payorsList: MutableList<String?>?,
         payorUserIds: MutableList<String?>?,
         amountsPaidList: MutableList<Double?>?,
@@ -60,6 +62,7 @@ class RecentTransaction {
         this.mostRecentPaymentAmountStr = mostRecentPaymentAmountStr
         this.iconResource = iconResource
         this.sortDateTime = sortDateTime
+        this.timestamp = timestamp
         this.payorsList = payorsList
         this.payorUserIds = payorUserIds
         this.amountsPaidList = amountsPaidList

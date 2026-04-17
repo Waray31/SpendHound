@@ -346,6 +346,7 @@ class HomeFragment : Fragment() {
                         CurrencyUtils.formatAmountWithCurrency(tx.totalAmount),
                         getIconForType(tx.description),
                         timestamp.toString(),
+                        timestamp,
                         payorNames, payorUserIds, amountsPaid, individualPayment,
                         "$monthName $day, $year", usersById[tx.createdBy] ?: "Unknown",
                         tx.createdBy?.toString(), "$monthName-$year", day, timeKey
@@ -359,7 +360,7 @@ class HomeFragment : Fragment() {
                     newList.add(rt)
                 }
 
-                newList.sortByDescending { it.sortDateTime?.toLongOrNull() }
+                newList.sortByDescending { it.timestamp }
 
                 // Keep only 5 most recent
                 val recent = ArrayList(newList.take(5))

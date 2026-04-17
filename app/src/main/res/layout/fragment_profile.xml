@@ -366,7 +366,7 @@
                 android:fontFamily="@font/montserratalternatess_regular"
                 android:text="@string/loading_text"
                 android:textColor="@color/darkBlue"
-                android:textSize="14sp" />
+                android:textSize="12sp" />
 
         </LinearLayout>
     </FrameLayout>

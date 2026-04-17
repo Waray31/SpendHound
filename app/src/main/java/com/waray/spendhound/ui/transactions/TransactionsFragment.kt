@@ -418,6 +418,7 @@ class TransactionsFragment : Fragment() {
                         CurrencyUtils.formatAmountWithCurrency(tx.totalAmount),
                         getIconForTransactionType(tx.description),
                         "$year-$monthName-$day $timeKey",
+                        timestamp,
                         payorNames,
                         payorUserIds,
                         amountsPaid,
@@ -439,8 +440,7 @@ class TransactionsFragment : Fragment() {
                 }
 
                 transactionList.sortWith { t1, t2 ->
-                    val d1 = t1.sortDateTime; val d2 = t2.sortDateTime
-                    if (d1 != null && d2 != null) d2.compareTo(d1) else 0
+                    t2.timestamp.compareTo(t1.timestamp)
                 }
 
                 withContext(Dispatchers.Main) {

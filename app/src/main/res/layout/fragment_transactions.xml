@@ -258,8 +258,8 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:fontFamily="@font/montserratalternatess_bold"
-                android:text="Loading details..."
-                android:textSize="10sp" />
+                android:text="Loading..."
+                android:textSize="12sp" />
 
         </LinearLayout>
     </FrameLayout>
