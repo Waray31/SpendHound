@@ -170,7 +170,25 @@ class RecentTransactionAdapter(
                 }
             } else {
                 holder.createdByTextView.text = transaction.createdBy ?: "Unknown"
-                holder.settlementLL.visibility = View.GONE
+                // Check if current user is a payor
+                val currentUserId = cachedCurrentNumericId
+                val userRow = transaction.rawPayorRows.firstOrNull { it.userId == currentUserId }
+                if (userRow != null) {
+                    val hasExcess = userRow.excessAmount > 0.0
+                    holder.settlementLL.visibility = View.VISIBLE
+                    holder.editTransactionBtn.text = if (hasExcess) "Settle" else "Details"
+                    holder.editTransactionBtn.setOnClickListener {
+                        val sheet = SettleBottomSheet().apply {
+                            this.transaction = transaction
+                            this.isDetailsMode = !hasExcess
+                            onSettleSaved = { onSettleRefresh?.invoke() }
+                        }
+                        val fm = (holder.itemView.context as? FragmentActivity)?.supportFragmentManager ?: return@setOnClickListener
+                        sheet.show(fm, "SettleBottomSheet")
+                    }
+                } else {
+                    holder.settlementLL.visibility = View.GONE
+                }
             }
         }
     }

@@ -60,6 +60,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
 
     var transaction: RecentTransaction? = null
     var onSettleSaved: (() -> Unit)? = null
+    var isDetailsMode: Boolean = false
 
     override fun onCreateDialog(savedInstanceState: Bundle?): Dialog {
         return object : BottomSheetDialog(requireContext(), theme) {
@@ -94,7 +95,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
             tx.mostRecentTransactionType ?: "Transaction"
         }
 
-        view.findViewById<TextView>(R.id.settleTitleTV).text = "Settle: $title"
+        view.findViewById<TextView>(R.id.settleTitleTV).text = if (isDetailsMode) "Details: $title" else "Settle: $title"
         styleSettleTotal(view.findViewById(R.id.settleTotalTV), tx)
 
         val amounts = tx.amountsPaidList?.map { it ?: 0.0 }?.toMutableList()
@@ -132,6 +133,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
             }
 
             val updated = buildUpdatedAmounts(tx, amounts)
+            val instructions = instructionRows.map { it.instruction }
             loadingLayout.visibility = View.VISIBLE
             saveBtn?.isEnabled = false
             cancelBtn.isEnabled = false
@@ -140,6 +142,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
             saveTransactionChanges(
                 transaction = tx,
                 updatedAmounts = updated,
+                instructions = instructions,
                 onSuccess = {
                     loadingLayout.visibility = View.GONE
                     Toast.makeText(requireContext(), "Transaction updated", Toast.LENGTH_SHORT).show()
@@ -154,6 +157,24 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
                     Toast.makeText(requireContext(), "Update failed: $msg", Toast.LENGTH_SHORT).show()
                 }
             )
+        }
+
+        if (isDetailsMode) {
+            // Hide settlement section
+            view.findViewById<TextView>(R.id.settlementTitleTV).visibility = View.GONE
+            view.findViewById<TextView>(R.id.settlementDescriptionTV).visibility = View.GONE
+            instructionContainer?.visibility = View.GONE
+            addInstructionBtn?.visibility = View.GONE
+            assignedTV?.visibility = View.GONE
+            remainingTV?.visibility = View.GONE
+            instructionMessageTV?.visibility = View.GONE
+            saveBtn?.visibility = View.GONE
+            cancelBtn.visibility = View.GONE
+            // Show advanced
+            advancedContainer?.visibility = View.VISIBLE
+            advancedToggleTV?.text = "Hide"
+            // Show note
+            view.findViewById<TextView>(R.id.settleNoteTV).visibility = View.VISIBLE
         }
     }
 
@@ -267,7 +288,11 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         assignedTV?.text = "Assigned: ${CurrencyUtils.formatAmountWithCurrency(validation.assigned)}"
         remainingTV?.text = "Remaining to assign: ${CurrencyUtils.formatAmountWithCurrency(validation.remaining.coerceAtLeast(0.0))}"
 
-        val remainingColor = if (validation.canSave) R.color.green else R.color.red
+        val remainingColor = when {
+            validation.remaining > epsilon -> R.color.yellow
+            validation.remaining < -epsilon -> R.color.red
+            else -> R.color.green
+        }
         remainingTV?.setTextColor(ContextCompat.getColor(requireContext(), remainingColor))
         instructionMessageTV?.text = validation.message
         instructionMessageTV?.setTextColor(
@@ -344,14 +369,13 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         }
 
         val remaining = plan.totalToAssign - assigned
-        if (remaining > epsilon) {
-            return ValidationResult(assigned, remaining, false, "Assign the remaining amount before saving.")
-        }
-        if (remaining < -epsilon) {
-            return ValidationResult(assigned, 0.0, false, "Assigned amount exceeds the settlement total.")
+        val message = when {
+            remaining > epsilon -> "Warning: ${CurrencyUtils.formatAmountWithCurrency(remaining)} not assigned. You can save anyway."
+            remaining < -epsilon -> "Warning: Assigned ${CurrencyUtils.formatAmountWithCurrency(-remaining)} more than needed. You can save anyway."
+            else -> "Settlement plan is ready to save."
         }
 
-        return ValidationResult(assigned, 0.0, true, "Settlement plan is ready to save.")
+        return ValidationResult(assigned, remaining.coerceAtLeast(0.0), true, message)
     }
 
     private fun shouldAllowMoreRows(plan: SettlementPlan): Boolean {
@@ -399,6 +423,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
     private fun saveTransactionChanges(
         transaction: RecentTransaction,
         updatedAmounts: List<Double>,
+        instructions: List<PaymentInstruction>,
         onSuccess: () -> Unit,
         onError: (String) -> Unit
     ) {
@@ -407,6 +432,17 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         scope.launch {
             try {
                 val payorUserIds = transaction.payorUserIds ?: emptyList()
+
+                // Calculate payor to receivers and receiver totals
+                val payorToReceivers = mutableMapOf<Long, MutableList<Long>>()
+                val receiverTotals = mutableMapOf<Long, Double>()
+                instructions.forEach { instr ->
+                    val payerId = instr.payerId ?: return@forEach
+                    val receiverId = instr.receiverId ?: return@forEach
+                    val amount = instr.amount
+                    payorToReceivers.getOrPut(payerId) { mutableListOf() }.add(receiverId)
+                    receiverTotals[receiverId] = (receiverTotals[receiverId] ?: 0.0) + amount
+                }
 
                 payorUserIds.forEachIndexed { index, userIdStr ->
                     val userId = userIdStr?.toLongOrNull() ?: return@forEachIndexed
@@ -418,6 +454,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
                         newTotalAmount >= totalOwed -> 1
                         else -> 2
                     }
+                    val paidTo = payorToReceivers[userId]?.singleOrNull()
 
                     val existingRow = transaction.rawPayorRows.firstOrNull { it.userId == userId }
                     if (existingRow != null && existingRow.initialAmountPaid >= totalOwed) return@forEachIndexed
@@ -428,6 +465,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
                                 set("current_amount_paid", newTotalAmount)
                                 set("excess_amount", excess)
                                 set("status", status)
+                                set("paid_to", paidTo)
                             }) { filter { eq("transaction_id", id); eq("user_id", userId) } }
                         } else {
                             DeclareDatabase.transactionPayorsTable.insert(
@@ -438,9 +476,22 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
                                     currentAmountPaid = newTotalAmount,
                                     excessAmount = excess,
                                     transactionItemsId = null,
-                                    status = status
+                                    status = status,
+                                    paidTo = paidTo
                                 )
                             )
+                        }
+                    }
+                }
+
+                // Update receivers' excess_amount
+                receiverTotals.forEach { (receiverId, amountReceived) ->
+                    val existingReceiverRow = transaction.rawPayorRows.firstOrNull { it.userId == receiverId }
+                    if (existingReceiverRow != null) {
+                        withContext(Dispatchers.IO) {
+                            DeclareDatabase.transactionPayorsTable.update({
+                                set("excess_amount", existingReceiverRow.excessAmount - amountReceived)
+                            }) { filter { eq("transaction_id", id); eq("user_id", receiverId) } }
                         }
                     }
                 }
@@ -692,7 +743,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
             } else {
                 paid
             }
-            val excessAmount = (effectivePaid - owed).takeIf { it > epsilon } ?: 0.0
+            val excessAmount = existingRow?.excessAmount ?: 0.0
 
             holder.nameTV.text = name
             holder.owedTV.text = "${CurrencyUtils.formatAmountWithCurrency(paid)} / ${CurrencyUtils.formatAmountWithCurrency(owed)}"

@@ -129,6 +129,17 @@
                 android:paddingVertical="10dp"
                 android:visibility="gone" />
 
+            <TextView
+                android:id="@+id/settleNoteTV"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:text="Please note: only payors are allowed to settle this transaction."
+                android:textColor="@color/grey"
+                android:textSize="12sp"
+                android:visibility="gone" />
+
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
@@ -136,6 +147,7 @@
                 android:background="@color/lightgrey" />
 
             <TextView
+                android:id="@+id/settlementTitleTV"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/montserratalternatess_bold"
@@ -144,6 +156,7 @@
                 android:textSize="18sp" />
 
             <TextView
+                android:id="@+id/settlementDescriptionTV"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
