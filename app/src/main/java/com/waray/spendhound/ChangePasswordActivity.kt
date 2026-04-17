@@ -3,7 +3,7 @@ package com.waray.spendhound
 import android.os.Bundle
 import android.view.View
 import android.widget.ImageButton
-import android.widget.ProgressBar
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -21,7 +21,7 @@ class ChangePasswordActivity : AppCompatActivity() {
     private lateinit var etCurrentPassword: TextInputEditText
     private lateinit var etNewPassword: TextInputEditText
     private lateinit var etConfirmPassword: TextInputEditText
-    private lateinit var progressBar: ProgressBar
+    private lateinit var loadingOverlay_changePass: LinearLayout
 
     private var currentUser: User? = null
 
@@ -32,7 +32,7 @@ class ChangePasswordActivity : AppCompatActivity() {
         etCurrentPassword = findViewById(R.id.etCurrentPassword)
         etNewPassword = findViewById(R.id.etNewPassword)
         etConfirmPassword = findViewById(R.id.etConfirmPassword)
-        progressBar = findViewById(R.id.progressBar)
+        loadingOverlay_changePass = findViewById(R.id.loadingOverlay_changePass)
 
         findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
         findViewById<View>(R.id.btnChangePassword).setOnClickListener { attemptChangePassword() }
@@ -78,7 +78,7 @@ class ChangePasswordActivity : AppCompatActivity() {
             return
         }
 
-        progressBar.visibility = View.VISIBLE
+        loadingOverlay_changePass.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
                 // Verify current password via Supabase re-auth
@@ -90,7 +90,7 @@ class ChangePasswordActivity : AppCompatActivity() {
                 }
                 performPasswordChange(newPass)
             } catch (e: Exception) {
-                progressBar.visibility = View.GONE
+                loadingOverlay_changePass.visibility = View.GONE
                 Toast.makeText(this@ChangePasswordActivity, "Current password is incorrect", Toast.LENGTH_SHORT).show()
             }
         }
@@ -98,7 +98,7 @@ class ChangePasswordActivity : AppCompatActivity() {
 
     private fun performPasswordChange(newPassword: String) {
         val authId = DeclareDatabase.auth.currentUserOrNull()?.id ?: return
-        progressBar.visibility = View.VISIBLE
+        loadingOverlay_changePass.visibility = View.VISIBLE
 
         lifecycleScope.launch {
             try {
@@ -121,7 +121,7 @@ class ChangePasswordActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Toast.makeText(this@ChangePasswordActivity, "Failed: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
-                progressBar.visibility = View.GONE
+                loadingOverlay_changePass.visibility = View.GONE
             }
         }
     }

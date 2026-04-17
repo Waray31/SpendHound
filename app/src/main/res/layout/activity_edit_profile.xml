@@ -316,7 +316,7 @@
 
         <!-- Loading Overlay -->
         <LinearLayout
-            android:id="@+id/progressBar"
+            android:id="@+id/loadingOverlay_editProfile"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:background="@color/glassy_background"

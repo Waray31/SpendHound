@@ -7,6 +7,7 @@ import android.provider.MediaStore
 import android.view.View
 import android.widget.ImageButton
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -28,7 +29,7 @@ class EditProfileActivity : AppCompatActivity() {
     private lateinit var etEmail: TextInputEditText
     private lateinit var emailInputLayout: TextInputLayout
     private lateinit var editProfileImage: ImageView
-    private lateinit var progressBar: ProgressBar
+    private lateinit var loadingOverlay_editProfile: LinearLayout
     private lateinit var tvPasskeyAction: TextView
     private lateinit var tvPasskeyStatus: TextView
 
@@ -50,7 +51,7 @@ class EditProfileActivity : AppCompatActivity() {
         etEmail = findViewById(R.id.etEmail)
         emailInputLayout = findViewById(R.id.emailInputLayout)
         editProfileImage = findViewById(R.id.editProfileImage)
-        progressBar = findViewById(R.id.progressBar)
+        loadingOverlay_editProfile = findViewById(R.id.loadingOverlay_editProfile)
         tvPasskeyAction = findViewById(R.id.tvPasskeyAction)
         tvPasskeyStatus = findViewById(R.id.tvPasskeyStatus)
 
@@ -92,7 +93,7 @@ class EditProfileActivity : AppCompatActivity() {
 
     private fun loadCurrentUser() {
         val authId = DeclareDatabase.auth.currentUserOrNull()?.id ?: return
-        progressBar.visibility = View.VISIBLE
+        loadingOverlay_editProfile.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
                 currentUser = withContext(Dispatchers.IO) {
@@ -111,7 +112,7 @@ class EditProfileActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Toast.makeText(this@EditProfileActivity, "Failed to load profile", Toast.LENGTH_SHORT).show()
             } finally {
-                progressBar.visibility = View.GONE
+                loadingOverlay_editProfile.visibility = View.GONE
             }
         }
     }
@@ -161,7 +162,7 @@ class EditProfileActivity : AppCompatActivity() {
             Toast.makeText(this, "Could not verify identity. Please try again.", Toast.LENGTH_SHORT).show()
             return
         }
-        progressBar.visibility = View.VISIBLE
+        loadingOverlay_editProfile.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
                 // Re-authenticate with Supabase — most reliable way to verify password
@@ -175,7 +176,7 @@ class EditProfileActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Toast.makeText(this@EditProfileActivity, "Incorrect password", Toast.LENGTH_SHORT).show()
             } finally {
-                progressBar.visibility = View.GONE
+                loadingOverlay_editProfile.visibility = View.GONE
             }
         }
     }
@@ -215,7 +216,7 @@ class EditProfileActivity : AppCompatActivity() {
         }
 
         val authId = DeclareDatabase.auth.currentUserOrNull()?.id ?: return
-        progressBar.visibility = View.VISIBLE
+        loadingOverlay_editProfile.visibility = View.VISIBLE
 
         lifecycleScope.launch {
             try {
@@ -229,7 +230,7 @@ class EditProfileActivity : AppCompatActivity() {
                 }
                 if (taken != null) {
                     Toast.makeText(this@EditProfileActivity, "Username already taken", Toast.LENGTH_SHORT).show()
-                    progressBar.visibility = View.GONE
+                    loadingOverlay_editProfile.visibility = View.GONE
                     return@launch
                 }
 
@@ -272,7 +273,7 @@ class EditProfileActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Toast.makeText(this@EditProfileActivity, "Failed: ${e.message}", Toast.LENGTH_LONG).show()
             } finally {
-                progressBar.visibility = View.GONE
+                loadingOverlay_editProfile.visibility = View.GONE
             }
         }
     }

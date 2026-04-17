@@ -3,6 +3,7 @@ package com.waray.spendhound
 import android.os.Bundle
 import android.view.View
 import android.widget.ImageButton
+import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -18,7 +19,7 @@ import kotlinx.coroutines.withContext
 
 class PasskeySetupActivity : AppCompatActivity() {
 
-    private lateinit var progressBar: ProgressBar
+    private lateinit var loadingOverlay_changeKey: LinearLayout
     private lateinit var btnCreatePasskey: MaterialButton
     private lateinit var btnEditPasskey: MaterialButton
     private lateinit var btnRemovePasskey: MaterialButton
@@ -32,7 +33,7 @@ class PasskeySetupActivity : AppCompatActivity() {
         setContentView(R.layout.activity_passkey_setup)
 
         userEmail = intent.getStringExtra(EditProfileActivity.EXTRA_USER_EMAIL)
-        progressBar = findViewById(R.id.progressBar)
+        loadingOverlay_changeKey = findViewById(R.id.loadingOverlay_changeKey)
         btnCreatePasskey = findViewById(R.id.btnCreatePasskey)
         btnEditPasskey = findViewById(R.id.btnEditPasskey)
         btnRemovePasskey = findViewById(R.id.btnRemovePasskey)
@@ -89,7 +90,7 @@ class PasskeySetupActivity : AppCompatActivity() {
             Toast.makeText(this, "User email not found", Toast.LENGTH_SHORT).show()
             return
         }
-        progressBar.visibility = View.VISIBLE
+        loadingOverlay_changeKey.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
                 withContext(Dispatchers.IO) {
@@ -98,10 +99,10 @@ class PasskeySetupActivity : AppCompatActivity() {
                         this.password = enteredPassword
                     }
                 }
-                progressBar.visibility = View.GONE
+                loadingOverlay_changeKey.visibility = View.GONE
                 enrollPasskey(email, enteredPassword)
             } catch (e: Exception) {
-                progressBar.visibility = View.GONE
+                loadingOverlay_changeKey.visibility = View.GONE
                 Toast.makeText(this@PasskeySetupActivity, "Incorrect password", Toast.LENGTH_SHORT).show()
             }
         }
@@ -109,7 +110,7 @@ class PasskeySetupActivity : AppCompatActivity() {
 
     private fun enrollPasskey(email: String, password: String) {
         if (!BiometricHelper.isAvailable(this)) {
-            progressBar.visibility = View.GONE
+            loadingOverlay_changeKey.visibility = View.GONE
             Toast.makeText(this, "Biometric authentication is not available on this device", Toast.LENGTH_LONG).show()
             return
         }
@@ -123,14 +124,14 @@ class PasskeySetupActivity : AppCompatActivity() {
             password = password,
             onSaved = {
                 BiometricHelper.saveCredentials(this, email, password)
-                progressBar.visibility = View.GONE
+                loadingOverlay_changeKey.visibility = View.GONE
                 val msg = if (BiometricHelper.hasStoredCredentials(this)) "Passkey updated!" else "Passkey created!"
                 Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
                 setResult(RESULT_OK)
                 updateUI()
             },
             onCancelled = {
-                progressBar.visibility = View.GONE
+                loadingOverlay_changeKey.visibility = View.GONE
                 Toast.makeText(this, "Passkey setup cancelled", Toast.LENGTH_SHORT).show()
             }
         )
@@ -160,7 +161,7 @@ class PasskeySetupActivity : AppCompatActivity() {
             Toast.makeText(this, "User email not found", Toast.LENGTH_SHORT).show()
             return
         }
-        progressBar.visibility = View.VISIBLE
+        loadingOverlay_changeKey.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
                 withContext(Dispatchers.IO) {
@@ -170,12 +171,12 @@ class PasskeySetupActivity : AppCompatActivity() {
                     }
                 }
                 BiometricHelper.clearCredentials(this@PasskeySetupActivity)
-                progressBar.visibility = View.GONE
+                loadingOverlay_changeKey.visibility = View.GONE
                 Toast.makeText(this@PasskeySetupActivity, "Passkey removed", Toast.LENGTH_SHORT).show()
                 setResult(RESULT_OK)
                 updateUI()
             } catch (e: Exception) {
-                progressBar.visibility = View.GONE
+                loadingOverlay_changeKey.visibility = View.GONE
                 Toast.makeText(this@PasskeySetupActivity, "Incorrect password", Toast.LENGTH_SHORT).show()
             }
         }
