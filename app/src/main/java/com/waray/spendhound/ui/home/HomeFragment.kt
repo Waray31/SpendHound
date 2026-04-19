@@ -110,8 +110,7 @@ class HomeFragment : Fragment() {
         recentAdapter?.setOnTransactionClickListener(object : RecentTransactionAdapter.OnTransactionClickListener {
             override fun onTransactionClick(transaction: RecentTransaction?) {
                 try {
-                    val navController = findNavController()
-                    navController.navigate(R.id.navigation_transactions)
+                    (activity as? MainActivity)?.navView?.selectedItemId = R.id.navigation_transactions
                 } catch (e: Exception) {
                     Log.e("HomeFragment", "Error navigating to transactions", e)
                 }

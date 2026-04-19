@@ -37,6 +37,10 @@ import com.waray.spendhound.DeclareDatabase
 import com.waray.spendhound.EditProfileActivity
 import com.waray.spendhound.LoginActivity
 import com.waray.spendhound.MainActivity
+import com.waray.spendhound.GroupMember
+import com.waray.spendhound.ui.multi_transaction.TransactionFull
+import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
+import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
 import com.waray.spendhound.PayorAdapter
 import com.waray.spendhound.R
 import com.waray.spendhound.Transaction
@@ -254,18 +258,82 @@ class ProfileFragment : Fragment() {
 
                 // Step 2: Fetch user balance from user_balance table using user_id
                 var userBalance: UserBalance? = null
+                var transactionsCount = 0
+                var groupsCount = 0
+                var activeBorrowsCount = 0
+
                 if (user?.id != null) {
+                    val userId = user.id
                     userBalance = withContext(Dispatchers.IO) {
-                        Log.d("ProfileFragment", "Fetching user balance with user_id: ${user.id}")
+                        Log.d("ProfileFragment", "Fetching user balance with user_id: $userId")
                         DeclareDatabase.userBalanceTable.select(Columns.list(
                             "unpaid_total_group", "unpaid_total_individual",
                             "receivable_total_group", "receivable_total_individual",
                             "balance_total_group", "balance_total_individual"
                         )) {
-                            filter { eq("user_id", user.id) }
+                            filter { eq("user_id", userId) }
                         }.decodeSingleOrNull<UserBalance>()
                     }
-                    Log.d("ProfileFragment", "User balance fetched: $userBalance")
+
+                    // Fetch Transactions Count (Involved in and Pending: status 2)
+                    transactionsCount = withContext(Dispatchers.IO) {
+                        try {
+                            // 1. Get unique transaction IDs where user is involved via splits
+                            val involvedSplitTxIds = DeclareDatabase.transactionSplitsTable.select(Columns.list("transaction_id")) {
+                                filter { eq("user_id", userId) }
+                            }.decodeList<TransactionSplitTable>().mapNotNull { it.transactionId }.toSet()
+
+                            // 2. Fetch transactions that are both in that involved set AND have status 2 (pending)
+                            if (involvedSplitTxIds.isEmpty()) {
+                                0
+                            } else {
+                                val pendingInvolved = DeclareDatabase.transactionsTable.select(Columns.list("id")) {
+                                    filter {
+                                        isIn("id", involvedSplitTxIds.toList())
+                                        eq("status", 2)
+                                    }
+                                }.decodeList<TransactionFull>()
+                                pendingInvolved.size
+                            }
+                        } catch (e: Exception) {
+                            Log.e("ProfileFragment", "Error counting transactions", e)
+                            0
+                        }
+                    }
+
+                    // Fetch Groups Count
+                    groupsCount = withContext(Dispatchers.IO) {
+                        try {
+                            val members = DeclareDatabase.groupMembersTable.select(Columns.list("group_id")) {
+                                filter { eq("user_id", userId) }
+                            }.decodeList<GroupMember>()
+                            members.size
+                        } catch (e: Exception) {
+                            Log.e("ProfileFragment", "Error counting groups", e)
+                            0
+                        }
+                    }
+
+                    // Fetch Active Borrows Count (Status 1: Approval, 2: Pending, 7: Partial)
+                    activeBorrowsCount = withContext(Dispatchers.IO) {
+                        try {
+                            val borrows = DeclareDatabase.borrowsTable.select(Columns.list("id")) {
+                                filter {
+                                    eq("borrower_id", userId)
+                                    or {
+                                        eq("status", 1)
+                                        eq("status", 2)
+                                        eq("status", 7)
+                                    }
+                                }
+                            }.decodeList<BorrowNowTransaction>()
+                            borrows.size
+                        } catch (e: Exception) {
+                            Log.e("ProfileFragment", "Error counting borrows", e)
+                            0
+                        }
+                    }
+                    Log.d("ProfileFragment", "Data counts - Trans: $transactionsCount, Groups: $groupsCount, Borrows: $activeBorrowsCount")
                 }
 
                 // Update UI on Main thread
@@ -289,12 +357,12 @@ class ProfileFragment : Fragment() {
                     currentDebt = unpaidIndividual     // Total debt of user
 
                     // Update the main display with balance
-                    totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(balance)
-                    totalTextView?.text = "Total Balance:"
+                    totalBalancedTextView?.text = activeBorrowsCount.toString()
+                    totalTextView?.text = getString(R.string.label_borrowed)
 
                     // Update stats
-                    transactionsCountTextView?.text = "0" // TODO: Fetch real transaction count if available
-                    groupsCountTextView?.text = "0" // TODO: Fetch real group count if available
+                    transactionsCountTextView?.text = transactionsCount.toString()
+                    groupsCountTextView?.text = groupsCount.toString()
 
                     Log.d("ProfileFragment", "UI Updated - balance: $balance, unpaid: $unpaid, owe: $currentOwe, debt: $currentDebt")
 
