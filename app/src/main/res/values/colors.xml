@@ -29,10 +29,13 @@
     <color name="red">#FF4B2B</color>
     <color name="deep_red">#B71C1C</color>
     <color name="red_orange">#FF7A7A</color>
+    <color name="mid_orange">#FCA43A</color>
+    <color name="end_orange">#FFB74D</color>
     <color name="green">#2ecc71</color>
     <color name="light_green">#60AD5E</color>
     <color name="deep_green">#1B5E20</color>
-    <color name="orange">#FF9833</color>
+    <color name="orange">#F57C00</color>
+    <color name="brand_orange">#FA8C2A</color>
     <color name="blue">#007bff</color>
     <color name="pending_payment_bg">#FFF9E6</color>
     <color name="light_yellow">#20FFEB3B</color>

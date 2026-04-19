@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
+    android:layout_marginHorizontal="16dp"
     android:layout_marginVertical="8dp"
-    app:cardCornerRadius="16dp"
-    app:cardElevation="4dp"
-    app:cardBackgroundColor="@color/whitest">
+    app:cardBackgroundColor="@color/whitest"
+    app:cardCornerRadius="20dp"
+    app:cardElevation="2dp"
+    app:strokeColor="#E0E0E0"
+    app:strokeWidth="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -15,100 +18,106 @@
         android:orientation="vertical"
         android:padding="16dp">
 
-        <!-- Header: Icon + Name + Edit/Delete -->
-        <LinearLayout
+        <RelativeLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
+            android:layout_height="wrap_content">
 
-            <FrameLayout
-                android:layout_width="52dp"
-                android:layout_height="52dp"
-                android:background="@drawable/bg_group_icon">
+            <androidx.cardview.widget.CardView
+                android:id="@+id/iconContainer"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                app:cardBackgroundColor="@color/whitest"
+                app:cardCornerRadius="12dp"
+                app:cardElevation="0dp">
 
                 <ImageView
                     android:id="@+id/ivGroupIcon"
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
-                    android:layout_gravity="center"
-                    android:scaleType="centerCrop" />
+                    android:padding="10dp"
+                    android:src="@drawable/logo" />
+            </androidx.cardview.widget.CardView>
 
-            </FrameLayout>
-
-            <TextView
-                android:id="@+id/groupName"
-                android:layout_width="0dp"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
+                android:layout_toEndOf="@id/iconContainer"
+                android:layout_toStartOf="@id/actionButtons"
                 android:layout_marginStart="12dp"
-                android:text="Group Name"
-                android:fontFamily="@font/montserratalternatess_bold"
-                android:textColor="@color/darkBlue"
-                android:textSize="18sp" />
+                android:orientation="vertical">
 
-            <ImageButton
-                android:id="@+id/editGroupBtn"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_edit"
-                android:contentDescription="Edit"
-                app:tint="#4CAF50" />
+                <TextView
+                    android:id="@+id/groupName"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Mon group 02"
+                    android:textColor="@color/black"
+                    android:textSize="18sp" />
 
-            <ImageButton
-                android:id="@+id/removeGroupBtn"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:src="@drawable/ic_close_24dp"
-                android:contentDescription="Remove"
-                app:tint="#F44336" />
+                <TextView
+                    android:id="@+id/groupMembers"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:text="mono2, mono4, mono9, Mona"
+                    android:textColor="@color/grey"
+                    android:textSize="12sp"
+                    android:maxLines="1"
+                    android:ellipsize="end" />
+            </LinearLayout>
 
-        </LinearLayout>
+            <LinearLayout
+                android:id="@+id/actionButtons"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_alignParentEnd="true"
+                android:orientation="horizontal">
 
-        <!-- Members -->
-        <TextView
-            android:id="@+id/groupMembers"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="10dp"
-            android:text="Members: user1, user2"
-            android:fontFamily="@font/montserratalternatess_regular"
-            android:textColor="@color/grey"
-            android:textSize="13sp"
-            android:maxLines="2"
-            android:ellipsize="end" />
+                <ImageButton
+                    android:id="@+id/editGroupBtn"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:background="@drawable/circular_button_background"
+                    android:backgroundTint="#33FFFFFF"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_edit_pencil"
+                    app:tint="@color/whitest" />
 
-        <!-- Divider -->
-        <View
-            android:layout_width="match_parent"
-            android:layout_height="1dp"
-            android:layout_marginTop="14dp"
-            android:layout_marginBottom="14dp"
-            android:background="@color/lightgrey" />
+                <ImageButton
+                    android:id="@+id/removeGroupBtn"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/circular_button_background"
+                    android:backgroundTint="#33FFFFFF"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_close_24dp"
+                    app:tint="@color/bright_red" />
+            </LinearLayout>
+        </RelativeLayout>
 
-        <!-- Stats Row -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
             android:orientation="horizontal">
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginEnd="8dp"
-                android:background="@drawable/bg_stat_green"
+                android:layout_marginEnd="6dp"
+                android:background="@drawable/bg_stat_light_green"
                 android:orientation="vertical"
                 android:padding="12dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Total Expenses"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:textColor="#2E7D32"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Total expenses"
+                    android:textColor="#1B5E20"
                     android:textSize="12sp" />
 
                 <TextView
@@ -116,28 +125,27 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="₱ 0"
                     android:fontFamily="@font/montserratalternatess_bold"
-                    android:textColor="#2E7D32"
-                    android:textSize="20sp" />
-
+                    android:text="₱ 19,548"
+                    android:textColor="#1B5E20"
+                    android:textSize="18sp" />
             </LinearLayout>
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/bg_stat_blue"
+                android:layout_marginStart="6dp"
+                android:background="@drawable/bg_stat_light_blue"
                 android:orientation="vertical"
                 android:padding="12dp">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Active Transactions"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:textColor="#3949AB"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Active transactions"
+                    android:textColor="#0D47A1"
                     android:textSize="12sp" />
 
                 <TextView
@@ -145,47 +153,98 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="4dp"
-                    android:text="0"
                     android:fontFamily="@font/montserratalternatess_bold"
-                    android:textColor="#3949AB"
-                    android:textSize="20sp" />
-
+                    android:text="12"
+                    android:textColor="#0D47A1"
+                    android:textSize="18sp" />
             </LinearLayout>
-
         </LinearLayout>
 
-        <!-- Add Expense Button -->
-        <LinearLayout
-            android:id="@+id/btnAddExpense"
+        <RelativeLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="14dp"
-            android:background="@drawable/bg_add_expense_btn"
-            android:gravity="center"
-            android:orientation="horizontal"
-            android:padding="14dp"
-            android:clickable="true"
-            android:focusable="true">
+            android:layout_marginTop="12dp">
 
             <TextView
+                android:id="@+id/labelSettled"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="+"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:textColor="@color/darkBlue"
-                android:textSize="18sp" />
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:text="Settled"
+                android:textColor="@color/grey"
+                android:textSize="11sp" />
 
             <TextView
+                android:id="@+id/tvSettledRatio"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
-                android:text="Add Expense to Group"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:textColor="@color/darkBlue"
-                android:textSize="14sp" />
+                android:layout_alignParentEnd="true"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:text="₱ 14,500 / ₱ 19,548"
+                android:textColor="@color/grey"
+                android:textSize="11sp" />
 
+            <ProgressBar
+                android:id="@+id/settledProgressBar"
+                style="@android:style/Widget.ProgressBar.Horizontal"
+                android:layout_width="match_parent"
+                android:layout_height="4dp"
+                android:layout_below="@id/labelSettled"
+                android:layout_marginTop="8dp"
+                android:max="100"
+                android:progress="70"
+                android:progressDrawable="@drawable/bg_progress_orange" />
+        </RelativeLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:orientation="horizontal">
+
+            <LinearLayout
+                android:id="@+id/btnAddExpense"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1.3"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_light_card_outline"
+                android:gravity="center"
+                android:paddingVertical="12dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="+ Add expense"
+                    android:textColor="@color/black"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/btnMembers"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@drawable/bg_light_card_outline"
+                android:gravity="center"
+                android:paddingVertical="12dp">
+
+                <ImageView
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:src="@drawable/logo"
+                    app:tint="#7E57C2" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="6dp"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Members"
+                    android:textColor="@color/black"
+                    android:textSize="14sp" />
+            </LinearLayout>
         </LinearLayout>
-
     </LinearLayout>
-
 </androidx.cardview.widget.CardView>

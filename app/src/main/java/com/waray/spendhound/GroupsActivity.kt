@@ -160,7 +160,10 @@ class GroupsActivity : AppCompatActivity() {
             val tvTotalExpenses: TextView = view.findViewById(R.id.tvTotalExpenses)
             val tvActiveTransactions: TextView = view.findViewById(R.id.tvActiveTransactions)
             val btnAddExpense: LinearLayout = view.findViewById(R.id.btnAddExpense)
+            val btnMembers: LinearLayout = view.findViewById(R.id.btnMembers)
             val ivGroupIcon: ImageView = view.findViewById(R.id.ivGroupIcon)
+            val settledProgressBar: android.widget.ProgressBar = view.findViewById(R.id.settledProgressBar)
+            val tvSettledRatio: TextView = view.findViewById(R.id.tvSettledRatio)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
@@ -172,9 +175,11 @@ class GroupsActivity : AppCompatActivity() {
             val (group, members) = items[position]
             holder.name.text = group.groupName ?: "Unnamed"
             holder.members.text = if (members.isEmpty()) "No members"
-            else "Members: ${members.joinToString(", ") { it.username ?: "?" }}"
+            else members.joinToString(", ") { it.username ?: "?" }
+            
             holder.editBtn.setOnClickListener { onEdit(position) }
             holder.deleteBtn.setOnClickListener { onDelete(position) }
+            
             holder.btnAddExpense.setOnClickListener {
                 val intent = android.content.Intent(this@GroupsActivity, com.waray.spendhound.ui.multi_transaction.MultiTransactionActivity::class.java).apply {
                     putExtra("group_id", group.groupId)
@@ -182,38 +187,17 @@ class GroupsActivity : AppCompatActivity() {
                 }
                 startActivity(intent)
             }
+            
+            holder.btnMembers.setOnClickListener {
+                // Potential future feature: Show members list
+                Toast.makeText(this@GroupsActivity, "Members: ${holder.members.text}", Toast.LENGTH_SHORT).show()
+            }
 
             if (!group.groupImageUrl.isNullOrBlank()) {
                 holder.ivGroupIcon.imageTintList = null
                 Glide.with(this@GroupsActivity)
                     .load(group.groupImageUrl)
                     .transform(com.bumptech.glide.load.resource.bitmap.CenterCrop(), com.bumptech.glide.load.resource.bitmap.RoundedCorners(48))
-                    .skipMemoryCache(true)
-                    .diskCacheStrategy(com.bumptech.glide.load.engine.DiskCacheStrategy.NONE)
-                    .listener(object : com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable> {
-                        override fun onLoadFailed(
-                            e: com.bumptech.glide.load.engine.GlideException?,
-                            model: Any?,
-                            target: com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable>,
-                            isFirstResource: Boolean
-                        ): Boolean {
-                            android.util.Log.e("GroupsActivity", "Failed to load image: ${group.groupImageUrl}", e)
-                            holder.ivGroupIcon.setImageResource(R.drawable.add_group)
-                            holder.ivGroupIcon.imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#7B2FBE"))
-                            return true
-                        }
-
-                        override fun onResourceReady(
-                            resource: android.graphics.drawable.Drawable,
-                            model: Any,
-                            target: com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable>?,
-                            dataSource: com.bumptech.glide.load.DataSource,
-                            isFirstResource: Boolean
-                        ): Boolean {
-                            android.util.Log.d("GroupsActivity", "Image loaded successfully: ${group.groupImageUrl}")
-                            return false
-                        }
-                    })
                     .into(holder.ivGroupIcon)
             } else {
                 holder.ivGroupIcon.setImageResource(R.drawable.add_group)
@@ -228,16 +212,23 @@ class GroupsActivity : AppCompatActivity() {
                     }.decodeList<com.waray.spendhound.ui.multi_transaction.TransactionFull>()
 
                     val totalExpenses = transactions.sumOf { it.totalAmount }
+                    val settledAmount = transactions.filter { it.status == 1 }.sumOf { it.totalAmount }
                     val activeCount = transactions.count { (it.status ?: 0) == 2 }
 
                     runOnUiThread {
                         holder.tvTotalExpenses.text = CurrencyUtils.formatAmountWithCurrency(totalExpenses)
                         holder.tvActiveTransactions.text = activeCount.toString()
+                        
+                        holder.tvSettledRatio.text = "${CurrencyUtils.formatAmountWithCurrency(settledAmount)} / ${CurrencyUtils.formatAmountWithCurrency(totalExpenses)}"
+                        val progress = if (totalExpenses > 0) ((settledAmount / totalExpenses) * 100).toInt() else 0
+                        holder.settledProgressBar.progress = progress
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
                         holder.tvTotalExpenses.text = CurrencyUtils.formatAmountWithCurrency(0.0)
                         holder.tvActiveTransactions.text = "0"
+                        holder.tvSettledRatio.text = "₱ 0 / ₱ 0"
+                        holder.settledProgressBar.progress = 0
                     }
                 }
             }

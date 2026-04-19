@@ -133,7 +133,11 @@ class MultiTransactionViewModel(
         }
     }
 
+    private val _globalPayors = MutableStateFlow<List<PayorEntry>>(emptyList())
+    val globalPayors: StateFlow<List<PayorEntry>> = _globalPayors.asStateFlow()
+
     fun updateGlobalPayors(selectedPayors: List<PayorEntry>) {
+        _globalPayors.value = selectedPayors
         val currentList = _transactions.value.map { transaction ->
             // In single payor mode, set the payor amount to the transaction amount
             val payorsWithAmounts = selectedPayors.map { payor ->

@@ -254,7 +254,7 @@ class BorrowFragment : Fragment() {
         paidTabTV?.setBackgroundResource(0)
         unpaidTabTV?.setBackgroundResource(0)
         pendingTabTV?.setBackgroundResource(0)
-        selectedTab.setBackgroundResource(R.drawable.bg_status_tab_selected)
+        selectedTab.setBackgroundResource(R.drawable.spinner_border_grey)
     }
 
     private fun setupClickListeners() {

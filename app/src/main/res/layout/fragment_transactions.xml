@@ -46,14 +46,14 @@
             android:elevation="4dp"
             android:layout_margin="4dp"
             android:paddingHorizontal="8dp"
-            android:paddingTop="6dp"
+            android:gravity="center"
+            android:paddingVertical="8dp"
             android:background="@drawable/rounded_white_background">
 
             <!-- Filter Section -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
                 android:orientation="horizontal">
 
                 <Spinner
@@ -62,8 +62,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="4dp"
                     android:layout_weight="1"
-                    android:background="@drawable/spinner_border_grey"
-                    android:paddingVertical="8dp"
+                    android:background="@drawable/transparent_background"
                     android:textAlignment="center" />
 
                 <Spinner
@@ -72,8 +71,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
                     android:layout_weight="1"
-                    android:background="@drawable/spinner_border_grey"
-                    android:paddingVertical="8dp"
+                    android:background="@drawable/transparent_background"
                     android:textAlignment="center" />
 
             </LinearLayout>

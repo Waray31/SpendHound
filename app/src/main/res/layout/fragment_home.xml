@@ -234,7 +234,6 @@
                         android:id="@+id/cardView_profile2"
                         android:layout_width="match_parent"
                         android:layout_height="280dp"
-                        android:background="@drawable/glassy_background2"
                         android:elevation="4dp"
                         android:innerRadius="0dp"
                         android:shape="ring"

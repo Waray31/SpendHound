@@ -3,8 +3,6 @@ package com.waray.spendhound
 import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Bundle
-import android.text.Editable
-import android.text.TextWatcher
 import android.util.Log
 import android.view.MenuItem
 import android.view.MotionEvent
@@ -17,10 +15,8 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
-import androidx.recyclerview.widget.LinearSnapHelper
 import androidx.recyclerview.widget.RecyclerView
-import androidx.recyclerview.widget.SnapHelper
-import com.google.android.material.textfield.TextInputEditText
+import com.google.android.material.datepicker.MaterialDatePicker
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.launch
@@ -30,8 +26,6 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import kotlin.math.abs
-import kotlin.math.min
 
 @Serializable
 private data class BorrowInsert(
@@ -39,24 +33,30 @@ private data class BorrowInsert(
     @SerialName("borrower_id")     val borrowerId: Long,
     @SerialName("lender_id")       val lenderId: Long,
     @SerialName("status")          val status: Int,
-    @SerialName("created_at")      val createdAt: String
+    @SerialName("created_at")      val createdAt: String,
+    @SerialName("payback_date")    val paybackDate: String? = null,
+    @SerialName("note")            val note: String? = null
 )
 
 class BorrowNowActivity : AppCompatActivity() {
 
-    private var lenderRecyclerView: RecyclerView? = null
-    private var date: TextView? = null
-    private var borrower: TextView? = null
-    private var dialogProgressBar: View? = null
+    private var rvLenders: RecyclerView? = null
+    private var tvBorrowDate: TextView? = null
+    private var tvPaybackDate: TextView? = null
+    private var tvBorrower: TextView? = null
+    private var etAmount: EditText? = null
+    private var etNote: EditText? = null
     private var borrowBtn: Button? = null
     private var cancelBtn: Button? = null
-    private var adapter: LenderAdapter? = null
-    private var lenders: MutableList<User?>? = null
+    private var closeBtn: View? = null
+    
+    private var lenderAdapter: LenderChipAdapter? = null
+    private var allLenders: List<User> = emptyList()
     private var mAuth: Auth? = null
 
     private var currentUserNumericId: Long? = null
     private var selectedLenderUser: User? = null
-    private var allLenders: List<User> = emptyList() // full unfiltered list
+    private var selectedPaybackDate: Long? = null
 
     @SuppressLint("MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -65,24 +65,26 @@ class BorrowNowActivity : AppCompatActivity() {
 
         mAuth = DeclareDatabase.auth
 
-        lenderRecyclerView = findViewById(R.id.lenderRecyclerView)
-        date = findViewById(R.id.dialogBorrowDate)
-        borrower = findViewById(R.id.dialogBorrower)
-        dialogProgressBar = findViewById(R.id.dialogProgressBar)
+        rvLenders = findViewById(R.id.rvLenders)
+        tvBorrowDate = findViewById(R.id.dialogBorrowDate)
+        tvPaybackDate = findViewById(R.id.dialogPaybackDate)
+        tvBorrower = findViewById(R.id.dialogBorrower)
+        etAmount = findViewById(R.id.dialogBorrowEditText)
+        etNote = findViewById(R.id.dialogNoteEditText)
         borrowBtn = findViewById(R.id.dialogBorrowBtn)
         cancelBtn = findViewById(R.id.dialogCancelBtn)
+        closeBtn = findViewById(R.id.dialogCloseBtn)
 
-        dialogProgressBar?.visibility = View.VISIBLE
-
-        setDate()
         setupLenderRecyclerView()
+        setupDatePickers()
         setupBorrowBtn()
-        setupSearch()
+        
         cancelBtn?.setOnClickListener { finish() }
+        closeBtn?.setOnClickListener { finish() }
+        
         exitEditText()
         loadCurrentUser()
-
-        supportActionBar?.setDisplayHomeAsUpEnabled(true)
+        fetchLenders()
     }
 
     private fun loadCurrentUser() {
@@ -93,7 +95,7 @@ class BorrowNowActivity : AppCompatActivity() {
                     filter { eq("auth_id", authId) }
                 }.decodeSingleOrNull<User>()
                 currentUserNumericId = user?.id
-                borrower?.text = user?.username
+                tvBorrower?.text = user?.username
             } catch (e: Exception) {
                 Log.e("BorrowNowActivity", "Error loading current user: ${e.message}")
             }
@@ -101,89 +103,7 @@ class BorrowNowActivity : AppCompatActivity() {
     }
 
     private fun setupLenderRecyclerView() {
-        val layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
-        lenderRecyclerView?.layoutManager = layoutManager
-
-        lenders = ArrayList()
-        adapter = LenderAdapter(lenders!!)
-        lenderRecyclerView?.adapter = adapter
-
-        val snapHelper: SnapHelper = LinearSnapHelper()
-        snapHelper.attachToRecyclerView(lenderRecyclerView)
-
-        lenderRecyclerView?.addOnScrollListener(object : RecyclerView.OnScrollListener() {
-            override fun onScrolled(recyclerView: RecyclerView, dx: Int, dy: Int) {
-                super.onScrolled(recyclerView, dx, dy)
-                updateLayoutEffect(recyclerView)
-            }
-
-            override fun onScrollStateChanged(recyclerView: RecyclerView, newState: Int) {
-                super.onScrollStateChanged(recyclerView, newState)
-                if (newState == RecyclerView.SCROLL_STATE_IDLE) {
-                    val centerView = snapHelper.findSnapView(layoutManager)
-                    centerView?.let {
-                        val pos = layoutManager.getPosition(it)
-                        selectedLenderUser = adapter?.getLenderAt(pos)
-                    }
-                }
-            }
-        })
-
-        fetchLenders()
-    }
-
-    private fun updateLayoutEffect(recyclerView: RecyclerView) {
-        val midpoint = recyclerView.width / 2f
-        val d1 = 0.9f * midpoint
-        val s0 = 1.6f; val s1 = 1.0f
-        val a0 = 1.0f; val a1 = 0.5f
-
-        for (i in 0 until recyclerView.childCount) {
-            val child = recyclerView.getChildAt(i)
-            recyclerView.layoutManager?.let { lm ->
-                val childMidpoint = (lm.getDecoratedRight(child) + lm.getDecoratedLeft(child)) / 2f
-                val d = min(d1, abs(midpoint - childMidpoint))
-                child.scaleX = s0 + (s1 - s0) * d / d1
-                child.scaleY = s0 + (s1 - s0) * d / d1
-                child.alpha  = a0 + (a1 - a0) * d / d1
-            }
-        }
-    }
-
-    private fun setupSearch() {
-        val etSearch = findViewById<TextInputEditText>(R.id.etSearchLender)
-        etSearch?.addTextChangedListener(object : TextWatcher {
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-            override fun afterTextChanged(s: Editable?) {
-                filterLenders(s.toString().trim())
-            }
-        })
-    }
-
-    private fun filterLenders(query: String) {
-        val filtered = if (query.isBlank()) allLenders
-        else allLenders.filter { it.username?.contains(query, ignoreCase = true) == true }
-
-        lenders?.clear()
-        lenders?.add(User(username = ""))
-        lenders?.add(User(username = ""))
-        lenders?.addAll(filtered)
-        lenders?.add(User(username = ""))
-        lenders?.add(User(username = ""))
-
-        adapter?.notifyDataSetChanged()
-
-        // Reset selection to first visible result
-        if (filtered.isNotEmpty()) {
-            lenderRecyclerView?.scrollToPosition(2)
-            lenderRecyclerView?.post {
-                selectedLenderUser = adapter?.getLenderAt(2)
-                lenderRecyclerView?.let { updateLayoutEffect(it) }
-            }
-        } else {
-            selectedLenderUser = null
-        }
+        rvLenders?.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
     }
 
     private fun fetchLenders() {
@@ -192,121 +112,102 @@ class BorrowNowActivity : AppCompatActivity() {
             try {
                 val users = DeclareDatabase.usersTable.select().decodeList<User>()
                 allLenders = users.filter { !it.username.isNullOrEmpty() && it.authId != authId }
-                lenders?.clear()
-                lenders?.add(User(username = ""))
-                lenders?.add(User(username = ""))
-                for (user in allLenders) {
-                    lenders?.add(user)
+                
+                lenderAdapter = LenderChipAdapter(allLenders) { selected ->
+                    selectedLenderUser = selected
                 }
-                lenders?.add(User(username = ""))
-                lenders?.add(User(username = ""))
-
-                adapter?.notifyDataSetChanged()
-                adapter?.preloadAllImages(this@BorrowNowActivity) {
-                    runOnUiThread {
-                        dialogProgressBar?.visibility = View.GONE
-                        if ((lenders?.size ?: 0) > 2) {
-                            lenderRecyclerView?.scrollToPosition(2)
-                            lenderRecyclerView?.post {
-                                selectedLenderUser = adapter?.getLenderAt(2)
-                                lenderRecyclerView?.let { updateLayoutEffect(it) }
-                            }
-                        }
-                    }
-                }
+                rvLenders?.adapter = lenderAdapter
             } catch (e: Exception) {
                 Log.e("BorrowNowActivity", "Error fetching lenders: ${e.message}")
-                dialogProgressBar?.visibility = View.GONE
             }
         }
     }
 
-    private fun setDate() {
-        date?.text = SimpleDateFormat("MMMM-dd-yyyy", Locale.getDefault()).format(Calendar.getInstance().time)
-    }
+    private fun setupDatePickers() {
+        val today = Calendar.getInstance().timeInMillis
+        tvBorrowDate?.text = SimpleDateFormat("MMM dd", Locale.getDefault()).format(today)
 
-    override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == android.R.id.home) { finish(); return true }
-        return super.onOptionsItemSelected(item)
-    }
+        tvPaybackDate?.setOnClickListener {
+            val datePicker = MaterialDatePicker.Builder.datePicker()
+                .setTitleText("Select Payback Date")
+                .setSelection(selectedPaybackDate ?: (today + 86400000))
+                .build()
 
-    private fun addBorrowTransaction(amount: Double) {
-        val borrowerId = currentUserNumericId
-        val lenderId   = selectedLenderUser?.id
-
-        if (borrowerId == null) {
-            toast("User session not found. Please try again.")
-            dialogProgressBar?.visibility = View.GONE
-            return
-        }
-        if (lenderId == null) {
-            toast("Please select a lender.")
-            dialogProgressBar?.visibility = View.GONE
-            return
-        }
-        if (borrowerId == lenderId) {
-            toast("You cannot borrow from yourself.")
-            dialogProgressBar?.visibility = View.GONE
-            return
-        }
-
-        val createdAt = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault()).format(Date())
-
-        lifecycleScope.launch {
-            try {
-                DeclareDatabase.borrowsTable.insert(
-                    BorrowInsert(
-                        borrowedAmount = amount,
-                        borrowerId     = borrowerId,
-                        lenderId       = lenderId,
-                        status         = 1, // For Lender Approval
-                        createdAt      = createdAt
-                    )
-                )
-                toast("Borrowed successfully!")
-                finish()
-            } catch (e: Exception) {
-                Log.e("BorrowNowActivity", "Failed to borrow: ${e.message}")
-                toast("Failed to borrow: ${e.message}")
-            } finally {
-                dialogProgressBar?.visibility = View.GONE
+            datePicker.show(supportFragmentManager, "PAYBACK_DATE_PICKER")
+            datePicker.addOnPositiveButtonClickListener { selection ->
+                selectedPaybackDate = selection
+                tvPaybackDate?.text = SimpleDateFormat("MMM dd", Locale.getDefault()).format(selection)
+                tvPaybackDate?.setTextColor(getColor(R.color.black))
             }
         }
     }
 
     private fun setupBorrowBtn() {
         borrowBtn?.setOnClickListener {
-            val borrowEditText: EditText = findViewById(R.id.dialogBorrowEditText)
-            val amountStr = borrowEditText.text.toString().trim()
+            val amountStr = etAmount?.text.toString().trim()
             val amount = amountStr.toDoubleOrNull()
+            val note = etNote?.text.toString().trim()
 
             when {
-                amountStr.isEmpty()          -> toast("Please enter an amount")
                 amount == null || amount <= 0 -> toast("Please enter a valid amount")
-                selectedLenderUser == null   -> toast("Please select a lender")
-                else -> {
-                    dialogProgressBar?.visibility = View.VISIBLE
-                    addBorrowTransaction(amount)
-                }
+                selectedLenderUser == null -> toast("Please select a lender")
+                else -> addBorrowTransaction(amount, note)
+            }
+        }
+    }
+
+    private fun addBorrowTransaction(amount: Double, note: String) {
+        val borrowerId = currentUserNumericId
+        val lenderId = selectedLenderUser?.id ?: return
+
+        if (borrowerId == null) {
+            toast("User session not found")
+            return
+        }
+
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault())
+        val createdAt = sdf.format(Date())
+        val paybackStr = selectedPaybackDate?.let { sdf.format(Date(it)) }
+
+        lifecycleScope.launch {
+            try {
+                DeclareDatabase.borrowsTable.insert(
+                    BorrowInsert(
+                        borrowedAmount = amount,
+                        borrowerId = borrowerId,
+                        lenderId = lenderId,
+                        status = 1, // For Lender Approval
+                        createdAt = createdAt,
+                        paybackDate = paybackStr,
+                        note = note.ifBlank { null }
+                    )
+                )
+                toast("Borrow request sent!")
+                finish()
+            } catch (e: Exception) {
+                Log.e("BorrowNowActivity", "Failed to borrow: ${e.message}")
+                toast("Failed to borrow: ${e.message}")
             }
         }
     }
 
     @SuppressLint("ClickableViewAccessibility")
     fun exitEditText() {
-        val borrowEditText: EditText? = findViewById(R.id.dialogBorrowEditText)
-        borrowEditText?.setOnTouchListener { v, _ -> v.performClick(); false }
         findViewById<View>(android.R.id.content)?.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_DOWN) {
-                borrowEditText?.let { hideKeyboard(it) }
+                val view = currentFocus
+                if (view is EditText) {
+                    hideKeyboard(view)
+                    view.clearFocus()
+                }
             }
             false
         }
     }
 
     private fun hideKeyboard(view: View) {
-        (getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager)
-            .hideSoftInputFromWindow(view.windowToken, 0)
+        val imm = getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+        imm.hideSoftInputFromWindow(view.windowToken, 0)
     }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()

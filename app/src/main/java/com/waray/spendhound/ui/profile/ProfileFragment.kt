@@ -14,6 +14,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Button
 import android.widget.ImageView
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -54,13 +55,15 @@ import androidx.recyclerview.widget.RecyclerView
 class ProfileFragment : Fragment() {
     private var profileImageView: ImageView? = null
     private var nicknameTextView: TextView? = null
+    private var transactionsCountTextView: TextView? = null
+    private var groupsCountTextView: TextView? = null
     private var totalBalancedTextView: TextView? = null
     private var totalTextView: TextView? = null
     private var balanceTextView: TextView? = null
     private var unpaidTextView: TextView? = null
     private var oweTextView: TextView? = null
     private var debtTextView: TextView? = null
-    private var editProfileTV: TextView? = null
+    private var editProfileTV: LinearLayout? = null
     var mAuth: Auth? = null
     private var currentNickname: String? = ""
     private var balance = 0.0
@@ -75,7 +78,7 @@ class ProfileFragment : Fragment() {
     private var balanceUnpaidDrawableTransparent: Drawable? = null
     private var oweDebtDrawableTransparent: Drawable? = null
     private var profileLogout: Button? = null
-    private var breakdownBtn: Button? = null
+    private var breakdownBtn: TextView? = null
 
     private var imageSignature = System.currentTimeMillis()
     private lateinit var loadingManager: LoadingManager
@@ -89,6 +92,8 @@ class ProfileFragment : Fragment() {
 
         profileImageView = view.findViewById(R.id.profileImageView)
         nicknameTextView = view.findViewById(R.id.nicknameTextView)
+        transactionsCountTextView = view.findViewById(R.id.transactionsCountTextView)
+        groupsCountTextView = view.findViewById(R.id.groupsCountTextView)
         Log.d("ProfileFragment", "Views initialized - nicknameTextView: $nicknameTextView")
         editProfileTV = view.findViewById(R.id.editProfile_TV)
         totalBalancedTextView = view.findViewById(R.id.totalBalancedTextView)
@@ -287,6 +292,10 @@ class ProfileFragment : Fragment() {
                     totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(balance)
                     totalTextView?.text = "Total Balance:"
 
+                    // Update stats
+                    transactionsCountTextView?.text = "0" // TODO: Fetch real transaction count if available
+                    groupsCountTextView?.text = "0" // TODO: Fetch real group count if available
+
                     Log.d("ProfileFragment", "UI Updated - balance: $balance, unpaid: $unpaid, owe: $currentOwe, debt: $currentDebt")
 
                     loadingManager.hideLoading()
@@ -378,6 +387,22 @@ class ProfileFragment : Fragment() {
         }
     }
 
+    private fun formatDate(dateStr: String?): String {
+        if (dateStr == null) return "Unknown"
+        return try {
+            // dateStr is typically ISO 8601 from Supabase: 2024-05-20T12:00:00.000Z
+            val datePart = dateStr.split("T")[0] // 2024-05-20
+            val parts = datePart.split("-")
+            val year = parts[0]
+            val month = parts[1]
+            val monthNames = arrayOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+            val monthName = monthNames.getOrNull(month.toInt() - 1) ?: month
+            "$monthName $year"
+        } catch (e: Exception) {
+            "Unknown"
+        }
+    }
+
     private fun selectNewProfilePhoto() {
         val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
         if (takePictureIntent.resolveActivity(requireActivity().packageManager) != null) {
@@ -447,7 +472,9 @@ class ProfileFragment : Fragment() {
     }
 
     private fun setupBreakdownButton() {
-        breakdownBtn?.setOnClickListener { showBreakdownDialog() }
+        breakdownBtn?.setOnClickListener {
+            startActivity(Intent(requireContext(), com.waray.spendhound.GroupsActivity::class.java))
+        }
     }
 
     private fun showBreakdownDialog() {

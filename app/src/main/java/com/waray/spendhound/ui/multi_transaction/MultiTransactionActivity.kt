@@ -11,6 +11,7 @@ import android.view.inputmethod.InputMethodManager
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.EditText
+import android.widget.TextView
 import android.widget.Toast
 import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
@@ -67,20 +68,20 @@ class MultiTransactionActivity : AppCompatActivity() {
 
     private fun setPaymentMode(isMultiple: Boolean) {
         if (isMultiple) {
-            binding.btnMultiplePayors.setBackgroundResource(R.drawable.bg_toggle_selected)
+            binding.btnMultiplePayors.setBackgroundResource(R.drawable.bg_toggle_selected_orange)
             binding.btnMultiplePayors.setTypeface(ResourcesCompat.getFont(this, R.font.montserratalternatess_bold))
-            binding.btnMultiplePayors.setTextColor(getColor(R.color.darkBlue))
+            binding.btnMultiplePayors.setTextColor(getColor(R.color.whitest))
             binding.btnSinglePayor.setBackgroundColor(android.graphics.Color.TRANSPARENT)
             binding.btnSinglePayor.setTypeface(ResourcesCompat.getFont(this, R.font.montserratalternatess_regular))
-            binding.btnSinglePayor.setTextColor(getColor(R.color.grey))
+            binding.btnSinglePayor.setTextColor(getColor(R.color.white_70))
             binding.titleSection.visibility = View.VISIBLE
         } else {
-            binding.btnSinglePayor.setBackgroundResource(R.drawable.bg_toggle_selected)
+            binding.btnSinglePayor.setBackgroundResource(R.drawable.bg_toggle_selected_orange)
             binding.btnSinglePayor.setTypeface(ResourcesCompat.getFont(this, R.font.montserratalternatess_bold))
-            binding.btnSinglePayor.setTextColor(getColor(R.color.darkBlue))
+            binding.btnSinglePayor.setTextColor(getColor(R.color.whitest))
             binding.btnMultiplePayors.setBackgroundColor(android.graphics.Color.TRANSPARENT)
             binding.btnMultiplePayors.setTypeface(ResourcesCompat.getFont(this, R.font.montserratalternatess_regular))
-            binding.btnMultiplePayors.setTextColor(getColor(R.color.grey))
+            binding.btnMultiplePayors.setTextColor(getColor(R.color.white_70))
             binding.titleSection.visibility = View.GONE
             binding.etTransactionTitle.text?.clear()
             viewModel.setTransactionTitle("")
@@ -136,23 +137,11 @@ class MultiTransactionActivity : AppCompatActivity() {
             }
             override fun onNothingSelected(p0: AdapterView<*>?) {}
         }
-
-        binding.spinnerGlobalPayor.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-            override fun onItemSelected(p0: AdapterView<*>?, p1: View?, pos: Int, p3: Long) {
-                val member = currentMembers.getOrNull(pos)
-                if (member != null && !viewModel.isMultiplePayorsMode.value) {
-                    viewModel.updateGlobalPayors(listOf(PayorEntry(member.id!!, member.username!!)))
-                    validateSubmission()
-                }
-            }
-            override fun onNothingSelected(p0: AdapterView<*>?) {}
-        }
     }
 
     private fun setContentEnabled(enabled: Boolean) {
         binding.etTransactionTitle.isEnabled = enabled
         binding.spinnerGroup.isEnabled = enabled
-        binding.spinnerGlobalPayor.isEnabled = enabled
         binding.btnSinglePayor.isClickable = enabled
         binding.btnMultiplePayors.isClickable = enabled
         binding.btnAddRow.isClickable = enabled
@@ -175,6 +164,38 @@ class MultiTransactionActivity : AppCompatActivity() {
 
         binding.btnSubmit.isVisible = allValid
         binding.btnSubmit.isEnabled = allValid
+    }
+
+    private fun updatePayorsChips(members: List<User>) {
+        binding.layoutPayorsChips.removeAllViews()
+        val selectedPayors = viewModel.globalPayors.value
+
+        members.forEach { member ->
+            val isSelected = selectedPayors.any { it.userId == member.id }
+            val chipLayoutId = if (isSelected) R.layout.item_payor_chip_dark else R.layout.item_payor_chip_dark_outline
+            val chipView = layoutInflater.inflate(chipLayoutId, binding.layoutPayorsChips, false)
+
+            val tvInitial = chipView.findViewById<TextView>(R.id.tvInitial)
+            val tvName = chipView.findViewById<TextView>(R.id.tvName)
+
+            tvInitial?.text = member.username?.take(1)?.uppercase() ?: "?"
+            tvName?.text = member.username ?: "Unknown"
+
+            if (isSelected) {
+                tvName.setTextColor(getColor(R.color.black))
+            } else {
+                tvName.setTextColor(getColor(R.color.darkBlue))
+            }
+
+            chipView.setOnClickListener {
+                if (!viewModel.isMultiplePayorsMode.value) {
+                    viewModel.updateGlobalPayors(listOf(PayorEntry(member.id!!, member.username!!)))
+                    updatePayorsChips(members)
+                    validateSubmission()
+                }
+            }
+            binding.layoutPayorsChips.addView(chipView)
+        }
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
@@ -211,10 +232,8 @@ class MultiTransactionActivity : AppCompatActivity() {
                         currentMembers = members
                         adapter.setMembers(members)
 
-                        val names = members.map { it.username ?: "Unknown" }
-                        val memberAdapter = ArrayAdapter(this@MultiTransactionActivity, android.R.layout.simple_spinner_item, names)
-                        memberAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-                        binding.spinnerGlobalPayor.adapter = memberAdapter
+                        // Update Payors Chips
+                        updatePayorsChips(members)
 
                         viewModel.calculateTotals()
                     }
@@ -237,7 +256,7 @@ class MultiTransactionActivity : AppCompatActivity() {
                 }
                 launch {
                     viewModel.isMultiplePayorsMode.collect { isMultiple ->
-                        binding.layoutSinglePayor.isVisible = !isMultiple
+                        // binding.layoutSinglePayor.isVisible = !isMultiple
                         adapter.setMode(isMultiple)
                         validateSubmission()
                     }

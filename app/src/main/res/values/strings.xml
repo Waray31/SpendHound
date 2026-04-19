@@ -203,4 +203,23 @@
     <string name="already_have_account">Already have an account?</string>
     <string name="login">Login</string>
     <string name="edit_photo">Edit Photo</string>
+    <string name="label_transactions">Transactions</string>
+    <string name="label_groups">Groups</string>
+    <string name="label_borrowed">Borrowed</string>
+    <string name="label_my_groups">MY GROUPS</string>
+    <string name="label_see_all_groups">See all groups</string>
+    <string name="label_preferences">PREFERENCES</string>
+    <string name="label_currency">Currency</string>
+    <string name="label_notifications">Notifications</string>
+    <string name="label_push_alerts">Push alerts for new debts</string>
+    <string name="label_dark_mode">Dark mode</string>
+    <string name="label_account">ACCOUNT</string>
+    <string name="label_change_pin">Change PIN / password</string>
+    <string name="label_export_data">Export my data</string>
+    <string name="label_download_csv">Download as CSV</string>
+    <string name="label_footer">SpendHound v1.0 · Privacy Policy</string>
+    <string name="label_edit_profile">Edit profile</string>
+    <string name="label_house_expenses">House expenses</string>
+    <string name="label_food_group">Food group</string>
+    <string name="label_php">PHP ₱</string>
 </resources>

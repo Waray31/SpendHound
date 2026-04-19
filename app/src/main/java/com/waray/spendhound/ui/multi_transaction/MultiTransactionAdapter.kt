@@ -47,7 +47,7 @@ class MultiTransactionAdapter(
     fun getTransactions() = transactions
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TransactionViewHolder {
-        val binding = ItemTransactionMultiBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        val binding = com.waray.spendhound.databinding.ItemTransactionMultiBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return TransactionViewHolder(binding)
     }
 
@@ -57,7 +57,7 @@ class MultiTransactionAdapter(
 
     override fun getItemCount() = transactions.size
 
-    inner class TransactionViewHolder(private val binding: ItemTransactionMultiBinding) : RecyclerView.ViewHolder(binding.root) {
+    inner class TransactionViewHolder(private val binding: com.waray.spendhound.databinding.ItemTransactionMultiBinding) : RecyclerView.ViewHolder(binding.root) {
         
         private var amountWatcher: TextWatcher? = null
         private var titleWatcher: TextWatcher? = null
@@ -67,7 +67,7 @@ class MultiTransactionAdapter(
             binding.etAmount.setText(if (entry.amount > 0) entry.amount.toString() else "")
 
             // 1. Item number
-            binding.tvItemNumber.text = "Item ${position + 1}"
+            binding.tvItemNumber.text = "Item ${position + 1} — ${entry.category.lowercase()}"
 
             // 2. Hide remove button when only 1 item
             binding.btnRemoveItem.isVisible = transactions.size > 1
@@ -91,18 +91,19 @@ class MultiTransactionAdapter(
                 binding.catInternet to "Internet",
                 binding.catOthers to "Others"
             )
-            fun updateChipSelection(selected: LinearLayout) {
-                chipMap.keys.forEach { chip ->
-                    chip.setBackgroundResource(
-                        if (chip == selected) R.drawable.bg_category_chip_selected
-                        else R.drawable.bg_category_chip
+            fun updateChipSelection(selected: View) {
+                chipMap.forEach { (view, category) ->
+                    view.setBackgroundResource(
+                        if (view == selected) R.drawable.bg_dark_chip_selected
+                        else R.drawable.bg_dark_chip_outline
                     )
                 }
+                binding.tvItemNumber.text = "Item ${position + 1} — ${entry.category.lowercase()}"
             }
-            chipMap.forEach { (chip, category) ->
-                chip.setOnClickListener {
+            chipMap.forEach { (view, category) ->
+                view.setOnClickListener {
                     entry.category = category
-                    updateChipSelection(chip)
+                    updateChipSelection(view)
                     onValidationChanged()
                 }
             }
@@ -140,35 +141,37 @@ class MultiTransactionAdapter(
         }
 
         private fun setupPayorLogic(entry: TransactionEntry, position: Int) {
-            val memberNames = groupMembers.map { it.username ?: "Unknown" }
-            val memberAdapter = ArrayAdapter(itemView.context, android.R.layout.simple_spinner_item, memberNames)
-            memberAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-            binding.spinnerSinglePayor.adapter = memberAdapter
-
             val isExpanded = expandedSplits.contains(position)
             binding.spinnerSinglePayor.isVisible = !isExpanded
-            binding.layoutMultiPayorContainer.isVisible = isExpanded
+            // binding.rvSplitDetails.isVisible = isExpanded // rvSplitDetails is missing in the current layout
             binding.tvRemainingAmount.isVisible = isExpanded
 
-            // Initial selection for Single Payor
-            if (!isExpanded && entry.payors.isNotEmpty()) {
-                val currentPayorId = entry.payors[0].userId
-                val index = groupMembers.indexOfFirst { it.id == currentPayorId }
-                if (index != -1) binding.spinnerSinglePayor.setSelection(index)
-            }
+            if (!isExpanded) {
+                val memberNames = groupMembers.map { it.username ?: "Unknown" }
+                val memberAdapter = ArrayAdapter(itemView.context, android.R.layout.simple_spinner_item, memberNames)
+                memberAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
+                binding.spinnerSinglePayor.adapter = memberAdapter
 
-            binding.spinnerSinglePayor.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                override fun onItemSelected(p0: AdapterView<*>?, p1: View?, pos: Int, p3: Long) {
-                    if (!expandedSplits.contains(position)) {
-                        val member = groupMembers[pos]
-                        entry.payors = mutableListOf(PayorEntry(member.id!!, member.username!!, entry.amount))
-                        onValidationChanged()
-                    }
+                // Initial selection for Single Payor
+                if (entry.payors.isNotEmpty()) {
+                    val currentPayorId = entry.payors[0].userId
+                    val index = groupMembers.indexOfFirst { it.id == currentPayorId }
+                    if (index != -1) binding.spinnerSinglePayor.setSelection(index)
                 }
-                override fun onNothingSelected(p0: AdapterView<*>?) {}
-            }
 
-            if (isExpanded) {
+                binding.spinnerSinglePayor.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+                    override fun onItemSelected(p0: AdapterView<*>?, p1: View?, pos: Int, p3: Long) {
+                        if (!expandedSplits.contains(position)) {
+                            val member = groupMembers[pos]
+                            entry.payors = mutableListOf(PayorEntry(member.id!!, member.username!!, entry.amount))
+                            onValidationChanged()
+                        }
+                    }
+                    override fun onNothingSelected(p0: AdapterView<*>?) {}
+                }
+            } else {
+                // Multi-payor split logic using rvSplitDetails
+                // (Implementation for rvSplitDetails adapter would go here)
                 renderMultiPayorInputs(entry)
             }
         }

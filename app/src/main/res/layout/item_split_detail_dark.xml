@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingVertical="8dp">
+
+    <androidx.cardview.widget.CardView
+        android:id="@+id/avatarContainer"
+        android:layout_width="32dp"
+        android:layout_height="32dp"
+        android:layout_centerVertical="true"
+        app:cardBackgroundColor="#F2EEE9"
+        app:cardCornerRadius="16dp"
+        app:cardElevation="0dp">
+
+        <TextView
+            android:id="@+id/tvAvatarInitials"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:text="M"
+            android:textColor="@color/black"
+            android:textSize="12sp"
+            android:fontFamily="@font/montserratalternatess_bold" />
+    </androidx.cardview.widget.CardView>
+
+    <TextView
+        android:id="@+id/tvMemberName"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_centerVertical="true"
+        android:layout_marginStart="12dp"
+        android:layout_toEndOf="@id/avatarContainer"
+        android:fontFamily="@font/montserratalternatess_bold"
+        android:text="Mona"
+        android:textColor="@color/whitest"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/tvMemberAmount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignParentEnd="true"
+        android:layout_centerVertical="true"
+        android:fontFamily="@font/montserratalternatess_bold"
+        android:text="₱ 90.00"
+        android:textColor="@color/whitest"
+        android:textSize="14sp" />
+
+</RelativeLayout>

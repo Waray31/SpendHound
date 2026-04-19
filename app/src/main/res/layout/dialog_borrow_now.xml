@@ -1,224 +1,282 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
-    android:background="@drawable/rounded_background10"
-    android:orientation="vertical"
-    android:paddingVertical="20dp">
+    android:background="@color/white"
+    app:cardCornerRadius="24dp"
+    app:cardElevation="8dp">
 
-    <FrameLayout
+    <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content">
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
 
+        <!-- Header -->
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="16dp">
+
+            <ImageButton
+                android:id="@+id/dialogCloseBtn"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:background="@drawable/circular_button_background"
+                android:backgroundTint="#F5F5F5"
+                android:src="@drawable/ic_back"
+                app:tint="@color/black" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_centerVertical="true"
+                android:layout_marginStart="12dp"
+                android:layout_toEndOf="@id/dialogCloseBtn"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:text="Borrow money"
+                android:textColor="@color/black"
+                android:textSize="20sp" />
+        </RelativeLayout>
+
+        <!-- Borrower Section -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="Borrower"
+            android:textColor="@color/grey"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/dialogBorrower"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_light_input"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="16dp"
+            android:text="Mona"
+            android:textColor="@color/black" />
+
+        <!-- Borrow From Section -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="Borrow from"
+            android:textColor="@color/grey"
+            android:textSize="14sp" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvLenders"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:clipToPadding="false"
+            android:orientation="horizontal"
+            app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+            tools:listitem="@layout/item_payor_chip_dark" />
+
+        <!-- Amount Section -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="Amount"
+            android:textColor="@color/grey"
+            android:textSize="14sp" />
+
+        <EditText
+            android:id="@+id/dialogBorrowEditText"
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_light_input"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:hint="₱ 500"
+            android:inputType="numberDecimal"
+            android:paddingHorizontal="16dp"
+            android:textColor="@color/black"
+            android:textColorHint="@color/grey" />
+
+        <!-- Date Row -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:layout_marginTop="16dp"
+            android:orientation="horizontal">
 
-
-            <!-- Date and Borrower Info -->
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:layout_marginHorizontal="20dp"
-                android:layout_marginVertical="8dp"
-                android:orientation="horizontal">
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:orientation="vertical">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center|end"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:text="@string/label_date"
-                    android:textSize="12sp" />
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Date borrowed"
+                    android:textColor="@color/grey"
+                    android:textSize="14sp" />
 
                 <TextView
                     android:id="@+id/dialogBorrowDate"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/darkBlue"
-                    android:layout_marginStart="8dp"
-                    android:layout_gravity="center|end"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:text="@string/placeholder_date"
-                    android:textSize="16sp" />
+                    android:layout_width="match_parent"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_light_input"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="16dp"
+                    android:text="Apr 18"
+                    android:textColor="@color/black" />
             </LinearLayout>
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_gravity="end"
-                android:layout_marginHorizontal="20dp"
-                android:layout_marginBottom="8dp"
-                android:orientation="horizontal">
+                android:layout_weight="1"
+                android:orientation="vertical">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:text="@string/label_borrower"
-                    android:textSize="12sp" />
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Pay back by"
+                    android:textColor="@color/grey"
+                    android:textSize="14sp" />
 
                 <TextView
-                    android:id="@+id/dialogBorrower"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:textColor="@color/darkBlue"
-                    android:layout_marginStart="8dp"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:text="@string/placeholder_name"
-                    android:textSize="16sp" />
-            </LinearLayout>
-
-            <!-- Lender Selection -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="20dp"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="@string/dialog_borrow_from_label"
-                android:textColor="@color/darkBlue" />
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="20dp"
-                android:layout_marginTop="8dp"
-                app:boxCornerRadiusTopStart="24dp"
-                app:boxCornerRadiusTopEnd="24dp"
-                app:boxCornerRadiusBottomStart="24dp"
-                app:boxCornerRadiusBottomEnd="24dp"
-                app:boxBackgroundColor="#F5F5F5"
-                app:boxStrokeWidth="0dp"
-                app:boxStrokeWidthFocused="0dp"
-                app:startIconDrawable="@android:drawable/ic_menu_search"
-                app:startIconTint="@color/grey"
-                xmlns:app="http://schemas.android.com/apk/res-auto"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etSearchLender"
+                    android:id="@+id/dialogPaybackDate"
                     android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@null"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:hint="Search lender..."
-                    android:inputType="text"
-                    android:textSize="12sp" />
-
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/lenderRecyclerView"
-                android:layout_width="wrap_content"
-                android:layout_height="120dp"
-                android:layout_gravity="center"
-                android:layout_marginTop="8dp"
-                android:clipToPadding="false"
-                android:orientation="horizontal" />
-
-            <!-- Amount Input -->
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="20dp"
-                android:layout_marginTop="8dp"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="@string/dialog_how_much_label"
-                android:textColor="@color/darkBlue" />
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="20dp"
-                android:layout_marginTop="8dp"
-                android:hint="@string/dialog_enter_amount_hint"
-                app:prefixText="₱"
-                app:boxBackgroundColor="@color/whitest"
-                app:boxCornerRadiusTopStart="12dp"
-                app:boxCornerRadiusTopEnd="12dp"
-                app:boxCornerRadiusBottomStart="12dp"
-                app:boxCornerRadiusBottomEnd="12dp"
-                app:boxStrokeColor="@color/darkBlue"
-                app:boxStrokeWidth="1dp"
-                app:boxStrokeWidthFocused="1dp"
-                app:hintTextColor="@color/grey"
-                xmlns:app="http://schemas.android.com/apk/res-auto"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/dialogBorrowEditText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:background="@null"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:inputType="numberDecimal"
-                    android:textSize="16sp" />
-
-            </com.google.android.material.textfield.TextInputLayout>
-
-            <!-- Buttons -->
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="20dp"
-                android:layout_marginTop="32dp"
-                android:orientation="horizontal">
-
-                <Button
-                    android:id="@+id/dialogCancelBtn"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginEnd="8dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="@color/grey"
+                    android:layout_height="52dp"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_light_input"
                     android:fontFamily="@font/montserratalternatess_bold"
-                    android:text="@string/btn_cancel"
-                    android:textColor="@color/whitest"
-                    android:textSize="12sp" />
-
-                <Button
-                    android:id="@+id/dialogBorrowBtn"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:layout_weight="1"
-                    android:backgroundTint="@color/yellow"
-                    android:fontFamily="@font/montserratalternatess_bold"
-                    android:text="@string/btn_borrow"
-                    android:textColor="@color/whitest"
-                    android:textSize="12sp" />
-
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="16dp"
+                    android:text="Set date"
+                    android:textColor="@color/grey" />
             </LinearLayout>
-
         </LinearLayout>
 
-        <!-- Loading Overlay -->
-        <LinearLayout
-            android:id="@+id/dialogProgressBar"
+        <!-- Note Section -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="Note / reason"
+            android:textColor="@color/grey"
+            android:textSize="14sp" />
+
+        <EditText
+            android:id="@+id/dialogNoteEditText"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@color/glassy_background"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:visibility="gone">
+            android:layout_height="80dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_light_input"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:gravity="top"
+            android:hint="e.g. for groceries, emergency, etc."
+            android:padding="12dp"
+            android:textColor="@color/black"
+            android:textColorHint="@color/grey"
+            android:textSize="14sp" />
 
-            <ProgressBar
-                style="@style/CustomProgressBarStyle"
-                android:layout_width="48dp"
-                android:layout_height="48dp" />
+        <!-- Status Selection -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="Status"
+            android:textColor="@color/grey"
+            android:textSize="14sp" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_light_toggle_container"
+            android:padding="4dp">
 
             <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="@string/loading_text"
-                android:textColor="@color/darkBlue"
-                android:textSize="14sp" />
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="@drawable/bg_toggle_selected_orange"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:gravity="center"
+                android:text="Unpaid"
+                android:textColor="@color/whitest"
+                android:textSize="12sp" />
 
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1.2"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:gravity="center"
+                android:text="Partially paid"
+                android:textColor="@color/grey"
+                android:textSize="12sp" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:gravity="center"
+                android:text="Paid"
+                android:textColor="@color/grey"
+                android:textSize="12sp" />
         </LinearLayout>
-    </FrameLayout>
+
+        <!-- Buttons Row -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/dialogCancelBtn"
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_marginEnd="8dp"
+                android:layout_weight="1"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:text="Cancel"
+                android:textColor="@color/black"
+                app:cornerRadius="12dp"
+                app:strokeColor="#E0E0E0" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/dialogBorrowBtn"
+                android:layout_width="0dp"
+                android:layout_height="52dp"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1.5"
+                android:backgroundTint="@color/primary_accent"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:text="Confirm borrow"
+                android:textAllCaps="false"
+                android:textColor="@color/whitest"
+                app:cornerRadius="12dp"
+                app:strokeColor="#E0E0E0"
+                app:strokeWidth="1dp" />
+        </LinearLayout>
+
+    </LinearLayout>
 
 </LinearLayout>

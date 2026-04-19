@@ -5,62 +5,74 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="#F0F0F5">
+    android:background="@color/whitest">
 
-    <!-- Purple Gradient Header -->
-    <FrameLayout
+    <!-- Header -->
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@drawable/gradient_yellow_header"
-        android:paddingBottom="28dp">
+        android:paddingTop="48dp"
+        android:paddingBottom="16dp"
+        android:paddingHorizontal="20dp">
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:layout_centerVertical="true"
+            android:background="@drawable/circular_button_background"
+            android:backgroundTint="#F5F5F5"
+            android:src="@drawable/ic_back"
+            android:contentDescription="Back"
+            app:tint="@color/black" />
 
         <LinearLayout
-            android:layout_width="match_parent"
+            android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:paddingTop="48dp"
-            android:paddingHorizontal="20dp">
+            android:layout_toEndOf="@id/btnBack"
+            android:layout_toStartOf="@id/tvAddNewGroup"
+            android:layout_marginStart="12dp"
+            android:layout_centerVertical="true"
+            android:orientation="vertical">
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical">
-
-                <ImageButton
-                    android:id="@+id/btnBack"
-                    android:layout_width="36dp"
-                    android:layout_height="36dp"
-                    android:background="?attr/selectableItemBackgroundBorderless"
-                    android:src="@drawable/ic_back"
-                    android:contentDescription="Back"
-                    app:tint="@color/whitest" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="My Groups"
-                    android:fontFamily="@font/montserratalternatess_bold"
-                    android:textColor="@color/whitest"
-                    android:textSize="26sp" />
-
-            </LinearLayout>
+                android:text="My groups"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:textColor="@color/black"
+                android:textSize="22sp" />
 
             <TextView
                 android:id="@+id/tvGroupCount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:layout_marginStart="4dp"
                 android:text="0 groups"
                 android:fontFamily="@font/montserratalternatess_regular"
-                android:textColor="@color/whitest"
-                android:textSize="14sp" />
+                android:textColor="@color/grey"
+                android:textSize="12sp" />
 
         </LinearLayout>
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="end"
+            android:orientation="horizontal">
 
-    </FrameLayout>
+        <TextView
+            android:id="@+id/tvAddNewGroup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="+ New group"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:textColor="@color/primary_accent"
+            android:textSize="14sp"
+            android:clickable="true"
+            android:focusable="true" />
+        </LinearLayout>
+
+    </LinearLayout>
+
 
     <!-- List / Empty State -->
     <FrameLayout
@@ -96,7 +108,7 @@
                 android:layout_marginTop="12dp"
                 android:fontFamily="@font/montserratalternatess_bold"
                 android:text="You have no groups yet"
-                android:textColor="@color/darkBlue"
+                android:textColor="@color/black"
                 android:textSize="16sp" />
 
             <TextView
@@ -136,8 +148,9 @@
             android:layout_margin="16dp"
             android:contentDescription="Create Group"
             android:src="@drawable/baseline_add_24"
-            app:backgroundTint="@color/yellow"
-            app:tint="@color/white" />
+            app:backgroundTint="@color/primary_accent"
+            app:tint="@color/white"
+            android:visibility="gone" />
 
     </FrameLayout>
 
