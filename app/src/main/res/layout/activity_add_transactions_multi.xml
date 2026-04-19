@@ -318,7 +318,7 @@
                 android:text="Add 0 Transactions"
                 android:textAllCaps="false"
                 android:textColor="@color/whitest"
-                android:textSize="16sp"
+                android:textSize="14sp"
                 android:visibility="gone"
                 tools:visibility="visible" />
 

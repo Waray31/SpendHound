@@ -3,9 +3,9 @@
 
     <!-- Gradient: TOP → BOTTOM -->
     <gradient
-        android:startColor="@color/yellow"
-        android:endColor="@color/yellow_orange"
-        android:angle="270" />
+        android:angle="270"
+        android:startColor="#FF9833"
+        android:endColor="#F57C00" />
 
     <!-- Corner radius (curve) -->
     <corners android:radius="24dp" />

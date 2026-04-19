@@ -46,6 +46,10 @@ class MainActivity : AppCompatActivity() {
     private var isTransactionSubMenuOpen = false
     private var selectedLenderName = ""
 
+    companion object {
+        private const val REQUEST_CODE_BORROW = 1001
+    }
+
     interface OwedNumCallback {
         fun onOwedNumReceived(owedNum: Int)
     }
@@ -120,7 +124,7 @@ class MainActivity : AppCompatActivity() {
 
         fabBorrow?.setOnClickListener {
             toggleFabMenu()
-            startActivity(Intent(this, BorrowNowActivity::class.java))
+            startActivityForResult(Intent(this, BorrowNowActivity::class.java), REQUEST_CODE_BORROW)
         }
 
         fabAddTransaction?.setOnClickListener {
@@ -573,5 +577,23 @@ class MainActivity : AppCompatActivity() {
 
     fun unhideNavigation() {
         navView?.visibility = View.VISIBLE
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == REQUEST_CODE_BORROW && resultCode == RESULT_OK) {
+            refreshCurrentFragment()
+        }
+    }
+
+    private fun refreshCurrentFragment() {
+        val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment_activity_main) as NavHostFragment
+        val fragment = navHostFragment.childFragmentManager.primaryNavigationFragment
+        when (navView?.selectedItemId) {
+            R.id.navigation_home -> (fragment as? com.waray.spendhound.ui.home.HomeFragment)?.refreshAllData()
+            R.id.navigation_transactions -> (fragment as? com.waray.spendhound.ui.transactions.TransactionsFragment)?.refreshTransactions()
+            R.id.navigation_borrow -> (fragment as? com.waray.spendhound.ui.borrow.BorrowFragment)?.applyFilters()
+            R.id.navigation_profile -> (fragment as? com.waray.spendhound.ui.profile.ProfileFragment)?.loadNicknameAndData()
+        }
     }
 }

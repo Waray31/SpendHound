@@ -66,19 +66,18 @@
 
                         <!-- Profile Photo -->
                         <FrameLayout
-                            android:layout_width="100dp"
-                            android:layout_height="100dp"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
                             android:layout_gravity="center_horizontal"
                             android:layout_marginBottom="24dp">
 
                             <androidx.cardview.widget.CardView
                                 android:layout_width="100dp"
                                 android:layout_height="100dp"
-                                android:elevation="4dp"
-                                android:foreground="@drawable/round_border_profile"
-                                android:shape="ring"
-                                android:thicknessRatio="1.9"
-                                app:cardCornerRadius="15dp">
+                                app:cardBackgroundColor="#FF9800"
+                                app:cardCornerRadius="50dp"
+                                android:layout_margin="4dp"
+                                android:elevation="4dp">
 
                                 <ImageView
                                     android:id="@+id/editProfileImage"
@@ -291,11 +290,12 @@
                     android:id="@+id/btnSaveProfile"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/rounded_button_selector"
+                    android:background="@drawable/rounded_button"
                     android:fontFamily="@font/montserratalternatess_bold"
                     android:text="Save Changes"
                     android:textColor="@color/whitest"
                     android:textSize="14sp"
+                    android:textAllCaps="false"
                     app:backgroundTint="@null" />
 
                 <com.google.android.material.button.MaterialButton
@@ -306,7 +306,8 @@
                     android:background="@drawable/round_border_glassy"
                     android:fontFamily="@font/montserratalternatess_bold"
                     android:text="Cancel"
-                    android:textColor="@color/grey"
+                    android:textColor="@color/darkBlue"
+                    android:textAllCaps="false"
                     android:textSize="14sp"
                     app:backgroundTint="@null" />
 

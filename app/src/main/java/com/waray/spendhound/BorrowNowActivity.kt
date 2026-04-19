@@ -4,12 +4,12 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.os.Bundle
 import android.util.Log
-import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
@@ -27,6 +27,7 @@ import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 
+@SuppressLint("UnsafeOptInUsageError")
 @Serializable
 private data class BorrowInsert(
     @SerialName("borrowed_amount") val borrowedAmount: Double,
@@ -49,6 +50,8 @@ class BorrowNowActivity : AppCompatActivity() {
     private var borrowBtn: Button? = null
     private var cancelBtn: Button? = null
     private var closeBtn: View? = null
+
+    private var loadingOverlay_borrowNow: LinearLayout? = null
     
     private var lenderAdapter: LenderChipAdapter? = null
     private var allLenders: List<User> = emptyList()
@@ -61,7 +64,7 @@ class BorrowNowActivity : AppCompatActivity() {
     @SuppressLint("MissingInflatedId")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.dialog_borrow_now)
+        setContentView(R.layout.activity_borrow_now)
 
         mAuth = DeclareDatabase.auth
 
@@ -74,6 +77,7 @@ class BorrowNowActivity : AppCompatActivity() {
         borrowBtn = findViewById(R.id.dialogBorrowBtn)
         cancelBtn = findViewById(R.id.dialogCancelBtn)
         closeBtn = findViewById(R.id.dialogCloseBtn)
+        loadingOverlay_borrowNow = findViewById(R.id.loadingOverlay_borrowNow)
 
         setupLenderRecyclerView()
         setupDatePickers()
@@ -169,6 +173,7 @@ class BorrowNowActivity : AppCompatActivity() {
         val createdAt = sdf.format(Date())
         val paybackStr = selectedPaybackDate?.let { sdf.format(Date(it)) }
 
+        loadingOverlay_borrowNow?.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
                 DeclareDatabase.borrowsTable.insert(
@@ -183,8 +188,10 @@ class BorrowNowActivity : AppCompatActivity() {
                     )
                 )
                 toast("Borrow request sent!")
+                setResult(RESULT_OK)
                 finish()
             } catch (e: Exception) {
+                loadingOverlay_borrowNow?.visibility = View.GONE
                 Log.e("BorrowNowActivity", "Failed to borrow: ${e.message}")
                 toast("Failed to borrow: ${e.message}")
             }
