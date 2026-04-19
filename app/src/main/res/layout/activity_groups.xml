@@ -5,14 +5,15 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/whitest">
+    android:background="@color/white">
 
     <!-- Header -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingTop="48dp"
+        android:paddingTop="32dp"
         android:paddingBottom="16dp"
+        android:background="@drawable/bottom_round_border"
         android:paddingHorizontal="20dp">
 
         <ImageButton
@@ -21,10 +22,10 @@
             android:layout_height="40dp"
             android:layout_centerVertical="true"
             android:background="@drawable/circular_button_background"
-            android:backgroundTint="#F5F5F5"
+            android:backgroundTint="@color/glassy_background"
             android:src="@drawable/ic_back"
             android:contentDescription="Back"
-            app:tint="@color/black" />
+            app:tint="@color/white" />
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -40,7 +41,7 @@
                 android:layout_height="wrap_content"
                 android:text="My groups"
                 android:fontFamily="@font/montserratalternatess_bold"
-                android:textColor="@color/black"
+                android:textColor="@color/whitest"
                 android:textSize="22sp" />
 
             <TextView
@@ -49,7 +50,7 @@
                 android:layout_height="wrap_content"
                 android:text="0 groups"
                 android:fontFamily="@font/montserratalternatess_regular"
-                android:textColor="@color/grey"
+                android:textColor="@color/white"
                 android:textSize="12sp" />
 
         </LinearLayout>
@@ -65,8 +66,11 @@
             android:layout_height="wrap_content"
             android:text="+ New group"
             android:fontFamily="@font/montserratalternatess_bold"
-            android:textColor="@color/primary_accent"
-            android:textSize="14sp"
+            android:textColor="@color/white"
+            android:background="@drawable/glassy_background3"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="10dp"
+            android:textSize="12sp"
             android:clickable="true"
             android:focusable="true" />
         </LinearLayout>
