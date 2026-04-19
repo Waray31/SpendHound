@@ -104,7 +104,78 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:fontFamily="@font/montserratalternatess_bold"
-            android:text="@string/label_borrow_money"
+            android:text="Borrow Money"
+            android:textColor="@color/white"
+            android:textSize="10sp"
+            android:clickable="false"
+            android:focusable="false" />
+    </LinearLayout>
+
+    <!-- Sub-FABs for Borrow and Lend -->
+    <LinearLayout
+        android:id="@+id/container_borrow_sub"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:elevation="22dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_anchor="@id/fab_main"
+        app:layout_anchorGravity="center">
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_borrow_sub"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:backgroundTint="@color/orange"
+            android:contentDescription="Borrow"
+            android:src="@drawable/borrow_money"
+            app:fabSize="mini"
+            app:tint="@color/white" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="Borrow"
+            android:textColor="@color/white"
+            android:textSize="10sp"
+            android:clickable="false"
+            android:focusable="false" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/container_lend_sub"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:elevation="22dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_anchor="@id/fab_main"
+        app:layout_anchorGravity="center">
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_lend_sub"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:backgroundTint="@color/orange"
+            android:contentDescription="Lend"
+            android:src="@drawable/borrow_money"
+            app:fabSize="mini"
+            app:tint="@color/white" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="Lend"
             android:textColor="@color/white"
             android:textSize="10sp"
             android:clickable="false"

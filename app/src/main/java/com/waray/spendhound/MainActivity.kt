@@ -38,12 +38,15 @@ class MainActivity : AppCompatActivity() {
     private var fabMain: FloatingActionButton? = null
     private var fabMenuOverlay: View? = null
     private var containerBorrow: LinearLayout? = null
+    private var containerBorrowSub: LinearLayout? = null
+    private var containerLendSub: LinearLayout? = null
     private var containerAddTransaction: LinearLayout? = null
     private var containerAddGroup: LinearLayout? = null
     private var containerSingleTransaction: LinearLayout? = null
     private var containerMultiTransaction: LinearLayout? = null
     private var isFabMenuOpen = false
     private var isTransactionSubMenuOpen = false
+    private var isBorrowSubMenuOpen = false
     private var selectedLenderName = ""
 
     companion object {
@@ -108,6 +111,8 @@ class MainActivity : AppCompatActivity() {
         fabMain = findViewById(R.id.fab_main)
         fabMenuOverlay = findViewById(R.id.fab_menu_overlay)
         containerBorrow = findViewById(R.id.container_borrow)
+        containerBorrowSub = findViewById(R.id.container_borrow_sub)
+        containerLendSub = findViewById(R.id.container_lend_sub)
         containerAddTransaction = findViewById(R.id.container_add_transaction)
         containerAddGroup = findViewById(R.id.container_add_group)
         containerSingleTransaction = findViewById(R.id.container_single_transaction)
@@ -117,14 +122,30 @@ class MainActivity : AppCompatActivity() {
         fabMenuOverlay?.setOnClickListener { if (isFabMenuOpen) toggleFabMenu() }
 
         val fabBorrow = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_borrow)
+        val fabBorrowSub = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_borrow_sub)
+        val fabLendSub = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_lend_sub)
         val fabAddTransaction = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_add_transaction)
         val fabAddGroup = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_add_group)
         val fabSingle = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_single_transaction)
         val fabMulti = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_multi_transaction)
 
         fabBorrow?.setOnClickListener {
+            if (isBorrowSubMenuOpen) closeBorrowSubMenu()
+            else openBorrowSubMenu()
+        }
+
+        fabBorrowSub?.setOnClickListener {
             toggleFabMenu()
-            startActivityForResult(Intent(this, BorrowNowActivity::class.java), REQUEST_CODE_BORROW)
+            val intent = Intent(this, BorrowNowActivity::class.java)
+            intent.putExtra("BORROW_MODE", "BORROW")
+            startActivityForResult(intent, REQUEST_CODE_BORROW)
+        }
+
+        fabLendSub?.setOnClickListener {
+            toggleFabMenu()
+            val intent = Intent(this, BorrowNowActivity::class.java)
+            intent.putExtra("BORROW_MODE", "LEND")
+            startActivityForResult(intent, REQUEST_CODE_BORROW)
         }
 
         fabAddTransaction?.setOnClickListener {
@@ -170,6 +191,7 @@ class MainActivity : AppCompatActivity() {
     private fun closeFabMenu() {
         isFabMenuOpen = false
         isTransactionSubMenuOpen = false
+        isBorrowSubMenuOpen = false
         fabMain?.setImageResource(R.drawable.baseline_add_24)
         fabMenuOverlay?.animate()?.alpha(0f)?.setDuration(300)?.withEndAction {
             fabMenuOverlay?.visibility = View.GONE
@@ -180,9 +202,12 @@ class MainActivity : AppCompatActivity() {
         hideFabOption(containerAddGroup)
         hideFabOption(containerSingleTransaction)
         hideFabOption(containerMultiTransaction)
+        hideFabOption(containerBorrowSub)
+        hideFabOption(containerLendSub)
     }
 
     private fun openTransactionSubMenu() {
+        if (isBorrowSubMenuOpen) closeBorrowSubMenu()
         isTransactionSubMenuOpen = true
         // container_add_transaction sits at angle 90° → translationX=0, translationY=-300
         // Sub-FABs branch left and right above it, adding extra upward offset
@@ -198,6 +223,27 @@ class MainActivity : AppCompatActivity() {
         isTransactionSubMenuOpen = false
         hideFabOption(containerSingleTransaction)
         hideFabOption(containerMultiTransaction)
+    }
+
+    private fun openBorrowSubMenu() {
+        if (isTransactionSubMenuOpen) closeTransactionSubMenu()
+        isBorrowSubMenuOpen = true
+        // container_borrow sits at angle 150°
+        val radius = 300f
+        val angleRadians = Math.toRadians(150.0)
+        val baseX = (radius * cos(angleRadians)).toFloat()
+        val baseY = -(radius * sin(angleRadians)).toFloat()
+        
+        // Stack sub-FABs vertically aligned with fab_borrow
+        val verticalSpacing = 180f
+        showFabOptionAt(containerBorrowSub, baseX, baseY - verticalSpacing)
+        showFabOptionAt(containerLendSub, baseX, baseY - (verticalSpacing * 2))
+    }
+
+    private fun closeBorrowSubMenu() {
+        isBorrowSubMenuOpen = false
+        hideFabOption(containerBorrowSub)
+        hideFabOption(containerLendSub)
     }
 
     private fun showFabOption(view: LinearLayout?, angleDegrees: Int) {
