@@ -158,9 +158,9 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:textColor="@color/grey"
                         android:text="Transactions"
-                        android:textColor="@color/black"
                         android:textSize="12sp" />
                 </LinearLayout>
 
@@ -188,8 +188,8 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/label_borrowed"
-                        android:fontFamily="@font/montserratalternatess_regular"
-                        android:textColor="@color/black"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:textColor="@color/grey"
                         android:textSize="12sp" />
                 </LinearLayout>
 
@@ -216,8 +216,8 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/label_groups"
-                        android:fontFamily="@font/montserratalternatess_regular"
-                        android:textColor="@color/black"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:textColor="@color/grey"
                         android:textSize="12sp" />
                 </LinearLayout>
             </LinearLayout>
