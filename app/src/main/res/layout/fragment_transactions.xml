@@ -213,7 +213,7 @@
                         android:focusable="true"
                         android:gravity="center"
                         android:orientation="vertical"
-                        android:visibility="visible">
+                        android:visibility="gone">
 
                         <ProgressBar
                             style="@style/CustomProgressBarStyle"

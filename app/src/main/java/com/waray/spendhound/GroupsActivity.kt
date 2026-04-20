@@ -1,7 +1,6 @@
 package com.waray.spendhound
 
 import android.annotation.SuppressLint
-import android.app.AlertDialog
 import android.os.Bundle
 import android.view.View
 import android.view.ViewGroup
@@ -103,10 +102,7 @@ class GroupsActivity : AppCompatActivity() {
                     rvGroups.visibility = if (isEmpty) View.GONE else View.VISIBLE
                     tvGroupCount.text = "${groups.size} group${if (groups.size != 1) "s" else ""}"
                     if (!isEmpty) {
-                        rvGroups.adapter = GroupAdapter(groups,
-                            onEdit = { pos -> launchEditGroup(pos) },
-                            onDelete = { pos -> confirmDelete(pos) }
-                        )
+                        rvGroups.adapter = GroupAdapter(groups)
                     }
                     hideLoading()
                 }
@@ -127,43 +123,23 @@ class GroupsActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
-    private fun confirmDelete(position: Int) {
-        AlertDialog.Builder(this)
-            .setTitle("Remove Group")
-            .setMessage("Remove this group from your list? This will not delete the group data.")
-            .setPositiveButton("Remove") { _, _ ->
-                groups.removeAt(position)
-                rvGroups.adapter?.notifyItemRemoved(position)
-                val isEmpty = groups.isEmpty()
-                emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
-                rvGroups.visibility = if (isEmpty) View.GONE else View.VISIBLE
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-    }
-
     private fun showLoading() { loadingOverlay.visibility = View.VISIBLE }
     private fun hideLoading() { loadingOverlay.visibility = View.GONE }
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 
     private inner class GroupAdapter(
-        private val items: List<Pair<PayerGroup, List<User>>>,
-        private val onEdit: (Int) -> Unit,
-        private val onDelete: (Int) -> Unit
+        private val items: List<Pair<PayerGroup, List<User>>>
     ) : RecyclerView.Adapter<GroupAdapter.VH>() {
 
         inner class VH(view: View) : RecyclerView.ViewHolder(view) {
             val name: TextView = view.findViewById(R.id.groupName)
             val members: TextView = view.findViewById(R.id.groupMembers)
-            val editBtn: ImageButton = view.findViewById(R.id.editGroupBtn)
-            val deleteBtn: ImageButton = view.findViewById(R.id.removeGroupBtn)
             val tvTotalExpenses: TextView = view.findViewById(R.id.tvTotalExpenses)
             val tvActiveTransactions: TextView = view.findViewById(R.id.tvActiveTransactions)
-            val btnAddExpense: LinearLayout = view.findViewById(R.id.btnAddExpense)
-            val btnMembers: LinearLayout = view.findViewById(R.id.btnMembers)
             val ivGroupIcon: ImageView = view.findViewById(R.id.ivGroupIcon)
             val settledProgressBar: android.widget.ProgressBar = view.findViewById(R.id.settledProgressBar)
             val tvSettledRatio: TextView = view.findViewById(R.id.tvSettledRatio)
+            val tvUnreadBadge: TextView = view.findViewById(R.id.tvUnreadBadge)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
@@ -177,20 +153,11 @@ class GroupsActivity : AppCompatActivity() {
             holder.members.text = if (members.isEmpty()) "No members"
             else members.joinToString(", ") { it.username ?: "?" }
             
-            holder.editBtn.setOnClickListener { onEdit(position) }
-            holder.deleteBtn.setOnClickListener { onDelete(position) }
-            
-            holder.btnAddExpense.setOnClickListener {
-                val intent = android.content.Intent(this@GroupsActivity, com.waray.spendhound.ui.multi_transaction.MultiTransactionActivity::class.java).apply {
-                    putExtra("group_id", group.groupId)
-                    putExtra("group_name", group.groupName)
+            holder.itemView.setOnClickListener {
+                val intent = android.content.Intent(this@GroupsActivity, GroupDetailActivity::class.java).apply {
+                    putExtra(GroupDetailActivity.EXTRA_GROUP_ID, group.groupId ?: return@setOnClickListener)
                 }
                 startActivity(intent)
-            }
-            
-            holder.btnMembers.setOnClickListener {
-                // Potential future feature: Show members list
-                Toast.makeText(this@GroupsActivity, "Members: ${holder.members.text}", Toast.LENGTH_SHORT).show()
             }
 
             if (!group.groupImageUrl.isNullOrBlank()) {
@@ -212,8 +179,31 @@ class GroupsActivity : AppCompatActivity() {
                     }.decodeList<com.waray.spendhound.ui.multi_transaction.TransactionFull>()
 
                     val totalExpenses = transactions.sumOf { it.totalAmount }
-                    val settledAmount = transactions.filter { it.status == 1 }.sumOf { it.totalAmount }
                     val activeCount = transactions.count { (it.status ?: 0) == 2 }
+
+                    val txIds = transactions.mapNotNull { it.id }
+                    val settledAmount = if (txIds.isNotEmpty()) {
+                        DeclareDatabase.transactionPayorsTable.select {
+                            filter { isIn("transaction_id", txIds) }
+                        }.decodeList<com.waray.spendhound.ui.multi_transaction.TransactionPayorTable>()
+                            .filter { it.status == 1 }
+                            .sumOf { it.currentAmountPaid }
+                    } else 0.0
+
+                    // Unread messages count
+                    val uid = currentUserId
+                    val unreadCount = if (uid != null) {
+                        val allMessages = DeclareDatabase.groupMessagesTable.select {
+                            filter {
+                                eq("group_id", groupId)
+                                eq("is_deleted", false)
+                            }
+                        }.decodeList<GroupMessage>().filter { it.userId != uid }
+                        val readIds = DeclareDatabase.messageReadsTable.select {
+                            filter { eq("user_id", uid) }
+                        }.decodeList<MessageRead>().mapNotNull { it.messageId }.toSet()
+                        allMessages.count { it.id != null && it.id !in readIds }
+                    } else 0
 
                     runOnUiThread {
                         holder.tvTotalExpenses.text = CurrencyUtils.formatAmountWithCurrency(totalExpenses)
@@ -222,6 +212,13 @@ class GroupsActivity : AppCompatActivity() {
                         holder.tvSettledRatio.text = "${CurrencyUtils.formatAmountWithCurrency(settledAmount)} / ${CurrencyUtils.formatAmountWithCurrency(totalExpenses)}"
                         val progress = if (totalExpenses > 0) ((settledAmount / totalExpenses) * 100).toInt() else 0
                         holder.settledProgressBar.progress = progress
+
+                        if (unreadCount > 0) {
+                            holder.tvUnreadBadge.visibility = View.VISIBLE
+                            holder.tvUnreadBadge.text = unreadCount.toString()
+                        } else {
+                            holder.tvUnreadBadge.visibility = View.GONE
+                        }
                     }
                 } catch (e: Exception) {
                     runOnUiThread {
@@ -229,6 +226,7 @@ class GroupsActivity : AppCompatActivity() {
                         holder.tvActiveTransactions.text = "0"
                         holder.tvSettledRatio.text = "₱ 0 / ₱ 0"
                         holder.settledProgressBar.progress = 0
+                        holder.tvUnreadBadge.visibility = View.GONE
                     }
                 }
             }

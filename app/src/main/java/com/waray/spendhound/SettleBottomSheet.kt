@@ -26,7 +26,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
-import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
@@ -56,8 +55,8 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
     private var advancedContainer: LinearLayout? = null
     private var advancedToggleTV: TextView? = null
     private var settlementInstructions: LinearLayout? = null
-
     private val instructionRows = mutableListOf<InstructionRowBinding>()
+
 
     var transaction: RecentTransaction? = null
     var onSettleSaved: (() -> Unit)? = null
@@ -111,9 +110,8 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         saveBtn = view.findViewById(R.id.settleSaveBtn)
         advancedContainer = view.findViewById(R.id.settleAdvancedContainer)
         advancedToggleTV = view.findViewById(R.id.settleAdvancedToggleTV)
-        settlementInstructions = view.findViewById(R.id.settlement_instructions)
         val recycler = view.findViewById<RecyclerView>(R.id.settlePayorsRecyclerView)
-        recycler.layoutManager = LinearLayoutManager(requireContext())
+        settlementInstructions = view.findViewById(R.id.settlement_instructions)
         recycler.adapter = SettlePayorAdapter(tx, amounts)
 
         val plan = buildSettlementPlan(tx, amounts)
@@ -170,14 +168,13 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
             assignedTV?.visibility = View.GONE
             remainingTV?.visibility = View.GONE
             instructionMessageTV?.visibility = View.GONE
-            settlementInstructions?.visibility = View.GONE
             saveBtn?.visibility = View.GONE
             cancelBtn.visibility = View.GONE
+            settlementInstructions?.visibility = View.GONE
             // Show advanced
             advancedContainer?.visibility = View.VISIBLE
             advancedToggleTV?.text = "Hide"
             // Show note
-            view.findViewById<TextView>(R.id.settleNoteTV).visibility = View.VISIBLE
         }
     }
 
@@ -194,18 +191,17 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         instructionContainer?.removeAllViews()
 
         if (plan.totalToAssign <= epsilon) {
-            settlementInstructions?.visibility = View.GONE
             addInstructionBtn?.isEnabled = false
             instructionMessageTV?.text = "No payment instructions needed. This settlement is already balanced."
             refreshInstructionFooter(plan)
+            settlementInstructions?.visibility = View.GONE
             return
         }
 
-        settlementInstructions?.visibility = View.VISIBLE
         addInstructionBtn?.isEnabled = true
         plan.instructions.forEach { addInstructionRow(plan, it) }
         if (instructionRows.isEmpty()) {
-            addInstructionRow(plan, PaymentInstruction())
+        settlementInstructions?.visibility = View.VISIBLE
         }
         addInstructionBtn?.setOnClickListener { addInstructionRow(plan, PaymentInstruction()) }
         refreshInstructionFooter(plan)
@@ -325,7 +321,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         val receiverAssigned = mutableMapOf<Long, Double>()
         var assigned = 0.0
 
-        instructionRows.forEach { row ->
+        for (row in instructionRows) {
             val payerId = row.instruction.payerId
             val receiverId = row.instruction.receiverId
             val amount = row.instruction.amount
@@ -357,7 +353,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
             assigned += amount
         }
 
-        payerAssigned.forEach { (payerId, total) ->
+        for ((payerId, total) in payerAssigned) {
             val needed = plan.payerNeeds[payerId] ?: 0.0
             if (total > needed + epsilon) {
                 val name = plan.payers.firstOrNull { it.id == payerId }?.name ?: "This payer"
@@ -365,7 +361,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
             }
         }
 
-        receiverAssigned.forEach { (receiverId, total) ->
+        for ((receiverId, total) in receiverAssigned) {
             val receivable = plan.receiverNeeds[receiverId] ?: 0.0
             if (total > receivable + epsilon) {
                 val name = plan.receivers.firstOrNull { it.id == receiverId }?.name ?: "This receiver"
@@ -406,8 +402,8 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
 
     private fun buildUpdatedAmounts(transaction: RecentTransaction, baseAmounts: List<Double>): List<Double> {
         val payerTotals = mutableMapOf<Long, Double>()
-        instructionRows.forEach { row ->
-            val payerId = row.instruction.payerId ?: return@forEach
+        for (row in instructionRows) {
+            val payerId = row.instruction.payerId ?: continue
             val amount = row.instruction.amount
             payerTotals[payerId] = (payerTotals[payerId] ?: 0.0) + amount
         }

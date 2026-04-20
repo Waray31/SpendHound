@@ -29,7 +29,9 @@ data class GroupMember(
     @SerialName("user_id")
     val userId: Long? = null,
     @SerialName("created_at")
-    val createdAt: String? = null
+    val createdAt: String? = null,
+    @SerialName("admin")
+    val admin: Boolean = false
 )
 
 @Serializable
@@ -42,7 +44,8 @@ data class GroupInsert(
 @Serializable
 data class GroupMemberInsert(
     @SerialName("group_id") val groupId: Long,
-    @SerialName("user_id") val userId: Long
+    @SerialName("user_id") val userId: Long,
+    @SerialName("admin") val admin: Boolean = false
 )
 
 @Serializable

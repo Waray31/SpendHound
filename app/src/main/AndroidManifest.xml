@@ -66,6 +66,19 @@
             android:windowSoftInputMode="adjustPan"
             android:parentActivityName=".GroupsActivity" />
 
+        <activity android:name=".GroupDetailActivity"
+            android:exported="false"
+            android:label="Group"
+            android:theme="@style/Theme.SpendHound.NoActionBar"
+            android:windowSoftInputMode="adjustResize"
+            android:parentActivityName=".GroupsActivity" />
+
+        <activity android:name=".TransactionDetailActivity"
+            android:exported="false"
+            android:label="Transaction Detail"
+            android:theme="@style/Theme.SpendHound.NoActionBar"
+            android:parentActivityName=".GroupDetailActivity" />
+
         <activity android:name=".LoginActivity"
             android:exported="true"
             android:theme="@style/Theme.MaterialComponents.Light.NoActionBar"/>

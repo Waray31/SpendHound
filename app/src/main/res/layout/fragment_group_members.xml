@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:background="@color/white">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/btnAddMember"
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="+ Add member"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:textColor="@color/white"
+            android:background="@drawable/glassy_background3"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="10dp"
+            android:textSize="13sp"
+            android:gravity="center"
+            android:visibility="gone" />
+
+        <TextView
+            android:id="@+id/btnLeaveGroup"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="Leave group"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:textColor="@color/red"
+            android:background="@drawable/bg_light_card_outline"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="10dp"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvMembers"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:clipToPadding="false"
+        android:paddingHorizontal="16dp"
+        android:paddingBottom="80dp" />
+
+</LinearLayout>
