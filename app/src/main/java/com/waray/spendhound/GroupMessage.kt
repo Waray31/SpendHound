@@ -1,5 +1,6 @@
 package com.waray.spendhound
 
+import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
@@ -56,10 +57,13 @@ data class GroupMessageReaction(
 )
 
 @Serializable
+@OptIn(ExperimentalSerializationApi::class)
 data class GroupMessageInsert(
     @SerialName("group_id") val groupId: Long,
     @SerialName("user_id") val userId: Long,
     @SerialName("message") val message: String,
+    // Exclude transaction_id from JSON entirely when null so it is not sent as a column
+    @kotlinx.serialization.EncodeDefault(kotlinx.serialization.EncodeDefault.Mode.NEVER)
     @SerialName("transaction_id") val transactionId: Long? = null
 )
 

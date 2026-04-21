@@ -74,6 +74,7 @@ object DeclareDatabase {
     val groupMembersTable get() = client.from("group_members")
     val groupMessagesTable get() = client.from("group_messages")
     val messageReadsTable get() = client.from("message_reads")
+    val groupMessageReactionsTable get() = client.from("group_message_reactions")
     val borrowsTable get() = client.from("borrows")
     val userBorrowsTable get() = client.from("userBorrows")
 

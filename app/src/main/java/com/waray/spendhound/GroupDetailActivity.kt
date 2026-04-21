@@ -15,6 +15,7 @@ import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
+import com.waray.spendhound.chat.ComposeGroupChatFragment
 import kotlinx.coroutines.launch
 
 class GroupDetailActivity : AppCompatActivity() {
@@ -119,7 +120,7 @@ class GroupDetailActivity : AppCompatActivity() {
         override fun getItemCount() = 3
         override fun createFragment(position: Int): Fragment = when (position) {
             0 -> GroupExpensesFragment.newInstance(groupId)
-            1 -> GroupChatFragment.newInstance(groupId)
+            1 -> ComposeGroupChatFragment.newInstance(groupId)
             else -> GroupMembersFragment.newInstance(groupId)
         }
     }
