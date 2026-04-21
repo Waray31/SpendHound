@@ -44,7 +44,9 @@ data class ChatUiState(
     val reactions: Map<Long, List<GroupMessageReaction>> = emptyMap(),
     val readReceipts: Map<Long, Set<Long>> = emptyMap(),
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    // Temp ID of the optimistic message currently being sent (null = nothing pending)
+    val pendingTempId: Long? = null
 )
 
 class ChatViewModel : ViewModel() {
@@ -60,7 +62,8 @@ class ChatViewModel : ViewModel() {
     // Fetch all non-deleted messages for a group ordered by created_at ascending
     fun loadMessages(groupId: Long) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true, error = null) }
+            // Silent load — no spinner, messages appear when ready
+            _uiState.update { it.copy(error = null) }
             try {
                 Log.d(TAG, "loadMessages: fetching groupId=$groupId")
                 val raw = DeclareDatabase.groupMessagesTable.select {
@@ -88,30 +91,75 @@ class ChatViewModel : ViewModel() {
                 val reactions = if (msgIds.isNotEmpty()) loadReactionsForMessages(msgIds) else emptyMap()
                 val reads = if (msgIds.isNotEmpty()) loadReadReceipts(msgIds) else emptyMap()
 
-                Log.d(TAG, "loadMessages: updating state with ${enriched.size} messages")
                 _uiState.update {
-                    it.copy(messages = enriched, reactions = reactions, readReceipts = reads, isLoading = false)
+                    it.copy(messages = enriched, reactions = reactions, readReceipts = reads)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "loadMessages failed: ${e.javaClass.simpleName}: ${e.message}", e)
-                _uiState.update { it.copy(isLoading = false, error = "Load failed: ${e.message}") }
+                _uiState.update { it.copy(error = "Load failed: ${e.message}") }
             }
         }
     }
 
-    // Insert a new row into group_messages, then reload to ensure display
-    fun sendMessage(groupId: Long, userId: Long, content: String) {
+    // Insert a new row into group_messages.
+    // Immediately appends an optimistic message (tempId < 0) so the UI shows it instantly.
+    // After the insert succeeds, reloads messages and clears the pending state.
+    fun sendMessage(groupId: Long, userId: Long, content: String, senderName: String?, senderProfileImage: String?) {
+        val tempId = -(System.currentTimeMillis()) // negative so it never collides with real DB ids
         viewModelScope.launch {
             try {
+                // 1. Append optimistic message immediately
+                val optimistic = GroupMessage(
+                    id = tempId,
+                    groupId = groupId,
+                    userId = userId,
+                    message = content,
+                    isDeleted = false
+                ).also {
+                    it.senderName = senderName
+                    it.senderProfileImage = senderProfileImage
+                }
+                _uiState.update { state ->
+                    state.copy(
+                        messages = state.messages + optimistic,
+                        pendingTempId = tempId,
+                        error = null
+                    )
+                }
+
+                // 2. Persist to Supabase
                 Log.d(TAG, "sendMessage: groupId=$groupId userId=$userId content=$content")
                 DeclareDatabase.groupMessagesTable.insert(
                     GroupMessageInsert(groupId = groupId, userId = userId, message = content)
                 )
                 Log.d(TAG, "sendMessage: insert succeeded")
-                _uiState.update { it.copy(error = null) }
+
+                // 3. Reload to replace optimistic message with real DB row, then clear pending
+                val raw = DeclareDatabase.groupMessagesTable.select {
+                    filter { eq("group_id", groupId) }
+                    order("created_at", Order.ASCENDING)
+                }.decodeList<GroupMessage>()
+                val msgs = raw.filter { !it.isDeleted }
+                val users = DeclareDatabase.usersTable.select().decodeList<User>()
+                val enriched = msgs.map { msg ->
+                    val sender = users.firstOrNull { it.id == msg.userId }
+                    msg.senderName = sender?.username
+                    msg.senderProfileImage = sender?.id?.let { "${it}/${it}.jpg" }
+                    msg
+                }
+                _uiState.update { state ->
+                    state.copy(messages = enriched, pendingTempId = null, error = null)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "sendMessage failed: ${e.javaClass.simpleName}: ${e.message}", e)
-                _uiState.update { it.copy(error = "Send failed: ${e.message}") }
+                // Remove the optimistic message on failure
+                _uiState.update { state ->
+                    state.copy(
+                        messages = state.messages.filter { it.id != tempId },
+                        pendingTempId = null,
+                        error = "Send failed: ${e.message}"
+                    )
+                }
             }
         }
     }

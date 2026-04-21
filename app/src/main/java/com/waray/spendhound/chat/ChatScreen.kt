@@ -1,23 +1,23 @@
 package com.waray.spendhound.chat
 
+import android.widget.EditText
+import android.widget.ImageButton
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
@@ -28,18 +28,16 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.waray.spendhound.GroupMessage
 import com.waray.spendhound.R
-import kotlinx.coroutines.launch
 
 /**
  * Full chat screen composable.
@@ -55,13 +53,11 @@ fun ChatScreen(
 ) {
     val uiState by chatViewModel.uiState.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
-    val scope = rememberCoroutineScope()
 
     var selectedMessage by remember { mutableStateOf<GroupMessage?>(null) }
     var emojiTargetMessage by remember { mutableStateOf<GroupMessage?>(null) }
     var editingMessage by remember { mutableStateOf<GroupMessage?>(null) }
     var editText by remember { mutableStateOf("") }
-    var inputText by remember { mutableStateOf("") }
 
     // Load messages and subscribe to Realtime on first composition
     LaunchedEffect(groupId) {
@@ -73,21 +69,16 @@ fun ChatScreen(
     // Auto-scroll to latest message whenever the list grows
     LaunchedEffect(uiState.messages.size) {
         if (uiState.messages.isNotEmpty()) {
-            scope.launch { listState.animateScrollToItem(uiState.messages.size - 1) }
+            listState.animateScrollToItem(uiState.messages.size - 1)
         }
     }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .imePadding()
+            .windowInsetsPadding(WindowInsets.ime)
     ) {
         when {
-            uiState.isLoading -> Box(
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentAlignment = Alignment.Center
-            ) { CircularProgressIndicator() }
-
             uiState.error != null && uiState.messages.isEmpty() -> Box(
                 modifier = Modifier.weight(1f).fillMaxWidth(),
                 contentAlignment = Alignment.Center
@@ -106,8 +97,10 @@ fun ChatScreen(
                     val isOwn = message.userId == currentUserId
                     val reactions = uiState.reactions[message.id ?: -1L] ?: emptyList()
                     val readByUserIds = uiState.readReceipts[message.id ?: -1L] ?: emptySet()
+                    // Most recent own message gets the sending/sent label
+                    val isLatestOwn = isOwn && message.id == uiState.messages
+                        .lastOrNull { it.userId == currentUserId }?.id
 
-                    // Mark each visible message as read
                     LaunchedEffect(message.id) {
                         if (!isOwn && message.id != null) {
                             chatViewModel.markAsRead(message.id, currentUserId)
@@ -125,7 +118,9 @@ fun ChatScreen(
                             isOwn = isOwn,
                             reactions = reactions,
                             readByUserIds = readByUserIds,
-                            currentUserId = currentUserId
+                            currentUserId = currentUserId,
+                            isSending = isLatestOwn && uiState.pendingTempId != null,
+                            isSent = isLatestOwn && uiState.pendingTempId == null && message.id != null && message.id > 0
                         )
                     }
                 }
@@ -140,35 +135,33 @@ fun ChatScreen(
             )
         }
 
-        // Bottom input row
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            OutlinedTextField(
-                value = inputText,
-                onValueChange = { inputText = it },
-                placeholder = { Text("Type a message\u2026") },
-                modifier = Modifier.weight(1f),
-                maxLines = 4
-            )
-            IconButton(onClick = {
-                val text = inputText.trim()
-                if (text.isNotEmpty()) {
-                    chatViewModel.sendMessage(groupId, currentUserId, text)
-                    inputText = ""
-                    // Reload after send as fallback if Realtime hasn't delivered yet
-                    scope.launch { chatViewModel.loadMessages(groupId) }
+        // Bottom input row — uses the XML layout so etMessage and btnSend are fully customizable in XML
+        AndroidView(
+            modifier = Modifier.fillMaxWidth(),
+            factory = { context ->
+                android.view.LayoutInflater.from(context)
+                    .inflate(R.layout.layout_chat_input, null, false)
+            },
+            update = { view ->
+                val etMessage = view.findViewById<EditText>(R.id.etMessage)
+                val btnSend = view.findViewById<ImageButton>(R.id.btnSend)
+                btnSend.setOnClickListener {
+                    val text = etMessage.text.toString().trim()
+                    if (text.isNotEmpty()) {
+                        val currentUser = uiState.messages
+                            .lastOrNull { it.userId == currentUserId }
+                        chatViewModel.sendMessage(
+                            groupId = groupId,
+                            userId = currentUserId,
+                            content = text,
+                            senderName = currentUser?.senderName,
+                            senderProfileImage = currentUser?.senderProfileImage
+                        )
+                        etMessage.setText("")
+                    }
                 }
-            }) {
-                Icon(
-                    painter = painterResource(id = R.drawable.ic_send),
-                    contentDescription = "Send"
-                )
             }
-        }
+        )
     }
 
     // Long-press action bottom sheet

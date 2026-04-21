@@ -36,6 +36,14 @@ class ComposeGroupChatFragment : Fragment() {
 
     private val chatViewModel: ChatViewModel by viewModels()
 
+    override fun onDestroyView() {
+        super.onDestroyView()
+        // Restore default soft input mode for other fragments/activities
+        activity?.window?.setSoftInputMode(
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_UNSPECIFIED
+        )
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -43,6 +51,12 @@ class ComposeGroupChatFragment : Fragment() {
     ): View {
         val groupId = arguments?.getLong("group_id") ?: -1L
         Log.d(TAG, "onCreateView groupId=$groupId")
+
+        // Ensure the window resizes when the keyboard appears so the message list
+        // scrolls up and the input row stays just above the keyboard
+        activity?.window?.setSoftInputMode(
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        )
 
         return ComposeView(requireContext()).apply {
             setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnViewTreeLifecycleDestroyed)
