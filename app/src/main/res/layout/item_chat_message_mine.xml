@@ -5,15 +5,16 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="vertical"
-    android:paddingVertical="4dp">
+    android:padding="1dp">
 
-    <!-- Sender name (shown for received messages) -->
+    <!-- Tap-to-show timestamp — customize font, color, size here -->
     <TextView
-        android:id="@+id/tvSenderName"
-        android:layout_width="wrap_content"
+        android:id="@+id/tvMessageTime"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginStart="48dp"
-        android:fontFamily="@font/montserratalternatess_bold"
+        android:textAlignment="center"
+        android:layout_marginBottom="2dp"
+        android:fontFamily="@font/montserratalternatess_regular"
         android:textColor="@color/grey"
         android:textSize="11sp"
         android:visibility="gone" />
@@ -23,23 +24,13 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="start">
+        android:gravity="end">
 
-        <!-- Avatar (received only) -->
-        <ImageView
-            android:id="@+id/ivAvatar"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:layout_marginEnd="8dp"
-            android:layout_gravity="bottom"
-            android:src="@drawable/placeholder_profile_image"
-            android:visibility="gone" />
 
         <LinearLayout
             android:id="@+id/bubbleContainer"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_weight="0"
             android:maxWidth="260dp"
             android:orientation="vertical">
 
@@ -89,61 +80,25 @@
                     android:background="@drawable/rounded_background" />
             </LinearLayout>
 
-            <!-- Message bubble -->
+            <!-- Message bubble — customize background, padding, corners here -->
             <LinearLayout
                 android:id="@+id/bubble"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
-                android:background="@drawable/bg_light_card_outline"
+                android:background="@drawable/bg_bubble_mine"
+                android:stateListAnimator="@null"
                 android:paddingHorizontal="12dp"
                 android:paddingVertical="8dp">
 
+                <!-- Customize text color, size, font here -->
                 <TextView
                     android:id="@+id/tvMessage"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/montserratalternatess_regular"
-                    android:textColor="@color/black"
+                    android:textColor="@color/whitest"
                     android:textSize="14sp" />
-
-                <!-- Timestamp row with edited label and read receipt -->
-                <LinearLayout
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="end"
-                    android:layout_marginTop="2dp"
-                    android:orientation="horizontal"
-                    android:gravity="center_vertical">
-
-                    <TextView
-                        android:id="@+id/tvEdited"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="edited · "
-                        android:fontFamily="@font/montserratalternatess_regular"
-                        android:textColor="@color/grey"
-                        android:textSize="10sp"
-                        android:textStyle="italic"
-                        android:visibility="gone" />
-
-                    <TextView
-                        android:id="@+id/tvTimestamp"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="@font/montserratalternatess_regular"
-                        android:textColor="@color/grey"
-                        android:textSize="10sp" />
-
-                    <TextView
-                        android:id="@+id/tvReadReceipt"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text=" ✓✓"
-                        android:textColor="@color/grey"
-                        android:textSize="10sp"
-                        android:visibility="gone" />
-                </LinearLayout>
             </LinearLayout>
 
             <!-- Reactions row -->
@@ -152,10 +107,11 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
+                android:layout_gravity="end"
                 android:layout_marginTop="2dp"
                 android:visibility="gone" />
 
-            <!-- Sent / Sending status -->
+            <!-- Sent / Sending status — customize color, font here -->
             <TextView
                 android:id="@+id/tvSendStatus"
                 android:layout_width="wrap_content"
