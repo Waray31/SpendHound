@@ -11,8 +11,7 @@
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingTop="32dp"
-        android:paddingBottom="0dp"
+        android:paddingVertical="12dp"
         android:background="@drawable/bottom_round_border"
         android:orientation="vertical">
 
@@ -20,7 +19,6 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:paddingHorizontal="20dp"
-            android:paddingBottom="12dp"
             android:orientation="horizontal">
 
             <ImageButton
@@ -79,23 +77,29 @@
                 android:contentDescription="Edit Group"
                 app:tint="@color/white" />
         </LinearLayout>
-
-        <com.google.android.material.tabs.TabLayout
-            android:id="@+id/tabLayout"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:tabTextColor="@color/darkBlue"
-            app:tabSelectedTextColor="@color/darkBlue"
-            app:tabIndicatorColor="@color/orange"
-            app:tabIndicatorHeight="3dp"
-            app:tabTextAppearance="@style/TabTextAppearance"
-            app:tabBackground="@android:color/transparent" />
-
     </LinearLayout>
 
-    <androidx.viewpager2.widget.ViewPager2
-        android:id="@+id/viewPager"
+    <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.viewpager2.widget.ViewPager2
+            android:id="@+id/viewPager"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+    </FrameLayout>
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNav"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:backgroundTint="@color/whitest"
+        android:elevation="6dp"
+        app:itemTextAppearanceActive="@style/BottomNavTextStyle"
+        app:itemTextAppearanceInactive="@style/BottomNavTextStyle"
+        app:labelVisibilityMode="selected"
+        app:menu="@menu/group_detail_tabs_menu" />
 
 </LinearLayout>

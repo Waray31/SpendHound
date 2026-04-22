@@ -30,6 +30,13 @@ class GroupsActivity : AppCompatActivity() {
     private var allUsers: List<User> = emptyList()
     private val groups = mutableListOf<Pair<PayerGroup, List<User>>>()
 
+    data class GroupCardData(
+        val totalExpenses: Double,
+        val activeCount: Int,
+        val settledAmount: Double,
+        val unreadCount: Int
+    )
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_groups)
@@ -41,9 +48,10 @@ class GroupsActivity : AppCompatActivity() {
         emptyState = findViewById(R.id.emptyState)
         loadingOverlay = findViewById(R.id.loadingOverlay)
         fabCreateGroup = findViewById(R.id.fabCreateGroup)
+        fabCreateGroup.visibility = View.GONE
 
         rvGroups.layoutManager = LinearLayoutManager(this)
-        fabCreateGroup.setOnClickListener {
+        findViewById<TextView>(R.id.tvAddNewGroup).setOnClickListener {
             startActivity(android.content.Intent(this, CreateGroupActivity::class.java))
         }
 
@@ -67,8 +75,8 @@ class GroupsActivity : AppCompatActivity() {
                 allUsers = DeclareDatabase.usersTable.select().decodeList<User>()
                 loadGroups()
             } catch (e: Exception) {
+                runOnUiThread { hideLoading() }
                 toast("Failed to load user: ${e.message}")
-                hideLoading()
             }
         }
     }
@@ -96,19 +104,46 @@ class GroupsActivity : AppCompatActivity() {
                     groups.add(Pair(group, members))
                 }
 
+                // Pre-fetch all card data before showing the list
+                val allTransactions = DeclareDatabase.transactionsTable.select().decodeList<com.waray.spendhound.ui.multi_transaction.TransactionFull>()
+                val allTxIds = allTransactions.mapNotNull { it.id }
+                val allPayors = if (allTxIds.isNotEmpty()) DeclareDatabase.transactionPayorsTable.select {
+                    filter { isIn("transaction_id", allTxIds) }
+                }.decodeList<com.waray.spendhound.ui.multi_transaction.TransactionPayorTable>() else emptyList()
+
+                val uid = currentUserId
+                val allMessages = if (uid != null) DeclareDatabase.groupMessagesTable.select {
+                    filter { eq("is_deleted", false) }
+                }.decodeList<GroupMessage>().filter { it.userId != uid } else emptyList()
+                val readIds = if (uid != null) DeclareDatabase.messageReadsTable.select {
+                    filter { eq("user_id", uid) }
+                }.decodeList<MessageRead>().mapNotNull { it.messageId }.toSet() else emptySet()
+
+                val cardDataMap = mutableMapOf<Long, GroupCardData>()
+                for (group in allGroups) {
+                    val gid = group.groupId ?: continue
+                    val txs = allTransactions.filter { it.groupId == gid }
+                    val txIds = txs.mapNotNull { it.id }
+                    val totalExpenses = txs.sumOf { it.totalAmount }
+                    val activeCount = txs.count { (it.status ?: 0) == 2 }
+                    val settledAmount = allPayors.filter { it.transactionId in txIds && it.status == 1 }.sumOf { it.currentAmountPaid }
+                    val unreadCount = allMessages.count { it.groupId == gid && it.id != null && it.id !in readIds }
+                    cardDataMap[gid] = GroupCardData(totalExpenses, activeCount, settledAmount, unreadCount)
+                }
+
                 runOnUiThread {
                     val isEmpty = groups.isEmpty()
                     emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
                     rvGroups.visibility = if (isEmpty) View.GONE else View.VISIBLE
                     tvGroupCount.text = "${groups.size} group${if (groups.size != 1) "s" else ""}"
-                    if (!isEmpty) {
-                        rvGroups.adapter = GroupAdapter(groups)
-                    }
+                    if (!isEmpty) rvGroups.adapter = GroupAdapter(groups, cardDataMap)
                     hideLoading()
                 }
             } catch (e: Exception) {
-                toast("Failed to load groups: ${e.message}")
-                hideLoading()
+                runOnUiThread {
+                    toast("Failed to load groups: ${e.message}")
+                    hideLoading()
+                }
             }
         }
     }
@@ -128,7 +163,8 @@ class GroupsActivity : AppCompatActivity() {
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 
     private inner class GroupAdapter(
-        private val items: List<Pair<PayerGroup, List<User>>>
+        private val items: List<Pair<PayerGroup, List<User>>>,
+        private val cardDataMap: Map<Long, GroupCardData>
     ) : RecyclerView.Adapter<GroupAdapter.VH>() {
 
         inner class VH(view: View) : RecyclerView.ViewHolder(view) {
@@ -152,7 +188,7 @@ class GroupsActivity : AppCompatActivity() {
             holder.name.text = group.groupName ?: "Unnamed"
             holder.members.text = if (members.isEmpty()) "No members"
             else members.joinToString(", ") { it.username ?: "?" }
-            
+
             holder.itemView.setOnClickListener {
                 val intent = android.content.Intent(this@GroupsActivity, GroupDetailActivity::class.java).apply {
                     putExtra(GroupDetailActivity.EXTRA_GROUP_ID, group.groupId ?: return@setOnClickListener)
@@ -171,64 +207,17 @@ class GroupsActivity : AppCompatActivity() {
                 holder.ivGroupIcon.imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#7B2FBE"))
             }
 
-            val groupId = group.groupId ?: return
-            lifecycleScope.launch {
-                try {
-                    val transactions = DeclareDatabase.transactionsTable.select {
-                        filter { eq("group_id", groupId) }
-                    }.decodeList<com.waray.spendhound.ui.multi_transaction.TransactionFull>()
-
-                    val totalExpenses = transactions.sumOf { it.totalAmount }
-                    val activeCount = transactions.count { (it.status ?: 0) == 2 }
-
-                    val txIds = transactions.mapNotNull { it.id }
-                    val settledAmount = if (txIds.isNotEmpty()) {
-                        DeclareDatabase.transactionPayorsTable.select {
-                            filter { isIn("transaction_id", txIds) }
-                        }.decodeList<com.waray.spendhound.ui.multi_transaction.TransactionPayorTable>()
-                            .filter { it.status == 1 }
-                            .sumOf { it.currentAmountPaid }
-                    } else 0.0
-
-                    // Unread messages count
-                    val uid = currentUserId
-                    val unreadCount = if (uid != null) {
-                        val allMessages = DeclareDatabase.groupMessagesTable.select {
-                            filter {
-                                eq("group_id", groupId)
-                                eq("is_deleted", false)
-                            }
-                        }.decodeList<GroupMessage>().filter { it.userId != uid }
-                        val readIds = DeclareDatabase.messageReadsTable.select {
-                            filter { eq("user_id", uid) }
-                        }.decodeList<MessageRead>().mapNotNull { it.messageId }.toSet()
-                        allMessages.count { it.id != null && it.id !in readIds }
-                    } else 0
-
-                    runOnUiThread {
-                        holder.tvTotalExpenses.text = CurrencyUtils.formatAmountWithCurrency(totalExpenses)
-                        holder.tvActiveTransactions.text = activeCount.toString()
-                        
-                        holder.tvSettledRatio.text = "${CurrencyUtils.formatAmountWithCurrency(settledAmount)} / ${CurrencyUtils.formatAmountWithCurrency(totalExpenses)}"
-                        val progress = if (totalExpenses > 0) ((settledAmount / totalExpenses) * 100).toInt() else 0
-                        holder.settledProgressBar.progress = progress
-
-                        if (unreadCount > 0) {
-                            holder.tvUnreadBadge.visibility = View.VISIBLE
-                            holder.tvUnreadBadge.text = unreadCount.toString()
-                        } else {
-                            holder.tvUnreadBadge.visibility = View.GONE
-                        }
-                    }
-                } catch (e: Exception) {
-                    runOnUiThread {
-                        holder.tvTotalExpenses.text = CurrencyUtils.formatAmountWithCurrency(0.0)
-                        holder.tvActiveTransactions.text = "0"
-                        holder.tvSettledRatio.text = "₱ 0 / ₱ 0"
-                        holder.settledProgressBar.progress = 0
-                        holder.tvUnreadBadge.visibility = View.GONE
-                    }
-                }
+            val data = cardDataMap[group.groupId] ?: GroupCardData(0.0, 0, 0.0, 0)
+            holder.tvTotalExpenses.text = CurrencyUtils.formatAmountWithCurrency(data.totalExpenses)
+            holder.tvActiveTransactions.text = data.activeCount.toString()
+            holder.tvSettledRatio.text = "${CurrencyUtils.formatAmountWithCurrency(data.settledAmount)} / ${CurrencyUtils.formatAmountWithCurrency(data.totalExpenses)}"
+            val progress = if (data.totalExpenses > 0) ((data.settledAmount / data.totalExpenses) * 100).toInt() else 0
+            holder.settledProgressBar.progress = progress
+            if (data.unreadCount > 0) {
+                holder.tvUnreadBadge.visibility = View.VISIBLE
+                holder.tvUnreadBadge.text = data.unreadCount.toString()
+            } else {
+                holder.tvUnreadBadge.visibility = View.GONE
             }
         }
     }

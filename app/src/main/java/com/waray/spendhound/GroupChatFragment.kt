@@ -67,6 +67,7 @@ class GroupChatFragment : Fragment() {
     private var pendingTempId: Long? = null
     private lateinit var adapter: ChatAdapter
     private lateinit var rvMessages: RecyclerView
+    private lateinit var loadingOverlay: View
     private lateinit var emojiPopup: LinearLayout
     private lateinit var actionsPopup: LinearLayout
     private var visibleTimeId: Long? = null
@@ -83,6 +84,7 @@ class GroupChatFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         rvMessages = view.findViewById(R.id.rvMessages)
+        loadingOverlay = view.findViewById(R.id.loadingOverlay)
         emojiPopup = view.findViewById(R.id.emojiPopup)
         actionsPopup = view.findViewById(R.id.actionsPopup)
         adapter = ChatAdapter()
@@ -106,8 +108,10 @@ class GroupChatFragment : Fragment() {
         }
 
         lifecycleScope.launch {
+            loadingOverlay.visibility = View.VISIBLE
             resolveCurrentUser()
             loadMessages()
+            requireActivity().runOnUiThread { loadingOverlay.visibility = View.GONE }
             subscribeRealtime()
         }
     }

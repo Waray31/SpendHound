@@ -2,6 +2,7 @@ package com.waray.spendhound
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
@@ -13,9 +14,7 @@ import androidx.viewpager2.widget.ViewPager2
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.resource.bitmap.CenterCrop
 import com.bumptech.glide.load.resource.bitmap.RoundedCorners
-import com.google.android.material.tabs.TabLayout
-import com.google.android.material.tabs.TabLayoutMediator
-
+import com.google.android.material.bottomnavigation.BottomNavigationView
 import kotlinx.coroutines.launch
 
 class GroupDetailActivity : AppCompatActivity() {
@@ -31,9 +30,7 @@ class GroupDetailActivity : AppCompatActivity() {
     private var currentGroup: PayerGroup? = null
 
     private lateinit var viewPager: ViewPager2
-    private lateinit var tabLayout: TabLayout
-
-    private val tabTitles = arrayOf("Expenses", "Chat", "Members")
+    private lateinit var bottomNav: BottomNavigationView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,16 +40,34 @@ class GroupDetailActivity : AppCompatActivity() {
         if (groupId == -1L) { finish(); return }
 
         viewPager = findViewById(R.id.viewPager)
-        tabLayout = findViewById(R.id.tabLayout)
+        bottomNav = findViewById(R.id.bottomNav)
         findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
         findViewById<ImageButton>(R.id.btnEditGroup).setOnClickListener { launchEditGroup() }
 
         viewPager.adapter = GroupPagerAdapter()
         viewPager.offscreenPageLimit = 2
+        viewPager.isUserInputEnabled = false
 
-        TabLayoutMediator(tabLayout, viewPager) { tab, pos ->
-            tab.text = tabTitles[pos]
-        }.attach()
+        bottomNav.setOnItemSelectedListener { item ->
+            viewPager.currentItem = when (item.itemId) {
+                R.id.tab_expenses -> 0
+                R.id.tab_chat -> 1
+                R.id.tab_members -> 2
+                else -> 0
+            }
+            true
+        }
+
+        viewPager.registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+            override fun onPageSelected(position: Int) {
+                bottomNav.selectedItemId = when (position) {
+                    0 -> R.id.tab_expenses
+                    1 -> R.id.tab_chat
+                    2 -> R.id.tab_members
+                    else -> R.id.tab_expenses
+                }
+            }
+        })
 
         loadHeader()
     }

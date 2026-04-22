@@ -6,6 +6,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
+import android.widget.TextView
+import androidx.core.widget.NestedScrollView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -14,10 +16,13 @@ import com.waray.spendhound.ui.multi_transaction.TransactionFull
 import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
 import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
+import com.waray.spendhound.utils.PullInterceptLayout
+import com.waray.spendhound.utils.PullToRefreshHelper
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import java.util.TimeZone
 
 class GroupExpensesFragment : Fragment() {
 
@@ -30,6 +35,10 @@ class GroupExpensesFragment : Fragment() {
     private var groupId: Long = -1
     private val transactionList = ArrayList<RecentTransaction>()
     private lateinit var adapter: RecentTransactionAdapter
+    private var pullToRefreshHelper: PullToRefreshHelper? = null
+
+    private var selectedStatusTab = "All"
+    private var isTabClickEnabled = true
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,6 +53,14 @@ class GroupExpensesFragment : Fragment() {
         adapter = RecentTransactionAdapter(transactionList, { loadExpenses() }, null)
         rv.layoutManager = LinearLayoutManager(requireContext())
         rv.adapter = adapter
+
+        val scrollView = view.findViewById<NestedScrollView>(R.id.expensesScrollView)
+        val indicator = view.findViewById<View>(R.id.pullRefreshIndicator_expenses)
+        val rootLayout = view as PullInterceptLayout
+        pullToRefreshHelper = PullToRefreshHelper(scrollView, indicator, { loadExpenses() }, rootLayout)
+        rootLayout.onInterceptCallback = { event -> pullToRefreshHelper?.onInterceptTouch(event) ?: false }
+
+        setupStatusTabs(view)
         loadExpenses()
     }
 
@@ -116,6 +133,7 @@ class GroupExpensesFragment : Fragment() {
                         .values.firstOrNull()?.sumOf { it.amount } ?: 0.0
 
                     val txStatus = computeStatus(payors, splits)
+                    if (selectedStatusTab != "All" && !txStatus.equals(selectedStatusTab, ignoreCase = true)) continue
 
                     val itemPayorMap = items.associate { item ->
                         val itemId = item.id ?: 0L
@@ -129,7 +147,7 @@ class GroupExpensesFragment : Fragment() {
 
                     val rt = RecentTransaction(
                         txId,
-                        "$monthName - $day",
+                        formatSmartDate(tx.createdAt),
                         tx.description,
                         tx.description,
                         CurrencyUtils.formatAmountWithCurrency(tx.totalAmount),
@@ -165,11 +183,39 @@ class GroupExpensesFragment : Fragment() {
                     context?.let { adapter.preloadAllImages(it) }
                     if (transactionList.isEmpty()) showEmpty() else showList()
                     hideLoading()
+                    pullToRefreshHelper?.stopRefreshing()
                 }
             } catch (_: Exception) {
-                requireActivity().runOnUiThread { hideLoading() }
+                requireActivity().runOnUiThread {
+                    hideLoading()
+                    pullToRefreshHelper?.stopRefreshing()
+                }
             }
         }
+    }
+
+    private fun formatSmartDate(createdAt: String?): String {
+        if (createdAt.isNullOrBlank()) return ""
+        return try {
+            val parser = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).also {
+                it.timeZone = TimeZone.getTimeZone("UTC")
+            }
+            val date = parser.parse(createdAt.take(19)) ?: return ""
+            val now = java.util.Date()
+            val diffDays = ((now.time - date.time) / (1000 * 60 * 60 * 24)).toInt()
+            val timeFmt = SimpleDateFormat("h:mm a", Locale.getDefault()).format(date)
+            val nowCal = Calendar.getInstance()
+            val msgCal = Calendar.getInstance().also { it.time = date }
+            val sameDay = nowCal.get(Calendar.YEAR) == msgCal.get(Calendar.YEAR) &&
+                          nowCal.get(Calendar.DAY_OF_YEAR) == msgCal.get(Calendar.DAY_OF_YEAR)
+            val sameYear = nowCal.get(Calendar.YEAR) == msgCal.get(Calendar.YEAR)
+            when {
+                sameDay -> timeFmt
+                diffDays <= 6 -> "${SimpleDateFormat("EEE", Locale.getDefault()).format(date).uppercase()} AT $timeFmt"
+                sameYear -> "${SimpleDateFormat("MMM d", Locale.getDefault()).format(date).uppercase()} AT $timeFmt"
+                else -> "${SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(date).uppercase()} AT $timeFmt"
+            }
+        } catch (_: Exception) { "" }
     }
 
     private fun computeStatus(payors: List<TransactionPayorTable>, splits: List<TransactionSplitTable>): String {
@@ -203,15 +249,50 @@ class GroupExpensesFragment : Fragment() {
 
     private fun showEmpty() {
         view?.findViewById<RecyclerView>(R.id.rvExpenses)?.visibility = View.GONE
-        view?.findViewById<LinearLayout>(R.id.emptyExpenses)?.visibility = View.VISIBLE
+        view?.findViewById<View>(R.id.emptyExpenses)?.visibility = View.VISIBLE
         hideLoading()
     }
 
     private fun showList() {
         view?.findViewById<RecyclerView>(R.id.rvExpenses)?.visibility = View.VISIBLE
-        view?.findViewById<LinearLayout>(R.id.emptyExpenses)?.visibility = View.GONE
+        view?.findViewById<View>(R.id.emptyExpenses)?.visibility = View.GONE
     }
 
-    private fun showLoading() { view?.findViewById<View>(R.id.loadingOverlay)?.visibility = View.VISIBLE }
-    private fun hideLoading() { view?.findViewById<View>(R.id.loadingOverlay)?.visibility = View.GONE }
+    private fun setupStatusTabs(view: View) {
+        val allTab = view.findViewById<TextView>(R.id.allTabTV)
+        val paidTab = view.findViewById<TextView>(R.id.paidTabTV)
+        val unpaidTab = view.findViewById<TextView>(R.id.unpaidTabTV)
+
+        setStatusTabSelected(allTab, allTab, paidTab, unpaidTab)
+
+        allTab.setOnClickListener {
+            if (!isTabClickEnabled) return@setOnClickListener
+            selectedStatusTab = "All"
+            setStatusTabSelected(allTab, allTab, paidTab, unpaidTab)
+            showLoading()
+            loadExpenses()
+        }
+        paidTab.setOnClickListener {
+            if (!isTabClickEnabled) return@setOnClickListener
+            selectedStatusTab = "Settled"
+            setStatusTabSelected(paidTab, allTab, paidTab, unpaidTab)
+            showLoading()
+            loadExpenses()
+        }
+        unpaidTab.setOnClickListener {
+            if (!isTabClickEnabled) return@setOnClickListener
+            selectedStatusTab = "Pending"
+            setStatusTabSelected(unpaidTab, allTab, paidTab, unpaidTab)
+            showLoading()
+            loadExpenses()
+        }
+    }
+
+    private fun setStatusTabSelected(selected: TextView, vararg all: TextView) {
+        all.forEach { it.setBackgroundResource(0) }
+        selected.setBackgroundResource(R.drawable.spinner_border_grey)
+    }
+
+    private fun showLoading() { view?.findViewById<View>(R.id.loadingOverlay)?.visibility = View.VISIBLE; isTabClickEnabled = false }
+    private fun hideLoading() { view?.findViewById<View>(R.id.loadingOverlay)?.visibility = View.GONE; isTabClickEnabled = true }
 }

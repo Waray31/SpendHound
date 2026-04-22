@@ -29,6 +29,7 @@ class GroupMembersFragment : Fragment() {
     private var groupId: Long = -1
     private val memberPairs = mutableListOf<Pair<GroupMember, User>>()
     private lateinit var adapter: MemberAdapter
+    private lateinit var loadingOverlay: View
     private var allUsers: List<User> = emptyList()
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,6 +42,7 @@ class GroupMembersFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val rv = view.findViewById<RecyclerView>(R.id.rvMembers)
+        loadingOverlay = view.findViewById(R.id.loadingOverlay)
         adapter = MemberAdapter()
         rv.layoutManager = LinearLayoutManager(requireContext())
         rv.adapter = adapter
@@ -58,6 +60,7 @@ class GroupMembersFragment : Fragment() {
 
     @SuppressLint("NotifyDataSetChanged")
     private fun loadMembers() {
+        view?.findViewById<View>(R.id.loadingOverlay)?.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
                 allUsers = DeclareDatabase.usersTable.select().decodeList<User>()
@@ -77,8 +80,11 @@ class GroupMembersFragment : Fragment() {
                     val isAdmin = activity?.isAdmin ?: false
                     view?.findViewById<TextView>(R.id.btnAddMember)?.visibility =
                         if (isAdmin) View.VISIBLE else View.GONE
+                    loadingOverlay.visibility = View.GONE
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                requireActivity().runOnUiThread { loadingOverlay.visibility = View.GONE }
+            }
         }
     }
 
