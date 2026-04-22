@@ -23,6 +23,7 @@ import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
+import com.waray.spendhound.utils.ImageUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -241,7 +242,7 @@ class CreateGroupActivity : AppCompatActivity() {
 
     private suspend fun uploadGroupImage(uri: Uri, groupId: Long): String? = withContext(Dispatchers.IO) {
         try {
-            val bytes = contentResolver.openInputStream(uri)?.readBytes() ?: return@withContext null
+            val bytes = ImageUtils.compressImage(contentResolver, uri) ?: return@withContext null
             val path = "$groupId.jpg"
             DeclareDatabase.groupImagesBucket.upload(path, bytes, upsert = true)
             DeclareDatabase.groupImagesBucket.publicUrl(path)

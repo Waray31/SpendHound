@@ -17,6 +17,7 @@ import com.bumptech.glide.Glide
 import com.google.android.material.textfield.TextInputEditText
 import com.google.android.material.textfield.TextInputLayout
 import io.github.jan.supabase.postgrest.query.Columns
+import com.waray.spendhound.utils.ImageUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -236,8 +237,8 @@ class EditProfileActivity : AppCompatActivity() {
 
                 if (pendingImageUri != null) {
                     val bytes = withContext(Dispatchers.IO) {
-                        contentResolver.openInputStream(pendingImageUri!!)?.use { it.readBytes() }
-                    } ?: throw Exception("Failed to read image")
+                        ImageUtils.compressImage(contentResolver, pendingImageUri!!)
+                    } ?: throw Exception("Failed to compress image")
                     val path = "$numericId/$numericId.jpg"
                     withContext(Dispatchers.IO) {
                         DeclareDatabase.profileImagesBucket.upload(path, bytes, upsert = true)

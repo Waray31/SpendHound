@@ -26,6 +26,7 @@ import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.storage.storage
+import com.waray.spendhound.utils.ImageUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -336,17 +337,15 @@ class SignUpActivity : AppCompatActivity() {
             Log.d(tag, "🔍 Step 2: Reading image bytes from URI...")
             val bytes = withContext(Dispatchers.IO) {
                 try {
-                    val inputStream = contentResolver.openInputStream(profileImageUri!!)
-                    if (inputStream == null) {
-                        Log.e(tag, "❌ FAILED Step 2: Cannot open input stream from URI: $profileImageUri")
+                    val byteArray = ImageUtils.compressImage(contentResolver, profileImageUri!!)
+                    if (byteArray == null) {
+                        Log.e(tag, "❌ FAILED Step 2: Cannot compress image from URI: $profileImageUri")
                         return@withContext null
                     }
-                    val byteArray = inputStream.use { it.readBytes() }
-                    Log.d(tag, "🔍 ✓ Step 2a: Input stream opened successfully")
-                    Log.d(tag, "🔍 ✓ Step 2b: Read ${byteArray.size} bytes from stream")
+                    Log.d(tag, "🔍 ✓ Step 2 Complete: Compressed image (${byteArray.size} bytes)")
                     byteArray
                 } catch (e: Exception) {
-                    Log.e(tag, "❌ FAILED Step 2: Exception reading bytes: ${e.message}", e)
+                    Log.e(tag, "❌ FAILED Step 2: Exception compressing image: ${e.message}", e)
                     throw e
                 }
             }
