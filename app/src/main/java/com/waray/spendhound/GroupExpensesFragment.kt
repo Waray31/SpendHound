@@ -201,20 +201,7 @@ class GroupExpensesFragment : Fragment() {
                 it.timeZone = TimeZone.getTimeZone("UTC")
             }
             val date = parser.parse(createdAt.take(19)) ?: return ""
-            val now = java.util.Date()
-            val diffDays = ((now.time - date.time) / (1000 * 60 * 60 * 24)).toInt()
-            val timeFmt = SimpleDateFormat("h:mm a", Locale.getDefault()).format(date)
-            val nowCal = Calendar.getInstance()
-            val msgCal = Calendar.getInstance().also { it.time = date }
-            val sameDay = nowCal.get(Calendar.YEAR) == msgCal.get(Calendar.YEAR) &&
-                          nowCal.get(Calendar.DAY_OF_YEAR) == msgCal.get(Calendar.DAY_OF_YEAR)
-            val sameYear = nowCal.get(Calendar.YEAR) == msgCal.get(Calendar.YEAR)
-            when {
-                sameDay -> timeFmt
-                diffDays <= 6 -> "${SimpleDateFormat("EEE", Locale.getDefault()).format(date).uppercase()} AT $timeFmt"
-                sameYear -> "${SimpleDateFormat("MMM d", Locale.getDefault()).format(date).uppercase()} AT $timeFmt"
-                else -> "${SimpleDateFormat("MMM d, yyyy", Locale.getDefault()).format(date).uppercase()} AT $timeFmt"
-            }
+            SimpleDateFormat("MMM d", Locale.getDefault()).format(date).uppercase()
         } catch (_: Exception) { "" }
     }
 

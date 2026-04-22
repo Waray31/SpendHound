@@ -653,7 +653,7 @@ class GroupChatFragment : Fragment() {
                 }
                 holder.ivAvatar?.let { iv ->
                     val avatarPath = msg.senderProfileImage
-                    if (isFirstInGroup) {
+                    if (isLastInGroup) {
                         iv.visibility = View.VISIBLE
                         if (!avatarPath.isNullOrBlank()) {
                             Glide.with(requireContext())

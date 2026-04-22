@@ -1,147 +1,154 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.waray.spendhound.utils.PullInterceptLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<com.waray.spendhound.utils.PullInterceptLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/expensesRootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/white"
     android:orientation="vertical">
 
-    <!-- Status Tabs -->
-    <LinearLayout
-        android:id="@+id/statusTabs_layout"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:layout_marginBottom="8dp"
-        android:elevation="4dp"
-        android:orientation="horizontal"
-        android:padding="8dp"
-        android:background="@drawable/rounded_white_background">
-
-        <TextView
-            android:id="@+id/allTabTV"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:background="@drawable/spinner_border_grey"
-            android:clickable="true"
-            android:fontFamily="@font/montserratalternatess_bold"
-            android:padding="8dp"
-            android:text="All"
-            android:textAlignment="center"
-            android:textColor="@color/darkBlue"
-            android:textSize="14sp" />
-
-        <TextView
-            android:id="@+id/paidTabTV"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:background="@drawable/spinner_border_grey"
-            android:clickable="true"
-            android:fontFamily="@font/montserratalternatess_bold"
-            android:padding="8dp"
-            android:text="Settled"
-            android:textAlignment="center"
-            android:textColor="@color/darkBlue"
-            android:textSize="14sp" />
-
-        <TextView
-            android:id="@+id/unpaidTabTV"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:background="@drawable/spinner_border_grey"
-            android:clickable="true"
-            android:fontFamily="@font/montserratalternatess_bold"
-            android:padding="8dp"
-            android:text="Pending"
-            android:textAlignment="center"
-            android:textColor="@color/darkBlue"
-            android:textSize="14sp" />
-    </LinearLayout>
-
     <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1">
 
-        <androidx.core.widget.NestedScrollView
-            android:id="@+id/expensesScrollView"
+        <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:fillViewport="true">
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
 
+            <!-- Status Tabs -->
             <LinearLayout
+                android:id="@+id/statusTabs_layout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical">
+                android:layout_marginHorizontal="8dp"
+                android:layout_marginTop="12dp"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/rounded_white_background"
+                android:elevation="4dp"
+                android:orientation="horizontal"
+                android:padding="8dp">
 
-                <!-- Pull to Refresh Indicator -->
-                <LinearLayout
-                    android:id="@+id/pullRefreshIndicator_expenses"
-                    android:layout_width="match_parent"
+                <TextView
+                    android:id="@+id/allTabTV"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:orientation="vertical"
-                    android:visibility="gone">
+                    android:layout_weight="1"
+                    android:background="@drawable/spinner_border_grey"
+                    android:clickable="true"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:padding="8dp"
+                    android:text="All"
+                    android:textAlignment="center"
+                    android:textColor="@color/darkBlue"
+                    android:textSize="14sp" />
 
-                    <ProgressBar
-                        style="@style/CustomProgressBarStyle"
-                        android:layout_width="28dp"
-                        android:layout_height="28dp" />
-                </LinearLayout>
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/rvExpenses"
-                    android:layout_width="match_parent"
+                <TextView
+                    android:id="@+id/paidTabTV"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:nestedScrollingEnabled="false"
-                    android:paddingHorizontal="20dp"
-                    android:paddingBottom="80dp"
-                    android:clipToPadding="false" />
+                    android:layout_weight="1"
+                    android:background="@drawable/spinner_border_grey"
+                    android:clickable="true"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:padding="8dp"
+                    android:text="Settled"
+                    android:textAlignment="center"
+                    android:textColor="@color/darkBlue"
+                    android:textSize="14sp" />
 
-                <LinearLayout
-                    android:id="@+id/emptyExpenses"
-                    android:layout_width="match_parent"
+                <TextView
+                    android:id="@+id/unpaidTabTV"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:gravity="center"
-                    android:orientation="vertical"
-                    android:padding="48dp"
-                    android:visibility="gone">
-
-                    <ImageView
-                        android:layout_width="64dp"
-                        android:layout_height="64dp"
-                        android:alpha="0.4"
-                        android:src="@drawable/others" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="12dp"
-                        android:fontFamily="@font/montserratalternatess_bold"
-                        android:text="No expenses yet"
-                        android:textColor="@color/black"
-                        android:textSize="16sp" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="6dp"
-                        android:fontFamily="@font/montserratalternatess_regular"
-                        android:text="Add an expense from the group card"
-                        android:textColor="@color/grey"
-                        android:textSize="13sp" />
-                </LinearLayout>
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="80dp" />
-
+                    android:layout_weight="1"
+                    android:background="@drawable/spinner_border_grey"
+                    android:clickable="true"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:padding="8dp"
+                    android:text="Pending"
+                    android:textAlignment="center"
+                    android:textColor="@color/darkBlue"
+                    android:textSize="14sp" />
             </LinearLayout>
-        </androidx.core.widget.NestedScrollView>
+
+            <androidx.core.widget.NestedScrollView
+                android:id="@+id/expensesScrollView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:fillViewport="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
+
+                    <!-- Pull to Refresh Indicator -->
+                    <LinearLayout
+                        android:id="@+id/pullRefreshIndicator_expenses"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <ProgressBar
+                            style="@style/CustomProgressBarStyle"
+                            android:layout_width="28dp"
+                            android:layout_height="28dp" />
+                    </LinearLayout>
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvExpenses"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:clipToPadding="false"
+                        android:nestedScrollingEnabled="false"
+                        android:paddingHorizontal="16dp"
+                        android:paddingBottom="32dp" />
+
+                    <LinearLayout
+                        android:id="@+id/emptyExpenses"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="48dp"
+                        android:visibility="gone">
+
+                        <ImageView
+                            android:layout_width="64dp"
+                            android:layout_height="64dp"
+                            android:alpha="0.4"
+                            android:src="@drawable/others" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:fontFamily="@font/montserratalternatess_bold"
+                            android:text="No expenses yet"
+                            android:textColor="@color/black"
+                            android:textSize="16sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:fontFamily="@font/montserratalternatess_regular"
+                            android:text="Add an expense from the group card"
+                            android:textColor="@color/grey"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="80dp" />
+
+                </LinearLayout>
+            </androidx.core.widget.NestedScrollView>
+
+        </LinearLayout>
 
         <!-- Loading Overlay -->
         <LinearLayout
@@ -150,10 +157,10 @@
             android:layout_height="match_parent"
             android:background="@color/glassy_background"
             android:clickable="true"
+            android:elevation="10dp"
             android:focusable="true"
             android:gravity="center"
             android:orientation="vertical"
-            android:elevation="10dp"
             android:visibility="gone">
 
             <ProgressBar
