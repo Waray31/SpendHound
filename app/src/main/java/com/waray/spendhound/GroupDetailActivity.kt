@@ -2,19 +2,20 @@ package com.waray.spendhound
 
 import android.content.Intent
 import android.os.Bundle
-import android.view.View
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.resource.bitmap.CenterCrop
-import com.bumptech.glide.load.resource.bitmap.RoundedCorners
+import coil.load
+import coil.transform.RoundedCornersTransformation
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.waray.spendhound.ui.group.GroupDetailViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class GroupDetailActivity : AppCompatActivity() {
@@ -29,6 +30,7 @@ class GroupDetailActivity : AppCompatActivity() {
     var groupMembers: List<Pair<GroupMember, User>> = emptyList()
     private var currentGroup: PayerGroup? = null
 
+    private val viewModel: GroupDetailViewModel by viewModels()
     private lateinit var viewPager: ViewPager2
     private lateinit var bottomNav: BottomNavigationView
 
@@ -69,66 +71,62 @@ class GroupDetailActivity : AppCompatActivity() {
             }
         })
 
-        loadHeader()
+        // Observe preloaded data — renders immediately if already cached from GroupsActivity tap
+        lifecycleScope.launch {
+            viewModel.groupData.collect { data ->
+                data ?: return@collect
+                currentGroup = data.group
+                groupMembers = data.members
+                isAdmin = data.isAdmin
+                updateHeader(data.group, data.members.size)
+            }
+        }
+
+        resolveCurrentUser()
     }
 
     override fun onResume() {
         super.onResume()
-        loadHeader()
+        currentUserId?.let { viewModel.preloadGroup(groupId, it) }
     }
 
-    private fun loadHeader() {
+    private fun resolveCurrentUser() {
         val authId = DeclareDatabase.auth.currentUserOrNull()?.id ?: return
-        lifecycleScope.launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val user = DeclareDatabase.usersTable.select {
                     filter { eq("auth_id", authId) }
                 }.decodeSingleOrNull<User>() ?: return@launch
                 currentUserId = user.id
-
-                val group = DeclareDatabase.groupsTable.select {
-                    filter { eq("group_id", groupId) }
-                }.decodeSingleOrNull<PayerGroup>() ?: return@launch
-                currentGroup = group
-
-                val members = DeclareDatabase.groupMembersTable.select {
-                    filter { eq("group_id", groupId) }
-                }.decodeList<GroupMember>()
-
-                isAdmin = members.any { it.userId == user.id && it.admin }
-
-                val allUsers = DeclareDatabase.usersTable.select().decodeList<User>()
-                groupMembers = members.mapNotNull { m ->
-                    val u = allUsers.firstOrNull { it.id == m.userId } ?: return@mapNotNull null
-                    Pair(m, u)
-                }
-
-                runOnUiThread {
-                    findViewById<TextView>(R.id.tvGroupName).text = group.groupName ?: "Group"
-                    findViewById<TextView>(R.id.tvMemberCount).text =
-                        "${members.size} member${if (members.size != 1) "s" else ""}"
-
-                    val iv = findViewById<ImageView>(R.id.ivGroupIcon)
-                    if (!group.groupImageUrl.isNullOrBlank()) {
-                        iv.imageTintList = null
-                        Glide.with(this@GroupDetailActivity)
-                            .load(group.groupImageUrl)
-                            .transform(CenterCrop(), RoundedCorners(48))
-                            .into(iv)
-                    }
-                }
+                user.id?.let { viewModel.preloadGroup(groupId, it) }
             } catch (_: Exception) {}
+        }
+    }
+
+    private fun updateHeader(group: PayerGroup, memberCount: Int) {
+        findViewById<TextView>(R.id.tvGroupName).text = group.groupName ?: "Group"
+        findViewById<TextView>(R.id.tvMemberCount).text =
+            "$memberCount member${if (memberCount != 1) "s" else ""}"
+
+        val iv = findViewById<ImageView>(R.id.ivGroupIcon)
+        if (!group.groupImageUrl.isNullOrBlank()) {
+            iv.imageTintList = null
+            iv.load(group.groupImageUrl) {
+                crossfade(true)
+                placeholder(R.drawable.skeleton_shape)
+                error(R.drawable.add_group)
+                transformations(RoundedCornersTransformation(48f))
+            }
         }
     }
 
     private fun launchEditGroup() {
         val group = currentGroup ?: return
-        val intent = Intent(this, EditGroupActivity::class.java).apply {
+        startActivity(Intent(this, EditGroupActivity::class.java).apply {
             putExtra(EditGroupActivity.EXTRA_GROUP_ID, groupId)
             putExtra(EditGroupActivity.EXTRA_GROUP_NAME, group.groupName ?: "")
             putExtra(EditGroupActivity.EXTRA_GROUP_IMAGE, group.groupImageUrl)
-        }
-        startActivity(intent)
+        })
     }
 
     private inner class GroupPagerAdapter : FragmentStateAdapter(this) {

@@ -20,8 +20,8 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
+import coil.load
+import coil.transform.CircleCropTransformation
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import io.github.jan.supabase.realtime.PostgresAction
@@ -30,9 +30,11 @@ import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.decodeOldRecord
 import io.github.jan.supabase.realtime.decodeRecord
 import io.github.jan.supabase.realtime.postgresChangeFlow
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.text.SimpleDateFormat
@@ -67,7 +69,7 @@ class GroupChatFragment : Fragment() {
     private var pendingTempId: Long? = null
     private lateinit var adapter: ChatAdapter
     private lateinit var rvMessages: RecyclerView
-    private lateinit var loadingOverlay: View
+    private lateinit var rvSkeleton: RecyclerView
     private lateinit var emojiPopup: LinearLayout
     private lateinit var actionsPopup: LinearLayout
     private var visibleTimeId: Long? = null
@@ -84,12 +86,14 @@ class GroupChatFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         rvMessages = view.findViewById(R.id.rvMessages)
-        loadingOverlay = view.findViewById(R.id.loadingOverlay)
+        rvSkeleton = view.findViewById(R.id.rvSkeleton)
         emojiPopup = view.findViewById(R.id.emojiPopup)
         actionsPopup = view.findViewById(R.id.actionsPopup)
         adapter = ChatAdapter()
         rvMessages.layoutManager = LinearLayoutManager(requireContext()).also { it.stackFromEnd = true }
         rvMessages.adapter = adapter
+        rvSkeleton.layoutManager = LinearLayoutManager(requireContext())
+        rvSkeleton.adapter = SkeletonAdapter(R.layout.item_skeleton_chat, 5)
 
         // Dismiss popups when tapping outside
         view.setOnClickListener { dismissPopups() }
@@ -107,11 +111,9 @@ class GroupChatFragment : Fragment() {
             if (text.isNotEmpty()) { sendMessage(text); et.setText("") }
         }
 
-        lifecycleScope.launch {
-            loadingOverlay.visibility = View.VISIBLE
+        lifecycleScope.launch(Dispatchers.IO) {
             resolveCurrentUser()
             loadMessages()
-            requireActivity().runOnUiThread { loadingOverlay.visibility = View.GONE }
             subscribeRealtime()
         }
     }
@@ -152,29 +154,39 @@ class GroupChatFragment : Fragment() {
     @SuppressLint("NotifyDataSetChanged")
     private suspend fun loadMessages() {
         try {
-            val raw = DeclareDatabase.groupMessagesTable.select {
-                filter { eq("group_id", groupId) }
-                order("created_at", Order.ASCENDING)
-            }.decodeList<GroupMessage>().filter { !it.isDeleted }
+            val raw = withContext(Dispatchers.IO) {
+                DeclareDatabase.groupMessagesTable.select {
+                    filter { eq("group_id", groupId) }
+                    order("created_at", Order.ASCENDING)
+                    limit(200)
+                }.decodeList<GroupMessage>().filter { !it.isDeleted }
+            }
 
-            val allUsers = DeclareDatabase.usersTable.select().decodeList<User>()
+            val userIds = raw.mapNotNull { it.userId }.distinct()
+            val allUsers = withContext(Dispatchers.IO) {
+                if (userIds.isNotEmpty()) DeclareDatabase.usersTable.select {
+                    filter { isIn("user_id", userIds) }
+                }.decodeList<User>() else emptyList()
+            }
             val enriched = enrichMessages(raw, allUsers)
 
             val msgIds = enriched.mapNotNull { it.id }
             if (msgIds.isNotEmpty()) {
-                DeclareDatabase.groupMessageReactionsTable.select {
-                    filter { isIn("message_id", msgIds) }
-                }.decodeList<GroupMessageReaction>().forEach { r ->
-                    val mid = r.messageId ?: return@forEach
-                    reactions.getOrPut(mid) { mutableListOf() }.add(r)
-                }
+                withContext(Dispatchers.IO) {
+                    DeclareDatabase.groupMessageReactionsTable.select {
+                        filter { isIn("message_id", msgIds) }
+                    }.decodeList<GroupMessageReaction>().forEach { r ->
+                        val mid = r.messageId ?: return@forEach
+                        reactions.getOrPut(mid) { mutableListOf() }.add(r)
+                    }
 
-                DeclareDatabase.messageReadsTable.select {
-                    filter { isIn("message_id", msgIds) }
-                }.decodeList<MessageRead>().forEach { r ->
-                    val mid = r.messageId ?: return@forEach
-                    val uid = r.userId ?: return@forEach
-                    readReceipts.getOrPut(mid) { mutableSetOf() }.add(uid)
+                    DeclareDatabase.messageReadsTable.select {
+                        filter { isIn("message_id", msgIds) }
+                    }.decodeList<MessageRead>().forEach { r ->
+                        val mid = r.messageId ?: return@forEach
+                        val uid = r.userId ?: return@forEach
+                        readReceipts.getOrPut(mid) { mutableSetOf() }.add(uid)
+                    }
                 }
             }
 
@@ -182,12 +194,14 @@ class GroupChatFragment : Fragment() {
             messages.addAll(enriched)
 
             requireActivity().runOnUiThread {
+                rvSkeleton.visibility = View.GONE
                 adapter.notifyDataSetChanged()
                 if (messages.isNotEmpty()) rvMessages.scrollToPosition(messages.size - 1)
             }
             markMessagesRead()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load messages", e)
+            requireActivity().runOnUiThread { rvSkeleton.visibility = View.GONE }
         }
     }
 
@@ -228,17 +242,20 @@ class GroupChatFragment : Fragment() {
             rvMessages.scrollToPosition(messages.size - 1)
         }
 
-        lifecycleScope.launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 DeclareDatabase.groupMessagesTable.insert(
                     GroupMessageInsert(groupId = groupId, userId = uid, message = text)
                 )
-                // Reload to replace optimistic with real row
                 val raw = DeclareDatabase.groupMessagesTable.select {
                     filter { eq("group_id", groupId) }
                     order("created_at", Order.ASCENDING)
+                    limit(200)
                 }.decodeList<GroupMessage>().filter { !it.isDeleted }
-                val users = DeclareDatabase.usersTable.select().decodeList<User>()
+                val userIds = raw.mapNotNull { it.userId }.distinct()
+                val users = if (userIds.isNotEmpty()) DeclareDatabase.usersTable.select {
+                    filter { isIn("user_id", userIds) }
+                }.decodeList<User>() else emptyList()
                 val enriched = enrichMessages(raw, users)
                 messages.clear()
                 messages.addAll(enriched)
@@ -656,13 +673,12 @@ class GroupChatFragment : Fragment() {
                     if (isLastInGroup) {
                         iv.visibility = View.VISIBLE
                         if (!avatarPath.isNullOrBlank()) {
-                            Glide.with(requireContext())
-                                .load(DeclareDatabase.profileImagesBucket.publicUrl(avatarPath))
-                                .circleCrop()
-                                .diskCacheStrategy(DiskCacheStrategy.ALL)
-                                .placeholder(R.drawable.placeholder_profile_image)
-                                .error(R.drawable.placeholder_profile_image)
-                                .into(iv)
+                            iv.load(DeclareDatabase.profileImagesBucket.publicUrl(avatarPath)) {
+                                crossfade(true)
+                                placeholder(R.drawable.placeholder_profile_image)
+                                error(R.drawable.placeholder_profile_image)
+                                transformations(CircleCropTransformation())
+                            }
                         }
                     } else {
                         iv.visibility = View.INVISIBLE

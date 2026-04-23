@@ -125,32 +125,15 @@
 
         </LinearLayout>
 
-        <!-- Loading overlay -->
-        <LinearLayout
-            android:id="@+id/loadingOverlay"
+        <!-- Skeleton loading list (shown while data loads) -->
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/rvSkeleton"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@color/glassy_background"
-            android:clickable="true"
-            android:focusable="true"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:visibility="visible">
-
-            <ProgressBar
-                style="@style/CustomProgressBarStyle"
-                android:layout_width="48dp"
-                android:layout_height="48dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="@string/loading_text"
-                android:textColor="@color/darkBlue"
-                android:textSize="14sp" />
-        </LinearLayout>
+            android:clipToPadding="false"
+            android:paddingTop="16dp"
+            android:paddingBottom="80dp"
+            android:visibility="visible" />
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fabCreateGroup"

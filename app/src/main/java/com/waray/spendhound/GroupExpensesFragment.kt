@@ -18,7 +18,10 @@ import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
 import com.waray.spendhound.utils.PullInterceptLayout
 import com.waray.spendhound.utils.PullToRefreshHelper
+import io.github.jan.supabase.postgrest.query.Order
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -35,6 +38,7 @@ class GroupExpensesFragment : Fragment() {
     private var groupId: Long = -1
     private val transactionList = ArrayList<RecentTransaction>()
     private lateinit var adapter: RecentTransactionAdapter
+    private lateinit var rvSkeleton: RecyclerView
     private var pullToRefreshHelper: PullToRefreshHelper? = null
 
     private var selectedStatusTab = "All"
@@ -50,9 +54,12 @@ class GroupExpensesFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val rv = view.findViewById<RecyclerView>(R.id.rvExpenses)
+        rvSkeleton = view.findViewById(R.id.rvSkeleton)
         adapter = RecentTransactionAdapter(transactionList, { loadExpenses() }, null)
         rv.layoutManager = LinearLayoutManager(requireContext())
         rv.adapter = adapter
+        rvSkeleton.layoutManager = LinearLayoutManager(requireContext())
+        rvSkeleton.adapter = SkeletonAdapter(R.layout.item_skeleton_transaction)
 
         val scrollView = view.findViewById<NestedScrollView>(R.id.expensesScrollView)
         val indicator = view.findViewById<View>(R.id.pullRefreshIndicator_expenses)
@@ -72,15 +79,17 @@ class GroupExpensesFragment : Fragment() {
     @SuppressLint("NotifyDataSetChanged")
     private fun loadExpenses() {
         showLoading()
-        lifecycleScope.launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val allTransactions = DeclareDatabase.transactionsTable.select {
                     filter { eq("group_id", groupId) }
+                    order("created_at", Order.DESCENDING)
+                    limit(100)
                 }.decodeList<TransactionFull>()
 
                 val txIds = allTransactions.mapNotNull { it.id }
                 if (txIds.isEmpty()) {
-                    showEmpty()
+                    withContext(Dispatchers.Main) { showEmpty() }
                     return@launch
                 }
 
@@ -186,7 +195,7 @@ class GroupExpensesFragment : Fragment() {
                     pullToRefreshHelper?.stopRefreshing()
                 }
             } catch (_: Exception) {
-                requireActivity().runOnUiThread {
+                withContext(Dispatchers.Main) {
                     hideLoading()
                     pullToRefreshHelper?.stopRefreshing()
                 }
@@ -245,6 +254,18 @@ class GroupExpensesFragment : Fragment() {
         view?.findViewById<View>(R.id.emptyExpenses)?.visibility = View.GONE
     }
 
+    private fun showLoading() {
+        rvSkeleton.visibility = View.VISIBLE
+        view?.findViewById<RecyclerView>(R.id.rvExpenses)?.visibility = View.GONE
+        view?.findViewById<View>(R.id.emptyExpenses)?.visibility = View.GONE
+        isTabClickEnabled = false
+    }
+
+    private fun hideLoading() {
+        rvSkeleton.visibility = View.GONE
+        isTabClickEnabled = true
+    }
+
     private fun setupStatusTabs(view: View) {
         val allTab = view.findViewById<TextView>(R.id.allTabTV)
         val paidTab = view.findViewById<TextView>(R.id.paidTabTV)
@@ -279,7 +300,4 @@ class GroupExpensesFragment : Fragment() {
         all.forEach { it.setBackgroundResource(0) }
         selected.setBackgroundResource(R.drawable.spinner_border_grey)
     }
-
-    private fun showLoading() { view?.findViewById<View>(R.id.loadingOverlay)?.visibility = View.VISIBLE; isTabClickEnabled = false }
-    private fun hideLoading() { view?.findViewById<View>(R.id.loadingOverlay)?.visibility = View.GONE; isTabClickEnabled = true }
 }

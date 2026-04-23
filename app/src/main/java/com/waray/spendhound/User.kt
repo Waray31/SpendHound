@@ -30,5 +30,7 @@ data class User(
     @SerialName("total_individual_spent")
     val totalIndividualSpent: Double? = 0.0,
     @SerialName("created_at")
-    val createdAt: String? = null
+    val createdAt: String? = null,
+    @SerialName("updated_at")
+    val updatedAt: String? = null
 )

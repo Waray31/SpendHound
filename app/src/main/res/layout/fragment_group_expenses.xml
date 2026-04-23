@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <com.waray.spendhound.utils.PullInterceptLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/expensesRootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -98,6 +99,17 @@
                             android:layout_height="28dp" />
                     </LinearLayout>
 
+                    <!-- Skeleton loading list (shown while expenses load) -->
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvSkeleton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:clipToPadding="false"
+                        android:nestedScrollingEnabled="false"
+                        android:paddingHorizontal="16dp"
+                        android:paddingBottom="32dp"
+                        android:visibility="gone" />
+
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/rvExpenses"
                         android:layout_width="match_parent"
@@ -105,6 +117,7 @@
                         android:clipToPadding="false"
                         android:nestedScrollingEnabled="false"
                         android:paddingHorizontal="16dp"
+                        tools:listitem="@layout/item_transaction"
                         android:paddingBottom="32dp" />
 
                     <LinearLayout
@@ -148,34 +161,6 @@
                 </LinearLayout>
             </androidx.core.widget.NestedScrollView>
 
-        </LinearLayout>
-
-        <!-- Loading Overlay -->
-        <LinearLayout
-            android:id="@+id/loadingOverlay"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:background="@color/glassy_background"
-            android:clickable="true"
-            android:elevation="10dp"
-            android:focusable="true"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:visibility="gone">
-
-            <ProgressBar
-                style="@style/CustomProgressBarStyle"
-                android:layout_width="48dp"
-                android:layout_height="48dp" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="@string/loading_text"
-                android:textColor="@color/darkBlue"
-                android:textSize="14sp" />
         </LinearLayout>
 
     </FrameLayout>

@@ -9,20 +9,25 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
+import androidx.activity.viewModels
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
+import coil.load
+import coil.transform.RoundedCornersTransformation
 import com.google.android.material.floatingactionbutton.FloatingActionButton
-import com.waray.spendhound.CurrencyUtils
+import com.waray.spendhound.ui.group.GroupDetailViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
 class GroupsActivity : AppCompatActivity() {
 
+    private val groupDetailViewModel: GroupDetailViewModel by viewModels()
+
     private lateinit var rvGroups: RecyclerView
+    private lateinit var rvSkeleton: RecyclerView
     private lateinit var emptyState: LinearLayout
-    private lateinit var loadingOverlay: View
     private lateinit var fabCreateGroup: FloatingActionButton
     private lateinit var tvGroupCount: TextView
 
@@ -45,11 +50,13 @@ class GroupsActivity : AppCompatActivity() {
         tvGroupCount = findViewById(R.id.tvGroupCount)
 
         rvGroups = findViewById(R.id.rvGroups)
+        rvSkeleton = findViewById(R.id.rvSkeleton)
         emptyState = findViewById(R.id.emptyState)
-        loadingOverlay = findViewById(R.id.loadingOverlay)
         fabCreateGroup = findViewById(R.id.fabCreateGroup)
         fabCreateGroup.visibility = View.GONE
 
+        rvSkeleton.layoutManager = LinearLayoutManager(this)
+        rvSkeleton.adapter = SkeletonAdapter(R.layout.item_skeleton_group)
         rvGroups.layoutManager = LinearLayoutManager(this)
         findViewById<TextView>(R.id.tvAddNewGroup).setOnClickListener {
             startActivity(android.content.Intent(this, CreateGroupActivity::class.java))
@@ -66,13 +73,15 @@ class GroupsActivity : AppCompatActivity() {
     private fun fetchCurrentUser() {
         val authId = DeclareDatabase.auth.currentUserOrNull()?.id ?: return
         showLoading()
-        lifecycleScope.launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val user = DeclareDatabase.usersTable.select {
                     filter { eq("auth_id", authId) }
                 }.decodeSingleOrNull<User>()
                 currentUserId = user?.id
-                allUsers = DeclareDatabase.usersTable.select().decodeList<User>()
+                allUsers = DeclareDatabase.usersTable.select {
+                    // select only needed columns
+                }.decodeList<User>()
                 loadGroups()
             } catch (e: Exception) {
                 runOnUiThread { hideLoading() }
@@ -85,7 +94,7 @@ class GroupsActivity : AppCompatActivity() {
     private fun loadGroups() {
         val userId = currentUserId ?: return
         showLoading()
-        lifecycleScope.launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val myGroupIds = DeclareDatabase.groupMembersTable.select {
                     filter { eq("user_id", userId) }
@@ -94,7 +103,9 @@ class GroupsActivity : AppCompatActivity() {
                 val allGroups = DeclareDatabase.groupsTable.select().decodeList<PayerGroup>()
                     .filter { it.groupId in myGroupIds }
 
-                val allMembers = DeclareDatabase.groupMembersTable.select().decodeList<GroupMember>()
+                val allMembers = DeclareDatabase.groupMembersTable.select {
+                    filter { isIn("group_id", myGroupIds.toList()) }
+                }.decodeList<GroupMember>()
                 val membersByGroup = allMembers.groupBy { it.groupId }
 
                 groups.clear()
@@ -105,15 +116,21 @@ class GroupsActivity : AppCompatActivity() {
                 }
 
                 // Pre-fetch all card data before showing the list
-                val allTransactions = DeclareDatabase.transactionsTable.select().decodeList<com.waray.spendhound.ui.multi_transaction.TransactionFull>()
+                val groupIds = allGroups.mapNotNull { it.groupId }
+                val allTransactions = if (groupIds.isNotEmpty()) DeclareDatabase.transactionsTable.select {
+                    filter { isIn("group_id", groupIds) }
+                    order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                }.decodeList<com.waray.spendhound.ui.multi_transaction.TransactionFull>() else emptyList()
                 val allTxIds = allTransactions.mapNotNull { it.id }
                 val allPayors = if (allTxIds.isNotEmpty()) DeclareDatabase.transactionPayorsTable.select {
                     filter { isIn("transaction_id", allTxIds) }
                 }.decodeList<com.waray.spendhound.ui.multi_transaction.TransactionPayorTable>() else emptyList()
 
                 val uid = currentUserId
-                val allMessages = if (uid != null) DeclareDatabase.groupMessagesTable.select {
-                    filter { eq("is_deleted", false) }
+                val allMessages = if (uid != null && groupIds.isNotEmpty()) DeclareDatabase.groupMessagesTable.select {
+                    filter { isIn("group_id", groupIds); eq("is_deleted", false) }
+                    order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                    limit(500)
                 }.decodeList<GroupMessage>().filter { it.userId != uid } else emptyList()
                 val readIds = if (uid != null) DeclareDatabase.messageReadsTable.select {
                     filter { eq("user_id", uid) }
@@ -158,8 +175,8 @@ class GroupsActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
-    private fun showLoading() { loadingOverlay.visibility = View.VISIBLE }
-    private fun hideLoading() { loadingOverlay.visibility = View.GONE }
+    private fun showLoading() { rvSkeleton.visibility = View.VISIBLE; rvGroups.visibility = View.GONE }
+    private fun hideLoading() { rvSkeleton.visibility = View.GONE }
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 
     private inner class GroupAdapter(
@@ -190,18 +207,23 @@ class GroupsActivity : AppCompatActivity() {
             else members.joinToString(", ") { it.username ?: "?" }
 
             holder.itemView.setOnClickListener {
+                val gid = group.groupId ?: return@setOnClickListener
+                // Preload group data before transition
+                currentUserId?.let { uid -> groupDetailViewModel.preloadGroup(gid, uid) }
                 val intent = android.content.Intent(this@GroupsActivity, GroupDetailActivity::class.java).apply {
-                    putExtra(GroupDetailActivity.EXTRA_GROUP_ID, group.groupId ?: return@setOnClickListener)
+                    putExtra(GroupDetailActivity.EXTRA_GROUP_ID, gid)
                 }
                 startActivity(intent)
             }
 
             if (!group.groupImageUrl.isNullOrBlank()) {
                 holder.ivGroupIcon.imageTintList = null
-                Glide.with(this@GroupsActivity)
-                    .load(group.groupImageUrl)
-                    .transform(com.bumptech.glide.load.resource.bitmap.CenterCrop(), com.bumptech.glide.load.resource.bitmap.RoundedCorners(48))
-                    .into(holder.ivGroupIcon)
+                holder.ivGroupIcon.load(group.groupImageUrl) {
+                    crossfade(true)
+                    placeholder(R.drawable.skeleton_shape)
+                    error(R.drawable.add_group)
+                    transformations(RoundedCornersTransformation(48f))
+                }
             } else {
                 holder.ivGroupIcon.setImageResource(R.drawable.add_group)
                 holder.ivGroupIcon.imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#7B2FBE"))

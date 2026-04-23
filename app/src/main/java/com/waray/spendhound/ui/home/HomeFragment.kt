@@ -37,10 +37,12 @@ import com.waray.spendhound.ui.multi_transaction.TransactionFull
 import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
 import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
+import com.waray.spendhound.SkeletonAdapter
 import com.waray.spendhound.utils.LoadingManager
 import com.waray.spendhound.utils.PullToRefreshHelper
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.Order
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -74,6 +76,7 @@ class HomeFragment : Fragment() {
     private var loadingManager: LoadingManager? = null
     private var currentUserNumericId: Long? = null
     private var pullToRefreshHelper: PullToRefreshHelper? = null
+    private var rvSkeletonHome: RecyclerView? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -82,10 +85,6 @@ class HomeFragment : Fragment() {
         binding = FragmentHomeBinding.inflate(inflater, container, false)
         val view = binding!!.root
 
-        val loadingOverlay = view.findViewById<View>(R.id.loadingOverlay_home)
-        loadingManager = LoadingManager(loadingOverlay, viewLifecycleOwner.lifecycle) { isLoading ->
-            (activity as? MainActivity)?.navView?.menu?.findItem(R.id.navigation_home)?.isEnabled = !isLoading
-        }
         mAuth = DeclareDatabase.auth
 
         btnWeekly = view.findViewById(R.id.btnWeekly)
@@ -101,11 +100,14 @@ class HomeFragment : Fragment() {
 
         transactionListRecycler = view.findViewById(R.id.transactionListRecycler)
         recentEmptyState = view.findViewById(R.id.recentEmptyState)
+        rvSkeletonHome = view.findViewById(R.id.rvSkeletonHome)
         recentAdapter = RecentTransactionAdapter(recentTransactionList) {
             refreshAllData()
         }
         transactionListRecycler?.layoutManager = LinearLayoutManager(context)
         transactionListRecycler?.adapter = recentAdapter
+        rvSkeletonHome?.layoutManager = LinearLayoutManager(context)
+        rvSkeletonHome?.adapter = SkeletonAdapter(R.layout.item_skeleton_transaction, 5)
 
         recentAdapter?.setOnTransactionClickListener(object : RecentTransactionAdapter.OnTransactionClickListener {
             override fun onTransactionClick(transaction: RecentTransaction?) {
@@ -226,14 +228,19 @@ class HomeFragment : Fragment() {
 
         lifecycleScope.launch {
             try {
-                val allTransactions = withContext(Dispatchers.IO) {
-                    DeclareDatabase.transactionsTable.select().decodeList<TransactionFull>()
+                val userSplits = withContext(Dispatchers.IO) {
+                    DeclareDatabase.transactionSplitsTable.select {
+                        filter { eq("user_id", userId) }
+                    }.decodeList<TransactionSplitTable>()
                 }
-                val allSplits = withContext(Dispatchers.IO) {
-                    DeclareDatabase.transactionSplitsTable.select().decodeList<TransactionSplitTable>()
-                }
+                val involvedTxIds = userSplits.mapNotNull { it.transactionId }.toSet()
+                val allTransactions = if (involvedTxIds.isNotEmpty()) withContext(Dispatchers.IO) {
+                    DeclareDatabase.transactionsTable.select {
+                        filter { isIn("id", involvedTxIds.toList()) }
+                    }.decodeList<TransactionFull>()
+                } else emptyList()
 
-                val userSplitsByTx = allSplits.filter { it.userId == userId }.groupBy { it.transactionId }
+                val userSplitsByTx = userSplits.groupBy { it.transactionId }
 
                 var lastMonthTotal = 0.0
                 for (tx in allTransactions) {
@@ -281,35 +288,54 @@ class HomeFragment : Fragment() {
     private fun fetchRecentTransactions() {
         val userId = currentUserNumericId ?: return
         showLoading()
-        lifecycleScope.launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val allTransactions = withContext(Dispatchers.IO) {
-                    DeclareDatabase.transactionsTable.select().decodeList<TransactionFull>()
-                }
-                val allPayors = withContext(Dispatchers.IO) {
-                    DeclareDatabase.transactionPayorsTable.select().decodeList<TransactionPayorTable>()
-                }
-                val allSplits = withContext(Dispatchers.IO) {
-                    DeclareDatabase.transactionSplitsTable.select().decodeList<TransactionSplitTable>()
-                }
-                val allItems = withContext(Dispatchers.IO) {
-                    DeclareDatabase.transactionItemsTable.select().decodeList<TransactionItemFull>()
+                // Only fetch transactions the user is involved in
+                val userSplits = DeclareDatabase.transactionSplitsTable.select {
+                    filter { eq("user_id", userId) }
+                }.decodeList<TransactionSplitTable>()
+                val userPayors = DeclareDatabase.transactionPayorsTable.select {
+                    filter { eq("user_id", userId) }
+                }.decodeList<TransactionPayorTable>()
+
+                val involvedIds = (userPayors.map { it.transactionId } +
+                        userSplits.map { it.transactionId }).toSet()
+
+                if (involvedIds.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        recentEmptyState?.visibility = View.VISIBLE
+                        transactionListRecycler?.visibility = View.GONE
+                        hideLoading()
+                    }
+                    return@launch
                 }
 
-                val involvedIds = (allPayors.filter { it.userId == userId }.map { it.transactionId } +
-                        allSplits.filter { it.userId == userId }.map { it.transactionId }).toSet()
+                val allTransactions = DeclareDatabase.transactionsTable.select {
+                    filter { isIn("id", involvedIds.toList()) }
+                    order("created_at", Order.DESCENDING)
+                    limit(5)
+                }.decodeList<TransactionFull>()
+
+                val txIds = allTransactions.mapNotNull { it.id }
+                val allPayors = DeclareDatabase.transactionPayorsTable.select {
+                    filter { isIn("transaction_id", txIds) }
+                }.decodeList<TransactionPayorTable>()
+                val allSplits = DeclareDatabase.transactionSplitsTable.select {
+                    filter { isIn("transaction_id", txIds) }
+                }.decodeList<TransactionSplitTable>()
+                val allItems = DeclareDatabase.transactionItemsTable.select {
+                    filter { isIn("transaction_id", txIds) }
+                }.decodeList<TransactionItemFull>()
 
                 val payorsByTx = allPayors.groupBy { it.transactionId }
                 val splitsByTx = allSplits.groupBy { it.transactionId }
                 val itemsByTx = allItems.groupBy { it.transactionId }
 
-                val allUserIds = (allPayors.map { it.userId } + allSplits.map { it.userId }).toSet().toList()
+                val allUserIds = (allPayors.map { it.userId } + allSplits.map { it.userId }).distinct()
                 val usersById: Map<Long, String> = if (allUserIds.isNotEmpty()) {
-                    withContext(Dispatchers.IO) {
-                        DeclareDatabase.usersTable.select {
-                            filter { isIn("user_id", allUserIds) }
-                        }.decodeList<User>().associate { it.id!! to (it.username ?: "Unknown") }
-                    }
+                    DeclareDatabase.usersTable.select {
+                        filter { isIn("user_id", allUserIds) }
+                    }.decodeList<User>().associate { it.id!! to (it.username ?: "Unknown") }
                 } else emptyMap()
 
                 val newList = ArrayList<RecentTransaction>()
@@ -373,9 +399,7 @@ class HomeFragment : Fragment() {
                 }
 
                 newList.sortByDescending { it.timestamp }
-
-                // Keep only 5 most recent
-                val recent = ArrayList(newList.take(5))
+                val recent = ArrayList(newList)
 
                 withContext(Dispatchers.Main) {
                     recentTransactionList.clear()
@@ -709,10 +733,13 @@ class HomeFragment : Fragment() {
     }
 
     private fun showLoading() {
-        loadingManager?.showLoading()
+        rvSkeletonHome?.visibility = View.VISIBLE
+        transactionListRecycler?.visibility = View.GONE
+        recentEmptyState?.visibility = View.GONE
     }
 
     private fun hideLoading() {
-        loadingManager?.hideLoading()
+        rvSkeletonHome?.visibility = View.GONE
+        // real list visibility is set by the data callback, not here
     }
 }

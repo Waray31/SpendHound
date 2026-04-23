@@ -7,6 +7,17 @@ import android.net.Uri
 import java.io.ByteArrayOutputStream
 
 object ImageUtils {
+
+    /**
+     * Appends ?v={updatedAt} to a Supabase image URL to bust Coil's disk cache
+     * when the user updates their profile photo.
+     */
+    fun bustCache(url: String?, updatedAt: String?): String? {
+        if (url.isNullOrBlank()) return url
+        val version = updatedAt?.replace(Regex("[^0-9]"), "") ?: return url
+        return "$url?v=$version"
+    }
+
     private const val MAX_DIMENSION = 400
     private const val QUALITY = 60
 

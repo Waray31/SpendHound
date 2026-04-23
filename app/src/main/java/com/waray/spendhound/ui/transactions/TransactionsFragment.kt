@@ -31,8 +31,10 @@ import com.waray.spendhound.ui.multi_transaction.TransactionFull
 import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
 import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
+import com.waray.spendhound.SkeletonAdapter
 import com.waray.spendhound.utils.LoadingManager
 import io.github.jan.supabase.gotrue.Auth
+import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -70,6 +72,7 @@ class TransactionsFragment : Fragment() {
     private var isTabClickEnabled = true
     private var pullToRefreshHelper: PullToRefreshHelper? = null
     private var loadingManager: LoadingManager? = null
+    private var rvSkeletonTransactions: RecyclerView? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -101,13 +104,9 @@ class TransactionsFragment : Fragment() {
         groupSpinner = root.findViewById(R.id.groupSpinner)
         currentMonthTextView = root.findViewById(R.id.currentMonthTextView)
         transactionCountTextView = root.findViewById(R.id.transactionCountTextView)
-        loadingProgressBar = root.findViewById(R.id.loadingProgressBar)
+        loadingProgressBar = root.findViewById(R.id.rvSkeletonTransactions)
         emptyStateLayout = root.findViewById(R.id.emptyStateLayout)
-
-        loadingManager = LoadingManager(loadingProgressBar, viewLifecycleOwner.lifecycle) { isLoading ->
-            (activity as? MainActivity)?.navView?.menu?.findItem(R.id.navigation_transactions)?.isEnabled = !isLoading
-            isTabClickEnabled = !isLoading
-        }
+        rvSkeletonTransactions = root.findViewById(R.id.rvSkeletonTransactions)
 
         allTabTV = root.findViewById(R.id.allTabTV)
         paidTabTV = root.findViewById(R.id.paidTabTV)
@@ -121,6 +120,9 @@ class TransactionsFragment : Fragment() {
         val rootLayout = root as PullInterceptLayout
         pullToRefreshHelper = PullToRefreshHelper(scrollView, indicator, { refreshTransactions() }, rootLayout)
         rootLayout.onInterceptCallback = { event -> pullToRefreshHelper?.onInterceptTouch(event) ?: false }
+
+        rvSkeletonTransactions?.layoutManager = LinearLayoutManager(context)
+        rvSkeletonTransactions?.adapter = SkeletonAdapter(R.layout.item_skeleton_transaction)
 
         adapter = RecentTransactionAdapter(transactionList, { refreshTransactions() }, null)
         recyclerView?.layoutManager = LinearLayoutManager(context)
@@ -171,51 +173,50 @@ class TransactionsFragment : Fragment() {
     private fun getCurrentUserAndGroups() {
         val authUserId = mAuth?.currentUserOrNull()?.id ?: return
         showLoading()
-        lifecycleScope.launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val user = DeclareDatabase.usersTable.select {
                     filter { eq("auth_id", authUserId) }
                 }.decodeSingleOrNull<User>()
 
                 if (user != null) {
-                    currentUserNumericId = user.id
+                    withContext(Dispatchers.Main) { currentUserNumericId = user.id }
                     loadUserGroups()
                     fetchTransactionsInRange(startDate, endDate)
                 }
             } catch (e: Exception) {
                 Log.e("TransactionsFragment", "Error getting user info", e)
             } finally {
-                hideLoading()
+                withContext(Dispatchers.Main) { hideLoading() }
             }
         }
     }
 
     private fun loadUserGroups() {
         val currentUserIdLong = currentUserNumericId ?: return
-        showLoading()
-        lifecycleScope.launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
-                // Get group IDs the current user belongs to via group_members table
                 val myGroupIds = DeclareDatabase.groupMembersTable.select {
                     filter { eq("user_id", currentUserIdLong) }
                 }.decodeList<GroupMember>().mapNotNull { it.groupId }.toSet()
 
-                val allGroups = DeclareDatabase.groupsTable.select().decodeList<PayerGroup>()
+                val allGroups = DeclareDatabase.groupsTable.select {
+                    filter { isIn("group_id", myGroupIds.toList()) }
+                }.decodeList<PayerGroup>()
 
-                groupNames?.clear()
-                groupIds?.clear()
-                groupNames?.add("All group")
-                groupIds?.add(-1L)
-
-                allGroups.filter { it.groupId in myGroupIds }.forEach {
-                    groupNames?.add(it.groupName ?: "")
-                    groupIds?.add(it.groupId)
+                withContext(Dispatchers.Main) {
+                    groupNames?.clear()
+                    groupIds?.clear()
+                    groupNames?.add("All group")
+                    groupIds?.add(-1L)
+                    allGroups.forEach {
+                        groupNames?.add(it.groupName ?: "")
+                        groupIds?.add(it.groupId)
+                    }
+                    groupAdapter?.notifyDataSetChanged()
                 }
-                groupAdapter?.notifyDataSetChanged()
             } catch (e: Exception) {
                 Log.e("TransactionsFragment", "Error loading groups", e)
-            } finally {
-                hideLoading()
             }
         }
     }
@@ -334,31 +335,62 @@ class TransactionsFragment : Fragment() {
     private fun fetchTransactionsInRange(start: Long, end: Long) {
         val currentUserId = currentUserNumericId ?: return
         showLoading()
-        emptyStateLayout?.visibility = View.GONE
-        transactionList.clear()
-        adapter?.notifyDataSetChanged()
 
-        lifecycleScope.launch {
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val allTransactions = DeclareDatabase.transactionsTable.select().decodeList<TransactionFull>()
-                val allPayors = DeclareDatabase.transactionPayorsTable.select().decodeList<TransactionPayorTable>()
-                val allSplits = DeclareDatabase.transactionSplitsTable.select().decodeList<TransactionSplitTable>()
-                val allItems = DeclareDatabase.transactionItemsTable.select().decodeList<TransactionItemFull>()
+                val userSplits = DeclareDatabase.transactionSplitsTable.select {
+                    filter { eq("user_id", currentUserId) }
+                }.decodeList<TransactionSplitTable>()
+                val userPayors = DeclareDatabase.transactionPayorsTable.select {
+                    filter { eq("user_id", currentUserId) }
+                }.decodeList<TransactionPayorTable>()
 
-                val involvedIds = (allPayors.filter { it.userId == currentUserId }.map { it.transactionId } +
-                        allSplits.filter { it.userId == currentUserId }.map { it.transactionId }).toSet()
+                val involvedIds = (userPayors.map { it.transactionId } +
+                        userSplits.map { it.transactionId }).toSet()
+
+                if (involvedIds.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        if (!isAdded) return@withContext
+                        transactionList.clear()
+                        adapter?.notifyDataSetChanged()
+                        emptyStateLayout?.visibility = View.VISIBLE
+                        recyclerView?.visibility = View.GONE
+                        hideLoading()
+                        pullToRefreshHelper?.stopRefreshing()
+                    }
+                    return@launch
+                }
+
+                val allTransactions = DeclareDatabase.transactionsTable.select {
+                    filter { isIn("id", involvedIds.toList()) }
+                    order("created_at", Order.DESCENDING)
+                    limit(200)
+                }.decodeList<TransactionFull>()
+
+                val txIds = allTransactions.mapNotNull { it.id }
+                val allPayors = DeclareDatabase.transactionPayorsTable.select {
+                    filter { isIn("transaction_id", txIds) }
+                }.decodeList<TransactionPayorTable>()
+                val allSplits = DeclareDatabase.transactionSplitsTable.select {
+                    filter { isIn("transaction_id", txIds) }
+                }.decodeList<TransactionSplitTable>()
+                val allItems = DeclareDatabase.transactionItemsTable.select {
+                    filter { isIn("transaction_id", txIds) }
+                }.decodeList<TransactionItemFull>()
 
                 val payorsByTx = allPayors.groupBy { it.transactionId }
                 val splitsByTx = allSplits.groupBy { it.transactionId }
                 val itemsByTx  = allItems.groupBy { it.transactionId }
 
-                val allUserIds = (allPayors.map { it.userId } + allSplits.map { it.userId }).toSet().toList()
+                val allUserIds = (allPayors.map { it.userId } + allSplits.map { it.userId }).distinct()
                 val usersById: Map<Long, String> = if (allUserIds.isNotEmpty()) {
                     DeclareDatabase.usersTable.select {
                         filter { isIn("user_id", allUserIds) }
                     }.decodeList<User>().associate { it.id!! to (it.username ?: "Unknown") }
                 } else emptyMap()
 
+                // Build result list on IO thread (pure data work)
+                val result = mutableListOf<RecentTransaction>()
                 for (tx in allTransactions) {
                     val txId = tx.id ?: continue
                     if (txId !in involvedIds) continue
@@ -378,57 +410,28 @@ class TransactionsFragment : Fragment() {
                     val day = cal.get(Calendar.DAY_OF_MONTH).toString()
                     val timeKey = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(cal.time)
 
-                    // Unique contributors across all payors + splits
                     val contributorIds = (payors.map { it.userId } + splits.map { it.userId }).distinct()
                     val payorUserIds = contributorIds.map { it.toString() }.toMutableList<String?>()
                     val payorNames = contributorIds.map { usersById[it] ?: "Unknown" }.toMutableList<String?>()
-
-                    // amountsPaid per contributor = sum of their payor amounts across all items
                     val amountsPaid = contributorIds.map { uid ->
                         payors.filter { it.userId == uid }.sumOf { it.currentAmountPaid } as Double?
                     }.toMutableList()
-
-                    // individualPayment per contributor = sum of their split amounts across all items
-                    val individualPayment = if (splits.isNotEmpty()) {
-                        val splitPerUser = splits.groupBy { it.userId }
-                        splitPerUser.values.firstOrNull()?.sumOf { it.amount } ?: 0.0
-                    } else 0.0
-
-                    // Compute overall status
+                    val individualPayment = splits.groupBy { it.userId }.values.firstOrNull()?.sumOf { it.amount } ?: 0.0
                     val txStatus = computeStatus(payors, splits)
-
-                    // itemPayorMap: itemId -> payor usernames from transaction_payors table
                     val itemPayorMap = items.associate { item ->
                         val itemId = item.id ?: 0L
-                        val itemPayors = payors.filter { it.transactionItemsId == itemId }
-                        val payorNames = itemPayors
-                            .map { it.userId }
-                            .mapNotNull { usersById[it] }
-                            .joinToString(", ").ifEmpty { "-" }
-                        itemId to payorNames
+                        val names = payors.filter { it.transactionItemsId == itemId }
+                            .mapNotNull { usersById[it.userId] }.joinToString(", ").ifEmpty { "-" }
+                        itemId to names
                     }
-
-                    val createdByName = tx.createdBy?.let { usersById[it] } ?: "Unknown"
-
                     val rt = RecentTransaction(
-                        txId,
-                        "$monthName - $day",
-                        tx.description,
-                        tx.description,
+                        txId, "$monthName - $day", tx.description, tx.description,
                         CurrencyUtils.formatAmountWithCurrency(tx.totalAmount),
                         getIconForTransactionType(tx.description),
-                        "$year-$monthName-$day $timeKey",
-                        timestamp,
-                        payorNames,
-                        payorUserIds,
-                        amountsPaid,
-                        individualPayment,
-                        "$monthName $day, $year",
-                        createdByName,
-                        tx.createdBy?.toString(),
-                        "$monthName-$year",
-                        day,
-                        timeKey
+                        "$year-$monthName-$day $timeKey", timestamp,
+                        payorNames, payorUserIds, amountsPaid, individualPayment,
+                        "$monthName $day, $year", tx.createdBy?.let { usersById[it] } ?: "Unknown",
+                        tx.createdBy?.toString(), "$monthName-$year", day, timeKey
                     )
                     rt.transactionItems = items
                     rt.transactionStatus = txStatus
@@ -436,21 +439,18 @@ class TransactionsFragment : Fragment() {
                     rt.creatorNumericId = tx.createdBy
                     rt.rawPayorRows = payors
                     rt.rawSplitRows = splits
-                    transactionList.add(rt)
+                    result.add(rt)
                 }
-
-                transactionList.sortWith { t1, t2 ->
-                    t2.timestamp.compareTo(t1.timestamp)
-                }
+                result.sortWith { t1, t2 -> t2.timestamp.compareTo(t1.timestamp) }
 
                 withContext(Dispatchers.Main) {
                     if (!isAdded) return@withContext
+                    transactionList.clear()
+                    transactionList.addAll(result)
                     adapter?.notifyDataSetChanged()
                     context?.let { adapter?.preloadAllImages(it) }
-
                     val count = transactionList.size
                     transactionCountTextView?.text = String.format(Locale.getDefault(), "%d %s", count, if (count == 1) "transaction" else "transactions")
-
                     if (transactionList.isEmpty()) {
                         emptyStateLayout?.visibility = View.VISIBLE
                         recyclerView?.visibility = View.GONE
@@ -458,12 +458,15 @@ class TransactionsFragment : Fragment() {
                         emptyStateLayout?.visibility = View.GONE
                         recyclerView?.visibility = View.VISIBLE
                     }
+                    hideLoading()
+                    pullToRefreshHelper?.stopRefreshing()
                 }
             } catch (e: Exception) {
                 Log.e("TransactionsFragment", "Error fetching transactions", e)
-            } finally {
-                hideLoading()
-                pullToRefreshHelper?.stopRefreshing()
+                withContext(Dispatchers.Main) {
+                    hideLoading()
+                    pullToRefreshHelper?.stopRefreshing()
+                }
             }
         }
     }
@@ -514,12 +517,15 @@ class TransactionsFragment : Fragment() {
     }
 
     private fun showLoading() {
-        loadingManager?.showLoading()
+        rvSkeletonTransactions?.visibility = View.VISIBLE
+        recyclerView?.visibility = View.GONE
+        emptyStateLayout?.visibility = View.GONE
         isTabClickEnabled = false
     }
 
     private fun hideLoading() {
-        loadingManager?.hideLoading()
+        rvSkeletonTransactions?.visibility = View.GONE
         isTabClickEnabled = true
+        // recyclerView / emptyStateLayout visibility is set by the data callback
     }
 }

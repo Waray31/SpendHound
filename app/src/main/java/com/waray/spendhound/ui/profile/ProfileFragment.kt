@@ -22,13 +22,9 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.DataSource
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.bumptech.glide.load.engine.GlideException
-import com.bumptech.glide.request.RequestListener
-import com.bumptech.glide.request.target.Target
-import com.bumptech.glide.signature.ObjectKey
+import coil.load
+import coil.transform.CircleCropTransformation
+import com.waray.spendhound.utils.ImageUtils
 import com.waray.spendhound.BorrowNowTransaction
 import com.waray.spendhound.BreakdownAdapter
 import com.waray.spendhound.BreakdownItem
@@ -84,7 +80,7 @@ class ProfileFragment : Fragment() {
     private var profileLogout: Button? = null
     private var breakdownBtn: TextView? = null
 
-    private var imageSignature = System.currentTimeMillis()
+    private var imageUpdatedAt: String? = null
     private lateinit var loadingManager: LoadingManager
     private var isTabClickEnabled = true
 
@@ -122,7 +118,7 @@ class ProfileFragment : Fragment() {
 
         mAuth = DeclareDatabase.auth
 
-        val loadingOverlay = view.findViewById<View>(R.id.loadingOverlay_profile)
+        val loadingOverlay = view.findViewById<View>(R.id.skeletonProfile)
         loadingManager = LoadingManager(loadingOverlay, viewLifecycleOwner.lifecycle) { isLoading ->
             (activity as? MainActivity)?.navView?.menu?.findItem(R.id.navigation_profile)?.isEnabled = !isLoading
             isTabClickEnabled = !isLoading
@@ -147,83 +143,39 @@ class ProfileFragment : Fragment() {
 
     private fun setProfileImage(imageView: ImageView) {
         if (!isAdded) return
+        val authId = mAuth?.currentUserOrNull()?.id ?: return
 
-        loadingManager.showLoading()
-        val authId = mAuth?.currentUserOrNull()?.id ?: return loadingManager.hideLoading()
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val user = DeclareDatabase.usersTable.select(Columns.list("user_id", "profile_image_url", "updated_at")) {
+                    filter { eq("auth_id", authId) }
+                }.decodeSingleOrNull<User>()
 
-        val cachedUrl: String? = PayorAdapter.sDownloadUrlCache[authId]
+                val numericUserId = user?.id
+                val rawUrl = user?.profileImageUrl ?: numericUserId?.let {
+                    DeclareDatabase.profileImagesBucket.publicUrl("$it/$it.jpg")
+                }
+                imageUpdatedAt = user?.updatedAt
+                val url = ImageUtils.bustCache(rawUrl, imageUpdatedAt)
 
-        if (cachedUrl != null) {
-            loadGlideProfileImage(imageView, cachedUrl)
-        } else {
-            lifecycleScope.launch {
-                try {
-                    val user = withContext(Dispatchers.IO) {
-                        DeclareDatabase.usersTable.select(Columns.list("user_id", "profile_image_url")) {
-                            filter { eq("auth_id", authId) }
-                        }.decodeSingleOrNull<User>()
-                    }
-                    
-                    val numericUserId = user?.id
-                    val url = user?.profileImageUrl ?: if (numericUserId != null) {
-                        DeclareDatabase.profileImagesBucket.publicUrl("$numericUserId/$numericUserId.jpg")
-                    } else {
-                        null
-                    }
-                    
+                withContext(Dispatchers.Main) {
                     if (url != null) {
-                        PayorAdapter.sDownloadUrlCache[authId] = url
-                        loadGlideProfileImage(imageView, url)
-                    } else {
-                        withContext(Dispatchers.Main) {
-                            imageView.setImageResource(R.drawable.placeholder_profile_image)
-                            loadingManager.hideLoading()
+                        imageView.load(url) {
+                            crossfade(true)
+                            placeholder(R.drawable.placeholder_profile_image)
+                            error(R.drawable.placeholder_profile_image)
+                            transformations(CircleCropTransformation())
                         }
-                    }
-                } catch (_: Exception) {
-                    withContext(Dispatchers.Main) {
+                    } else {
                         imageView.setImageResource(R.drawable.placeholder_profile_image)
-                        loadingManager.hideLoading()
                     }
+                }
+            } catch (_: Exception) {
+                withContext(Dispatchers.Main) {
+                    imageView.setImageResource(R.drawable.placeholder_profile_image)
                 }
             }
         }
-    }
-
-    private fun loadGlideProfileImage(imageView: ImageView, url: String?) {
-        if (!isAdded) {
-            loadingManager.hideLoading()
-            return
-        }
-
-        Glide.with(this)
-            .load(url)
-            .placeholder(R.drawable.placeholder_profile_image)
-            .diskCacheStrategy(DiskCacheStrategy.ALL)
-            .signature(ObjectKey(imageSignature))
-            .listener(object : RequestListener<Drawable?> {
-                override fun onLoadFailed(
-                    e: GlideException?,
-                    model: Any?,
-                    target: Target<Drawable?>?,
-                    isFirstResource: Boolean
-                ): Boolean {
-                    loadingManager.hideLoading()
-                    return false
-                }
-
-                override fun onResourceReady(
-                    resource: Drawable?,
-                    model: Any?,
-                    target: Target<Drawable?>?,
-                    dataSource: DataSource?,
-                    isFirstResource: Boolean
-                ): Boolean {
-                    loadingManager.hideLoading()
-                    return false
-                }
-            })
-            .into(imageView)
     }
 
     private fun setupEditProfileTV() {
@@ -482,7 +434,7 @@ class ProfileFragment : Fragment() {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == REQUEST_EDIT_PROFILE && resultCode == Activity.RESULT_OK) {
             loadNicknameAndData()
-            imageSignature = System.currentTimeMillis()
+            imageUpdatedAt = System.currentTimeMillis().toString()
             profileImageView?.let { setProfileImage(it) }
             return
         }
@@ -494,24 +446,22 @@ class ProfileFragment : Fragment() {
                     imageBitmap?.let { bmp ->
                         val imageUri = getImageUri(requireContext(), bmp)
                         if (imageUri != null) {
-                            imageSignature = System.currentTimeMillis()
-                            Glide.with(this)
-                                .load(imageUri)
-                                .diskCacheStrategy(DiskCacheStrategy.NONE)
-                                .signature(ObjectKey(imageSignature))
-                                .into(profileImageView!!)
+                            imageUpdatedAt = System.currentTimeMillis().toString()
+                            profileImageView?.load(imageUri) {
+                                crossfade(true)
+                                transformations(CircleCropTransformation())
+                            }
                         }
                     }
                 }
                 REQUEST_IMAGE_PICK -> {
                     val imageUri = data?.data
                     if (imageUri != null) {
-                        imageSignature = System.currentTimeMillis()
-                        Glide.with(this)
-                            .load(imageUri)
-                            .diskCacheStrategy(DiskCacheStrategy.NONE)
-                            .signature(ObjectKey(imageSignature))
-                            .into(profileImageView!!)
+                        imageUpdatedAt = System.currentTimeMillis().toString()
+                        profileImageView?.load(imageUri) {
+                            crossfade(true)
+                            transformations(CircleCropTransformation())
+                        }
                     }
                 }
             }
