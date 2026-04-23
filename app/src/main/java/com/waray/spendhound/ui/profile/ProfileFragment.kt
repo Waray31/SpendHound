@@ -23,6 +23,7 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import coil.load
+import coil.request.CachePolicy
 import coil.transform.CircleCropTransformation
 import com.waray.spendhound.utils.ImageUtils
 import com.waray.spendhound.BorrowNowTransaction
@@ -123,8 +124,6 @@ class ProfileFragment : Fragment() {
         mAuth = DeclareDatabase.auth
 
         profileImageView?.isClickable = false
-        profileImageView?.let { setProfileImage(it) }
-        loadNicknameAndData()
         setupEditProfileTV()
         setupUnpaidButton()
         setupBalanceButton()
@@ -139,9 +138,20 @@ class ProfileFragment : Fragment() {
         return view
     }
 
+    override fun onResume() {
+        super.onResume()
+        profileImageView?.let { setProfileImage(it) }
+        loadNicknameAndData()
+    }
+
     private fun setProfileImage(imageView: ImageView) {
         if (!isAdded) return
-        val authId = mAuth?.currentUserOrNull()?.id ?: return
+        val authId = mAuth?.currentUserOrNull()?.id
+        if (authId == null) {
+            Log.e("ProfileFragment", "setProfileImage: authId is null")
+            imageView.setImageResource(R.drawable.placeholder_profile_image)
+            return
+        }
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -153,6 +163,7 @@ class ProfileFragment : Fragment() {
                 val rawUrl = user?.profileImageUrl ?: numericUserId?.let {
                     DeclareDatabase.profileImagesBucket.publicUrl("$it/$it.jpg")
                 }
+                Log.d("ProfileFragment", "setProfileImage: rawUrl=$rawUrl, updatedAt=${user?.updatedAt}")
                 imageUpdatedAt = user?.updatedAt
                 val url = ImageUtils.bustCache(rawUrl, imageUpdatedAt)
 
@@ -162,13 +173,15 @@ class ProfileFragment : Fragment() {
                             crossfade(true)
                             placeholder(R.drawable.placeholder_profile_image)
                             error(R.drawable.placeholder_profile_image)
+                            diskCachePolicy(CachePolicy.DISABLED)
                             transformations(CircleCropTransformation())
                         }
                     } else {
                         imageView.setImageResource(R.drawable.placeholder_profile_image)
                     }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                Log.e("ProfileFragment", "setProfileImage error: ${e.message}", e)
                 withContext(Dispatchers.Main) {
                     imageView.setImageResource(R.drawable.placeholder_profile_image)
                 }
@@ -442,9 +455,6 @@ class ProfileFragment : Fragment() {
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode == REQUEST_EDIT_PROFILE && resultCode == Activity.RESULT_OK) {
-            loadNicknameAndData()
-            imageUpdatedAt = System.currentTimeMillis().toString()
-            profileImageView?.let { setProfileImage(it) }
             return
         }
         if (resultCode == Activity.RESULT_OK) {

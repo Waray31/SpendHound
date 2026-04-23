@@ -14,8 +14,9 @@ object ImageUtils {
      */
     fun bustCache(url: String?, updatedAt: String?): String? {
         if (url.isNullOrBlank()) return url
-        val version = updatedAt?.replace(Regex("[^0-9]"), "") ?: return url
-        return "$url?v=$version"
+        val version = updatedAt?.replace(Regex("[^0-9]"), "")?.takeIf { it.isNotEmpty() } ?: return url
+        val separator = if (url.contains('?')) "&" else "?"
+        return "$url${separator}v=$version"
     }
 
     private const val MAX_DIMENSION = 400
