@@ -167,7 +167,6 @@
             android:id="@+id/userStats_skeletonLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="24dp"
             android:baselineAligned="false"
             android:orientation="horizontal"
             android:visibility="visible">
@@ -217,7 +216,7 @@
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
+                    android:layout_marginHorizontal="6dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_profile_card"
                     android:gravity="center"
@@ -246,7 +245,7 @@
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="3dp"
+                    android:layout_marginStart="6dp"
                     android:layout_weight="1"
                     android:background="@drawable/bg_profile_card"
                     android:gravity="center"

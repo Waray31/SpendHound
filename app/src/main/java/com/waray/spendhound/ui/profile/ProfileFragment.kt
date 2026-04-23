@@ -140,7 +140,6 @@ class ProfileFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        profileImageView?.let { setProfileImage(it) }
         loadNicknameAndData()
     }
 
@@ -155,17 +154,22 @@ class ProfileFragment : Fragment() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val user = DeclareDatabase.usersTable.select(Columns.list("user_id", "profile_image_url", "updated_at")) {
+                // Remove updated_at from column list as it doesn't exist in the DB schema
+                val user = DeclareDatabase.usersTable.select(Columns.list("user_id", "profile_image_url", "created_at")) {
                     filter { eq("auth_id", authId) }
                 }.decodeSingleOrNull<User>()
 
-                val numericUserId = user?.id
-                val rawUrl = user?.profileImageUrl ?: numericUserId?.let {
-                    DeclareDatabase.profileImagesBucket.publicUrl("$it/$it.jpg")
+                val profileUrl = user?.profileImageUrl
+                if (profileUrl == null || profileUrl == "placeholder_profile_image") {
+                    withContext(Dispatchers.Main) {
+                        imageView.setImageResource(R.drawable.placeholder_profile_image)
+                    }
+                    return@launch
                 }
-                Log.d("ProfileFragment", "setProfileImage: rawUrl=$rawUrl, updatedAt=${user?.updatedAt}")
-                imageUpdatedAt = user?.updatedAt
-                val url = ImageUtils.bustCache(rawUrl, imageUpdatedAt)
+
+                // Use created_at if updated_at is missing, though profileUrl often has ?t= already
+                val timestamp = user.createdAt
+                val url = ImageUtils.bustCache(profileUrl, timestamp)
 
                 withContext(Dispatchers.Main) {
                     if (url != null) {
@@ -173,7 +177,6 @@ class ProfileFragment : Fragment() {
                             crossfade(true)
                             placeholder(R.drawable.placeholder_profile_image)
                             error(R.drawable.placeholder_profile_image)
-                            diskCachePolicy(CachePolicy.DISABLED)
                             transformations(CircleCropTransformation())
                         }
                     } else {
@@ -199,6 +202,9 @@ class ProfileFragment : Fragment() {
     }
 
     internal fun loadNicknameAndData() {
+        // Refresh profile image
+        profileImageView?.let { setProfileImage(it) }
+
         // Show skeletons, hide real content
         nicknameSkeleton?.visibility = View.VISIBLE
         nicknameTextView?.visibility = View.GONE
