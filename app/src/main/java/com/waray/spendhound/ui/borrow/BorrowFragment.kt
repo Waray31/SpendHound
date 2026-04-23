@@ -571,7 +571,12 @@ class BorrowFragment : Fragment() {
     }
 
     private fun showLoading() {
-        loadingManager?.showLoading()
+        val mainActivity = activity as? MainActivity ?: return
+        val isEmpty = if (owedDebtClicked) mainActivity.owedList.isEmpty() else mainActivity.debtList.isEmpty()
+        
+        if (isEmpty) {
+            loadingManager?.showLoading()
+        }
         isTabClickEnabled = false
     }
 

@@ -698,9 +698,9 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:layout_gravity="bottom"
-                            android:layout_marginTop="420dp"
                             android:clipToPadding="false"
                             android:paddingHorizontal="16dp"
+                            tools:listitem="@layout/item_skeleton_transaction"
                             android:visibility="gone" />
 
                         <androidx.recyclerview.widget.RecyclerView

@@ -255,15 +255,18 @@ class GroupExpensesFragment : Fragment() {
     }
 
     private fun showLoading() {
-        rvSkeleton.visibility = View.VISIBLE
-        view?.findViewById<RecyclerView>(R.id.rvExpenses)?.visibility = View.GONE
-        view?.findViewById<View>(R.id.emptyExpenses)?.visibility = View.GONE
+        if (transactionList.isEmpty()) {
+            rvSkeleton.visibility = View.VISIBLE
+            view?.findViewById<RecyclerView>(R.id.rvExpenses)?.visibility = View.GONE
+            view?.findViewById<View>(R.id.emptyExpenses)?.visibility = View.GONE
+        }
         isTabClickEnabled = false
     }
 
     private fun hideLoading() {
         rvSkeleton.visibility = View.GONE
         isTabClickEnabled = true
+        if (transactionList.isNotEmpty()) showList()
     }
 
     private fun setupStatusTabs(view: View) {

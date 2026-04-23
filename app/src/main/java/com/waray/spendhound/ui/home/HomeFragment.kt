@@ -163,7 +163,6 @@ class HomeFragment : Fragment() {
                     activity?.runOnUiThread {
                         updateTotalMonthSpendsUI()
                         pullToRefreshHelper?.stopRefreshing()
-                        hideLoading()
                     }
                     fetchMonthChangeText(currentTotal)
                 }
@@ -171,7 +170,6 @@ class HomeFragment : Fragment() {
                 mainActivity.getEverydaySpends {
                     activity?.runOnUiThread {
                         updateWeeklyChartUI()
-                        hideLoading()
                     }
                 }
 
@@ -733,13 +731,20 @@ class HomeFragment : Fragment() {
     }
 
     private fun showLoading() {
-        rvSkeletonHome?.visibility = View.VISIBLE
-        transactionListRecycler?.visibility = View.GONE
-        recentEmptyState?.visibility = View.GONE
+        if (recentTransactionList.isEmpty()) {
+            rvSkeletonHome?.visibility = View.VISIBLE
+            transactionListRecycler?.visibility = View.GONE
+            recentEmptyState?.visibility = View.GONE
+        }
     }
 
     private fun hideLoading() {
         rvSkeletonHome?.visibility = View.GONE
-        // real list visibility is set by the data callback, not here
+        if (recentTransactionList.isNotEmpty()) {
+            transactionListRecycler?.visibility = View.VISIBLE
+            recentEmptyState?.visibility = View.GONE
+        } else {
+            // If still empty after loading, the fetch function will handle showing the empty state
+        }
     }
 }

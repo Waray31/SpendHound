@@ -60,7 +60,9 @@ class GroupMembersFragment : Fragment() {
 
     @SuppressLint("NotifyDataSetChanged")
     private fun loadMembers() {
-        view?.findViewById<View>(R.id.loadingOverlay)?.visibility = View.VISIBLE
+        if (memberPairs.isEmpty()) {
+            view?.findViewById<View>(R.id.loadingOverlay)?.visibility = View.VISIBLE
+        }
         lifecycleScope.launch {
             try {
                 allUsers = DeclareDatabase.usersTable.select().decodeList<User>()

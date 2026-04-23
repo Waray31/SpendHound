@@ -205,11 +205,15 @@ class ProfileFragment : Fragment() {
         // Refresh profile image
         profileImageView?.let { setProfileImage(it) }
 
-        // Show skeletons, hide real content
-        nicknameSkeleton?.visibility = View.VISIBLE
-        nicknameTextView?.visibility = View.GONE
-        userStatsSkeletonLayout?.visibility = View.VISIBLE
-        userStatsLayout?.visibility = View.GONE
+        // Only show skeletons if we don't have data yet
+        val isFirstLoad = nicknameTextView?.text.isNullOrBlank() || nicknameTextView?.visibility == View.GONE
+        if (isFirstLoad) {
+            nicknameSkeleton?.visibility = View.VISIBLE
+            nicknameTextView?.visibility = View.GONE
+            userStatsSkeletonLayout?.visibility = View.VISIBLE
+            userStatsLayout?.visibility = View.GONE
+        }
+
         val authId = mAuth?.currentUserOrNull()?.id
         Log.d("ProfileFragment", "loadNicknameAndData - authId: $authId")
         if (authId == null) {
@@ -310,9 +314,13 @@ class ProfileFragment : Fragment() {
 
                 // Update UI on Main thread
                 withContext(Dispatchers.Main) {
-                    currentNickname = user?.username ?: ""
-                    Log.d("ProfileFragment", "Setting nicknameTextView to: $currentNickname")
-                    nicknameTextView?.text = currentNickname
+                    val nickname = user?.username ?: ""
+                    Log.d("ProfileFragment", "Setting nicknameTextView to: $nickname")
+                    
+                    // Only update if changed to avoid flicker
+                    if (nicknameTextView?.text != nickname) {
+                        nicknameTextView?.text = nickname
+                    }
 
                     // Hide skeletons, show real content
                     nicknameSkeleton?.visibility = View.GONE
@@ -334,9 +342,12 @@ class ProfileFragment : Fragment() {
                     currentOwe = receivableIndividual  // Total owed to user
                     currentDebt = unpaidIndividual     // Total debt of user
 
-                    // Update the main display with balance
-                    totalBalancedTextView?.text = activeBorrowsCount.toString()
-                    totalTextView?.text = getString(R.string.label_borrowed)
+                    // Only update text if it's currently showing the "Total Balanced" view
+                    // (Profile tab uses this text view for multiple things depending on which button is clicked)
+                    // But usually on fresh load it shows active borrows
+                    if (totalTextView?.text == getString(R.string.label_borrowed)) {
+                        totalBalancedTextView?.text = activeBorrowsCount.toString()
+                    }
 
                     // Update stats
                     transactionsCountTextView?.text = transactionsCount.toString()
@@ -348,11 +359,13 @@ class ProfileFragment : Fragment() {
                 Log.e("ProfileFragment", "Error loading user data: ${e.message}", e)
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    // Keep skeletons visible on error — don't show stale data
-                    nicknameSkeleton?.visibility = View.VISIBLE
-                    nicknameTextView?.visibility = View.GONE
-                    userStatsSkeletonLayout?.visibility = View.VISIBLE
-                    userStatsLayout?.visibility = View.GONE
+                    // Only show skeletons on error if we have NO data at all
+                    if (nicknameTextView?.text.isNullOrBlank()) {
+                        nicknameSkeleton?.visibility = View.VISIBLE
+                        nicknameTextView?.visibility = View.GONE
+                        userStatsSkeletonLayout?.visibility = View.VISIBLE
+                        userStatsLayout?.visibility = View.GONE
+                    }
                 }
             }
         }

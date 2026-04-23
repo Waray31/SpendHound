@@ -179,14 +179,17 @@ class TransactionsFragment : Fragment() {
                     filter { eq("auth_id", authUserId) }
                 }.decodeSingleOrNull<User>()
 
-                if (user != null) {
-                    withContext(Dispatchers.Main) { currentUserNumericId = user.id }
-                    loadUserGroups()
-                    fetchTransactionsInRange(startDate, endDate)
+                withContext(Dispatchers.Main) {
+                    if (user?.id != null) {
+                        currentUserNumericId = user.id
+                        loadUserGroups()
+                        fetchTransactionsInRange(startDate, endDate)
+                    } else {
+                        hideLoading()
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("TransactionsFragment", "Error getting user info", e)
-            } finally {
                 withContext(Dispatchers.Main) { hideLoading() }
             }
         }
@@ -517,15 +520,20 @@ class TransactionsFragment : Fragment() {
     }
 
     private fun showLoading() {
-        rvSkeletonTransactions?.visibility = View.VISIBLE
-        recyclerView?.visibility = View.GONE
-        emptyStateLayout?.visibility = View.GONE
+        if (transactionList.isEmpty()) {
+            rvSkeletonTransactions?.visibility = View.VISIBLE
+            recyclerView?.visibility = View.GONE
+            emptyStateLayout?.visibility = View.GONE
+        }
         isTabClickEnabled = false
     }
 
     private fun hideLoading() {
         rvSkeletonTransactions?.visibility = View.GONE
         isTabClickEnabled = true
-        // recyclerView / emptyStateLayout visibility is set by the data callback
+        if (transactionList.isNotEmpty()) {
+            recyclerView?.visibility = View.VISIBLE
+            emptyStateLayout?.visibility = View.GONE
+        }
     }
 }
