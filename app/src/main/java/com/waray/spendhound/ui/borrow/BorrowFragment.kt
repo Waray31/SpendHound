@@ -217,6 +217,9 @@ class BorrowFragment : Fragment() {
         currentMonthTextView?.text = text
     }
 
+    private var fullOwedList: List<OwedTransaction> = emptyList()
+    private var fullDebtList: List<BorrowTransaction> = emptyList()
+
     private fun setupStatusTabs() {
         allTabTV?.let { setStatusTabSelected(it) }
 
@@ -224,28 +227,43 @@ class BorrowFragment : Fragment() {
             if (!isTabClickEnabled) return@setOnClickListener
             selectedStatusTab = "All"
             allTabTV?.let { setStatusTabSelected(it) }
-            applyFilters()
+            applyLocalStatusFilter()
         }
 
         paidTabTV?.setOnClickListener {
             if (!isTabClickEnabled) return@setOnClickListener
             selectedStatusTab = "Paid"
             paidTabTV?.let { setStatusTabSelected(it) }
-            applyFilters()
+            applyLocalStatusFilter()
         }
 
         unpaidTabTV?.setOnClickListener {
             if (!isTabClickEnabled) return@setOnClickListener
             selectedStatusTab = "Unpaid"
             unpaidTabTV?.let { setStatusTabSelected(it) }
-            applyFilters()
+            applyLocalStatusFilter()
         }
 
         pendingTabTV?.setOnClickListener {
             if (!isTabClickEnabled) return@setOnClickListener
             selectedStatusTab = "Pending"
             pendingTabTV?.let { setStatusTabSelected(it) }
-            applyFilters()
+            applyLocalStatusFilter()
+        }
+    }
+
+    private fun applyLocalStatusFilter() {
+        val mainActivity = activity as? MainActivity ?: return
+        if (owedDebtClicked) {
+            val filtered = if (selectedStatusTab == "All") fullOwedList 
+                           else fullOwedList.filter { it.status.equals(selectedStatusTab, ignoreCase = true) }
+            mainActivity.owedList = filtered
+            OwedSize(filtered.size)
+        } else {
+            val filtered = if (selectedStatusTab == "All") fullDebtList 
+                           else fullDebtList.filter { it.status.equals(selectedStatusTab, ignoreCase = true) }
+            mainActivity.debtList = filtered
+            DebtSize(filtered.size)
         }
     }
 
@@ -262,35 +280,28 @@ class BorrowFragment : Fragment() {
         debtTV?.setOnClickListener { handleDebtClick() }
     }
 
-    internal fun applyFilters() {
+    internal fun applyFilters(forceSkeleton: Boolean = false) {
         val mainActivity = activity as? MainActivity ?: return
-        showLoading()
+        showLoading(forceSkeleton)
 
         if (owedDebtClicked) {
-             fetchOwedInRange(startDate, endDate, selectedStatusTab)
+             fetchOwedInRange(startDate, endDate)
         } else {
-             fetchDebtInRange(startDate, endDate, selectedStatusTab)
+             fetchDebtInRange(startDate, endDate)
         }
     }
 
-    private fun fetchOwedInRange(start: Long, end: Long, status: String) {
+    private fun fetchOwedInRange(start: Long, end: Long) {
         val mainActivity = activity as? MainActivity ?: return
-        // Since getOwedListMonthly uses monthYear string, we'll need to adapt it or implement a range fetch.
-        // For simplicity, keeping the current architecture but filtering by timestamp locally if needed.
-        // However, to keep it consistent with the request, let's use the range to filter.
-        
         uiScope.launch {
             try {
-                val currentUserIdLong = (activity as? MainActivity)?.currentNickname 
-                // Using existing MainActivity logic but filtering by range
-                mainActivity.getOwedList(status, object : MainActivity.OwedNumCallback {
+                mainActivity.getOwedList("All", object : MainActivity.OwedNumCallback {
                     override fun onOwedNumReceived(owedNum: Int) {
-                        val filteredList = mainActivity.owedList.filter {
+                        fullOwedList = mainActivity.owedList.filter {
                             val timestamp = parseDateToLong(it.date)
                             timestamp in start..end
                         }
-                        mainActivity.owedList = filteredList
-                        OwedSize(filteredList.size)
+                        applyLocalStatusFilter()
                     }
                 })
             } catch (e: Exception) {
@@ -299,18 +310,17 @@ class BorrowFragment : Fragment() {
         }
     }
 
-    private fun fetchDebtInRange(start: Long, end: Long, status: String) {
+    private fun fetchDebtInRange(start: Long, end: Long) {
         val mainActivity = activity as? MainActivity ?: return
         uiScope.launch {
             try {
-                mainActivity.getDebtList(status, object : MainActivity.DebtNumCallback {
+                mainActivity.getDebtList("All", object : MainActivity.DebtNumCallback {
                     override fun onDebtNumReceived(debtNum: Int) {
-                        val filteredList = mainActivity.debtList.filter {
+                        fullDebtList = mainActivity.debtList.filter {
                             val timestamp = parseDateToLong(it.date)
                             timestamp in start..end
                         }
-                        mainActivity.debtList = filteredList
-                        DebtSize(filteredList.size)
+                        applyLocalStatusFilter()
                     }
                 })
             } catch (e: Exception) {
@@ -382,7 +392,14 @@ class BorrowFragment : Fragment() {
         owedRecyclerList?.visibility = View.VISIBLE
         debtRecyclerList?.visibility = View.GONE
         owedDebtClicked = true
-        applyFilters()
+        
+        // If we already have fullOwedList, show it instantly
+        if (fullOwedList.isNotEmpty()) {
+            applyLocalStatusFilter()
+            applyFilters(false) // Silent refresh
+        } else {
+            applyFilters(true) // Show skeleton
+        }
     }
 
     private fun handleDebtClick() {
@@ -390,7 +407,14 @@ class BorrowFragment : Fragment() {
         owedRecyclerList?.visibility = View.GONE
         debtRecyclerList?.visibility = View.VISIBLE
         owedDebtClicked = false
-        applyFilters()
+        
+        // If we already have fullDebtList, show it instantly
+        if (fullDebtList.isNotEmpty()) {
+            applyLocalStatusFilter()
+            applyFilters(false) // Silent refresh
+        } else {
+            applyFilters(true) // Show skeleton
+        }
     }
 
     private fun setTabColors(activeTab: TextView, inactiveTab: TextView) {
@@ -570,11 +594,11 @@ class BorrowFragment : Fragment() {
         context?.let { Toast.makeText(it, message, Toast.LENGTH_SHORT).show() }
     }
 
-    private fun showLoading() {
+    private fun showLoading(force: Boolean = false) {
         val mainActivity = activity as? MainActivity ?: return
         val isEmpty = if (owedDebtClicked) mainActivity.owedList.isEmpty() else mainActivity.debtList.isEmpty()
         
-        if (isEmpty) {
+        if (force || isEmpty) {
             loadingManager?.showLoading()
         }
         isTabClickEnabled = false

@@ -40,6 +40,7 @@ class GroupExpensesFragment : Fragment() {
     private lateinit var adapter: RecentTransactionAdapter
     private lateinit var rvSkeleton: RecyclerView
     private var pullToRefreshHelper: PullToRefreshHelper? = null
+    private var fullTransactions: List<RecentTransaction> = emptyList()
 
     private var selectedStatusTab = "All"
     private var isTabClickEnabled = true
@@ -77,8 +78,8 @@ class GroupExpensesFragment : Fragment() {
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    private fun loadExpenses() {
-        showLoading()
+    private fun loadExpenses(forceSkeleton: Boolean = false) {
+        showLoading(forceSkeleton)
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val allTransactions = DeclareDatabase.transactionsTable.select {
@@ -89,7 +90,12 @@ class GroupExpensesFragment : Fragment() {
 
                 val txIds = allTransactions.mapNotNull { it.id }
                 if (txIds.isEmpty()) {
-                    withContext(Dispatchers.Main) { showEmpty() }
+                    withContext(Dispatchers.Main) { 
+                        fullTransactions = emptyList()
+                        transactionList.clear()
+                        adapter.notifyDataSetChanged()
+                        showEmpty() 
+                    }
                     return@launch
                 }
 
@@ -142,7 +148,6 @@ class GroupExpensesFragment : Fragment() {
                         .values.firstOrNull()?.sumOf { it.amount } ?: 0.0
 
                     val txStatus = computeStatus(payors, splits)
-                    if (selectedStatusTab != "All" && !txStatus.equals(selectedStatusTab, ignoreCase = true)) continue
 
                     val itemPayorMap = items.associate { item ->
                         val itemId = item.id ?: 0L
@@ -186,11 +191,8 @@ class GroupExpensesFragment : Fragment() {
                 result.sortByDescending { it.timestamp }
 
                 requireActivity().runOnUiThread {
-                    transactionList.clear()
-                    transactionList.addAll(result)
-                    adapter.notifyDataSetChanged()
-                    context?.let { adapter.preloadAllImages(it) }
-                    if (transactionList.isEmpty()) showEmpty() else showList()
+                    fullTransactions = result
+                    applyStatusFilter()
                     hideLoading()
                     pullToRefreshHelper?.stopRefreshing()
                 }
@@ -201,6 +203,21 @@ class GroupExpensesFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun applyStatusFilter() {
+        val filtered = if (selectedStatusTab == "All") {
+            fullTransactions
+        } else {
+            fullTransactions.filter { it.transactionStatus.equals(selectedStatusTab, ignoreCase = true) }
+        }
+
+        transactionList.clear()
+        transactionList.addAll(filtered)
+        adapter.notifyDataSetChanged()
+        context?.let { adapter.preloadAllImages(it) }
+        
+        if (transactionList.isEmpty()) showEmpty() else showList()
     }
 
     private fun formatSmartDate(createdAt: String?): String {
@@ -254,8 +271,8 @@ class GroupExpensesFragment : Fragment() {
         view?.findViewById<View>(R.id.emptyExpenses)?.visibility = View.GONE
     }
 
-    private fun showLoading() {
-        if (transactionList.isEmpty()) {
+    private fun showLoading(force: Boolean = false) {
+        if (force || transactionList.isEmpty()) {
             rvSkeleton.visibility = View.VISIBLE
             view?.findViewById<RecyclerView>(R.id.rvExpenses)?.visibility = View.GONE
             view?.findViewById<View>(R.id.emptyExpenses)?.visibility = View.GONE
@@ -280,22 +297,19 @@ class GroupExpensesFragment : Fragment() {
             if (!isTabClickEnabled) return@setOnClickListener
             selectedStatusTab = "All"
             setStatusTabSelected(allTab, allTab, paidTab, unpaidTab)
-            showLoading()
-            loadExpenses()
+            applyStatusFilter()
         }
         paidTab.setOnClickListener {
             if (!isTabClickEnabled) return@setOnClickListener
             selectedStatusTab = "Settled"
             setStatusTabSelected(paidTab, allTab, paidTab, unpaidTab)
-            showLoading()
-            loadExpenses()
+            applyStatusFilter()
         }
         unpaidTab.setOnClickListener {
             if (!isTabClickEnabled) return@setOnClickListener
             selectedStatusTab = "Pending"
             setStatusTabSelected(unpaidTab, allTab, paidTab, unpaidTab)
-            showLoading()
-            loadExpenses()
+            applyStatusFilter()
         }
     }
 

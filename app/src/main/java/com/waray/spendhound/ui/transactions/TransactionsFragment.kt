@@ -73,6 +73,7 @@ class TransactionsFragment : Fragment() {
     private var pullToRefreshHelper: PullToRefreshHelper? = null
     private var loadingManager: LoadingManager? = null
     private var rvSkeletonTransactions: RecyclerView? = null
+    private var fullTransactions: List<RecentTransaction> = emptyList()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -136,25 +137,42 @@ class TransactionsFragment : Fragment() {
             if (!isTabClickEnabled) return@setOnClickListener
             selectedStatusTab = "All"
             allTabTV?.let { setStatusTabSelected(it) }
-            refreshTransactions()
+            applyStatusFilter()
         }
         paidTabTV?.setOnClickListener {
             if (!isTabClickEnabled) return@setOnClickListener
             selectedStatusTab = "Settled"
             paidTabTV?.let { setStatusTabSelected(it) }
-            refreshTransactions()
+            applyStatusFilter()
         }
         unpaidTabTV?.setOnClickListener {
             if (!isTabClickEnabled) return@setOnClickListener
             selectedStatusTab = "Pending"
             unpaidTabTV?.let { setStatusTabSelected(it) }
-            refreshTransactions()
+            applyStatusFilter()
         }
-        pendingTabTV?.setOnClickListener {
-            if (!isTabClickEnabled) return@setOnClickListener
-            selectedStatusTab = "Pending"
-            pendingTabTV?.let { setStatusTabSelected(it) }
-            refreshTransactions()
+    }
+
+    private fun applyStatusFilter() {
+        val filtered = if (selectedStatusTab == "All") {
+            fullTransactions
+        } else {
+            fullTransactions.filter { it.transactionStatus.equals(selectedStatusTab, ignoreCase = true) }
+        }
+
+        transactionList.clear()
+        transactionList.addAll(filtered)
+        adapter?.notifyDataSetChanged()
+
+        val count = transactionList.size
+        transactionCountTextView?.text = String.format(Locale.getDefault(), "%d %s", count, if (count == 1) "transaction" else "transactions")
+        
+        if (transactionList.isEmpty()) {
+            emptyStateLayout?.visibility = View.VISIBLE
+            recyclerView?.visibility = View.GONE
+        } else {
+            emptyStateLayout?.visibility = View.GONE
+            recyclerView?.visibility = View.VISIBLE
         }
     }
 
@@ -166,13 +184,13 @@ class TransactionsFragment : Fragment() {
         selectedTab.setBackgroundResource(R.drawable.spinner_border_grey)
     }
 
-    internal fun refreshTransactions() {
-        fetchTransactionsInRange(startDate, endDate)
+    internal fun refreshTransactions(forceSkeleton: Boolean = false) {
+        fetchTransactionsInRange(startDate, endDate, forceSkeleton)
     }
 
     private fun getCurrentUserAndGroups() {
         val authUserId = mAuth?.currentUserOrNull()?.id ?: return
-        showLoading()
+        showLoading(true)
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val user = DeclareDatabase.usersTable.select {
@@ -183,7 +201,7 @@ class TransactionsFragment : Fragment() {
                     if (user?.id != null) {
                         currentUserNumericId = user.id
                         loadUserGroups()
-                        fetchTransactionsInRange(startDate, endDate)
+                        fetchTransactionsInRange(startDate, endDate, true)
                     } else {
                         hideLoading()
                     }
@@ -232,8 +250,11 @@ class TransactionsFragment : Fragment() {
 
         groupSpinner?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
-                selectedGroupId = groupIds?.get(position)
-                refreshTransactions()
+                val newGroupId = groupIds?.get(position)
+                if (selectedGroupId != newGroupId) {
+                    selectedGroupId = newGroupId
+                    refreshTransactions(true)
+                }
             }
             override fun onNothingSelected(parent: AdapterView<*>?) {}
         }
@@ -256,9 +277,9 @@ class TransactionsFragment : Fragment() {
         dateRangeSpinner?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 when (position) {
-                    0 -> { customDateActive = false; setThisMonth(); updateCurrentMonthText(); refreshTransactions() }
-                    1 -> { customDateActive = false; setLastMonth(); updateCurrentMonthText(); refreshTransactions() }
-                    2 -> { customDateActive = false; setAllTime(); updateCurrentMonthText(); refreshTransactions() }
+                    0 -> { customDateActive = false; setThisMonth(); updateCurrentMonthText(); refreshTransactions(true) }
+                    1 -> { customDateActive = false; setLastMonth(); updateCurrentMonthText(); refreshTransactions(true) }
+                    2 -> { customDateActive = false; setAllTime(); updateCurrentMonthText(); refreshTransactions(true) }
                     3 -> showDateRangePickerDialog()
                 }
             }
@@ -334,10 +355,9 @@ class TransactionsFragment : Fragment() {
         currentMonthTextView?.text = text
     }
 
-    @SuppressLint("NotifyDataSetChanged")
-    private fun fetchTransactionsInRange(start: Long, end: Long) {
+    private fun fetchTransactionsInRange(start: Long, end: Long, forceSkeleton: Boolean = false) {
         val currentUserId = currentUserNumericId ?: return
-        showLoading()
+        showLoading(forceSkeleton)
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -405,7 +425,6 @@ class TransactionsFragment : Fragment() {
                     val payors = payorsByTx[txId] ?: emptyList()
                     val splits = splitsByTx[txId] ?: emptyList()
                     val items  = itemsByTx[txId]  ?: emptyList()
-                    if (!matchesStatusFilter(payors, splits, selectedStatusTab)) continue
 
                     val cal = Calendar.getInstance().apply { timeInMillis = timestamp }
                     val monthName = cal.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.getDefault())
@@ -448,19 +467,8 @@ class TransactionsFragment : Fragment() {
 
                 withContext(Dispatchers.Main) {
                     if (!isAdded) return@withContext
-                    transactionList.clear()
-                    transactionList.addAll(result)
-                    adapter?.notifyDataSetChanged()
-                    context?.let { adapter?.preloadAllImages(it) }
-                    val count = transactionList.size
-                    transactionCountTextView?.text = String.format(Locale.getDefault(), "%d %s", count, if (count == 1) "transaction" else "transactions")
-                    if (transactionList.isEmpty()) {
-                        emptyStateLayout?.visibility = View.VISIBLE
-                        recyclerView?.visibility = View.GONE
-                    } else {
-                        emptyStateLayout?.visibility = View.GONE
-                        recyclerView?.visibility = View.VISIBLE
-                    }
+                    fullTransactions = result
+                    applyStatusFilter()
                     hideLoading()
                     pullToRefreshHelper?.stopRefreshing()
                 }
@@ -519,8 +527,8 @@ class TransactionsFragment : Fragment() {
         }
     }
 
-    private fun showLoading() {
-        if (transactionList.isEmpty()) {
+    private fun showLoading(force: Boolean = false) {
+        if (force || transactionList.isEmpty()) {
             rvSkeletonTransactions?.visibility = View.VISIBLE
             recyclerView?.visibility = View.GONE
             emptyStateLayout?.visibility = View.GONE

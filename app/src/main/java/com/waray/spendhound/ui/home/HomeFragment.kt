@@ -78,6 +78,11 @@ class HomeFragment : Fragment() {
     private var pullToRefreshHelper: PullToRefreshHelper? = null
     private var rvSkeletonHome: RecyclerView? = null
 
+    // Cache for Analytics Data to enable instant switching
+    private var cachedDailyTotals: DoubleArray? = null
+    private var cachedMonthlyEntries: List<Entry>? = null
+    private var cachedMonthlyLabels: List<String>? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?, savedInstanceState: Bundle?
@@ -439,10 +444,15 @@ class HomeFragment : Fragment() {
         binding?.totalMonthSpends?.text = CurrencyUtils.formatAmountWithCurrency(mainActivity.totalMonthSpends)
     }
 
-    private fun updateWeeklyChartUI() {
+    private fun updateWeeklyChartUI(dailyTotals: DoubleArray? = null) {
         val mainActivity = activity as? MainActivity ?: return
         val b = binding ?: return
-        val dailyTotals = mainActivity.dailyTotals
+        val totals = dailyTotals ?: mainActivity.dailyTotals
+        
+        // Cache the data if it's the one from MainActivity
+        if (dailyTotals == null) {
+            cachedDailyTotals = totals.copyOf()
+        }
 
         val maxHeightDp = 120.0
         val minHeightDp = 10.0
@@ -458,7 +468,7 @@ class HomeFragment : Fragment() {
         )
 
         for (i in 0..6) {
-            val amount = dailyTotals[i]
+            val amount = totals[i]
             totalTextViews[i].text = if (amount > 0) String.format("%,d", Math.round(amount)) else "0"
             if (amount > 0) {
                 totalTextViews[i].setTextColor(Color.parseColor("#FFBA08"))
@@ -502,7 +512,14 @@ class HomeFragment : Fragment() {
                 updateToggleUI()
                 updateDateRangeDisplay()
                 showWeeklyChart()
-                refreshWeeklyData()
+                
+                // If we have cached totals for this period, show them instantly
+                if (cachedDailyTotals != null) {
+                    updateWeeklyChartUI(cachedDailyTotals!!)
+                    refreshWeeklyData(false) // silent refresh
+                } else {
+                    refreshWeeklyData(true) // show loading
+                }
             }
         }
         btnMonthly?.setOnClickListener {
@@ -511,7 +528,14 @@ class HomeFragment : Fragment() {
                 updateToggleUI()
                 updateDateRangeDisplay()
                 showMonthlyChart()
-                loadMonthlyChartData()
+                
+                // If we have cached entries for this month, show them instantly
+                if (cachedMonthlyEntries != null && cachedMonthlyLabels != null) {
+                    setupLineChart(cachedMonthlyEntries!!, cachedMonthlyLabels!!)
+                    loadMonthlyChartData(false) // silent refresh
+                } else {
+                    loadMonthlyChartData(true) // show loading
+                }
             }
         }
     }
@@ -532,14 +556,26 @@ class HomeFragment : Fragment() {
 
     private fun setupNavigationListeners() {
         btnPrevious?.setOnClickListener {
-            if (isWeeklyMode) currentWeekStart.add(Calendar.WEEK_OF_YEAR, -1)
-            else currentMonth.add(Calendar.MONTH, -1)
+            if (isWeeklyMode) {
+                currentWeekStart.add(Calendar.WEEK_OF_YEAR, -1)
+                cachedDailyTotals = null // Clear cache for new period
+            } else {
+                currentMonth.add(Calendar.MONTH, -1)
+                cachedMonthlyEntries = null
+                cachedMonthlyLabels = null
+            }
             updateDateRangeDisplay()
             refreshData()
         }
         btnNext?.setOnClickListener {
-            if (isWeeklyMode) currentWeekStart.add(Calendar.WEEK_OF_YEAR, 1)
-            else currentMonth.add(Calendar.MONTH, 1)
+            if (isWeeklyMode) {
+                currentWeekStart.add(Calendar.WEEK_OF_YEAR, 1)
+                cachedDailyTotals = null
+            } else {
+                currentMonth.add(Calendar.MONTH, 1)
+                cachedMonthlyEntries = null
+                cachedMonthlyLabels = null
+            }
             updateDateRangeDisplay()
             refreshData()
         }
@@ -566,13 +602,13 @@ class HomeFragment : Fragment() {
         if (isWeeklyMode) refreshWeeklyData() else loadMonthlyChartData()
     }
 
-    private fun refreshWeeklyData() {
+    private fun refreshWeeklyData(showSkeleton: Boolean = true) {
         val mainActivity = activity as? MainActivity ?: return
-        showLoading()
+        if (showSkeleton) showLoading()
         mainActivity.getEverydaySpendsForWeek(currentWeekStart) {
             activity?.runOnUiThread {
                 updateWeeklyChartUI()
-                hideLoading()
+                if (showSkeleton) hideLoading()
             }
         }
         setTextViewsForWeek()
@@ -610,12 +646,12 @@ class HomeFragment : Fragment() {
         monthlyLineChart?.visibility = View.VISIBLE
     }
 
-    private fun loadMonthlyChartData() {
-        showLoading()
-        fetchMonthlyChartData()
+    private fun loadMonthlyChartData(showSkeleton: Boolean = true) {
+        if (showSkeleton) showLoading()
+        fetchMonthlyChartData(showSkeleton)
     }
 
-    private fun fetchMonthlyChartData() {
+    private fun fetchMonthlyChartData(showSkeleton: Boolean = true) {
         val startOfMonth = currentMonth.clone() as Calendar
         startOfMonth.set(Calendar.DAY_OF_MONTH, 1)
         startOfMonth.set(Calendar.HOUR_OF_DAY, 0); startOfMonth.set(Calendar.MINUTE, 0)
@@ -665,11 +701,19 @@ class HomeFragment : Fragment() {
                 }
                 val labels = daysWithData.map { it.key.toString() }
 
-                withContext(Dispatchers.Main) { setupLineChart(entries, labels) }
+                // Cache for instant switching
+                cachedMonthlyEntries = entries
+                cachedMonthlyLabels = labels
+
+                withContext(Dispatchers.Main) { 
+                    setupLineChart(entries, labels) 
+                }
             } catch (e: Exception) {
                 Log.e("HomeFragment", "Error fetching monthly chart data: ${e.message}")
             } finally {
-                withContext(Dispatchers.Main) { hideLoading() }
+                withContext(Dispatchers.Main) { 
+                    if (showSkeleton) hideLoading() 
+                }
             }
         }
     }
