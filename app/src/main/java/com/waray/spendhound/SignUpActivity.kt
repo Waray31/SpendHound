@@ -119,17 +119,6 @@ class SignUpActivity : AppCompatActivity() {
                 }
             }
         })
-
-        // Check if we were redirected here to complete Step 2
-        val isRedirected = intent.getBooleanExtra("REDIRECTED_TO_STEP_2", false)
-        if (isRedirected) {
-            val email = intent.getStringExtra("USER_EMAIL") ?: ""
-            userId = intent.getStringExtra("USER_AUTH_ID")
-            internalUserId = intent.getLongExtra("USER_INTERNAL_ID", -1L)
-            if (internalUserId == -1L) internalUserId = null
-            
-            showStep2(email.substringBefore("@"))
-        }
     }
 
     private fun validateStep1(): Boolean {

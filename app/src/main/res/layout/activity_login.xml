@@ -47,8 +47,8 @@
             app:boxCornerRadiusBottomStart="24dp"
             app:boxCornerRadiusTopEnd="24dp"
             app:boxCornerRadiusTopStart="24dp"
-            app:boxStrokeColor="@color/yellow"
-            app:hintTextColor="@color/yellow">
+            app:boxStrokeColor="@color/end_orange"
+            app:hintTextColor="@color/end_orange">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/usernameEditText"
@@ -71,11 +71,11 @@
             app:boxCornerRadiusBottomStart="24dp"
             app:boxCornerRadiusTopEnd="24dp"
             app:boxCornerRadiusTopStart="24dp"
-            app:boxStrokeColor="@color/yellow"
-            app:hintTextColor="@color/yellow"
+            app:boxStrokeColor="@color/end_orange"
+            app:hintTextColor="@color/end_orange"
             app:endIconMode="password_toggle"
             app:endIconDrawable="@drawable/password_eye_selector"
-            app:endIconTint="@color/yellow">
+            app:endIconTint="@color/orange">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/passwordEditText"
@@ -92,10 +92,10 @@
             android:id="@+id/loginButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/rounded_button_selector"
+            android:background="@drawable/rounded_button"
+            android:elevation="2dp"
             android:fontFamily="@font/montserratalternatess_bold"
             android:text="Continue"
-            android:elevation="2dp"
             android:textColor="@color/whitest"
             android:textSize="14sp"
             app:backgroundTint="@null" />
@@ -104,27 +104,44 @@
             android:id="@+id/forgotPasswordText"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginVertical="20dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="20dp"
             android:clickable="true"
             android:focusable="true"
             android:fontFamily="@font/montserratalternatess_regular"
             android:text="Forgot password?"
             android:textAlignment="center"
-            android:textColor="@color/yellow"
+            android:textColor="@color/grey"
             android:textSize="14sp" />
 
-        <com.google.android.material.button.MaterialButton
+
+
+        <LinearLayout
             android:id="@+id/biometricLoginButton"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/round_border_glassy"
-            android:fontFamily="@font/montserratalternatess_bold"
-            android:text="Login using Fingerprint"
-            android:textColor="@color/yellow"
-            android:textSize="14sp"
+            android:gravity="center"
             android:elevation="2dp"
-            android:visibility="visible"
-            app:backgroundTint="@null" />
+            android:visibility="gone"
+            app:backgroundTint="@null" >
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/fingerprint_icon"
+                android:layout_marginEnd="8dp"
+                app:tint="@color/orange" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:text="Login using Fingerprint"
+                android:textColor="@color/mid_orange"
+                android:textSize="14sp"
+                android:paddingVertical="12dp"
+                android:textAllCaps="false"/>
+        </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -149,7 +166,7 @@
                 android:fontFamily="@font/montserratalternatess_bold"
                 android:text="Sign up here"
                 android:layout_marginStart="8dp"
-                android:textColor="@color/yellow"
+                android:textColor="@color/mid_orange"
                 tools:ignore="TouchTargetSizeCheck" />
         </LinearLayout>
     </LinearLayout>

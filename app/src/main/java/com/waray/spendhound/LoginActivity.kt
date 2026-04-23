@@ -10,6 +10,7 @@ import android.view.View
 import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.EditText
+import android.widget.LinearLayout
 import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
@@ -43,11 +44,13 @@ class LoginActivity : AppCompatActivity() {
         progressBar = findViewById(R.id.progressBar)
 
         val loginButton = findViewById<Button>(R.id.loginButton)
-        val biometricButton = findViewById<Button>(R.id.biometricLoginButton)
+        val biometricButton = findViewById<LinearLayout>(R.id.biometricLoginButton)
         val forgotPasswordText = findViewById<TextView>(R.id.forgotPasswordText)
 
-        if (BiometricHelper.isAvailable(this) && BiometricHelper.hasStoredCredentials(this)) {
-            biometricButton.visibility = View.VISIBLE
+        biometricButton.visibility = if (BiometricHelper.isAvailable(this) && BiometricHelper.hasStoredCredentials(this)) {
+            View.VISIBLE
+        } else {
+            View.GONE
         }
 
         loginButton.isEnabled = false

@@ -292,9 +292,9 @@
                     android:background="@drawable/rounded_button"
                     android:fontFamily="@font/montserratalternatess_bold"
                     android:text="Save Changes"
+                    android:textAllCaps="false"
                     android:textColor="@color/whitest"
                     android:textSize="14sp"
-                    android:textAllCaps="false"
                     app:backgroundTint="@null" />
 
                 <com.google.android.material.button.MaterialButton

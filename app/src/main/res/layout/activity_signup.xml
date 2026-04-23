@@ -69,8 +69,8 @@
                     app:boxCornerRadiusBottomStart="24dp"
                     app:boxCornerRadiusTopEnd="24dp"
                     app:boxCornerRadiusTopStart="24dp"
-                    app:boxStrokeColor="@color/yellow"
-                    app:hintTextColor="@color/yellow">
+                    app:boxStrokeColor="@color/end_orange"
+                    app:hintTextColor="@color/end_orange">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/emailSignup"
@@ -92,11 +92,11 @@
                     app:boxCornerRadiusBottomStart="24dp"
                     app:boxCornerRadiusTopEnd="24dp"
                     app:boxCornerRadiusTopStart="24dp"
-                    app:boxStrokeColor="@color/yellow"
                     app:endIconDrawable="@drawable/password_eye_selector"
                     app:endIconMode="password_toggle"
-                    app:endIconTint="@color/yellow"
-                    app:hintTextColor="@color/yellow">
+                    app:endIconTint="@color/orange"
+                    app:boxStrokeColor="@color/end_orange"
+                    app:hintTextColor="@color/end_orange">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/passwordSignup"
@@ -118,11 +118,11 @@
                     app:boxCornerRadiusBottomStart="24dp"
                     app:boxCornerRadiusTopEnd="24dp"
                     app:boxCornerRadiusTopStart="24dp"
-                    app:boxStrokeColor="@color/yellow"
                     app:endIconDrawable="@drawable/password_eye_selector"
                     app:endIconMode="password_toggle"
-                    app:endIconTint="@color/yellow"
-                    app:hintTextColor="@color/yellow">
+                    app:endIconTint="@color/orange"
+                    app:boxStrokeColor="@color/end_orange"
+                    app:hintTextColor="@color/end_orange">
 
                     <com.google.android.material.textfield.TextInputEditText
                         android:id="@+id/confirmPasswordSignup"
@@ -138,7 +138,7 @@
                     android:id="@+id/btnNextStep"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="@drawable/rounded_button_selector"
+                    android:background="@drawable/rounded_button"
                     android:fontFamily="@font/montserratalternatess_bold"
                     android:layout_marginBottom="8dp"
                     android:text="Continue"
@@ -317,7 +317,7 @@
                     android:onClick="onSignInClicked"
                     android:padding="8dp"
                     android:text="Login"
-                    android:textColor="@color/yellow"
+                    android:textColor="@color/mid_orange"
                     tools:ignore="TouchTargetSizeCheck" />
             </LinearLayout>
 
