@@ -20,121 +20,171 @@
             android:paddingBottom="92dp">
 
             <!-- Top Bar -->
-            <RelativeLayout
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="24dp">
+                android:layout_marginBottom="24dp"
+                android:orientation="horizontal">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:layout_gravity="center_vertical"
                     android:fontFamily="@font/montserratalternatess_bold"
                     android:text="@string/profile_title"
                     android:textColor="@color/black"
                     android:textSize="24sp" />
 
-                <ImageButton
-                    android:id="@+id/settings_btn"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_alignParentEnd="true"
-                    android:background="@drawable/circular_button_background"
-                    android:backgroundTint="@color/lightgrey"
-                    android:contentDescription="@string/settings_icon_description"
-                    android:padding="10dp"
-                    android:src="@drawable/ic_settings"
-                    app:tint="@color/black" />
-            </RelativeLayout>
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical">
 
-            <!-- User Info Row -->
+                    <ImageButton
+                        android:id="@+id/settings_btn"
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:layout_gravity="end"
+                        android:background="@drawable/circular_button_background"
+                        android:backgroundTint="@color/lightgrey"
+                        android:contentDescription="@string/settings_icon_description"
+                        android:padding="10dp"
+                        android:src="@drawable/ic_settings"
+                        app:tint="@color/black" />
+
+                </LinearLayout>
+            </LinearLayout>
+
+            <!-- Skeleton for recent transactions -->
+        <LinearLayout
+            android:id="@+id/userInfo_skeleton"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:orientation="horizontal">
+
+        </LinearLayout>
+
             <LinearLayout
+                android:id="@+id/userInfo_Layout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
-                android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-
-                <androidx.cardview.widget.CardView
-                    android:layout_width="100dp"
-                    android:layout_height="100dp"
-                    app:cardBackgroundColor="#FF9800"
-                    app:cardCornerRadius="50dp"
-                    android:layout_margin="4dp"
-                    android:elevation="4dp">
-
-                    <ImageView
-                        android:id="@+id/profileImageView"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
-                        android:contentDescription="@string/profile_image_description"
-                        android:scaleType="centerCrop"
-                        android:src="@drawable/placeholder_profile_image" />
-                </androidx.cardview.widget.CardView>
-
+                <!-- User Info Row -->
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center_vertical"
-                    android:layout_marginStart="16dp"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-                    <TextView
-                        android:id="@+id/nicknameTextView"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginStart="8dp"
-                        android:fontFamily="@font/montserratalternatess_bold"
-                        android:text="Mona"
-                        android:textColor="@color/black"
-                        android:textSize="24sp" />
 
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginVertical="8dp"
-                        android:layout_marginRight="50dp"
-                        android:background="@color/lightgrey" />
-
-                    <LinearLayout
-                        android:id="@+id/editProfile_TV"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/border_grey_rounded"
-                        android:orientation="horizontal"
-                        android:layout_marginStart="8dp"
-                        android:gravity="center_vertical"
-                        android:paddingHorizontal="12dp"
-                        android:paddingVertical="8dp">
+                    <androidx.cardview.widget.CardView
+                        android:layout_width="100dp"
+                        android:layout_height="100dp"
+                        android:layout_margin="4dp"
+                        android:elevation="4dp"
+                        app:cardBackgroundColor="#FF9800"
+                        app:cardCornerRadius="50dp">
 
                         <ImageView
-                            android:layout_width="20dp"
-                            android:layout_height="20dp"
-                            app:tint="@color/darkBlue"
+                            android:id="@+id/profileImageView"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:contentDescription="@string/profile_image_description"
                             android:scaleType="centerCrop"
-                            android:layout_marginEnd="8dp"
-                            android:src="@drawable/ic_edit_pencil"/>
+                            android:src="@drawable/placeholder_profile_image" />
+                    </androidx.cardview.widget.CardView>
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_gravity="center_vertical"
+                        android:layout_marginStart="16dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <View
+                            android:id="@+id/nickname_skeleton"
+                            android:layout_width="110dp"
+                            android:layout_height="24dp"
+                            android:layout_marginStart="8dp"
+                            android:background="@drawable/skeleton_shape"
+                            android:visibility="visible"/>
 
                         <TextView
+                            android:id="@+id/nicknameTextView"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
                             android:fontFamily="@font/montserratalternatess_bold"
-                            android:text="@string/label_edit_profile"
-                            android:textColor="@color/darkBlue"
-                            android:textSize="12sp" />
+                            android:text="Mona"
+                            android:textColor="@color/black"
+                            android:textSize="24sp"
+                            android:visibility="gone" />
 
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:layout_marginVertical="8dp"
+                            android:layout_marginRight="50dp"
+                            android:background="@color/lightgrey" />
+
+                        <LinearLayout
+                            android:id="@+id/editProfile_TV"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:background="@drawable/border_grey_rounded"
+                            android:gravity="center_vertical"
+                            android:orientation="horizontal"
+                            android:paddingHorizontal="12dp"
+                            android:paddingVertical="8dp">
+
+                            <ImageView
+                                android:layout_width="20dp"
+                                android:layout_height="20dp"
+                                android:layout_marginEnd="8dp"
+                                android:scaleType="centerCrop"
+                                android:src="@drawable/ic_edit_pencil"
+                                app:tint="@color/darkBlue" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/montserratalternatess_bold"
+                                android:text="@string/label_edit_profile"
+                                android:textColor="@color/darkBlue"
+                                android:textSize="12sp" />
+
+                        </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
             </LinearLayout>
 
+        <LinearLayout
+            android:id="@+id/userStats_skeletonLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="24dp"
+            android:baselineAligned="false"
+            android:orientation="horizontal"
+            android:visibility="visible">
+
+            <include layout="@layout/item_skeleton_user_stats" />
+
+        </LinearLayout>
+
             <!-- Stats Row -->
             <LinearLayout
+                android:id="@+id/userStats_Layout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="24dp"
                 android:baselineAligned="false"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:visibility="gone">
 
                 <LinearLayout
                     android:layout_width="0dp"
@@ -159,8 +209,8 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/montserratalternatess_bold"
-                        android:textColor="@color/grey"
                         android:text="Transactions"
+                        android:textColor="@color/grey"
                         android:textSize="12sp" />
                 </LinearLayout>
 
@@ -187,8 +237,8 @@
                         android:id="@+id/totalTextView"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/label_borrowed"
                         android:fontFamily="@font/montserratalternatess_bold"
+                        android:text="@string/label_borrowed"
                         android:textColor="@color/grey"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -215,8 +265,8 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="@string/label_groups"
                         android:fontFamily="@font/montserratalternatess_bold"
+                        android:text="@string/label_groups"
                         android:textColor="@color/grey"
                         android:textSize="12sp" />
                 </LinearLayout>
@@ -268,24 +318,24 @@
                             android:layout_height="wrap_content"
                             android:orientation="horizontal">
 
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="@font/montserratalternatess_bold"
-                            android:text="@string/label_house_expenses"
-                            android:textColor="@color/black"
-                            android:layout_marginTop="8dp"
-                            android:textSize="16sp" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="8dp"
+                                android:fontFamily="@font/montserratalternatess_bold"
+                                android:text="@string/label_house_expenses"
+                                android:textColor="@color/black"
+                                android:textSize="16sp" />
 
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
+                                android:layout_marginStart="8dp"
+                                android:background="@drawable/bubble_red"
+                                android:paddingHorizontal="4dp"
                                 android:text="4"
                                 android:textColor="@color/whitest"
-                                android:textSize="12sp"
-                                android:paddingHorizontal="4dp"
-                                android:background="@drawable/bubble_red"
-                                android:layout_marginStart="8dp"/>
+                                android:textSize="12sp" />
 
                         </LinearLayout>
 
@@ -404,11 +454,11 @@
                         android:layout_height="40dp"
                         android:background="@drawable/bg_icon_purple"
                         android:contentDescription="@string/label_currency"
-                        android:padding="10dp"
                         android:fontFamily="@font/montserratalternatess_bold"
-                        android:textSize="20sp"
+                        android:padding="10dp"
+                        android:text="₱"
                         android:textColor="@color/darkBlue"
-                        android:text="₱"/>
+                        android:textSize="20sp" />
 
                     <TextView
                         android:layout_width="0dp"
@@ -698,14 +748,5 @@
             android:layout_width="0dp"
             android:layout_height="0dp" />
     </LinearLayout>
-
-    <!-- Skeleton overlay for profile loading -->
-    <include
-        android:id="@+id/skeletonProfile"
-        layout="@layout/item_skeleton_profile"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:background="@color/white"
-        android:visibility="gone" />
 
 </FrameLayout>

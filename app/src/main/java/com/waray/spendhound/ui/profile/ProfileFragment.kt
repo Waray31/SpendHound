@@ -42,7 +42,6 @@ import com.waray.spendhound.R
 import com.waray.spendhound.Transaction
 import com.waray.spendhound.User
 import com.waray.spendhound.UserBalance
-import com.waray.spendhound.utils.LoadingManager
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.Dispatchers
@@ -55,6 +54,9 @@ import androidx.recyclerview.widget.RecyclerView
 class ProfileFragment : Fragment() {
     private var profileImageView: ImageView? = null
     private var nicknameTextView: TextView? = null
+    private var nicknameSkeleton: View? = null
+    private var userStatsSkeletonLayout: LinearLayout? = null
+    private var userStatsLayout: LinearLayout? = null
     private var transactionsCountTextView: TextView? = null
     private var groupsCountTextView: TextView? = null
     private var totalBalancedTextView: TextView? = null
@@ -81,7 +83,6 @@ class ProfileFragment : Fragment() {
     private var breakdownBtn: TextView? = null
 
     private var imageUpdatedAt: String? = null
-    private lateinit var loadingManager: LoadingManager
     private var isTabClickEnabled = true
 
     override fun onCreateView(
@@ -92,6 +93,9 @@ class ProfileFragment : Fragment() {
 
         profileImageView = view.findViewById(R.id.profileImageView)
         nicknameTextView = view.findViewById(R.id.nicknameTextView)
+        nicknameSkeleton = view.findViewById(R.id.nickname_skeleton)
+        userStatsSkeletonLayout = view.findViewById(R.id.userStats_skeletonLayout)
+        userStatsLayout = view.findViewById(R.id.userStats_Layout)
         transactionsCountTextView = view.findViewById(R.id.transactionsCountTextView)
         groupsCountTextView = view.findViewById(R.id.groupsCountTextView)
         Log.d("ProfileFragment", "Views initialized - nicknameTextView: $nicknameTextView")
@@ -117,12 +121,6 @@ class ProfileFragment : Fragment() {
         balanceTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.yellow))
 
         mAuth = DeclareDatabase.auth
-
-        val loadingOverlay = view.findViewById<View>(R.id.skeletonProfile)
-        loadingManager = LoadingManager(loadingOverlay, viewLifecycleOwner.lifecycle) { isLoading ->
-            (activity as? MainActivity)?.navView?.menu?.findItem(R.id.navigation_profile)?.isEnabled = !isLoading
-            isTabClickEnabled = !isLoading
-        }
 
         profileImageView?.isClickable = false
         profileImageView?.let { setProfileImage(it) }
@@ -188,12 +186,15 @@ class ProfileFragment : Fragment() {
     }
 
     internal fun loadNicknameAndData() {
-        loadingManager.showLoading()
+        // Show skeletons, hide real content
+        nicknameSkeleton?.visibility = View.VISIBLE
+        nicknameTextView?.visibility = View.GONE
+        userStatsSkeletonLayout?.visibility = View.VISIBLE
+        userStatsLayout?.visibility = View.GONE
         val authId = mAuth?.currentUserOrNull()?.id
         Log.d("ProfileFragment", "loadNicknameAndData - authId: $authId")
         if (authId == null) {
             Log.e("ProfileFragment", "authId is null")
-            loadingManager.hideLoading()
             return
         }
         lifecycleScope.launch {
@@ -294,6 +295,12 @@ class ProfileFragment : Fragment() {
                     Log.d("ProfileFragment", "Setting nicknameTextView to: $currentNickname")
                     nicknameTextView?.text = currentNickname
 
+                    // Hide skeletons, show real content
+                    nicknameSkeleton?.visibility = View.GONE
+                    nicknameTextView?.visibility = View.VISIBLE
+                    userStatsSkeletonLayout?.visibility = View.GONE
+                    userStatsLayout?.visibility = View.VISIBLE
+
                     // Extract balance data from user_balance table
                     val unpaidGroup = userBalance?.unpaidTotalGroup ?: 0.0
                     val unpaidIndividual = userBalance?.unpaidTotalIndividual ?: 0.0
@@ -317,14 +324,16 @@ class ProfileFragment : Fragment() {
                     groupsCountTextView?.text = groupsCount.toString()
 
                     Log.d("ProfileFragment", "UI Updated - balance: $balance, unpaid: $unpaid, owe: $currentOwe, debt: $currentDebt")
-
-                    loadingManager.hideLoading()
                 }
             } catch (e: Exception) {
                 Log.e("ProfileFragment", "Error loading user data: ${e.message}", e)
                 e.printStackTrace()
                 withContext(Dispatchers.Main) {
-                    loadingManager.hideLoading()
+                    // Keep skeletons visible on error — don't show stale data
+                    nicknameSkeleton?.visibility = View.VISIBLE
+                    nicknameTextView?.visibility = View.GONE
+                    userStatsSkeletonLayout?.visibility = View.VISIBLE
+                    userStatsLayout?.visibility = View.GONE
                 }
             }
         }
