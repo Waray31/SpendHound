@@ -131,12 +131,14 @@ class TransactionsFragment : Fragment() {
             
             android.util.Log.d("TX_DEBUG", "Transaction clicked (Global): ID=${tx.transactionId}, isUnread=${tx.isUnread}, userId=$currentUserNumericId")
 
+            // Toggle expansion
+            tx.isExpanded = !tx.isExpanded
+            val pos = transactionList.indexOf(tx)
+
             if (tx.isUnread && currentUserNumericId != null) {
                 markTransactionsRead(listOf(tx), currentUserNumericId!!)
             }
 
-            tx.isExpanded = !tx.isExpanded
-            val pos = transactionList.indexOf(tx)
             if (pos != -1) {
                 android.util.Log.d("TX_DEBUG", "Toggling expansion for index $pos")
                 adapter?.notifyItemChanged(pos)
@@ -408,14 +410,11 @@ class TransactionsFragment : Fragment() {
 
                 val txIds = allTransactions.mapNotNull { it.id }
 
-                val maxReadByGroup = if (currentUserId != null) {
-                    DeclareDatabase.transactionReadsTable.select {
+                val readTxIds = if (currentUserId != null) {
+                    DeclareDatabase.transactionReadsTable.select(Columns.list("transaction_id")) {
                         filter { eq("user_id", currentUserId) }
-                    }.decodeList<com.waray.spendhound.TransactionRead>()
-                        .filter { it.groupId != null }
-                        .groupBy { it.groupId!! }
-                        .mapValues { it.value.maxOfOrNull { r -> r.transactionId ?: 0L } ?: 0L }
-                } else emptyMap()
+                    }.decodeList<com.waray.spendhound.TransactionRead>().mapNotNull { it.transactionId }.toSet()
+                } else emptySet()
 
                 val allPayors = DeclareDatabase.transactionPayorsTable.select {
                     filter { isIn("transaction_id", txIds) }
@@ -487,7 +486,7 @@ class TransactionsFragment : Fragment() {
                     rt.creatorNumericId = tx.createdBy
                     rt.rawPayorRows = payors
                     rt.rawSplitRows = splits
-                    rt.isUnread = tx.groupId != null && txId > (maxReadByGroup[tx.groupId] ?: 0L) && tx.createdBy != currentUserId
+                    rt.isUnread = tx.groupId != null && txId !in readTxIds && tx.createdBy != currentUserId
                     rt.groupId = tx.groupId
                     result.add(rt)
                 }
@@ -518,61 +517,49 @@ class TransactionsFragment : Fragment() {
     }
 
     private fun markTransactionsRead(transactions: List<RecentTransaction>, userId: Long) {
-        if (transactions.isEmpty()) return
-        android.util.Log.d("TX_DEBUG", "markTransactionsRead (Global): count=${transactions.size}, userId=$userId")
-
-        val latestByGroup = transactions.filter { it.groupId != null && it.groupId != 0L }
-            .groupBy { it.groupId!! }
-            .mapValues { entry -> entry.value.mapNotNull { it.transactionId }.maxOrNull() }
+        val unreadTxIds = transactions.filter { it.isUnread }.mapNotNull { (it.transactionId to it.groupId) }
+        if (unreadTxIds.isEmpty()) return
+        
+        android.util.Log.d("TX_DEBUG", "markTransactionsRead (Global): unreadTxIds=$unreadTxIds, userId=$userId")
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                latestByGroup.forEach { (gid, maxId) ->
-                    if (maxId == null) return@forEach
-                    android.util.Log.d("TX_DEBUG", "Checking Group $gid for maxId $maxId")
+                val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", java.util.Locale.getDefault()).apply {
+                    timeZone = java.util.TimeZone.getTimeZone("UTC")
+                }
+                val now = sdf.format(java.util.Date())
+
+                unreadTxIds.forEach { (txId, gid) ->
+                    if (txId == null || gid == null) return@forEach
                     
-                    val existingRead = DeclareDatabase.transactionReadsTable.select {
+                    val existing = DeclareDatabase.transactionReadsTable.select {
                         filter {
                             eq("user_id", userId)
-                            eq("group_id", gid)
+                            eq("transaction_id", txId)
                         }
                         limit(1)
                     }.decodeSingleOrNull<com.waray.spendhound.TransactionRead>()
 
-                    android.util.Log.d("TX_DEBUG", "Existing mark in DB for group $gid: ${existingRead?.transactionId}")
-
-                    if (existingRead == null || (existingRead.transactionId ?: 0L) < maxId) {
-                        android.util.Log.d("TX_DEBUG", "Updating/Inserting mark for group $gid: $maxId")
-                        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", java.util.Locale.getDefault()).apply {
-                            timeZone = java.util.TimeZone.getTimeZone("UTC")
-                        }
-                        val now = sdf.format(java.util.Date())
-                        
-                        if (existingRead == null) {
-                            DeclareDatabase.transactionReadsTable.insert(
-                                com.waray.spendhound.TransactionReadInsert(
-                                    transactionId = maxId,
-                                    userId = userId,
-                                    groupId = gid,
-                                    readAt = now
-                                )
+                    if (existing == null) {
+                        DeclareDatabase.transactionReadsTable.insert(
+                            com.waray.spendhound.TransactionReadInsert(
+                                transactionId = txId,
+                                userId = userId,
+                                groupId = gid,
+                                readAt = now
                             )
-                        } else {
-                            DeclareDatabase.transactionReadsTable.update({
-                                set("transaction_id", maxId)
-                                set("read_at", now)
-                            }) {
-                                filter {
-                                    eq("id", existingRead.id!!)
-                                }
-                            }
-                        }
+                        )
                     }
                 }
                 
                 withContext(Dispatchers.Main) {
                     transactions.forEach { it.isUnread = false }
-                    adapter?.notifyDataSetChanged()
+                    transactions.forEach { tx ->
+                        val index = transactionList.indexOf(tx)
+                        if (index != -1) {
+                            adapter?.notifyItemChanged(index)
+                        }
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("TransactionsFragment", "Error marking transactions as read", e)

@@ -457,31 +457,19 @@ class ProfileFragment : Fragment() {
                         }
 
                         // Fetch unread transactions using transaction_reads
-                        val lastReadTransaction = DeclareDatabase.transactionReadsTable.select(Columns.list("transaction_id")) {
+                        val readTxIds = DeclareDatabase.transactionReadsTable.select(Columns.list("transaction_id")) {
                             filter {
                                 eq("group_id", groupId)
                                 eq("user_id", userId)
                             }
-                            order("transaction_id", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
-                            limit(1)
-                        }.decodeSingleOrNull<TransactionRead>()
+                        }.decodeList<TransactionRead>().mapNotNull { it.transactionId }.toSet()
 
-                        val unreadTransactionsCount = if (lastReadTransaction != null) {
-                            DeclareDatabase.transactionsTable.select(Columns.list("id")) {
-                                filter {
-                                    eq("group_id", groupId)
-                                    gt("id", lastReadTransaction.transactionId!!)
-                                    neq("created_by", userId)
-                                }
-                            }.decodeList<TransactionFull>().size
-                        } else {
-                            DeclareDatabase.transactionsTable.select(Columns.list("id")) {
-                                filter {
-                                    eq("group_id", groupId)
-                                    neq("created_by", userId)
-                                }
-                            }.decodeList<TransactionFull>().size
-                        }
+                        val unreadTransactionsCount = DeclareDatabase.transactionsTable.select(Columns.list("id")) {
+                            filter {
+                                eq("group_id", groupId)
+                                neq("created_by", userId)
+                            }
+                        }.decodeList<TransactionFull>().filter { it.id !in readTxIds }.size
 
                         // Get latest activity timestamp (either message or transaction)
                         val latestMessage = DeclareDatabase.groupMessagesTable.select(Columns.list("created_at")) {
