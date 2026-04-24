@@ -95,13 +95,21 @@
                         android:layout_weight="1"
                         android:orientation="vertical">
 
-                        <View
-                            android:id="@+id/nickname_skeleton"
-                            android:layout_width="110dp"
-                            android:layout_height="24dp"
+                        <com.facebook.shimmer.ShimmerFrameLayout
+                            android:id="@+id/nickname_skeleton_shimmer"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
-                            android:background="@drawable/skeleton_shape"
-                            android:visibility="visible" />
+                            app:shimmer_auto_start="true">
+
+                            <View
+                                android:id="@+id/nickname_skeleton"
+                                android:layout_width="110dp"
+                                android:layout_height="24dp"
+                                android:background="@drawable/skeleton_shape"
+                                android:visibility="visible" />
+
+                        </com.facebook.shimmer.ShimmerFrameLayout>
 
                         <TextView
                             android:id="@+id/nicknameTextView"
@@ -151,6 +159,27 @@
                         </LinearLayout>
                     </LinearLayout>
                 </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="8dp"
+                android:orientation="horizontal">
+
+                <View
+                    android:layout_width="12dp"
+                    android:layout_height="12dp"
+                    android:background="@drawable/bg_circle_green"/>
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="ACTIVE STATS"
+                    android:textColor="#888888"
+                    android:textSize="12sp"/>
             </LinearLayout>
 
             <LinearLayout
@@ -299,15 +328,23 @@
                     android:layout_height="wrap_content"
                     android:gravity="center"
                     android:orientation="vertical"
+                    android:background="@drawable/bg_profile_card"
                     android:padding="24dp"
                     android:visibility="gone">
+
+                    <ImageView
+                        android:layout_width="58dp"
+                        android:layout_height="58dp"
+                        android:layout_marginBottom="16dp"
+                        android:src="@drawable/add_group"
+                        app:tint="@color/lightgrey" />
 
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/montserratalternatess_regular"
                         android:gravity="center"
-                        android:text="No groups yet — create one to get started"
+                        android:text="No groups yet — Create one to get started"
                         android:textColor="@color/grey"
                         android:textSize="14sp" />
                 </LinearLayout>
