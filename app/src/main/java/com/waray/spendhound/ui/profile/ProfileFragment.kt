@@ -43,6 +43,10 @@ import com.waray.spendhound.R
 import com.waray.spendhound.Transaction
 import com.waray.spendhound.User
 import com.waray.spendhound.UserBalance
+import com.waray.spendhound.PayerGroup
+import com.waray.spendhound.GroupMessage
+import com.waray.spendhound.MessageRead
+import com.waray.spendhound.TransactionRead
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.Dispatchers
@@ -82,6 +86,10 @@ class ProfileFragment : Fragment() {
     private var oweDebtDrawableTransparent: Drawable? = null
     private var profileLogout: Button? = null
     private var breakdownBtn: TextView? = null
+    private var groupsRecyclerView: RecyclerView? = null
+    private var groupsSkeletonLayout: LinearLayout? = null
+    private var emptyGroupsLayout: LinearLayout? = null
+    private var profileGroupsAdapter: ProfileGroupsAdapter? = null
 
     private var imageUpdatedAt: String? = null
     private var isTabClickEnabled = true
@@ -111,6 +119,8 @@ class ProfileFragment : Fragment() {
         oweDebtLayout = view.findViewById(R.id.oweDebtLayout)
         profileLogout = view.findViewById(R.id.profileLogout)
         breakdownBtn = view.findViewById(R.id.breakdown_btn)
+        groupsSkeletonLayout = view.findViewById(R.id.groupsSkeletonLayout)
+        emptyGroupsLayout = view.findViewById(R.id.emptyGroupsLayout)
 
         balanceUnpaidDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.round_border_glassy)
         balanceUnpaidDrawableTransparent = ContextCompat.getDrawable(requireContext(), R.drawable.transparent_background)
@@ -124,6 +134,7 @@ class ProfileFragment : Fragment() {
         mAuth = DeclareDatabase.auth
 
         profileImageView?.isClickable = false
+        setupRecyclerView(view)
         setupEditProfileTV()
         setupUnpaidButton()
         setupBalanceButton()
@@ -190,6 +201,13 @@ class ProfileFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun setupRecyclerView(view: View) {
+        groupsRecyclerView = view.findViewById(R.id.groupsRecyclerView)
+        profileGroupsAdapter = ProfileGroupsAdapter()
+        groupsRecyclerView?.layoutManager = LinearLayoutManager(requireContext())
+        groupsRecyclerView?.adapter = profileGroupsAdapter
     }
 
     private fun setupEditProfileTV() {
@@ -353,6 +371,8 @@ class ProfileFragment : Fragment() {
                     transactionsCountTextView?.text = transactionsCount.toString()
                     groupsCountTextView?.text = groupsCount.toString()
 
+                    user?.id?.let { loadTopGroups(it) }
+
                     Log.d("ProfileFragment", "UI Updated - balance: $balance, unpaid: $unpaid, owe: $currentOwe, debt: $currentDebt")
                 }
             } catch (e: Exception) {
@@ -366,6 +386,140 @@ class ProfileFragment : Fragment() {
                         userStatsSkeletonLayout?.visibility = View.VISIBLE
                         userStatsLayout?.visibility = View.GONE
                     }
+                }
+            }
+        }
+    }
+
+
+    private fun loadTopGroups(userId: Long) {
+        // Show skeleton while loading
+        groupsSkeletonLayout?.visibility = View.VISIBLE
+        groupsRecyclerView?.visibility = View.GONE
+        emptyGroupsLayout?.visibility = View.GONE
+
+        lifecycleScope.launch {
+            try {
+                // 1. Get all groups user is member of
+                val memberEntries = withContext(Dispatchers.IO) {
+                    DeclareDatabase.groupMembersTable.select(Columns.list("group_id")) {
+                        filter { eq("user_id", userId) }
+                    }.decodeList<GroupMember>()
+                }
+                val groupIds = memberEntries.mapNotNull { it.groupId }
+                if (groupIds.isEmpty()) {
+                    withContext(Dispatchers.Main) {
+                        groupsSkeletonLayout?.visibility = View.GONE
+                        groupsRecyclerView?.visibility = View.GONE
+                        emptyGroupsLayout?.visibility = View.VISIBLE
+                        breakdownBtn?.text = "Create group"
+                        profileGroupsAdapter?.updateItems(emptyList())
+                    }
+                    return@launch
+                }
+
+                // 2. For each group, get activity and unread counts
+                val profileGroupItems = withContext(Dispatchers.IO) {
+                    groupIds.map { groupId ->
+                        val group = DeclareDatabase.groupsTable.select {
+                            filter { eq("group_id", groupId) }
+                        }.decodeSingle<PayerGroup>()
+
+                        val members = DeclareDatabase.groupMembersTable.select(Columns.list("user_id")) {
+                            filter { eq("group_id", groupId) }
+                        }.decodeList<GroupMember>()
+
+                        // Optimized unread messages fetch using group_id
+                        val lastReadMessage = DeclareDatabase.messageReadsTable.select(Columns.list("message_id")) {
+                            filter {
+                                eq("group_id", groupId)
+                                eq("user_id", userId)
+                            }
+                            order("message_id", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                            limit(1)
+                        }.decodeSingleOrNull<MessageRead>()
+
+                        val unreadMessagesCount = if (lastReadMessage != null) {
+                            DeclareDatabase.groupMessagesTable.select(Columns.list("id")) {
+                                filter {
+                                    eq("group_id", groupId)
+                                    gt("id", lastReadMessage.messageId!!)
+                                    neq("user_id", userId)
+                                }
+                            }.decodeList<GroupMessage>().size
+                        } else {
+                            DeclareDatabase.groupMessagesTable.select(Columns.list("id")) {
+                                filter {
+                                    eq("group_id", groupId)
+                                    neq("user_id", userId)
+                                }
+                            }.decodeList<GroupMessage>().size
+                        }
+
+                        // Fetch unread transactions using transaction_reads
+                        val lastReadTransaction = DeclareDatabase.transactionReadsTable.select(Columns.list("transaction_id")) {
+                            filter {
+                                eq("group_id", groupId)
+                                eq("user_id", userId)
+                            }
+                            order("transaction_id", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                            limit(1)
+                        }.decodeSingleOrNull<TransactionRead>()
+
+                        val unreadTransactionsCount = if (lastReadTransaction != null) {
+                            DeclareDatabase.transactionsTable.select(Columns.list("id")) {
+                                filter {
+                                    eq("group_id", groupId)
+                                    gt("id", lastReadTransaction.transactionId!!)
+                                    neq("created_by", userId)
+                                }
+                            }.decodeList<TransactionFull>().size
+                        } else {
+                            DeclareDatabase.transactionsTable.select(Columns.list("id")) {
+                                filter {
+                                    eq("group_id", groupId)
+                                    neq("created_by", userId)
+                                }
+                            }.decodeList<TransactionFull>().size
+                        }
+
+                        // Get latest activity timestamp (either message or transaction)
+                        val latestMessage = DeclareDatabase.groupMessagesTable.select(Columns.list("created_at")) {
+                            filter { eq("group_id", groupId) }
+                            order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                            limit(1)
+                        }.decodeSingleOrNull<GroupMessage>()
+
+                        val latestTransaction = DeclareDatabase.transactionsTable.select(Columns.list("created_at")) {
+                            filter { eq("group_id", groupId) }
+                            order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
+                            limit(1)
+                        }.decodeSingleOrNull<TransactionFull>()
+
+                        val activityTime = listOfNotNull(latestMessage?.createdAt, latestTransaction?.createdAt).maxOrNull() ?: ""
+
+                        ProfileGroupItem(group, members.size, unreadTransactionsCount, unreadMessagesCount) to activityTime
+                    }
+                }
+
+                // 3. Sort by activity and take top 3
+                val top3 = profileGroupItems
+                    .sortedByDescending { it.second }
+                    .take(3)
+                    .map { it.first }
+
+                withContext(Dispatchers.Main) {
+                    groupsSkeletonLayout?.visibility = View.GONE
+                    emptyGroupsLayout?.visibility = View.GONE
+                    groupsRecyclerView?.visibility = View.VISIBLE
+                    breakdownBtn?.text = getString(R.string.label_see_all_groups)
+                    profileGroupsAdapter?.updateItems(top3)
+                }
+
+            } catch (e: Exception) {
+                Log.e("ProfileFragment", "Error loading top groups", e)
+                withContext(Dispatchers.Main) {
+                    groupsSkeletonLayout?.visibility = View.GONE
                 }
             }
         }
@@ -529,7 +683,11 @@ class ProfileFragment : Fragment() {
 
     private fun setupBreakdownButton() {
         breakdownBtn?.setOnClickListener {
-            startActivity(Intent(requireContext(), com.waray.spendhound.GroupsActivity::class.java))
+            if (emptyGroupsLayout?.visibility == View.VISIBLE) {
+                startActivity(Intent(requireContext(), com.waray.spendhound.CreateGroupActivity::class.java))
+            } else {
+                startActivity(Intent(requireContext(), com.waray.spendhound.GroupsActivity::class.java))
+            }
         }
     }
 

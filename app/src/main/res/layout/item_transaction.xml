@@ -29,6 +29,14 @@
                 android:paddingTop="8dp"
                 android:orientation="horizontal">
 
+                <!-- New Transaction Indicator -->
+                <View
+                    android:id="@+id/unreadIndicator"
+                    android:layout_width="4dp"
+                    android:layout_height="40dp"
+                    android:background="@color/primary_accent"
+                    android:visibility="gone" />
+
                 <ImageView
                     android:id="@+id/iconImageView"
                     android:layout_width="40dp"

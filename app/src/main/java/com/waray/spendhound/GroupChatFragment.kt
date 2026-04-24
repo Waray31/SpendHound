@@ -23,6 +23,7 @@ import androidx.recyclerview.widget.RecyclerView
 import coil.load
 import coil.transform.CircleCropTransformation
 import io.github.jan.supabase.postgrest.query.Order
+import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.RealtimeChannel
@@ -111,7 +112,7 @@ class GroupChatFragment : Fragment() {
             if (text.isNotEmpty()) { sendMessage(text); et.setText("") }
         }
 
-        lifecycleScope.launch(Dispatchers.IO) {
+        lifecycleScope.launch {
             resolveCurrentUser()
             loadMessages()
             subscribeRealtime()
@@ -348,19 +349,32 @@ class GroupChatFragment : Fragment() {
 
     private fun markMessagesRead() {
         val uid = currentUserId ?: return
-        lifecycleScope.launch {
+        val maxMsgId = messages.mapNotNull { it.id }.maxOrNull() ?: return
+
+        lifecycleScope.launch(Dispatchers.IO) {
             try {
-                val readIds = DeclareDatabase.messageReadsTable.select {
-                    filter { eq("user_id", uid) }
-                }.decodeList<MessageRead>().mapNotNull { it.messageId }.toSet()
+                // High-water mark logic: everything up to maxMsgId is read
+                val alreadyRead = DeclareDatabase.messageReadsTable.select(Columns.list("message_id")) {
+                    filter {
+                        eq("user_id", uid)
+                        eq("group_id", groupId)
+                        gte("message_id", maxMsgId)
+                    }
+                    limit(1)
+                }.decodeSingleOrNull<MessageRead>()
 
-                val unread = messages.filter { it.id != null && it.userId != uid && it.id !in readIds }
-                if (unread.isEmpty()) return@launch
-
-                DeclareDatabase.messageReadsTable.insert(
-                    unread.map { MessageReadInsert(messageId = it.id!!, userId = uid) }
-                )
-                unread.forEach { msg ->
+                if (alreadyRead == null) {
+                    val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault()).apply {
+                        timeZone = TimeZone.getTimeZone("UTC")
+                    }
+                    val now = sdf.format(Date())
+                    DeclareDatabase.messageReadsTable.insert(
+                        MessageReadInsert(messageId = maxMsgId, userId = uid, groupId = groupId, readAt = now)
+                    )
+                }
+                
+                // Update local receipts
+                messages.filter { it.id != null && it.id!! <= maxMsgId }.forEach { msg ->
                     readReceipts.getOrPut(msg.id!!) { mutableSetOf() }.add(uid)
                 }
             } catch (e: Exception) {

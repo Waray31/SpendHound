@@ -24,6 +24,7 @@ class RecentTransaction {
     var day: String? = null
     var timeKey: String? = null
     var isExpanded: Boolean = false
+    var isUnread: Boolean = false
 
     var transactionItems: List<TransactionItemFull> = emptyList()
     var transactionStatus: String = "Pending"
@@ -32,6 +33,7 @@ class RecentTransaction {
     var creatorNumericId: Long? = null
     var rawPayorRows: List<TransactionPayorTable> = emptyList()
     var rawSplitRows: List<TransactionSplitTable> = emptyList()
+    var groupId: Long? = null
 
     constructor()
 

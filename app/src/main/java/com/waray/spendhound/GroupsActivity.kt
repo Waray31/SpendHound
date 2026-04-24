@@ -108,13 +108,6 @@ class GroupsActivity : AppCompatActivity() {
                 }.decodeList<GroupMember>()
                 val membersByGroup = allMembers.groupBy { it.groupId }
 
-                groups.clear()
-                for (group in allGroups) {
-                    val memberIds = membersByGroup[group.groupId]?.mapNotNull { it.userId } ?: emptyList()
-                    val members = allUsers.filter { it.id in memberIds }
-                    groups.add(Pair(group, members))
-                }
-
                 // Pre-fetch all card data before showing the list
                 val groupIds = allGroups.mapNotNull { it.groupId }
                 val allTransactions = if (groupIds.isNotEmpty()) DeclareDatabase.transactionsTable.select {
@@ -130,22 +123,53 @@ class GroupsActivity : AppCompatActivity() {
                 val allMessages = if (uid != null && groupIds.isNotEmpty()) DeclareDatabase.groupMessagesTable.select {
                     filter { isIn("group_id", groupIds); eq("is_deleted", false) }
                     order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
-                    limit(500)
-                }.decodeList<GroupMessage>().filter { it.userId != uid } else emptyList()
-                val readIds = if (uid != null) DeclareDatabase.messageReadsTable.select {
+                    limit(1000)
+                }.decodeList<GroupMessage>() else emptyList()
+
+                val readReceipts = if (uid != null) DeclareDatabase.messageReadsTable.select {
                     filter { eq("user_id", uid) }
-                }.decodeList<MessageRead>().mapNotNull { it.messageId }.toSet() else emptySet()
+                }.decodeList<MessageRead>() else emptyList()
+                val maxReadByGroup = readReceipts.groupBy { it.groupId }
+                    .mapValues { entry -> entry.value.maxOfOrNull { it.messageId ?: 0L } ?: 0L }
+
+                val txReadReceipts = if (uid != null) DeclareDatabase.transactionReadsTable.select {
+                    filter { eq("user_id", uid) }
+                }.decodeList<com.waray.spendhound.TransactionRead>() else emptyList()
+                val maxTxReadByGroup = txReadReceipts.groupBy { it.groupId }
+                    .mapValues { entry -> entry.value.maxOfOrNull { it.transactionId ?: 0L } ?: 0L }
 
                 val cardDataMap = mutableMapOf<Long, GroupCardData>()
+                val lastActivityMap = mutableMapOf<Long, Long>()
+
                 for (group in allGroups) {
                     val gid = group.groupId ?: continue
                     val txs = allTransactions.filter { it.groupId == gid }
+                    val groupMsgs = allMessages.filter { it.groupId == gid }
+
                     val txIds = txs.mapNotNull { it.id }
                     val totalExpenses = txs.sumOf { it.totalAmount }
                     val activeCount = txs.count { (it.status ?: 0) == 2 }
                     val settledAmount = allPayors.filter { it.transactionId in txIds && it.status == 1 }.sumOf { it.currentAmountPaid }
-                    val unreadCount = allMessages.count { it.groupId == gid && it.id != null && it.id !in readIds }
-                    cardDataMap[gid] = GroupCardData(totalExpenses, activeCount, settledAmount, unreadCount)
+
+                    val maxReadId = maxReadByGroup[gid] ?: 0L
+                    val unreadCount = groupMsgs.count { it.userId != uid && it.id != null && it.id!! > maxReadId }
+                    
+                    val maxTxReadId = maxTxReadByGroup[gid] ?: 0L
+                    val unreadTxCount = txs.count { it.createdBy != uid && it.id != null && it.id!! > maxTxReadId }
+                    
+                    cardDataMap[gid] = GroupCardData(totalExpenses, activeCount, settledAmount, unreadCount + unreadTxCount)
+
+                    val lastTxTime = txs.firstOrNull()?.createdAt?.let { parseIsoTime(it) } ?: 0L
+                    val lastMsgTime = groupMsgs.firstOrNull()?.createdAt?.let { parseIsoTime(it) } ?: 0L
+                    lastActivityMap[gid] = maxOf(lastTxTime, lastMsgTime)
+                }
+
+                groups.clear()
+                val sortedGroups = allGroups.sortedByDescending { lastActivityMap[it.groupId] ?: 0L }
+                for (group in sortedGroups) {
+                    val memberIds = membersByGroup[group.groupId]?.mapNotNull { it.userId } ?: emptyList()
+                    val members = allUsers.filter { it.id in memberIds }
+                    groups.add(Pair(group, members))
                 }
 
                 runOnUiThread {
@@ -175,9 +199,24 @@ class GroupsActivity : AppCompatActivity() {
         startActivity(intent)
     }
 
-    private fun showLoading() { rvSkeleton.visibility = View.VISIBLE; rvGroups.visibility = View.GONE }
-    private fun hideLoading() { rvSkeleton.visibility = View.GONE }
+    private fun showLoading() {
+        rvSkeleton.visibility = View.VISIBLE
+        rvGroups.visibility = View.GONE
+        emptyState.visibility = View.GONE
+    }
+
+    private fun hideLoading() {
+        rvSkeleton.visibility = View.GONE
+    }
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+
+    private fun parseIsoTime(iso: String): Long {
+        return try {
+            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
+            sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+            sdf.parse(iso.take(19))?.time ?: 0L
+        } catch (e: Exception) { 0L }
+    }
 
     private inner class GroupAdapter(
         private val items: List<Pair<PayerGroup, List<User>>>,
@@ -237,7 +276,7 @@ class GroupsActivity : AppCompatActivity() {
             holder.settledProgressBar.progress = progress
             if (data.unreadCount > 0) {
                 holder.tvUnreadBadge.visibility = View.VISIBLE
-                holder.tvUnreadBadge.text = data.unreadCount.toString()
+                holder.tvUnreadBadge.text = if (data.unreadCount > 99) "99+" else data.unreadCount.toString()
             } else {
                 holder.tvUnreadBadge.visibility = View.GONE
             }

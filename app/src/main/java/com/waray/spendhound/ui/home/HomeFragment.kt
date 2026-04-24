@@ -192,7 +192,6 @@ class HomeFragment : Fragment() {
 
     private fun fetchYouOweAndOwed() {
         val userId = currentUserNumericId ?: return
-        showLoading()
         lifecycleScope.launch {
             try {
                 val balance = withContext(Dispatchers.IO) {
@@ -206,8 +205,6 @@ class HomeFragment : Fragment() {
                 }
             } catch (e: Exception) {
                 Log.e("HomeFragment", "Error fetching balance: ${e.message}")
-            } finally {
-                withContext(Dispatchers.Main) { hideLoading() }
             }
         }
     }
@@ -320,6 +317,16 @@ class HomeFragment : Fragment() {
                 }.decodeList<TransactionFull>()
 
                 val txIds = allTransactions.mapNotNull { it.id }
+
+                val readIds = if (txIds.isNotEmpty()) {
+                    DeclareDatabase.transactionReadsTable.select {
+                        filter {
+                            eq("user_id", userId)
+                            isIn("transaction_id", txIds)
+                        }
+                    }.decodeList<com.waray.spendhound.TransactionRead>().mapNotNull { it.transactionId }.toSet()
+                } else emptySet()
+
                 val allPayors = DeclareDatabase.transactionPayorsTable.select {
                     filter { isIn("transaction_id", txIds) }
                 }.decodeList<TransactionPayorTable>()
@@ -398,6 +405,8 @@ class HomeFragment : Fragment() {
                     rt.creatorNumericId = tx.createdBy
                     rt.rawPayorRows = payors
                     rt.rawSplitRows = splits
+                    rt.isUnread = txId !in readIds && tx.createdBy != userId
+                    rt.groupId = tx.groupId
                     newList.add(rt)
                 }
 
@@ -604,11 +613,9 @@ class HomeFragment : Fragment() {
 
     private fun refreshWeeklyData(showSkeleton: Boolean = true) {
         val mainActivity = activity as? MainActivity ?: return
-        if (showSkeleton) showLoading()
         mainActivity.getEverydaySpendsForWeek(currentWeekStart) {
             activity?.runOnUiThread {
                 updateWeeklyChartUI()
-                if (showSkeleton) hideLoading()
             }
         }
         setTextViewsForWeek()
@@ -647,7 +654,6 @@ class HomeFragment : Fragment() {
     }
 
     private fun loadMonthlyChartData(showSkeleton: Boolean = true) {
-        if (showSkeleton) showLoading()
         fetchMonthlyChartData(showSkeleton)
     }
 
@@ -710,10 +716,6 @@ class HomeFragment : Fragment() {
                 }
             } catch (e: Exception) {
                 Log.e("HomeFragment", "Error fetching monthly chart data: ${e.message}")
-            } finally {
-                withContext(Dispatchers.Main) { 
-                    if (showSkeleton) hideLoading() 
-                }
             }
         }
     }

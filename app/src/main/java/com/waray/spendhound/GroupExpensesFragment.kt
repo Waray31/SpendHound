@@ -18,12 +18,14 @@ import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
 import com.waray.spendhound.utils.PullInterceptLayout
 import com.waray.spendhound.utils.PullToRefreshHelper
+import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
@@ -56,7 +58,46 @@ class GroupExpensesFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val rv = view.findViewById<RecyclerView>(R.id.rvExpenses)
         rvSkeleton = view.findViewById(R.id.rvSkeleton)
-        adapter = RecentTransactionAdapter(transactionList, { loadExpenses() }, null)
+        // Inside onViewCreated in GroupExpensesFragment.kt
+        adapter = RecentTransactionAdapter(transactionList, { loadExpenses() }) { tx ->
+            if (tx == null) return@RecentTransactionAdapter
+
+            val userId = DeclareDatabase.auth.currentUserOrNull()?.id
+            android.util.Log.d("TX_DEBUG", "Transaction clicked: ID=${tx.transactionId}, isUnread=${tx.isUnread}, authId=$userId")
+
+            // Check if it's unread. If so, mark it read locally AND in database
+            if (tx.isUnread && userId != null) {
+                tx.isUnread = false // Update locally immediately for instant UI feedback
+                android.util.Log.d("TX_DEBUG", "Marking locally as read")
+
+                lifecycleScope.launch(Dispatchers.IO) {
+                    try {
+                        val user = DeclareDatabase.usersTable.select {
+                            filter { eq("auth_id", userId) }
+                        }.decodeSingleOrNull<User>()
+                        
+                        android.util.Log.d("TX_DEBUG", "Resolved numeric userId: ${user?.id}")
+
+                        if (user?.id != null) {
+                            markTransactionsRead(listOf(tx), user.id)
+                        } else {
+                            android.util.Log.e("TX_DEBUG", "Could not resolve numeric userId for authId: $userId")
+                        }
+                    } catch (e: Exception) {
+                        android.util.Log.e("TX_DEBUG", "Error resolving user during click", e)
+                    }
+                }
+            }
+
+            // Toggle expansion
+            tx.isExpanded = !tx.isExpanded
+            val pos = transactionList.indexOf(tx)
+            if (pos != -1) {
+                // notifyItemChanged ensures the red dot/unread indicator disappears
+                // and the expandable layout shows up
+                adapter.notifyItemChanged(pos)
+            }
+        }
         rv.layoutManager = LinearLayoutManager(requireContext())
         rv.adapter = adapter
         rvSkeleton.layoutManager = LinearLayoutManager(requireContext())
@@ -89,6 +130,26 @@ class GroupExpensesFragment : Fragment() {
                 }.decodeList<TransactionFull>()
 
                 val txIds = allTransactions.mapNotNull { it.id }
+
+                val authId = DeclareDatabase.auth.currentUserOrNull()?.id
+                val currentUser = if (authId != null) {
+                    DeclareDatabase.usersTable.select {
+                        filter { eq("auth_id", authId) }
+                    }.decodeSingleOrNull<User>()
+                } else null
+                val currentUserId = currentUser?.id
+
+                val maxReadTxId = if (currentUserId != null) {
+                    DeclareDatabase.transactionReadsTable.select(Columns.list("transaction_id")) {
+                        filter {
+                            eq("user_id", currentUserId)
+                            eq("group_id", groupId)
+                        }
+                        order("transaction_id", Order.DESCENDING)
+                        limit(1)
+                    }.decodeSingleOrNull<com.waray.spendhound.TransactionRead>()?.transactionId ?: 0L
+                } else 0L
+
                 if (txIds.isEmpty()) {
                     withContext(Dispatchers.Main) { 
                         fullTransactions = emptyList()
@@ -185,6 +246,8 @@ class GroupExpensesFragment : Fragment() {
                     rt.creatorNumericId = tx.createdBy
                     rt.rawPayorRows = payors
                     rt.rawSplitRows = splits
+                    rt.isUnread = txId > maxReadTxId && tx.createdBy != currentUserId
+                    rt.groupId = tx.groupId
                     result.add(rt)
                 }
 
@@ -201,6 +264,73 @@ class GroupExpensesFragment : Fragment() {
                     hideLoading()
                     pullToRefreshHelper?.stopRefreshing()
                 }
+            }
+        }
+    }
+
+    private fun markTransactionsRead(transactions: List<RecentTransaction>, userId: Long) {
+        val maxTxId = transactions.mapNotNull { it.transactionId }.maxOrNull() ?: return
+        android.util.Log.d("TX_DEBUG", "markTransactionsRead: maxTxId=$maxTxId, userId=$userId, groupId=$groupId")
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                // High-water mark for transactions in this group
+                val existingRead = DeclareDatabase.transactionReadsTable.select {
+                    filter {
+                        eq("user_id", userId)
+                        eq("group_id", groupId)
+                    }
+                    limit(1)
+                }.decodeSingleOrNull<com.waray.spendhound.TransactionRead>()
+                
+                android.util.Log.d("TX_DEBUG", "Existing high-water mark in DB: ${existingRead?.transactionId}")
+
+                if (existingRead == null || (existingRead.transactionId ?: 0) < maxTxId) {
+                    android.util.Log.d("TX_DEBUG", "Upserting new high-water mark: $maxTxId")
+                    val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault()).apply {
+                        timeZone = TimeZone.getTimeZone("UTC")
+                    }
+                    val now = sdf.format(Date())
+                    
+                    if (existingRead == null) {
+                        DeclareDatabase.transactionReadsTable.insert(
+                            TransactionReadInsert(
+                                transactionId = maxTxId,
+                                userId = userId,
+                                groupId = groupId,
+                                readAt = now
+                            )
+                        )
+                    } else {
+                        DeclareDatabase.transactionReadsTable.update({
+                            set("transaction_id", maxTxId)
+                            set("read_at", now)
+                        }) {
+                            filter {
+                                eq("id", existingRead.id!!)
+                            }
+                        }
+                    }
+                    android.util.Log.d("TX_DEBUG", "Database operation completed successfully")
+                } else {
+                    android.util.Log.d("TX_DEBUG", "Skipping DB update: existing mark is already higher or equal")
+                }
+
+                withContext(Dispatchers.Main) {
+                    // Update the state of all transactions in the current list that are below the maxTxId
+                    transactionList.forEach {
+                        if (it.transactionId != null && it.transactionId!! <= maxTxId) {
+                            it.isUnread = false
+                        }
+                    }
+                    adapter.notifyDataSetChanged()
+                }
+                // In GroupExpensesFragment.kt
+            } catch (e: Exception) {
+                // CHANGE THIS: Don't use catch (_: Exception)
+                // Use this to see if you get a "403 Forbidden" or "PGRST301" error
+                android.util.Log.e("RLS_DEBUG", "Database Upsert Failed: ${e.message}")
+                e.printStackTrace()
             }
         }
     }

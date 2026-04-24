@@ -1,6 +1,7 @@
 package com.waray.spendhound
 
 import android.content.Context
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -14,6 +15,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.bumptech.glide.Glide
 import com.bumptech.glide.load.engine.DiskCacheStrategy
 import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
+import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -76,6 +78,15 @@ class RecentTransactionAdapter(
                 if (status == "Settled") R.color.green else R.color.yellow)
         )
 
+        // Unread indicator logic
+        if (transaction.isUnread) {
+            holder.unreadIndicator.visibility = View.VISIBLE
+            holder.mainContent.setBackgroundColor(ContextCompat.getColor(holder.itemView.context, R.color.light_blue_tint))
+        } else {
+            holder.unreadIndicator.visibility = View.GONE
+            holder.mainContent.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+        }
+
         val isExpanded = transaction.isExpanded
         holder.expandableLayout.visibility = if (isExpanded) View.VISIBLE else View.GONE
 
@@ -106,13 +117,9 @@ class RecentTransactionAdapter(
             holder.loadingOverlay.visibility = View.GONE
         }
 
-        holder.mainContent.setOnClickListener {
-            if (clickListener != null) {
-                clickListener?.onTransactionClick(transaction)
-            } else {
-                transaction.isExpanded = !transaction.isExpanded
-                notifyItemChanged(holder.adapterPosition)
-            }
+        holder.itemView.setOnClickListener {
+            Log.i("TX_DEBUG", "Adapter: Item clicked for transaction ID=${transaction.transactionId}")
+            clickListener?.onTransactionClick(transaction)
         }
     }
 
@@ -310,5 +317,6 @@ class RecentTransactionAdapter(
         val loadingOverlay: View             = itemView.findViewById(R.id.loadingOverlay_transaction)
         val editTransactionBtn: TextView       = itemView.findViewById(R.id.editTransaction_btn)
         val settlementLL: View               = itemView.findViewById(R.id.settlement_LL)
+        val unreadIndicator: View            = itemView.findViewById(R.id.unreadIndicator)
     }
 }

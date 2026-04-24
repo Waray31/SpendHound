@@ -36,6 +36,22 @@ data class MessageRead(
     val id: Long? = null,
     @SerialName("message_id")
     val messageId: Long? = null,
+    @SerialName("group_id")
+    val groupId: Long? = null,
+    @SerialName("user_id")
+    val userId: Long? = null,
+    @SerialName("read_at")
+    val readAt: String? = null
+)
+
+@Serializable
+data class TransactionRead(
+    @SerialName("id")
+    val id: Long? = null,
+    @SerialName("transaction_id")
+    val transactionId: Long? = null,
+    @SerialName("group_id")
+    val groupId: Long? = null,
     @SerialName("user_id")
     val userId: Long? = null,
     @SerialName("read_at")
@@ -70,6 +86,16 @@ data class GroupMessageInsert(
 @Serializable
 data class MessageReadInsert(
     @SerialName("message_id") val messageId: Long,
-    @SerialName("user_id") val userId: Long
+    @SerialName("user_id") val userId: Long,
+    @SerialName("group_id") val groupId: Long,
+    @SerialName("read_at") val readAt: String? = null
+)
+
+@Serializable
+data class TransactionReadInsert(
+    @SerialName("transaction_id") val transactionId: Long,
+    @SerialName("user_id") val userId: Long,
+    @SerialName("group_id") val groupId: Long,
+    @SerialName("read_at") val readAt: String? = null
 )
 

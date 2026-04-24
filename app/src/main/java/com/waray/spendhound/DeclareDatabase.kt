@@ -14,6 +14,7 @@ import io.github.jan.supabase.realtime.realtime
 import io.github.jan.supabase.serializer.KotlinXSerializer
 import io.github.jan.supabase.storage.Storage
 import io.github.jan.supabase.storage.storage
+import io.ktor.client.engine.okhttp.OkHttp
 import io.ktor.client.plugins.HttpTimeout
 import kotlinx.serialization.json.Json
 
@@ -31,6 +32,7 @@ object DeclareDatabase {
             supabaseUrl = SUPABASE_URL,
             supabaseKey = SUPABASE_KEY
         ) {
+            httpEngine = OkHttp.create()
             install(Auth) {
                 sessionManager = SharedPreferencesSessionManager(context)
             }
@@ -74,6 +76,7 @@ object DeclareDatabase {
     val groupMembersTable get() = client.from("group_members")
     val groupMessagesTable get() = client.from("group_messages")
     val messageReadsTable get() = client.from("message_reads")
+    val transactionReadsTable get() = client.from("transaction_reads")
     val groupMessageReactionsTable get() = client.from("group_message_reactions")
     val borrowsTable get() = client.from("borrows")
     val userBorrowsTable get() = client.from("userBorrows")
