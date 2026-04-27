@@ -81,10 +81,10 @@ class RecentTransactionAdapter(
         // Unread indicator logic
         if (transaction.isUnread) {
             holder.unreadIndicator.visibility = View.VISIBLE
-            holder.mainContent.setBackgroundColor(ContextCompat.getColor(holder.itemView.context, R.color.light_blue_tint))
+            holder.mainContent.setBackgroundResource(R.drawable.bg_unread_transaction)
         } else {
             holder.unreadIndicator.visibility = View.GONE
-            holder.mainContent.setBackgroundColor(android.graphics.Color.TRANSPARENT)
+            holder.mainContent.setBackgroundResource(0)
         }
 
         val isExpanded = transaction.isExpanded
