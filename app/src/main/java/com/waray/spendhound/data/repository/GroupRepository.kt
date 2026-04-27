@@ -4,6 +4,8 @@ import com.waray.spendhound.DeclareDatabase
 import com.waray.spendhound.GroupMessage
 import com.waray.spendhound.User
 import com.waray.spendhound.data.local.AppDatabase
+import com.waray.spendhound.data.local.CacheKeys
+import com.waray.spendhound.data.local.CachedJsonBlob
 import com.waray.spendhound.data.local.CachedMessage
 import com.waray.spendhound.data.local.CachedTransaction
 import com.waray.spendhound.ui.multi_transaction.TransactionFull
@@ -16,12 +18,14 @@ import kotlinx.coroutines.withContext
 
 class GroupRepository(private val db: AppDatabase) {
 
-    // Emit cached data immediately, then fetch fresh from Supabase and update cache
     fun getMessages(groupId: Long): Flow<List<CachedMessage>> = flow {
-        // 1. Emit cached data immediately
         emit(db.messageDao().getMessages(groupId))
 
-        // 2. Fetch fresh from Supabase
+        val cacheKey = CacheKeys.messageReads(groupId)
+        val ts = db.jsonBlobDao().get(cacheKey)
+        val isStale = ts == null || (System.currentTimeMillis() - ts.fetchedAt) > CacheKeys.STALE_READS
+        if (!isStale) return@flow
+
         val fresh = withContext(Dispatchers.IO) {
             val raw = DeclareDatabase.groupMessagesTable.select {
                 filter { eq("group_id", groupId) }
@@ -37,10 +41,10 @@ class GroupRepository(private val db: AppDatabase) {
             } else emptyList()
             val usersById = users.associateBy { it.id }
 
-            raw.filter { !it.isDeleted }.map { msg ->
+            raw.filter { !it.isDeleted }.mapNotNull { msg ->
                 val sender = usersById[msg.userId]
                 CachedMessage(
-                    id = msg.id ?: return@map null,
+                    id = msg.id ?: return@mapNotNull null,
                     groupId = msg.groupId ?: groupId,
                     userId = msg.userId ?: 0L,
                     message = msg.message,
@@ -51,22 +55,23 @@ class GroupRepository(private val db: AppDatabase) {
                     senderName = sender?.username,
                     senderProfileImage = sender?.id?.let { "$it/$it.jpg" }
                 )
-            }.filterNotNull()
+            }
         }
 
-        // 3. Save to Room
         db.messageDao().deleteByGroup(groupId)
         db.messageDao().insertAll(fresh)
-
-        // 4. Emit updated data
+        db.jsonBlobDao().upsert(CachedJsonBlob(cacheKey, "1", System.currentTimeMillis()))
         emit(fresh)
     }.flowOn(Dispatchers.IO)
 
     fun getTransactions(groupId: Long): Flow<List<CachedTransaction>> = flow {
-        // 1. Emit cached data immediately
         emit(db.transactionDao().getTransactions(groupId))
 
-        // 2. Fetch fresh from Supabase
+        val cacheKey = CacheKeys.groupExpenses(groupId)
+        val ts = db.jsonBlobDao().get(cacheKey)
+        val isStale = ts == null || (System.currentTimeMillis() - ts.fetchedAt) > CacheKeys.STALE_TRANSACTIONS
+        if (!isStale) return@flow
+
         val fresh = withContext(Dispatchers.IO) {
             DeclareDatabase.transactionsTable.select {
                 filter { eq("group_id", groupId) }
@@ -85,11 +90,17 @@ class GroupRepository(private val db: AppDatabase) {
             }
         }
 
-        // 3. Save to Room
         db.transactionDao().deleteByGroup(groupId)
         db.transactionDao().insertAll(fresh)
-
-        // 4. Emit updated data
+        db.jsonBlobDao().upsert(CachedJsonBlob(cacheKey, "1", System.currentTimeMillis()))
         emit(fresh)
     }.flowOn(Dispatchers.IO)
+
+    suspend fun invalidateMessages(groupId: Long) {
+        db.jsonBlobDao().delete(CacheKeys.messageReads(groupId))
+    }
+
+    suspend fun invalidateTransactions(groupId: Long) {
+        db.jsonBlobDao().delete(CacheKeys.groupExpenses(groupId))
+    }
 }

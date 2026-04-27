@@ -17,13 +17,17 @@ import androidx.recyclerview.widget.RecyclerView
 import coil.load
 import coil.transform.RoundedCornersTransformation
 import com.google.android.material.floatingactionbutton.FloatingActionButton
+import com.waray.spendhound.data.repository.GroupListItem
 import com.waray.spendhound.ui.group.GroupDetailViewModel
+import com.waray.spendhound.ui.group.GroupsListViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class GroupsActivity : AppCompatActivity() {
 
     private val groupDetailViewModel: GroupDetailViewModel by viewModels()
+    private val groupsListViewModel: GroupsListViewModel by viewModels()
 
     private lateinit var rvGroups: RecyclerView
     private lateinit var rvSkeleton: RecyclerView
@@ -62,12 +66,32 @@ class GroupsActivity : AppCompatActivity() {
             startActivity(android.content.Intent(this, CreateGroupActivity::class.java))
         }
 
+        observeViewModel()
         fetchCurrentUser()
+    }
+
+    private fun observeViewModel() {
+        lifecycleScope.launch {
+            groupsListViewModel.groups.collectLatest { items ->
+                if (items.isEmpty() && groups.isEmpty()) return@collectLatest
+                val cardDataMap = items.associate { it.group.groupId!! to it.cardData }
+                groups.clear()
+                items.forEach { groups.add(Pair(it.group, it.members)) }
+                runOnUiThread {
+                    val isEmpty = groups.isEmpty()
+                    emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
+                    rvGroups.visibility = if (isEmpty) View.GONE else View.VISIBLE
+                    tvGroupCount.text = "${groups.size} group${if (groups.size != 1) "s" else ""}"
+                    if (!isEmpty) rvGroups.adapter = GroupAdapter(groups, cardDataMap)
+                    hideLoading()
+                }
+            }
+        }
     }
 
     override fun onResume() {
         super.onResume()
-        if (currentUserId != null) loadGroups()
+        currentUserId?.let { groupsListViewModel.load(it, allUsers) }
     }
 
     private fun fetchCurrentUser() {
@@ -79,19 +103,22 @@ class GroupsActivity : AppCompatActivity() {
                     filter { eq("auth_id", authId) }
                 }.decodeSingleOrNull<User>()
                 currentUserId = user?.id
-                allUsers = DeclareDatabase.usersTable.select {
-                    // select only needed columns
-                }.decodeList<User>()
-                loadGroups()
+                allUsers = DeclareDatabase.usersTable.select().decodeList<User>()
+                val uid = currentUserId ?: return@launch
+                runOnUiThread { groupsListViewModel.load(uid, allUsers) }
             } catch (e: Exception) {
-                runOnUiThread { hideLoading() }
-                toast("Failed to load user: ${e.message}")
+                runOnUiThread { hideLoading(); toast("Failed to load user: ${e.message}") }
             }
         }
     }
 
+    fun invalidateAndReload() {
+        val uid = currentUserId ?: return
+        groupsListViewModel.invalidate(uid, allUsers)
+    }
+
     @SuppressLint("NotifyDataSetChanged")
-    private fun loadGroups() {
+    private fun loadGroups_UNUSED() {
         val userId = currentUserId ?: return
         showLoading()
         lifecycleScope.launch(Dispatchers.IO) {

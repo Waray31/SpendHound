@@ -6,13 +6,14 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [CachedMessage::class, CachedTransaction::class],
-    version = 1,
+    entities = [CachedMessage::class, CachedTransaction::class, CachedJsonBlob::class],
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
     abstract fun messageDao(): MessageDao
     abstract fun transactionDao(): TransactionDao
+    abstract fun jsonBlobDao(): JsonBlobDao
 
     companion object {
         @Volatile private var INSTANCE: AppDatabase? = null

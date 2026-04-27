@@ -21,6 +21,7 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import coil.load
 import coil.request.CachePolicy
@@ -50,6 +51,7 @@ import com.waray.spendhound.TransactionRead
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
@@ -57,6 +59,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 
 class ProfileFragment : Fragment() {
+    private val viewModel: ProfileViewModel by viewModels()
     private var profileImageView: ImageView? = null
     private var nicknameTextView: TextView? = null
     private var nicknameSkeleton: View? = null
@@ -149,6 +152,47 @@ class ProfileFragment : Fragment() {
         return view
     }
 
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+        observeViewModel()
+    }
+
+    private fun observeViewModel() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.profile.collectLatest { data ->
+                data ?: return@collectLatest
+                val nickname = data.nickname
+                if (nicknameTextView?.text != nickname) nicknameTextView?.text = nickname
+                nicknameSkeleton?.visibility = View.GONE
+                nicknameTextView?.visibility = View.VISIBLE
+                userStatsSkeletonLayout?.visibility = View.GONE
+                userStatsLayout?.visibility = View.VISIBLE
+                transactionsCountTextView?.text = data.transactionsCount.toString()
+                groupsCountTextView?.text = data.groupsCount.toString()
+                if (totalTextView?.text == getString(R.string.label_borrowed)) {
+                    totalBalancedTextView?.text = data.activeBorrowsCount.toString()
+                }
+                // Load profile image via Coil (disk cache handles 10-min freshness)
+                profileImageView?.let { setProfileImage(it) }
+            }
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewModel.groups.collectLatest { items ->
+                groupsSkeletonLayout?.visibility = View.GONE
+                if (items.isEmpty()) {
+                    emptyGroupsLayout?.visibility = View.VISIBLE
+                    groupsRecyclerView?.visibility = View.GONE
+                    breakdownBtn?.text = "Create group"
+                } else {
+                    emptyGroupsLayout?.visibility = View.GONE
+                    groupsRecyclerView?.visibility = View.VISIBLE
+                    breakdownBtn?.text = getString(R.string.label_see_all_groups)
+                    profileGroupsAdapter?.updateItems(items)
+                }
+            }
+        }
+    }
+
     override fun onResume() {
         super.onResume()
         loadNicknameAndData()
@@ -220,10 +264,8 @@ class ProfileFragment : Fragment() {
     }
 
     internal fun loadNicknameAndData() {
-        // Refresh profile image
-        profileImageView?.let { setProfileImage(it) }
-
-        // Only show skeletons if we don't have data yet
+        val authId = mAuth?.currentUserOrNull()?.id ?: return
+        // Show skeletons only on first load (no data yet)
         val isFirstLoad = nicknameTextView?.text.isNullOrBlank() || nicknameTextView?.visibility == View.GONE
         if (isFirstLoad) {
             nicknameSkeleton?.visibility = View.VISIBLE
@@ -231,287 +273,35 @@ class ProfileFragment : Fragment() {
             userStatsSkeletonLayout?.visibility = View.VISIBLE
             userStatsLayout?.visibility = View.GONE
         }
-
-        val authId = mAuth?.currentUserOrNull()?.id
-        Log.d("ProfileFragment", "loadNicknameAndData - authId: $authId")
-        if (authId == null) {
-            Log.e("ProfileFragment", "authId is null")
-            return
-        }
+        // Resolve userId then delegate to ViewModel (emits cache first, network if stale)
         lifecycleScope.launch {
             try {
-                // Step 1: Fetch user from users table
                 val user = withContext(Dispatchers.IO) {
-                    Log.d("ProfileFragment", "Fetching user with authId: $authId")
-                    DeclareDatabase.usersTable.select(Columns.list("user_id", "username", "profile_image_url")) {
+                    DeclareDatabase.usersTable.select(Columns.list("user_id", "username")) {
                         filter { eq("auth_id", authId) }
                     }.decodeSingleOrNull<User>()
                 }
-                Log.d("ProfileFragment", "User fetched: $user")
-                Log.d("ProfileFragment", "Username: ${user?.username}")
-
-                // Step 2: Fetch user balance from user_balance table using user_id
-                var userBalance: UserBalance? = null
-                var transactionsCount = 0
-                var groupsCount = 0
-                var activeBorrowsCount = 0
-
-                if (user?.id != null) {
-                    val userId = user.id
-                    userBalance = withContext(Dispatchers.IO) {
-                        Log.d("ProfileFragment", "Fetching user balance with user_id: $userId")
-                        DeclareDatabase.userBalanceTable.select(Columns.list(
-                            "unpaid_total_group", "unpaid_total_individual",
-                            "receivable_total_group", "receivable_total_individual",
-                            "balance_total_group", "balance_total_individual"
-                        )) {
+                user?.id?.let { userId ->
+                    viewModel.load(userId, authId)
+                    // Also fetch balance for the legacy balance/owe/debt buttons
+                    val userBalance = withContext(Dispatchers.IO) {
+                        DeclareDatabase.userBalanceTable.select {
                             filter { eq("user_id", userId) }
                         }.decodeSingleOrNull<UserBalance>()
                     }
-
-                    // Fetch Transactions Count (Involved in and Pending: status 2)
-                    transactionsCount = withContext(Dispatchers.IO) {
-                        try {
-                            // 1. Get unique transaction IDs where user is involved via splits
-                            val involvedSplitTxIds = DeclareDatabase.transactionSplitsTable.select(Columns.list("transaction_id")) {
-                                filter { eq("user_id", userId) }
-                            }.decodeList<TransactionSplitTable>().mapNotNull { it.transactionId }.toSet()
-
-                            // 2. Fetch transactions that are both in that involved set AND have status 2 (pending)
-                            if (involvedSplitTxIds.isEmpty()) {
-                                0
-                            } else {
-                                val pendingInvolved = DeclareDatabase.transactionsTable.select(Columns.list("id")) {
-                                    filter {
-                                        isIn("id", involvedSplitTxIds.toList())
-                                        eq("status", 2)
-                                    }
-                                }.decodeList<TransactionFull>()
-                                pendingInvolved.size
-                            }
-                        } catch (e: Exception) {
-                            Log.e("ProfileFragment", "Error counting transactions", e)
-                            0
-                        }
-                    }
-
-                    // Fetch Groups Count
-                    groupsCount = withContext(Dispatchers.IO) {
-                        try {
-                            val members = DeclareDatabase.groupMembersTable.select(Columns.list("group_id")) {
-                                filter { eq("user_id", userId) }
-                            }.decodeList<GroupMember>()
-                            members.size
-                        } catch (e: Exception) {
-                            Log.e("ProfileFragment", "Error counting groups", e)
-                            0
-                        }
-                    }
-
-                    // Fetch Active Borrows Count (Status 1: Approval, 2: Pending, 7: Partial)
-                    activeBorrowsCount = withContext(Dispatchers.IO) {
-                        try {
-                            val borrows = DeclareDatabase.borrowsTable.select(Columns.list("id")) {
-                                filter {
-                                    eq("borrower_id", userId)
-                                    or {
-                                        eq("status", 1)
-                                        eq("status", 2)
-                                        eq("status", 7)
-                                    }
-                                }
-                            }.decodeList<BorrowNowTransaction>()
-                            borrows.size
-                        } catch (e: Exception) {
-                            Log.e("ProfileFragment", "Error counting borrows", e)
-                            0
-                        }
-                    }
-                    Log.d("ProfileFragment", "Data counts - Trans: $transactionsCount, Groups: $groupsCount, Borrows: $activeBorrowsCount")
-                }
-
-                // Update UI on Main thread
-                withContext(Dispatchers.Main) {
-                    val nickname = user?.username ?: ""
-                    Log.d("ProfileFragment", "Setting nicknameTextView to: $nickname")
-                    
-                    // Only update if changed to avoid flicker
-                    if (nicknameTextView?.text != nickname) {
-                        nicknameTextView?.text = nickname
-                    }
-
-                    // Hide skeletons, show real content
-                    nicknameSkeleton?.visibility = View.GONE
-                    nicknameTextView?.visibility = View.VISIBLE
-                    userStatsSkeletonLayout?.visibility = View.GONE
-                    userStatsLayout?.visibility = View.VISIBLE
-
-                    // Extract balance data from user_balance table
-                    val unpaidGroup = userBalance?.unpaidTotalGroup ?: 0.0
-                    val unpaidIndividual = userBalance?.unpaidTotalIndividual ?: 0.0
-                    val receivableGroup = userBalance?.receivableTotalGroup ?: 0.0
-                    val receivableIndividual = userBalance?.receivableTotalIndividual ?: 0.0
-                    val balanceGroup = userBalance?.balanceTotalGroup ?: 0.0
-                    val balanceIndividual = userBalance?.balanceTotalIndividual ?: 0.0
-
-                    // Set balance and unpaid values
-                    balance = balanceGroup  // Total balance to show
-                    unpaid = unpaidGroup    // Total unpaid balance
-                    currentOwe = receivableIndividual  // Total owed to user
-                    currentDebt = unpaidIndividual     // Total debt of user
-
-                    // Only update text if it's currently showing the "Total Balanced" view
-                    // (Profile tab uses this text view for multiple things depending on which button is clicked)
-                    // But usually on fresh load it shows active borrows
-                    if (totalTextView?.text == getString(R.string.label_borrowed)) {
-                        totalBalancedTextView?.text = activeBorrowsCount.toString()
-                    }
-
-                    // Update stats
-                    transactionsCountTextView?.text = transactionsCount.toString()
-                    groupsCountTextView?.text = groupsCount.toString()
-
-                    user?.id?.let { loadTopGroups(it) }
-
-                    Log.d("ProfileFragment", "UI Updated - balance: $balance, unpaid: $unpaid, owe: $currentOwe, debt: $currentDebt")
+                    balance = userBalance?.balanceTotalGroup ?: 0.0
+                    unpaid = userBalance?.unpaidTotalGroup ?: 0.0
+                    currentOwe = userBalance?.receivableTotalIndividual ?: 0.0
+                    currentDebt = userBalance?.unpaidTotalIndividual ?: 0.0
                 }
             } catch (e: Exception) {
-                Log.e("ProfileFragment", "Error loading user data: ${e.message}", e)
-                e.printStackTrace()
-                withContext(Dispatchers.Main) {
-                    // Only show skeletons on error if we have NO data at all
-                    if (nicknameTextView?.text.isNullOrBlank()) {
-                        nicknameSkeleton?.visibility = View.VISIBLE
-                        nicknameTextView?.visibility = View.GONE
-                        userStatsSkeletonLayout?.visibility = View.VISIBLE
-                        userStatsLayout?.visibility = View.GONE
-                    }
-                }
+                Log.e("ProfileFragment", "Error resolving user: ${e.message}")
             }
         }
     }
 
 
-    private fun loadTopGroups(userId: Long) {
-        // Show skeleton while loading
-        groupsSkeletonLayout?.visibility = View.VISIBLE
-        groupsRecyclerView?.visibility = View.GONE
-        emptyGroupsLayout?.visibility = View.GONE
-
-        lifecycleScope.launch {
-            try {
-                // 1. Get all groups user is member of
-                val memberEntries = withContext(Dispatchers.IO) {
-                    DeclareDatabase.groupMembersTable.select(Columns.list("group_id")) {
-                        filter { eq("user_id", userId) }
-                    }.decodeList<GroupMember>()
-                }
-                val groupIds = memberEntries.mapNotNull { it.groupId }
-                if (groupIds.isEmpty()) {
-                    withContext(Dispatchers.Main) {
-                        groupsSkeletonLayout?.visibility = View.GONE
-                        groupsRecyclerView?.visibility = View.GONE
-                        emptyGroupsLayout?.visibility = View.VISIBLE
-                        breakdownBtn?.text = "Create group"
-                        profileGroupsAdapter?.updateItems(emptyList())
-                    }
-                    return@launch
-                }
-
-                // 2. For each group, get activity and unread counts
-                val profileGroupItems = withContext(Dispatchers.IO) {
-                    groupIds.map { groupId ->
-                        val group = DeclareDatabase.groupsTable.select {
-                            filter { eq("group_id", groupId) }
-                        }.decodeSingle<PayerGroup>()
-
-                        val members = DeclareDatabase.groupMembersTable.select(Columns.list("user_id")) {
-                            filter { eq("group_id", groupId) }
-                        }.decodeList<GroupMember>()
-
-                        // Optimized unread messages fetch using group_id
-                        val lastReadMessage = DeclareDatabase.messageReadsTable.select(Columns.list("message_id")) {
-                            filter {
-                                eq("group_id", groupId)
-                                eq("user_id", userId)
-                            }
-                            order("message_id", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
-                            limit(1)
-                        }.decodeSingleOrNull<MessageRead>()
-
-                        val unreadMessagesCount = if (lastReadMessage != null) {
-                            DeclareDatabase.groupMessagesTable.select(Columns.list("id")) {
-                                filter {
-                                    eq("group_id", groupId)
-                                    gt("id", lastReadMessage.messageId!!)
-                                    neq("user_id", userId)
-                                }
-                            }.decodeList<GroupMessage>().size
-                        } else {
-                            DeclareDatabase.groupMessagesTable.select(Columns.list("id")) {
-                                filter {
-                                    eq("group_id", groupId)
-                                    neq("user_id", userId)
-                                }
-                            }.decodeList<GroupMessage>().size
-                        }
-
-                        // Fetch unread transactions using transaction_reads
-                        val readTxIds = DeclareDatabase.transactionReadsTable.select(Columns.list("transaction_id")) {
-                            filter {
-                                eq("group_id", groupId)
-                                eq("user_id", userId)
-                            }
-                        }.decodeList<TransactionRead>().mapNotNull { it.transactionId }.toSet()
-
-                        val unreadTransactionsCount = DeclareDatabase.transactionsTable.select(Columns.list("id")) {
-                            filter {
-                                eq("group_id", groupId)
-                                neq("created_by", userId)
-                            }
-                        }.decodeList<TransactionFull>().filter { it.id !in readTxIds }.size
-
-                        // Get latest activity timestamp (either message or transaction)
-                        val latestMessage = DeclareDatabase.groupMessagesTable.select(Columns.list("created_at")) {
-                            filter { eq("group_id", groupId) }
-                            order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
-                            limit(1)
-                        }.decodeSingleOrNull<GroupMessage>()
-
-                        val latestTransaction = DeclareDatabase.transactionsTable.select(Columns.list("created_at")) {
-                            filter { eq("group_id", groupId) }
-                            order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
-                            limit(1)
-                        }.decodeSingleOrNull<TransactionFull>()
-
-                        val activityTime = listOfNotNull(latestMessage?.createdAt, latestTransaction?.createdAt).maxOrNull() ?: ""
-
-                        ProfileGroupItem(group, members.size, unreadTransactionsCount, unreadMessagesCount) to activityTime
-                    }
-                }
-
-                // 3. Sort by activity and take top 3
-                val top3 = profileGroupItems
-                    .sortedByDescending { it.second }
-                    .take(3)
-                    .map { it.first }
-
-                withContext(Dispatchers.Main) {
-                    groupsSkeletonLayout?.visibility = View.GONE
-                    emptyGroupsLayout?.visibility = View.GONE
-                    groupsRecyclerView?.visibility = View.VISIBLE
-                    breakdownBtn?.text = getString(R.string.label_see_all_groups)
-                    profileGroupsAdapter?.updateItems(top3)
-                }
-
-            } catch (e: Exception) {
-                Log.e("ProfileFragment", "Error loading top groups", e)
-                withContext(Dispatchers.Main) {
-                    groupsSkeletonLayout?.visibility = View.GONE
-                }
-            }
-        }
-    }
+    // loadTopGroups is now handled by ProfileViewModel + observeViewModel()
 
 
     private fun setupBalanceButton() {

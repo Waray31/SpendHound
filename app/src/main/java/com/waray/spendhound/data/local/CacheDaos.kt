@@ -32,3 +32,18 @@ interface TransactionDao {
     @Query("DELETE FROM cached_transactions WHERE groupId = :groupId")
     suspend fun deleteByGroup(groupId: Long)
 }
+
+@Dao
+interface JsonBlobDao {
+    @Query("SELECT * FROM cached_json_blobs WHERE `key` = :key")
+    suspend fun get(key: String): CachedJsonBlob?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(blob: CachedJsonBlob)
+
+    @Query("DELETE FROM cached_json_blobs WHERE `key` = :key")
+    suspend fun delete(key: String)
+
+    @Query("DELETE FROM cached_json_blobs WHERE `key` LIKE :prefix || '%'")
+    suspend fun deleteByPrefix(prefix: String)
+}

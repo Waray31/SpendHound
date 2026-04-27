@@ -27,3 +27,10 @@ data class CachedTransaction(
     val createdBy: Long?,
     val createdAt: String?
 )
+
+@Entity(tableName = "cached_json_blobs")
+data class CachedJsonBlob(
+    @PrimaryKey val key: String,
+    val json: String,
+    val fetchedAt: Long
+)

@@ -1,27 +1,27 @@
-package com.waray.spendhound.ui.borrow
+package com.waray.spendhound.ui.transactions
 
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.waray.spendhound.RecentTransaction
 import com.waray.spendhound.SpendHoundApplication
-import com.waray.spendhound.data.repository.BorrowData
-import com.waray.spendhound.data.repository.BorrowRepository
+import com.waray.spendhound.data.repository.TransactionRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
-class BorrowViewModel(app: Application) : AndroidViewModel(app) {
+class TransactionsViewModel(app: Application) : AndroidViewModel(app) {
 
     private val db = (app as SpendHoundApplication).database
-    private val repo = BorrowRepository(db)
+    private val repo = TransactionRepository(db)
 
-    private val _borrowData = MutableStateFlow<BorrowData?>(null)
-    val borrowData: StateFlow<BorrowData?> = _borrowData
+    private val _transactions = MutableStateFlow<List<RecentTransaction>>(emptyList())
+    val transactions: StateFlow<List<RecentTransaction>> = _transactions
 
     fun load(userId: Long) {
         viewModelScope.launch {
-            repo.getBorrowData(userId).collectLatest { _borrowData.value = it }
+            repo.getTransactions(userId).collectLatest { _transactions.value = it }
         }
     }
 
