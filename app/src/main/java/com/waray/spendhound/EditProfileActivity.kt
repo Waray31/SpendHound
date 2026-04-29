@@ -105,8 +105,48 @@ class EditProfileActivity : AppCompatActivity() {
                 currentUser?.let {
                     etNickname.setText(it.username)
                     etEmail.setText(it.email)
+                    
+                    // Get CardView reference
+                    val cardView = findViewById<androidx.cardview.widget.CardView>(R.id.editProfileCardView)
+                    
                     if (!it.profileImageUrl.isNullOrEmpty() && it.profileImageUrl != "placeholder_profile_image") {
-                        Glide.with(this@EditProfileActivity).load(it.profileImageUrl).centerCrop().into(editProfileImage)
+                        Glide.with(this@EditProfileActivity)
+                            .load(it.profileImageUrl)
+                            .centerCrop()
+                            .listener(object : com.bumptech.glide.request.RequestListener<android.graphics.drawable.Drawable> {
+                                override fun onLoadFailed(
+                                    e: com.bumptech.glide.load.engine.GlideException?,
+                                    model: Any?,
+                                    target: com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable>?,
+                                    isFirstResource: Boolean
+                                ): Boolean {
+                                    // Error loading image - remove tint, add padding, and set orange background
+                                    editProfileImage.imageTintList = null
+                                    editProfileImage.setPadding(4.dpToPx(), 4.dpToPx(), 4.dpToPx(), 4.dpToPx())
+                                    cardView.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(this@EditProfileActivity, R.color.orange))
+                                    return false
+                                }
+                                
+                                override fun onResourceReady(
+                                    resource: android.graphics.drawable.Drawable?,
+                                    model: Any?,
+                                    target: com.bumptech.glide.request.target.Target<android.graphics.drawable.Drawable>?,
+                                    dataSource: com.bumptech.glide.load.DataSource?,
+                                    isFirstResource: Boolean
+                                ): Boolean {
+                                    // Successfully loaded image - remove tint, remove padding, and set orange background
+                                    editProfileImage.imageTintList = null
+                                    editProfileImage.setPadding(0, 0, 0, 0)
+                                    cardView.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(this@EditProfileActivity, R.color.orange))
+                                    return false
+                                }
+                            })
+                            .into(editProfileImage)
+                    } else {
+                        // No uploaded image - remove tint, add padding, and set orange background
+                        editProfileImage.imageTintList = null
+                        editProfileImage.setPadding(4.dpToPx(), 4.dpToPx(), 4.dpToPx(), 4.dpToPx())
+                        cardView.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(this@EditProfileActivity, R.color.orange))
                     }
                 }
                 updatePasskeyRow()
@@ -277,5 +317,9 @@ class EditProfileActivity : AppCompatActivity() {
                 loadingOverlay_editProfile.visibility = View.GONE
             }
         }
+    }
+
+    private fun Int.dpToPx(): Int {
+        return (this * resources.displayMetrics.density).toInt()
     }
 }

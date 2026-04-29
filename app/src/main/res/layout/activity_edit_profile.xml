@@ -71,9 +71,10 @@
                             android:layout_marginBottom="24dp">
 
                             <androidx.cardview.widget.CardView
+                                android:id="@+id/editProfileCardView"
                                 android:layout_width="100dp"
                                 android:layout_height="100dp"
-                                app:cardBackgroundColor="#FF9800"
+                                app:cardBackgroundColor="@color/white"
                                 app:cardCornerRadius="50dp"
                                 android:layout_margin="4dp"
                                 android:elevation="4dp">
@@ -84,7 +85,8 @@
                                     android:layout_height="match_parent"
                                     android:contentDescription="@string/profile_image_description"
                                     android:scaleType="centerCrop"
-                                    android:src="@drawable/placeholder_profile_image" />
+                                    android:src="@drawable/placeholder_profile_image"
+                                    app:tint="@color/lightgrey" />
                             </androidx.cardview.widget.CardView>
 
                             <com.google.android.material.floatingactionbutton.FloatingActionButton

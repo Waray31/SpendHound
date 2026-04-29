@@ -282,17 +282,36 @@ class GroupsActivity : AppCompatActivity() {
                 startActivity(intent)
             }
 
+            // Get CardView reference
+            val cardView = holder.itemView.findViewById<androidx.cardview.widget.CardView>(R.id.groupListCardView)
+
             if (!group.groupImageUrl.isNullOrBlank()) {
-                holder.ivGroupIcon.imageTintList = null
                 holder.ivGroupIcon.load(group.groupImageUrl) {
                     crossfade(true)
-                    placeholder(R.drawable.skeleton_shape)
+                    placeholder(R.drawable.add_group)
                     error(R.drawable.add_group)
                     transformations(RoundedCornersTransformation(48f))
+                    listener(
+                        onSuccess = { _, _ ->
+                            // Successfully loaded image - remove tint, remove padding, and set orange background
+                            holder.ivGroupIcon.imageTintList = null
+                            holder.ivGroupIcon.setPadding(0, 0, 0, 0)
+                            cardView?.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.orange))
+                        },
+                        onError = { _, _ ->
+                            // Error loading image - remove tint, add padding, and set orange background
+                            holder.ivGroupIcon.imageTintList = null
+                            holder.ivGroupIcon.setPadding(10.dpToPx(holder.itemView.context), 10.dpToPx(holder.itemView.context), 10.dpToPx(holder.itemView.context), 10.dpToPx(holder.itemView.context))
+                            cardView?.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.orange))
+                        }
+                    )
                 }
             } else {
+                // No group image URL - remove tint, add padding, and set orange background
                 holder.ivGroupIcon.setImageResource(R.drawable.add_group)
-                holder.ivGroupIcon.imageTintList = android.content.res.ColorStateList.valueOf(android.graphics.Color.parseColor("#7B2FBE"))
+                holder.ivGroupIcon.imageTintList = null
+                holder.ivGroupIcon.setPadding(10.dpToPx(holder.itemView.context), 10.dpToPx(holder.itemView.context), 10.dpToPx(holder.itemView.context), 10.dpToPx(holder.itemView.context))
+                cardView?.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.orange))
             }
 
             val data = cardDataMap[group.groupId] ?: GroupCardData(0.0, 0, 0.0, 0)
@@ -309,4 +328,8 @@ class GroupsActivity : AppCompatActivity() {
             }
         }
     }
+}
+
+private fun Int.dpToPx(context: android.content.Context): Int {
+    return (this * context.resources.displayMetrics.density).toInt()
 }

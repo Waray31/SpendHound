@@ -71,11 +71,11 @@
 
 
                     <androidx.cardview.widget.CardView
+                        android:id="@+id/profileCardView"
                         android:layout_width="100dp"
                         android:layout_height="100dp"
                         android:layout_margin="4dp"
-                        android:elevation="4dp"
-                        app:cardBackgroundColor="#FF9800"
+                        app:cardBackgroundColor="@color/white"
                         app:cardCornerRadius="50dp">
 
                         <ImageView
@@ -84,7 +84,8 @@
                             android:layout_height="match_parent"
                             android:contentDescription="@string/profile_image_description"
                             android:scaleType="centerCrop"
-                            android:src="@drawable/placeholder_profile_image" />
+                            android:src="@drawable/placeholder_profile_image"
+                            app:tint="@color/lightgrey" />
                     </androidx.cardview.widget.CardView>
 
                     <LinearLayout

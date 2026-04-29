@@ -48,16 +48,37 @@ class ProfileGroupsAdapter(
         holder.groupName.text = item.group.groupName
         holder.groupMembers.text = "${item.memberCount} members"
 
+        // Get CardView reference
+        val cardView = holder.itemView.findViewById<androidx.cardview.widget.CardView>(R.id.groupProfileCardView)
+
         // Load group icon
         if (!item.group.groupImageUrl.isNullOrBlank()) {
             holder.groupIcon.load(item.group.groupImageUrl) {
                 crossfade(true)
-                placeholder(R.drawable.bg_icon_purple)
-                error(R.drawable.house)
+                placeholder(R.drawable.add_group)
+                error(R.drawable.add_group)
                 transformations(CircleCropTransformation())
+                listener(
+                    onSuccess = { _, _ ->
+                        // Successfully loaded image - remove tint, remove padding, and set orange background
+                        holder.groupIcon.imageTintList = null
+                        holder.groupIcon.setPadding(0, 0, 0, 0)
+                        cardView?.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.orange))
+                    },
+                    onError = { _, _ ->
+                        // Error loading image - remove tint, add padding, and set orange background
+                        holder.groupIcon.imageTintList = null
+                        holder.groupIcon.setPadding(4.dpToPx(holder.itemView.context), 4.dpToPx(holder.itemView.context), 4.dpToPx(holder.itemView.context), 4.dpToPx(holder.itemView.context))
+                        cardView?.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.orange))
+                    }
+                )
             }
         } else {
-            holder.groupIcon.setImageResource(R.drawable.house)
+            // No group image URL - remove tint, add padding, and set orange background
+            holder.groupIcon.setImageResource(R.drawable.add_group)
+            holder.groupIcon.imageTintList = null
+            holder.groupIcon.setPadding(4.dpToPx(holder.itemView.context), 4.dpToPx(holder.itemView.context), 4.dpToPx(holder.itemView.context), 4.dpToPx(holder.itemView.context))
+            cardView?.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.orange))
         }
 
         if (item.unreadTransactions > 0) {
@@ -91,4 +112,8 @@ class ProfileGroupsAdapter(
         items = newItems
         notifyDataSetChanged()
     }
+}
+
+private fun Int.dpToPx(context: android.content.Context): Int {
+    return (this * context.resources.displayMetrics.density).toInt()
 }

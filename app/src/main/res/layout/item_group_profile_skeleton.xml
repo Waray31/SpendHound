@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.facebook.shimmer.ShimmerFrameLayout android:id="@+id/groupProfile_image_shimmer"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- Placeholder shown while loading -->
+    <ImageView
+        android:id="@+id/profile_image_placeholder"
+        android:padding="4dp"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:src="@drawable/add_group"
+        app:tint="@color/lightgrey" />
+
+</com.facebook.shimmer.ShimmerFrameLayout>

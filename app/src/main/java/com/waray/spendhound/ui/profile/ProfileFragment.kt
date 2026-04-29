@@ -207,6 +207,9 @@ class ProfileFragment : Fragment() {
             return
         }
 
+        // Get CardView reference
+        val cardView = view?.findViewById<androidx.cardview.widget.CardView>(R.id.profileCardView)
+
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 // Remove updated_at from column list as it doesn't exist in the DB schema
@@ -217,7 +220,11 @@ class ProfileFragment : Fragment() {
                 val profileUrl = user?.profileImageUrl
                 if (profileUrl == null || profileUrl == "placeholder_profile_image") {
                     withContext(Dispatchers.Main) {
+                        // No uploaded image - remove tint, set orange background, and add padding
                         imageView.setImageResource(R.drawable.placeholder_profile_image)
+                        imageView.imageTintList = null
+                        imageView.setPadding(4.dpToPx(), 4.dpToPx(), 4.dpToPx(), 4.dpToPx())
+                        cardView?.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.orange))
                     }
                     return@launch
                 }
@@ -233,15 +240,37 @@ class ProfileFragment : Fragment() {
                             placeholder(R.drawable.placeholder_profile_image)
                             error(R.drawable.placeholder_profile_image)
                             transformations(CircleCropTransformation())
+                            listener(
+                                onSuccess = { _, _ ->
+                                    // Successfully loaded image - remove tint, remove padding, and set orange background
+                                    imageView.imageTintList = null
+                                    imageView.setPadding(0, 0, 0, 0)
+                                    cardView?.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.orange))
+                                },
+                                onError = { _, _ ->
+                                    // Error loading image - remove tint, add padding, and set orange background
+                                    imageView.imageTintList = null
+                                    imageView.setPadding(4.dpToPx(), 4.dpToPx(), 4.dpToPx(), 4.dpToPx())
+                                    cardView?.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.orange))
+                                }
+                            )
                         }
                     } else {
+                        // No valid URL - remove tint, add padding, and set orange background
                         imageView.setImageResource(R.drawable.placeholder_profile_image)
+                        imageView.imageTintList = null
+                        imageView.setPadding(4.dpToPx(), 4.dpToPx(), 4.dpToPx(), 4.dpToPx())
+                        cardView?.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.orange))
                     }
                 }
             } catch (e: Exception) {
                 Log.e("ProfileFragment", "setProfileImage error: ${e.message}", e)
                 withContext(Dispatchers.Main) {
+                    // Error - remove tint, add padding, and set orange background
                     imageView.setImageResource(R.drawable.placeholder_profile_image)
+                    imageView.imageTintList = null
+                    imageView.setPadding(4.dpToPx(), 4.dpToPx(), 4.dpToPx(), 4.dpToPx())
+                    cardView?.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.orange))
                 }
             }
         }
@@ -734,5 +763,9 @@ class ProfileFragment : Fragment() {
         private const val REQUEST_IMAGE_CAPTURE = 1
         private const val REQUEST_IMAGE_PICK = 2
         private const val REQUEST_EDIT_PROFILE = 3
+    }
+
+    private fun Int.dpToPx(): Int {
+        return (this * resources.displayMetrics.density).toInt()
     }
 }

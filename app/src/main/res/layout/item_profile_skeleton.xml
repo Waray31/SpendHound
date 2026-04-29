@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.facebook.shimmer.ShimmerFrameLayout android:id="@+id/profile_image_shimmer"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <!-- Placeholder shown while loading -->
+    <ImageView
+        android:id="@+id/profile_image_placeholder"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:src="@drawable/placeholder_profile_image"
+        app:tint="@color/lightgrey" />
+
+</com.facebook.shimmer.ShimmerFrameLayout>

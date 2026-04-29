@@ -24,7 +24,7 @@
             android:orientation="horizontal">
 
             <androidx.cardview.widget.CardView
-                android:id="@+id/iconContainer"
+                android:id="@+id/groupListCardView"
                 android:layout_width="48dp"
                 android:layout_height="48dp"
                 android:background="@drawable/bg_profile_card"
@@ -38,7 +38,7 @@
                     android:layout_height="match_parent"
                     android:padding="10dp"
                     android:src="@drawable/add_group"
-                    app:tint="@color/orange"/>
+                    app:tint="@color/lightgrey"/>
 
             </androidx.cardview.widget.CardView>
 

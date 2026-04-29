@@ -110,13 +110,32 @@ class GroupDetailActivity : AppCompatActivity() {
 
         val iv = findViewById<ImageView>(R.id.ivGroupIcon)
         if (!group.groupImageUrl.isNullOrBlank()) {
-            iv.imageTintList = null
             iv.load(group.groupImageUrl) {
                 crossfade(true)
-                placeholder(R.drawable.skeleton_shape)
+                placeholder(R.drawable.add_group)
                 error(R.drawable.add_group)
                 transformations(RoundedCornersTransformation(48f))
+                listener(
+                    onSuccess = { _, _ ->
+                        // Successfully loaded image - remove tint and remove padding
+                        iv.imageTintList = null
+                        iv.setPadding(0, 0, 0, 0)
+                        // Background is already set in XML as white with circular background
+                    },
+                    onError = { _, _ ->
+                        // Error loading image - remove tint and add padding
+                        iv.imageTintList = null
+                        iv.setPadding(8.dpToPx(), 8.dpToPx(), 8.dpToPx(), 8.dpToPx())
+                        // Background is already set in XML as white with circular background
+                    }
+                )
             }
+        } else {
+            // No group image URL - remove tint and add padding
+            iv.setImageResource(R.drawable.add_group)
+            iv.imageTintList = null
+            iv.setPadding(8.dpToPx(), 8.dpToPx(), 8.dpToPx(), 8.dpToPx())
+            // Background is already set in XML as white with circular background
         }
     }
 
@@ -136,5 +155,9 @@ class GroupDetailActivity : AppCompatActivity() {
             1 -> GroupChatFragment.newInstance(groupId)
             else -> GroupMembersFragment.newInstance(groupId)
         }
+    }
+
+    private fun Int.dpToPx(): Int {
+        return (this * resources.displayMetrics.density).toInt()
     }
 }
