@@ -8,6 +8,7 @@ object CacheKeys {
     fun transactions(userId: Long) = "transactions_$userId"
     fun borrows(userId: Long) = "borrows_$userId"
     fun groupsList(userId: Long) = "groups_list_$userId"
+    fun groupDetail(groupId: Long) = "group_detail_$groupId"
     fun groupExpenses(groupId: Long) = "group_expenses_$groupId"
     fun messageReads(groupId: Long) = "message_reads_$groupId"
     fun transactionReads(groupId: Long) = "tx_reads_$groupId"
@@ -15,6 +16,7 @@ object CacheKeys {
     const val STALE_HOME = 5 * 60 * 1000L
     const val STALE_PROFILE = 10 * 60 * 1000L
     const val STALE_GROUPS_LIST = 5 * 60 * 1000L
+    const val STALE_GROUP_DETAIL = 5 * 60 * 1000L
     const val STALE_TRANSACTIONS = 5 * 60 * 1000L
     const val STALE_BORROWS = 5 * 60 * 1000L
     const val STALE_READS = 30 * 1000L

@@ -12,6 +12,8 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.waray.spendhound.data.local.CachedTransaction
+import com.waray.spendhound.data.repository.GroupRepository
 import com.waray.spendhound.ui.multi_transaction.TransactionFull
 import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
 import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
@@ -43,6 +45,7 @@ class GroupExpensesFragment : Fragment() {
     private lateinit var rvSkeleton: RecyclerView
     private var pullToRefreshHelper: PullToRefreshHelper? = null
     private var fullTransactions: List<RecentTransaction> = emptyList()
+    private lateinit var repo: GroupRepository
 
     private var selectedStatusTab = "All"
     private var isTabClickEnabled = true
@@ -50,6 +53,7 @@ class GroupExpensesFragment : Fragment() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         groupId = arguments?.getLong("group_id") ?: -1
+        repo = GroupRepository((requireActivity().application as SpendHoundApplication).database)
     }
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?) =
@@ -58,44 +62,24 @@ class GroupExpensesFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val rv = view.findViewById<RecyclerView>(R.id.rvExpenses)
         rvSkeleton = view.findViewById(R.id.rvSkeleton)
-        // Inside onViewCreated in GroupExpensesFragment.kt
         adapter = RecentTransactionAdapter(transactionList, { loadExpenses() }) { tx ->
             if (tx == null) return@RecentTransactionAdapter
-
-            val authId = DeclareDatabase.auth.currentUserOrNull()?.id
-            android.util.Log.d("TX_DEBUG", "Transaction clicked: ID=${tx.transactionId}, isUnread=${tx.isUnread}, authId=$authId")
-
-            // Toggle expansion first for immediate visual feedback
             tx.isExpanded = !tx.isExpanded
             val pos = transactionList.indexOf(tx)
-
-            // Check if it's unread. If so, mark it read in database
-            if (tx.isUnread && authId != null) {
-                // We DON'T set tx.isUnread = false here because markTransactionsRead filters by it.
-                // markTransactionsRead will handle setting it to false and notifying the adapter.
-                lifecycleScope.launch(Dispatchers.IO) {
-                    try {
-                        val user = DeclareDatabase.usersTable.select {
-                            filter { eq("auth_id", authId) }
-                        }.decodeSingleOrNull<User>()
-                        
-                        android.util.Log.d("TX_DEBUG", "Resolved numeric userId: ${user?.id}")
-
-                        if (user?.id != null) {
-                            markTransactionsRead(listOf(tx), user.id)
-                        } else {
-                            android.util.Log.e("TX_DEBUG", "Could not resolve numeric userId for authId: $authId")
-                        }
-                    } catch (e: Exception) {
-                        android.util.Log.e("TX_DEBUG", "Error resolving user during click", e)
+            if (tx.isUnread) {
+                val authId = DeclareDatabase.auth.currentUserOrNull()?.id
+                if (authId != null) {
+                    lifecycleScope.launch(Dispatchers.IO) {
+                        try {
+                            val user = DeclareDatabase.usersTable.select {
+                                filter { eq("auth_id", authId) }
+                            }.decodeSingleOrNull<User>()
+                            if (user?.id != null) markTransactionsRead(listOf(tx), user.id)
+                        } catch (_: Exception) {}
                     }
                 }
             }
-            
-            // Always notify expansion change immediately
-            if (pos != -1) {
-                adapter.notifyItemChanged(pos)
-            }
+            if (pos != -1) adapter.notifyItemChanged(pos)
         }
         rv.layoutManager = LinearLayoutManager(requireContext())
         rv.adapter = adapter
@@ -105,7 +89,12 @@ class GroupExpensesFragment : Fragment() {
         val scrollView = view.findViewById<NestedScrollView>(R.id.expensesScrollView)
         val indicator = view.findViewById<View>(R.id.pullRefreshIndicator_expenses)
         val rootLayout = view as PullInterceptLayout
-        pullToRefreshHelper = PullToRefreshHelper(scrollView, indicator, { loadExpenses() }, rootLayout)
+        pullToRefreshHelper = PullToRefreshHelper(scrollView, indicator, {
+            lifecycleScope.launch {
+                repo.invalidateTransactions(groupId)
+                loadExpenses()
+            }
+        }, rootLayout)
         rootLayout.onInterceptCallback = { event -> pullToRefreshHelper?.onInterceptTouch(event) ?: false }
 
         setupStatusTabs(view)
@@ -118,146 +107,15 @@ class GroupExpensesFragment : Fragment() {
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    private fun loadExpenses(forceSkeleton: Boolean = false) {
-        showLoading(forceSkeleton)
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val allTransactions = DeclareDatabase.transactionsTable.select {
-                    filter { eq("group_id", groupId) }
-                    order("created_at", Order.DESCENDING)
-                    limit(100)
-                }.decodeList<TransactionFull>()
-
-                val txIds = allTransactions.mapNotNull { it.id }
-
-                val authId = DeclareDatabase.auth.currentUserOrNull()?.id
-                val currentUser = if (authId != null) {
-                    DeclareDatabase.usersTable.select {
-                        filter { eq("auth_id", authId) }
-                    }.decodeSingleOrNull<User>()
-                } else null
-                val currentUserId = currentUser?.id
-
-                val readTxIds = if (currentUserId != null) {
-                    DeclareDatabase.transactionReadsTable.select(Columns.list("transaction_id")) {
-                        filter {
-                            eq("user_id", currentUserId)
-                            eq("group_id", groupId)
-                        }
-                    }.decodeList<com.waray.spendhound.TransactionRead>().mapNotNull { it.transactionId }.toSet()
-                } else emptySet()
-
-                if (txIds.isEmpty()) {
-                    withContext(Dispatchers.Main) { 
-                        fullTransactions = emptyList()
-                        transactionList.clear()
-                        adapter.notifyDataSetChanged()
-                        showEmpty() 
-                    }
-                    return@launch
-                }
-
-                val allPayors = DeclareDatabase.transactionPayorsTable.select {
-                    filter { isIn("transaction_id", txIds) }
-                }.decodeList<TransactionPayorTable>()
-
-                val allSplits = DeclareDatabase.transactionSplitsTable.select {
-                    filter { isIn("transaction_id", txIds) }
-                }.decodeList<TransactionSplitTable>()
-
-                val allItems = DeclareDatabase.transactionItemsTable.select {
-                    filter { isIn("transaction_id", txIds) }
-                }.decodeList<TransactionItemFull>()
-
-                val allUserIds = (allPayors.map { it.userId } + allSplits.map { it.userId }).distinct()
-                val usersById: Map<Long, String> = if (allUserIds.isNotEmpty()) {
-                    DeclareDatabase.usersTable.select {
-                        filter { isIn("user_id", allUserIds) }
-                    }.decodeList<User>().associate { it.id!! to (it.username ?: "Unknown") }
-                } else emptyMap()
-
-                val payorsByTx = allPayors.groupBy { it.transactionId }
-                val splitsByTx = allSplits.groupBy { it.transactionId }
-                val itemsByTx  = allItems.groupBy { it.transactionId }
-
-                val result = ArrayList<RecentTransaction>()
-
-                for (tx in allTransactions) {
-                    val txId = tx.id ?: continue
-                    val payors = payorsByTx[txId] ?: emptyList()
-                    val splits = splitsByTx[txId] ?: emptyList()
-                    val items  = itemsByTx[txId]  ?: emptyList()
-
-                    val timestamp = parseCreatedAt(tx.createdAt)
-                    val cal = Calendar.getInstance().apply { timeInMillis = timestamp }
-                    val monthName = cal.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.getDefault())
-                    val year = cal.get(Calendar.YEAR).toString()
-                    val day = cal.get(Calendar.DAY_OF_MONTH).toString()
-                    val timeKey = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(cal.time)
-
-                    val contributorIds = (payors.map { it.userId } + splits.map { it.userId }).distinct()
-                    val payorNames = contributorIds.map { usersById[it] ?: "Unknown" }.toMutableList<String?>()
-                    val payorUserIds = contributorIds.map { it.toString() }.toMutableList<String?>()
-                    val amountsPaid = contributorIds.map { uid ->
-                        payors.filter { it.userId == uid }.sumOf { it.currentAmountPaid } as Double?
-                    }.toMutableList()
-
-                    val individualPayment = splits.groupBy { it.userId }
-                        .values.firstOrNull()?.sumOf { it.amount } ?: 0.0
-
-                    val txStatus = computeStatus(payors, splits)
-
-                    val itemPayorMap = items.associate { item ->
-                        val itemId = item.id ?: 0L
-                        val names = allPayors.filter { it.transactionItemsId == itemId }
-                            .map { usersById[it.userId] ?: "Unknown" }
-                            .joinToString(", ").ifEmpty { "-" }
-                        itemId to names
-                    }
-
-                    val createdByName = tx.createdBy?.let { usersById[it] } ?: "Unknown"
-
-                    val rt = RecentTransaction(
-                        txId,
-                        formatSmartDate(tx.createdAt),
-                        tx.description,
-                        tx.description,
-                        CurrencyUtils.formatAmountWithCurrency(tx.totalAmount),
-                        getCategoryIcon(items.maxByOrNull { it.amount }?.category),
-                        "$year-$monthName-$day $timeKey",
-                        timestamp,
-                        payorNames,
-                        payorUserIds,
-                        amountsPaid,
-                        individualPayment,
-                        "$monthName $day, $year",
-                        createdByName,
-                        tx.createdBy?.toString(),
-                        "$monthName-$year",
-                        day,
-                        timeKey
-                    )
-                    rt.transactionItems = items
-                    rt.transactionStatus = txStatus
-                    rt.itemPayorMap = itemPayorMap
-                    rt.creatorNumericId = tx.createdBy
-                    rt.rawPayorRows = payors
-                    rt.rawSplitRows = splits
-                    rt.isUnread = txId !in readTxIds && tx.createdBy != currentUserId
-                    rt.groupId = tx.groupId
-                    result.add(rt)
-                }
-
-                result.sortByDescending { it.timestamp }
-
-                requireActivity().runOnUiThread {
+    private fun loadExpenses() {
+        showLoading()
+        lifecycleScope.launch {
+            repo.getTransactions(groupId).collect { cached ->
+                if (cached.isEmpty() && transactionList.isEmpty()) return@collect
+                val result = buildTransactions(cached)
+                withContext(Dispatchers.Main) {
                     fullTransactions = result
                     applyStatusFilter()
-                    hideLoading()
-                    pullToRefreshHelper?.stopRefreshing()
-                }
-            } catch (_: Exception) {
-                withContext(Dispatchers.Main) {
                     hideLoading()
                     pullToRefreshHelper?.stopRefreshing()
                 }
@@ -265,11 +123,118 @@ class GroupExpensesFragment : Fragment() {
         }
     }
 
+    private suspend fun buildTransactions(cached: List<CachedTransaction>): List<RecentTransaction> {
+        if (cached.isEmpty()) return emptyList()
+
+        val txIds = cached.mapNotNull { it.id }
+
+        val authId = DeclareDatabase.auth.currentUserOrNull()?.id
+        val currentUser = if (authId != null) {
+            DeclareDatabase.usersTable.select {
+                filter { eq("auth_id", authId) }
+            }.decodeSingleOrNull<User>()
+        } else null
+        val currentUserId = currentUser?.id
+
+        val readTxIds = if (currentUserId != null) {
+            DeclareDatabase.transactionReadsTable.select(Columns.list("transaction_id")) {
+                filter { eq("user_id", currentUserId); eq("group_id", groupId) }
+            }.decodeList<TransactionRead>().mapNotNull { it.transactionId }.toSet()
+        } else emptySet()
+
+        val allPayors = DeclareDatabase.transactionPayorsTable.select {
+            filter { isIn("transaction_id", txIds) }
+        }.decodeList<TransactionPayorTable>()
+
+        val allSplits = DeclareDatabase.transactionSplitsTable.select {
+            filter { isIn("transaction_id", txIds) }
+        }.decodeList<TransactionSplitTable>()
+
+        val allItems = DeclareDatabase.transactionItemsTable.select {
+            filter { isIn("transaction_id", txIds) }
+        }.decodeList<TransactionItemFull>()
+
+        val allUserIds = (allPayors.map { it.userId } + allSplits.map { it.userId }).distinct()
+        val usersById: Map<Long, String> = if (allUserIds.isNotEmpty()) {
+            DeclareDatabase.usersTable.select {
+                filter { isIn("user_id", allUserIds) }
+            }.decodeList<User>().associate { it.id!! to (it.username ?: "Unknown") }
+        } else emptyMap()
+
+        val payorsByTx = allPayors.groupBy { it.transactionId }
+        val splitsByTx = allSplits.groupBy { it.transactionId }
+        val itemsByTx = allItems.groupBy { it.transactionId }
+
+        return cached.mapNotNull { tx ->
+            val txId = tx.id
+            val payors = payorsByTx[txId] ?: emptyList()
+            val splits = splitsByTx[txId] ?: emptyList()
+            val items = itemsByTx[txId] ?: emptyList()
+
+            val timestamp = parseCreatedAt(tx.createdAt)
+            val cal = Calendar.getInstance().apply { timeInMillis = timestamp }
+            val monthName = cal.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.getDefault())
+            val year = cal.get(Calendar.YEAR).toString()
+            val day = cal.get(Calendar.DAY_OF_MONTH).toString()
+            val timeKey = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(cal.time)
+
+            val contributorIds = (payors.map { it.userId } + splits.map { it.userId }).distinct()
+            val payorNames = contributorIds.map { usersById[it] ?: "Unknown" }.toMutableList<String?>()
+            val payorUserIds = contributorIds.map { it.toString() }.toMutableList<String?>()
+            val amountsPaid = contributorIds.map { uid ->
+                payors.filter { it.userId == uid }.sumOf { it.currentAmountPaid } as Double?
+            }.toMutableList()
+
+            val individualPayment = splits.groupBy { it.userId }
+                .values.firstOrNull()?.sumOf { it.amount } ?: 0.0
+
+            val txStatus = computeStatus(payors, splits)
+
+            val itemPayorMap = items.associate { item ->
+                val itemId = item.id ?: 0L
+                val names = allPayors.filter { it.transactionItemsId == itemId }
+                    .map { usersById[it.userId] ?: "Unknown" }
+                    .joinToString(", ").ifEmpty { "-" }
+                itemId to names
+            }
+
+            val createdByName = tx.createdBy?.let { usersById[it] } ?: "Unknown"
+
+            val rt = RecentTransaction(
+                txId,
+                formatSmartDate(tx.createdAt),
+                tx.description,
+                tx.description,
+                CurrencyUtils.formatAmountWithCurrency(tx.totalAmount),
+                getCategoryIcon(items.maxByOrNull { it.amount }?.category),
+                "$year-$monthName-$day $timeKey",
+                timestamp,
+                payorNames,
+                payorUserIds,
+                amountsPaid,
+                individualPayment,
+                "$monthName $day, $year",
+                createdByName,
+                tx.createdBy?.toString(),
+                "$monthName-$year",
+                day,
+                timeKey
+            )
+            rt.transactionItems = items
+            rt.transactionStatus = txStatus
+            rt.itemPayorMap = itemPayorMap
+            rt.creatorNumericId = tx.createdBy
+            rt.rawPayorRows = payors
+            rt.rawSplitRows = splits
+            rt.isUnread = txId !in readTxIds && tx.createdBy != currentUserId
+            rt.groupId = tx.groupId
+            rt
+        }.sortedByDescending { it.timestamp }
+    }
+
     private fun markTransactionsRead(transactions: List<RecentTransaction>, userId: Long) {
         val unreadTxIds = transactions.filter { it.isUnread }.mapNotNull { it.transactionId }
         if (unreadTxIds.isEmpty()) return
-        
-        android.util.Log.d("TX_DEBUG", "markTransactionsRead: unreadTxIds=$unreadTxIds, userId=$userId, groupId=$groupId")
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -279,17 +244,12 @@ class GroupExpensesFragment : Fragment() {
                 val now = sdf.format(Date())
 
                 unreadTxIds.forEach { txId ->
-                    // Check if a record already exists for this specific transaction to avoid duplicates
                     val existing = DeclareDatabase.transactionReadsTable.select {
-                        filter {
-                            eq("user_id", userId)
-                            eq("transaction_id", txId)
-                        }
+                        filter { eq("user_id", userId); eq("transaction_id", txId) }
                         limit(1)
-                    }.decodeSingleOrNull<com.waray.spendhound.TransactionRead>()
+                    }.decodeSingleOrNull<TransactionRead>()
 
                     if (existing == null) {
-                        android.util.Log.d("TX_DEBUG", "Inserting record for transaction $txId")
                         DeclareDatabase.transactionReadsTable.insert(
                             TransactionReadInsert(
                                 transactionId = txId,
@@ -303,33 +263,24 @@ class GroupExpensesFragment : Fragment() {
 
                 withContext(Dispatchers.Main) {
                     transactions.forEach { it.isUnread = false }
-                    // Update only the specific item in the adapter to avoid resetting other items
                     transactions.forEach { tx ->
                         val index = transactionList.indexOf(tx)
-                        if (index != -1) {
-                            adapter.notifyItemChanged(index)
-                        }
+                        if (index != -1) adapter.notifyItemChanged(index)
                     }
                 }
-            } catch (e: Exception) {
-                android.util.Log.e("RLS_DEBUG", "Database mark read failed: ${e.message}")
-                e.printStackTrace()
-            }
+            } catch (_: Exception) {}
         }
     }
 
     private fun applyStatusFilter() {
-        val filtered = if (selectedStatusTab == "All") {
-            fullTransactions
-        } else {
-            fullTransactions.filter { it.transactionStatus.equals(selectedStatusTab, ignoreCase = true) }
-        }
+        val filtered = if (selectedStatusTab == "All") fullTransactions
+        else fullTransactions.filter { it.transactionStatus.equals(selectedStatusTab, ignoreCase = true) }
 
         transactionList.clear()
         transactionList.addAll(filtered)
         adapter.notifyDataSetChanged()
         context?.let { adapter.preloadAllImages(it) }
-        
+
         if (transactionList.isEmpty()) showEmpty() else showList()
     }
 
@@ -384,8 +335,8 @@ class GroupExpensesFragment : Fragment() {
         view?.findViewById<View>(R.id.emptyExpenses)?.visibility = View.GONE
     }
 
-    private fun showLoading(force: Boolean = false) {
-        if (force || transactionList.isEmpty()) {
+    private fun showLoading() {
+        if (transactionList.isEmpty()) {
             rvSkeleton.visibility = View.VISIBLE
             view?.findViewById<RecyclerView>(R.id.rvExpenses)?.visibility = View.GONE
             view?.findViewById<View>(R.id.emptyExpenses)?.visibility = View.GONE

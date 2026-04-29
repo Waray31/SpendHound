@@ -16,6 +16,7 @@ import coil.load
 import coil.transform.CircleCropTransformation
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.waray.spendhound.ui.group.GroupDetailViewModel
+import com.waray.spendhound.ui.group.MemberWithUser
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
@@ -28,7 +29,7 @@ class GroupDetailActivity : AppCompatActivity() {
     var groupId: Long = -1
     var currentUserId: Long? = null
     var isAdmin: Boolean = false
-    var groupMembers: List<Pair<GroupMember, User>> = emptyList()
+    var groupMembers: List<MemberWithUser> = emptyList()
     private var currentGroup: PayerGroup? = null
 
     private val viewModel: GroupDetailViewModel by viewModels()
@@ -76,7 +77,6 @@ class GroupDetailActivity : AppCompatActivity() {
             }
         })
 
-        // Observe preloaded data — renders immediately if already cached from GroupsActivity tap
         lifecycleScope.launch {
             viewModel.groupData.collect { data ->
                 data ?: return@collect
@@ -124,25 +124,19 @@ class GroupDetailActivity : AppCompatActivity() {
                 transformations(CircleCropTransformation())
                 listener(
                     onSuccess = { _, _ ->
-                        // Successfully loaded image - remove tint and remove padding
                         ivGroupIcon.imageTintList = null
                         ivGroupIcon.setPadding(0, 0, 0, 0)
-                        // Background is already set in XML as white with circular background
                     },
                     onError = { _, _ ->
-                        // Error loading image - remove tint and add padding
                         ivGroupIcon.imageTintList = null
                         ivGroupIcon.setPadding(8.dpToPx(), 8.dpToPx(), 8.dpToPx(), 8.dpToPx())
-                        // Background is already set in XML as white with circular background
                     }
                 )
             }
         } else {
-            // No group image URL - remove tint and add padding
             ivGroupIcon.setImageResource(R.drawable.add_group)
             ivGroupIcon.imageTintList = null
             ivGroupIcon.setPadding(8.dpToPx(), 8.dpToPx(), 8.dpToPx(), 8.dpToPx())
-            // Background is already set in XML as white with circular background
         }
     }
 

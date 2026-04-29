@@ -32,4 +32,11 @@ class GroupsListViewModel(app: Application) : AndroidViewModel(app) {
             load(userId, allUsers)
         }
     }
+
+    fun forceRefresh(userId: Long, allUsers: List<User>) {
+        viewModelScope.launch {
+            repo.invalidate(userId)
+            repo.getGroups(userId, allUsers).collectLatest { _groups.value = it }
+        }
+    }
 }

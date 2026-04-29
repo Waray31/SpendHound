@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
 import coil.load
 import coil.transform.CircleCropTransformation
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -34,6 +35,7 @@ class GroupsActivity : AppCompatActivity() {
     private lateinit var emptyState: LinearLayout
     private lateinit var fabCreateGroup: FloatingActionButton
     private lateinit var tvGroupCount: TextView
+    private lateinit var swipeRefresh: SwipeRefreshLayout
 
     private var currentUserId: Long? = null
     private var allUsers: List<User> = emptyList()
@@ -57,13 +59,20 @@ class GroupsActivity : AppCompatActivity() {
         rvSkeleton = findViewById(R.id.rvSkeleton)
         emptyState = findViewById(R.id.emptyState)
         fabCreateGroup = findViewById(R.id.fabCreateGroup)
+        swipeRefresh = findViewById(R.id.swipeRefresh)
         fabCreateGroup.visibility = View.GONE
 
         rvSkeleton.layoutManager = LinearLayoutManager(this)
         rvSkeleton.adapter = SkeletonAdapter(R.layout.item_skeleton_group)
         rvGroups.layoutManager = LinearLayoutManager(this)
+
         findViewById<TextView>(R.id.tvAddNewGroup).setOnClickListener {
             startActivity(android.content.Intent(this, CreateGroupActivity::class.java))
+        }
+
+        swipeRefresh.setOnRefreshListener {
+            val uid = currentUserId ?: run { swipeRefresh.isRefreshing = false; return@setOnRefreshListener }
+            groupsListViewModel.forceRefresh(uid, allUsers)
         }
 
         observeViewModel()
@@ -84,6 +93,7 @@ class GroupsActivity : AppCompatActivity() {
                     tvGroupCount.text = "${groups.size} group${if (groups.size != 1) "s" else ""}"
                     if (!isEmpty) rvGroups.adapter = GroupAdapter(groups, cardDataMap)
                     hideLoading()
+                    swipeRefresh.isRefreshing = false
                 }
             }
         }
@@ -135,7 +145,6 @@ class GroupsActivity : AppCompatActivity() {
                 }.decodeList<GroupMember>()
                 val membersByGroup = allMembers.groupBy { it.groupId }
 
-                // Pre-fetch all card data before showing the list
                 val groupIds = allGroups.mapNotNull { it.groupId }
                 val allTransactions = if (groupIds.isNotEmpty()) DeclareDatabase.transactionsTable.select {
                     filter { isIn("group_id", groupIds) }
@@ -180,10 +189,10 @@ class GroupsActivity : AppCompatActivity() {
 
                     val maxReadId = maxReadByGroup[gid] ?: 0L
                     val unreadCount = groupMsgs.count { it.userId != uid && it.id != null && it.id!! > maxReadId }
-                    
+
                     val maxTxReadId = maxTxReadByGroup[gid] ?: 0L
                     val unreadTxCount = txs.count { it.createdBy != uid && it.id != null && it.id!! > maxTxReadId }
-                    
+
                     cardDataMap[gid] = GroupCardData(totalExpenses, activeCount, settledAmount, unreadCount + unreadTxCount)
 
                     val lastTxTime = txs.firstOrNull()?.createdAt?.let { parseIsoTime(it) } ?: 0L
@@ -235,6 +244,7 @@ class GroupsActivity : AppCompatActivity() {
     private fun hideLoading() {
         rvSkeleton.visibility = View.GONE
     }
+
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 
     private fun parseIsoTime(iso: String): Long {
@@ -274,7 +284,6 @@ class GroupsActivity : AppCompatActivity() {
 
             holder.itemView.setOnClickListener {
                 val gid = group.groupId ?: return@setOnClickListener
-                // Preload group data before transition
                 currentUserId?.let { uid -> groupDetailViewModel.preloadGroup(gid, uid) }
                 val intent = android.content.Intent(this@GroupsActivity, GroupDetailActivity::class.java).apply {
                     putExtra(GroupDetailActivity.EXTRA_GROUP_ID, gid)
@@ -282,7 +291,6 @@ class GroupsActivity : AppCompatActivity() {
                 startActivity(intent)
             }
 
-            // Get CardView reference
             val cardView = holder.itemView.findViewById<androidx.cardview.widget.CardView>(R.id.groupListCardView)
 
             if (!group.groupImageUrl.isNullOrBlank()) {
@@ -293,13 +301,11 @@ class GroupsActivity : AppCompatActivity() {
                     transformations(CircleCropTransformation())
                     listener(
                         onSuccess = { _, _ ->
-                            // Successfully loaded image - remove tint, remove padding, and set orange background
                             holder.ivGroupIcon.imageTintList = null
                             holder.ivGroupIcon.setPadding(0, 0, 0, 0)
                             cardView?.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.orange))
                         },
                         onError = { _, _ ->
-                            // Error loading image - remove tint, add padding, and set orange background
                             holder.ivGroupIcon.imageTintList = null
                             holder.ivGroupIcon.setPadding(12.dpToPx(holder.itemView.context), 12.dpToPx(holder.itemView.context), 12.dpToPx(holder.itemView.context), 12.dpToPx(holder.itemView.context))
                             cardView?.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.orange))
@@ -307,7 +313,6 @@ class GroupsActivity : AppCompatActivity() {
                     )
                 }
             } else {
-                // No group image URL - remove tint, add padding, and set orange background
                 holder.ivGroupIcon.setImageResource(R.drawable.add_group)
                 holder.ivGroupIcon.imageTintList = null
                 holder.ivGroupIcon.setPadding(12.dpToPx(holder.itemView.context), 12.dpToPx(holder.itemView.context), 12.dpToPx(holder.itemView.context), 12.dpToPx(holder.itemView.context))
