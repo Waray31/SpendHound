@@ -38,9 +38,9 @@
                 android:layout_marginStart="12dp"
                 android:src="@drawable/add_group"
                 android:background="@drawable/circular_button_background"
-                android:backgroundTint="@color/white"
+                android:backgroundTint="@color/glassy_background"
                 android:padding="8dp"
-                app:tint="@color/lightgrey" />
+                app:tint="@color/white" />
 
             <LinearLayout
                 android:layout_width="0dp"
