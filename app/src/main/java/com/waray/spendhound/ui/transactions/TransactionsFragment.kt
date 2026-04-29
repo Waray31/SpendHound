@@ -74,6 +74,7 @@ class TransactionsFragment : Fragment() {
     private var selectedStatusTab = "All"
 
     private var isTabClickEnabled = true
+    private var isLoading = false
     private var pullToRefreshHelper: PullToRefreshHelper? = null
     private var rvSkeletonTransactions: RecyclerView? = null
     private var fullTransactions: List<RecentTransaction> = emptyList()
@@ -215,7 +216,7 @@ class TransactionsFragment : Fragment() {
         adapter?.notifyDataSetChanged()
         val count = transactionList.size
         transactionCountTextView?.text = String.format(Locale.getDefault(), "%d %s", count, if (count == 1) "transaction" else "transactions")
-        if (transactionList.isEmpty()) {
+        if (transactionList.isEmpty() && !isLoading) {
             emptyStateLayout?.visibility = View.VISIBLE
             recyclerView?.visibility = View.GONE
         } else {
@@ -372,10 +373,12 @@ class TransactionsFragment : Fragment() {
             recyclerView?.visibility = View.GONE
             emptyStateLayout?.visibility = View.GONE
         }
+        isLoading = true
         isTabClickEnabled = false
     }
 
     private fun hideLoading() {
+        isLoading = false
         rvSkeletonTransactions?.visibility = View.GONE
         isTabClickEnabled = true
         if (transactionList.isNotEmpty()) {
