@@ -15,7 +15,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
-import coil.transform.RoundedCornersTransformation
+import coil.transform.CircleCropTransformation
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.waray.spendhound.data.repository.GroupListItem
 import com.waray.spendhound.ui.group.GroupDetailViewModel
@@ -290,7 +290,7 @@ class GroupsActivity : AppCompatActivity() {
                     crossfade(true)
                     placeholder(R.drawable.add_group)
                     error(R.drawable.add_group)
-                    transformations(RoundedCornersTransformation(48f))
+                    transformations(CircleCropTransformation())
                     listener(
                         onSuccess = { _, _ ->
                             // Successfully loaded image - remove tint, remove padding, and set orange background
@@ -301,7 +301,7 @@ class GroupsActivity : AppCompatActivity() {
                         onError = { _, _ ->
                             // Error loading image - remove tint, add padding, and set orange background
                             holder.ivGroupIcon.imageTintList = null
-                            holder.ivGroupIcon.setPadding(10.dpToPx(holder.itemView.context), 10.dpToPx(holder.itemView.context), 10.dpToPx(holder.itemView.context), 10.dpToPx(holder.itemView.context))
+                            holder.ivGroupIcon.setPadding(12.dpToPx(holder.itemView.context), 12.dpToPx(holder.itemView.context), 12.dpToPx(holder.itemView.context), 12.dpToPx(holder.itemView.context))
                             cardView?.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.orange))
                         }
                     )
@@ -310,7 +310,7 @@ class GroupsActivity : AppCompatActivity() {
                 // No group image URL - remove tint, add padding, and set orange background
                 holder.ivGroupIcon.setImageResource(R.drawable.add_group)
                 holder.ivGroupIcon.imageTintList = null
-                holder.ivGroupIcon.setPadding(10.dpToPx(holder.itemView.context), 10.dpToPx(holder.itemView.context), 10.dpToPx(holder.itemView.context), 10.dpToPx(holder.itemView.context))
+                holder.ivGroupIcon.setPadding(12.dpToPx(holder.itemView.context), 12.dpToPx(holder.itemView.context), 12.dpToPx(holder.itemView.context), 12.dpToPx(holder.itemView.context))
                 cardView?.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.orange))
             }
 

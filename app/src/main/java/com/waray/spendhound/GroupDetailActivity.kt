@@ -2,6 +2,7 @@ package com.waray.spendhound
 
 import android.content.Intent
 import android.os.Bundle
+import android.view.View
 import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
@@ -12,7 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.viewpager2.adapter.FragmentStateAdapter
 import androidx.viewpager2.widget.ViewPager2
 import coil.load
-import coil.transform.RoundedCornersTransformation
+import coil.transform.CircleCropTransformation
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.waray.spendhound.ui.group.GroupDetailViewModel
 import kotlinx.coroutines.Dispatchers
@@ -33,6 +34,8 @@ class GroupDetailActivity : AppCompatActivity() {
     private val viewModel: GroupDetailViewModel by viewModels()
     private lateinit var viewPager: ViewPager2
     private lateinit var bottomNav: BottomNavigationView
+    private lateinit var groupImageSkeleton: View
+    private lateinit var ivGroupIcon: ImageView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -43,6 +46,8 @@ class GroupDetailActivity : AppCompatActivity() {
 
         viewPager = findViewById(R.id.viewPager)
         bottomNav = findViewById(R.id.bottomNav)
+        groupImageSkeleton = findViewById(R.id.group_image_skeleton)
+        ivGroupIcon = findViewById(R.id.ivGroupIcon)
         findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
         findViewById<ImageButton>(R.id.btnEditGroup).setOnClickListener { launchEditGroup() }
 
@@ -108,33 +113,35 @@ class GroupDetailActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.tvMemberCount).text =
             "$memberCount member${if (memberCount != 1) "s" else ""}"
 
-        val iv = findViewById<ImageView>(R.id.ivGroupIcon)
+        groupImageSkeleton.visibility = View.GONE
+        ivGroupIcon.visibility = View.VISIBLE
+
         if (!group.groupImageUrl.isNullOrBlank()) {
-            iv.load(group.groupImageUrl) {
+            ivGroupIcon.load(group.groupImageUrl) {
                 crossfade(true)
                 placeholder(R.drawable.add_group)
                 error(R.drawable.add_group)
-                transformations(RoundedCornersTransformation(48f))
+                transformations(CircleCropTransformation())
                 listener(
                     onSuccess = { _, _ ->
                         // Successfully loaded image - remove tint and remove padding
-                        iv.imageTintList = null
-                        iv.setPadding(0, 0, 0, 0)
+                        ivGroupIcon.imageTintList = null
+                        ivGroupIcon.setPadding(0, 0, 0, 0)
                         // Background is already set in XML as white with circular background
                     },
                     onError = { _, _ ->
                         // Error loading image - remove tint and add padding
-                        iv.imageTintList = null
-                        iv.setPadding(8.dpToPx(), 8.dpToPx(), 8.dpToPx(), 8.dpToPx())
+                        ivGroupIcon.imageTintList = null
+                        ivGroupIcon.setPadding(8.dpToPx(), 8.dpToPx(), 8.dpToPx(), 8.dpToPx())
                         // Background is already set in XML as white with circular background
                     }
                 )
             }
         } else {
             // No group image URL - remove tint and add padding
-            iv.setImageResource(R.drawable.add_group)
-            iv.imageTintList = null
-            iv.setPadding(8.dpToPx(), 8.dpToPx(), 8.dpToPx(), 8.dpToPx())
+            ivGroupIcon.setImageResource(R.drawable.add_group)
+            ivGroupIcon.imageTintList = null
+            ivGroupIcon.setPadding(8.dpToPx(), 8.dpToPx(), 8.dpToPx(), 8.dpToPx())
             // Background is already set in XML as white with circular background
         }
     }

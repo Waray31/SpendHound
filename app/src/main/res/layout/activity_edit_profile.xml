@@ -70,6 +70,14 @@
                             android:layout_gravity="center_horizontal"
                             android:layout_marginBottom="24dp">
 
+                            <include
+                                android:id="@+id/profile_skeleton_layout"
+                                layout="@layout/item_profile_skeleton"
+                                android:layout_width="100dp"
+                                android:layout_height="100dp"
+                                android:layout_margin="4dp"
+                                android:visibility="visible" />
+
                             <androidx.cardview.widget.CardView
                                 android:id="@+id/editProfileCardView"
                                 android:layout_width="100dp"
@@ -77,7 +85,8 @@
                                 app:cardBackgroundColor="@color/white"
                                 app:cardCornerRadius="50dp"
                                 android:layout_margin="4dp"
-                                android:elevation="4dp">
+                                android:elevation="4dp"
+                                android:visibility="gone">
 
                                 <ImageView
                                     android:id="@+id/editProfileImage"

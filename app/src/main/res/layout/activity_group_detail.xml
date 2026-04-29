@@ -31,6 +31,14 @@
                 android:contentDescription="Back"
                 app:tint="@color/white" />
 
+            <include
+                android:id="@+id/group_image_skeleton"
+                layout="@layout/item_group_profile_skeleton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="12dp"
+                android:visibility="visible" />
+
             <ImageView
                 android:id="@+id/ivGroupIcon"
                 android:layout_width="40dp"
@@ -40,6 +48,7 @@
                 android:background="@drawable/circular_button_background"
                 android:backgroundTint="@color/glassy_background"
                 android:padding="8dp"
+                android:visibility="gone"
                 app:tint="@color/white" />
 
             <LinearLayout

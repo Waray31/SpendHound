@@ -1,16 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.facebook.shimmer.ShimmerFrameLayout android:id="@+id/profile_image_shimmer"
+<com.facebook.shimmer.ShimmerFrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/profile_image_shimmer"
     android:layout_width="wrap_content"
-    android:layout_height="wrap_content"
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto">
+    android:layout_height="wrap_content">
 
-    <!-- Placeholder shown while loading -->
-    <ImageView
-        android:id="@+id/profile_image_placeholder"
+    <androidx.cardview.widget.CardView
         android:layout_width="100dp"
         android:layout_height="100dp"
-        android:src="@drawable/placeholder_profile_image"
-        app:tint="@color/lightgrey" />
+        android:layout_margin="4dp"
+        app:cardBackgroundColor="@color/white"
+        app:cardCornerRadius="50dp">
+        <!-- Placeholder shown while loading -->
+        <ImageView
+            android:id="@+id/profile_image_placeholder"
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            android:src="@drawable/placeholder_profile_image"
+            app:tint="@color/lightgrey" />
+    </androidx.cardview.widget.CardView>
 
 </com.facebook.shimmer.ShimmerFrameLayout>

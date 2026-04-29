@@ -70,13 +70,19 @@
                     android:orientation="horizontal">
 
 
+                    <include
+                        android:id="@+id/profile_skeleton_layout"
+                        layout="@layout/item_profile_skeleton"
+                        android:visibility="visible" />
+
                     <androidx.cardview.widget.CardView
                         android:id="@+id/profileCardView"
                         android:layout_width="100dp"
                         android:layout_height="100dp"
                         android:layout_margin="4dp"
-                        app:cardBackgroundColor="@color/white"
-                        app:cardCornerRadius="50dp">
+                        app:cardBackgroundColor="@color/orange"
+                        app:cardCornerRadius="50dp"
+                        android:visibility="gone">
 
                         <ImageView
                             android:id="@+id/profileImageView"
@@ -84,8 +90,7 @@
                             android:layout_height="match_parent"
                             android:contentDescription="@string/profile_image_description"
                             android:scaleType="centerCrop"
-                            android:src="@drawable/placeholder_profile_image"
-                            app:tint="@color/lightgrey" />
+                            android:src="@drawable/placeholder_profile_image" />
                     </androidx.cardview.widget.CardView>
 
                     <LinearLayout

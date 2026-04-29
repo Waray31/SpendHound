@@ -61,6 +61,8 @@ import androidx.recyclerview.widget.RecyclerView
 class ProfileFragment : Fragment() {
     private val viewModel: ProfileViewModel by viewModels()
     private var profileImageView: ImageView? = null
+    private var profileCardView: View? = null
+    private var profileSkeleton: View? = null
     private var nicknameTextView: TextView? = null
     private var nicknameSkeleton: View? = null
     private var userStatsSkeletonLayout: LinearLayout? = null
@@ -104,6 +106,8 @@ class ProfileFragment : Fragment() {
         val view: View = inflater.inflate(R.layout.fragment_profile, container, false)
 
         profileImageView = view.findViewById(R.id.profileImageView)
+        profileCardView = view.findViewById(R.id.profileCardView)
+        profileSkeleton = view.findViewById(R.id.profile_skeleton_layout)
         nicknameTextView = view.findViewById(R.id.nicknameTextView)
         nicknameSkeleton = view.findViewById(R.id.nickname_skeleton)
         userStatsSkeletonLayout = view.findViewById(R.id.userStats_skeletonLayout)
@@ -165,6 +169,8 @@ class ProfileFragment : Fragment() {
                 if (nicknameTextView?.text != nickname) nicknameTextView?.text = nickname
                 nicknameSkeleton?.visibility = View.GONE
                 nicknameTextView?.visibility = View.VISIBLE
+                profileSkeleton?.visibility = View.GONE
+                profileCardView?.visibility = View.VISIBLE
                 userStatsSkeletonLayout?.visibility = View.GONE
                 userStatsLayout?.visibility = View.VISIBLE
                 transactionsCountTextView?.text = data.transactionsCount.toString()
@@ -299,6 +305,8 @@ class ProfileFragment : Fragment() {
         if (isFirstLoad) {
             nicknameSkeleton?.visibility = View.VISIBLE
             nicknameTextView?.visibility = View.GONE
+            profileSkeleton?.visibility = View.VISIBLE
+            profileCardView?.visibility = View.GONE
             userStatsSkeletonLayout?.visibility = View.VISIBLE
             userStatsLayout?.visibility = View.GONE
         }

@@ -30,6 +30,8 @@ class EditProfileActivity : AppCompatActivity() {
     private lateinit var etEmail: TextInputEditText
     private lateinit var emailInputLayout: TextInputLayout
     private lateinit var editProfileImage: ImageView
+    private lateinit var editProfileCardView: View
+    private lateinit var profileSkeletonLayout: View
     private lateinit var loadingOverlay_editProfile: LinearLayout
     private lateinit var tvPasskeyAction: TextView
     private lateinit var tvPasskeyStatus: TextView
@@ -52,6 +54,8 @@ class EditProfileActivity : AppCompatActivity() {
         etEmail = findViewById(R.id.etEmail)
         emailInputLayout = findViewById(R.id.emailInputLayout)
         editProfileImage = findViewById(R.id.editProfileImage)
+        editProfileCardView = findViewById(R.id.editProfileCardView)
+        profileSkeletonLayout = findViewById(R.id.profile_skeleton_layout)
         loadingOverlay_editProfile = findViewById(R.id.loadingOverlay_editProfile)
         tvPasskeyAction = findViewById(R.id.tvPasskeyAction)
         tvPasskeyStatus = findViewById(R.id.tvPasskeyStatus)
@@ -94,6 +98,8 @@ class EditProfileActivity : AppCompatActivity() {
 
     private fun loadCurrentUser() {
         val authId = DeclareDatabase.auth.currentUserOrNull()?.id ?: return
+        profileSkeletonLayout.visibility = View.VISIBLE
+        editProfileCardView.visibility = View.GONE
         loadingOverlay_editProfile.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
@@ -106,6 +112,9 @@ class EditProfileActivity : AppCompatActivity() {
                     etNickname.setText(it.username)
                     etEmail.setText(it.email)
                     
+                    profileSkeletonLayout.visibility = View.GONE
+                    editProfileCardView.visibility = View.VISIBLE
+
                     // Get CardView reference
                     val cardView = findViewById<androidx.cardview.widget.CardView>(R.id.editProfileCardView)
                     
