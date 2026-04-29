@@ -14,7 +14,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import androidx.swiperefreshlayout.widget.SwipeRefreshLayout
+import com.waray.spendhound.utils.PullInterceptLayout
+import com.waray.spendhound.utils.PullToRefreshHelper
 import coil.load
 import coil.transform.CircleCropTransformation
 import com.google.android.material.floatingactionbutton.FloatingActionButton
@@ -35,7 +36,7 @@ class GroupsActivity : AppCompatActivity() {
     private lateinit var emptyState: LinearLayout
     private lateinit var fabCreateGroup: FloatingActionButton
     private lateinit var tvGroupCount: TextView
-    private lateinit var swipeRefresh: SwipeRefreshLayout
+    private var pullToRefreshHelper: PullToRefreshHelper? = null
 
     private var currentUserId: Long? = null
     private var allUsers: List<User> = emptyList()
@@ -59,7 +60,6 @@ class GroupsActivity : AppCompatActivity() {
         rvSkeleton = findViewById(R.id.rvSkeleton)
         emptyState = findViewById(R.id.emptyState)
         fabCreateGroup = findViewById(R.id.fabCreateGroup)
-        swipeRefresh = findViewById(R.id.swipeRefresh)
         fabCreateGroup.visibility = View.GONE
 
         rvSkeleton.layoutManager = LinearLayoutManager(this)
@@ -70,10 +70,14 @@ class GroupsActivity : AppCompatActivity() {
             startActivity(android.content.Intent(this, CreateGroupActivity::class.java))
         }
 
-        swipeRefresh.setOnRefreshListener {
-            val uid = currentUserId ?: run { swipeRefresh.isRefreshing = false; return@setOnRefreshListener }
+        val rootLayout = findViewById<PullInterceptLayout>(R.id.groupsRootLayout)
+        val indicator = findViewById<View>(R.id.pullRefreshIndicator_groups)
+        val scrollView = findViewById<androidx.core.widget.NestedScrollView>(R.id.groupsNestedScrollView)
+        pullToRefreshHelper = PullToRefreshHelper(scrollView, indicator, {
+            val uid = currentUserId ?: return@PullToRefreshHelper
             groupsListViewModel.forceRefresh(uid, allUsers)
-        }
+        }, rootLayout)
+        rootLayout.onInterceptCallback = { event -> pullToRefreshHelper!!.onInterceptTouch(event) }
 
         observeViewModel()
         fetchCurrentUser()
@@ -93,7 +97,7 @@ class GroupsActivity : AppCompatActivity() {
                     tvGroupCount.text = "${groups.size} group${if (groups.size != 1) "s" else ""}"
                     if (!isEmpty) rvGroups.adapter = GroupAdapter(groups, cardDataMap)
                     hideLoading()
-                    swipeRefresh.isRefreshing = false
+                    pullToRefreshHelper?.stopRefreshing()
                 }
             }
         }

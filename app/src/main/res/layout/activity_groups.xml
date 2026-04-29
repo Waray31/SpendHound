@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<com.waray.spendhound.utils.PullInterceptLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/groupsRootLayout"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:background="@color/white">
+    android:background="@color/white"
+    android:orientation="vertical">
 
     <!-- Header -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:paddingTop="32dp"
-        android:paddingBottom="16dp"
         android:background="@drawable/bottom_round_border"
-        android:paddingHorizontal="20dp">
+        android:paddingHorizontal="20dp"
+        android:paddingTop="32dp"
+        android:paddingBottom="16dp">
 
         <ImageButton
             android:id="@+id/btnBack"
@@ -23,24 +23,24 @@
             android:layout_centerVertical="true"
             android:background="@drawable/circular_button_background"
             android:backgroundTint="@color/glassy_background"
-            android:src="@drawable/ic_back"
             android:contentDescription="Back"
+            android:src="@drawable/ic_back"
             app:tint="@color/white" />
 
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_toEndOf="@id/btnBack"
-            android:layout_toStartOf="@id/tvAddNewGroup"
-            android:layout_marginStart="12dp"
             android:layout_centerVertical="true"
+            android:layout_marginStart="12dp"
+            android:layout_toStartOf="@id/tvAddNewGroup"
+            android:layout_toEndOf="@id/btnBack"
             android:orientation="vertical">
 
             <TextView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="My groups"
                 android:fontFamily="@font/montserratalternatess_bold"
+                android:text="My groups"
                 android:textColor="@color/whitest"
                 android:textSize="22sp" />
 
@@ -48,97 +48,134 @@
                 android:id="@+id/tvGroupCount"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="0 groups"
                 android:fontFamily="@font/montserratalternatess_regular"
+                android:text="0 groups"
                 android:textColor="@color/white"
                 android:textSize="12sp" />
 
         </LinearLayout>
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="end"
             android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/tvAddNewGroup"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="+ New group"
-            android:fontFamily="@font/montserratalternatess_bold"
-            android:textColor="@color/white"
-            android:background="@drawable/glassy_background3"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="10dp"
-            android:textSize="12sp"
-            android:clickable="true"
-            android:focusable="true" />
+            <TextView
+                android:id="@+id/tvAddNewGroup"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:background="@drawable/glassy_background3"
+                android:clickable="true"
+                android:focusable="true"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:paddingHorizontal="16dp"
+                android:paddingVertical="10dp"
+                android:text="+ New group"
+                android:textColor="@color/white"
+                android:textSize="12sp" />
         </LinearLayout>
 
     </LinearLayout>
 
 
     <!-- List / Empty State -->
-    <androidx.swiperefreshlayout.widget.SwipeRefreshLayout
-        android:id="@+id/swipeRefresh"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
     <FrameLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvGroups"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:paddingBottom="80dp"
-            android:paddingTop="16dp" />
+        android:layout_height="0dp"
+        android:layout_weight="1">
 
         <LinearLayout
-            android:id="@+id/emptyState"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:gravity="center"
-            android:orientation="vertical"
-            android:visibility="gone">
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
 
-            <ImageView
-                android:layout_width="72dp"
-                android:layout_height="72dp"
-                android:alpha="0.3"
-                android:src="@drawable/add_group" />
+            <!-- Pull to Refresh Indicator (outside NestedScrollView so it's always visible) -->
+            <LinearLayout
+                android:id="@+id/pullRefreshIndicator_groups"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clickable="false"
+                android:focusable="false"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:visibility="gone">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="12dp"
-                android:fontFamily="@font/montserratalternatess_bold"
-                android:text="You have no groups yet"
-                android:textColor="@color/black"
-                android:textSize="16sp" />
+                <ProgressBar
+                    style="@style/CustomProgressBarStyle"
+                    android:layout_width="28dp"
+                    android:layout_height="28dp" />
+            </LinearLayout>
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="6dp"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:text="Tap the + button to create your first group"
-                android:textColor="@color/grey"
-                android:textSize="13sp" />
+            <androidx.core.widget.NestedScrollView
+                android:id="@+id/groupsNestedScrollView"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:fillViewport="true">
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content">
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvGroups"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:clipToPadding="false"
+                        android:nestedScrollingEnabled="false"
+                        android:paddingTop="16dp"
+                        android:paddingBottom="80dp" />
+
+                    <LinearLayout
+                        android:id="@+id/emptyState"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <ImageView
+                            android:layout_width="72dp"
+                            android:layout_height="72dp"
+                            android:alpha="0.3"
+                            android:src="@drawable/add_group" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:fontFamily="@font/montserratalternatess_bold"
+                            android:text="You have no groups yet"
+                            android:textColor="@color/black"
+                            android:textSize="16sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:fontFamily="@font/montserratalternatess_regular"
+                            android:text="Tap the + button to create your first group"
+                            android:textColor="@color/grey"
+                            android:textSize="13sp" />
+
+                    </LinearLayout>
+
+                    <!-- Skeleton loading list (shown while data loads) -->
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvSkeleton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:clipToPadding="false"
+                        android:nestedScrollingEnabled="false"
+                        android:paddingTop="16dp"
+                        android:paddingBottom="80dp"
+                        android:visibility="visible" />
+
+                </FrameLayout>
+
+            </androidx.core.widget.NestedScrollView>
 
         </LinearLayout>
-
-        <!-- Skeleton loading list (shown while data loads) -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvSkeleton"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:paddingTop="16dp"
-            android:paddingBottom="80dp"
-            android:visibility="visible" />
 
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/fabCreateGroup"
@@ -148,12 +185,10 @@
             android:layout_margin="16dp"
             android:contentDescription="Create Group"
             android:src="@drawable/baseline_add_24"
+            android:visibility="gone"
             app:backgroundTint="@color/primary_accent"
-            app:tint="@color/white"
-            android:visibility="gone" />
+            app:tint="@color/white" />
 
     </FrameLayout>
 
-    </androidx.swiperefreshlayout.widget.SwipeRefreshLayout>
-
-</LinearLayout>
+</com.waray.spendhound.utils.PullInterceptLayout>
