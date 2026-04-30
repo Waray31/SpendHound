@@ -9,7 +9,8 @@
         android:layout_width="100dp"
         android:layout_height="100dp"
         android:layout_margin="4dp"
-        app:cardBackgroundColor="@color/white"
+        android:elevation="2dp"
+        app:cardBackgroundColor="@color/whitest"
         app:cardCornerRadius="50dp">
         <!-- Placeholder shown while loading -->
         <ImageView

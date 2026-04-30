@@ -106,6 +106,25 @@
             android:exported="true"
             android:theme="@style/Theme.MaterialComponents.Light.NoActionBar" />
 
+        <activity android:name=".CrewMembersActivity"
+            android:exported="false"
+            android:label="My Crew"
+            android:theme="@style/Theme.SpendHound.NoActionBar"
+            android:parentActivityName=".MainActivity" />
+
+        <activity android:name=".AddCrewActivity"
+            android:exported="false"
+            android:label="Add Crew"
+            android:theme="@style/Theme.SpendHound.NoActionBar"
+            android:windowSoftInputMode="adjustResize"
+            android:parentActivityName=".MainActivity" />
+
+        <activity android:name=".DirectMessageActivity"
+            android:exported="false"
+            android:label="Direct Message"
+            android:theme="@style/Theme.SpendHound.NoActionBar"
+            android:windowSoftInputMode="adjustResize" />
+
         <activity android:name=".SplashActivity"
             android:exported="true"
             android:theme="@style/Theme.MaterialComponents.Light.NoActionBar">

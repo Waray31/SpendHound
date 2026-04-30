@@ -80,6 +80,8 @@ object DeclareDatabase {
     val groupMessageReactionsTable get() = client.from("group_message_reactions")
     val borrowsTable get() = client.from("borrows")
     val userBorrowsTable get() = client.from("userBorrows")
+    val crewMembersTable get() = client.from("crew_members")
+    val directMessagesTable get() = client.from("direct_messages")
 
     // Storage Bucket References
     val profileImagesBucket get() = client.storage.from("profile_images")

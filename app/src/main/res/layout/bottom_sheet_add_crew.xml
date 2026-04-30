@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:paddingTop="16dp"
+            android:paddingBottom="32dp">
+
+            <!-- Handle -->
+            <View
+                android:layout_width="40dp"
+                android:layout_height="4dp"
+                android:layout_gravity="center_horizontal"
+                android:layout_marginBottom="16dp"
+                android:background="@color/lightgrey" />
+
+            <!-- Header row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:layout_marginBottom="4dp">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Add to My Crew"
+                    android:textColor="@color/darkBlue"
+                    android:textSize="18sp" />
+
+                <ImageButton
+                    android:id="@+id/btnPendingInvites"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/circular_button_background"
+                    android:backgroundTint="@color/lightgrey"
+                    android:contentDescription="Pending invites"
+                    android:padding="9dp"
+                    android:src="@drawable/ic_notifications_black_24dp"
+                    app:tint="@color/darkBlue" />
+
+                <TextView
+                    android:id="@+id/tvPendingBadge"
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:layout_marginStart="-12dp"
+                    android:layout_marginTop="-4dp"
+                    android:layout_gravity="top"
+                    android:background="@drawable/bubble_red"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:gravity="center"
+                    android:textColor="@color/whitest"
+                    android:textSize="10sp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <!-- Tab toggle: Invite / Guest -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:background="@drawable/bg_dark_toggle_container"
+                android:orientation="horizontal"
+                android:padding="4dp">
+
+                <TextView
+                    android:id="@+id/tabInviteRegistered"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_toggle_selected_orange"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:gravity="center"
+                    android:paddingVertical="10dp"
+                    android:text="Invite User"
+                    android:textColor="@color/whitest"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/tabAddGuest"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:gravity="center"
+                    android:paddingVertical="10dp"
+                    android:text="Add Guest"
+                    android:textColor="@color/grey"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <!-- Flow 1: Invite registered user -->
+            <LinearLayout
+                android:id="@+id/layoutInviteRegistered"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <EditText
+                    android:id="@+id/etSearchUser"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_dark_input"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:hint="Search by username…"
+                    android:inputType="text"
+                    android:padding="14dp"
+                    android:textColor="@color/black"
+                    android:textColorHint="@color/grey"
+                    android:textSize="14sp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvSearchResults"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:nestedScrollingEnabled="false"
+                    android:visibility="gone" />
+
+                <TextView
+                    android:id="@+id/tvNoResults"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:gravity="center"
+                    android:text="No users found"
+                    android:textColor="@color/grey"
+                    android:textSize="13sp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <!-- Flow 2: Add guest user -->
+            <LinearLayout
+                android:id="@+id/layoutAddGuest"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <EditText
+                    android:id="@+id/etGuestName"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_dark_input"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:hint="Full name *"
+                    android:inputType="textPersonName"
+                    android:padding="14dp"
+                    android:textColor="@color/black"
+                    android:textColorHint="@color/grey"
+                    android:textSize="14sp" />
+
+                <EditText
+                    android:id="@+id/etGuestEmail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_dark_input"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:hint="Email (optional)"
+                    android:inputType="textEmailAddress"
+                    android:padding="14dp"
+                    android:textColor="@color/black"
+                    android:textColorHint="@color/grey"
+                    android:textSize="14sp" />
+
+                <EditText
+                    android:id="@+id/etGuestPhone"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="10dp"
+                    android:background="@drawable/bg_dark_input"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:hint="Phone number (optional)"
+                    android:inputType="phone"
+                    android:padding="14dp"
+                    android:textColor="@color/black"
+                    android:textColorHint="@color/grey"
+                    android:textSize="14sp" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnAddGuest"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:layout_marginTop="16dp"
+                    android:background="@drawable/rounded_button_selector"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Add Guest"
+                    android:textColor="@color/whitest"
+                    android:textSize="15sp"
+                    app:backgroundTint="@null" />
+            </LinearLayout>
+
+            <!-- Bottom action row: Add crew + See all -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="20dp"
+                android:gravity="center"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/tvSeeAllCrew"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:gravity="center"
+                    android:padding="12dp"
+                    android:text="See all crew"
+                    android:textColor="@color/primary_accent"
+                    android:textSize="14sp" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</FrameLayout>

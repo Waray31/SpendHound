@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/searchResultContainer"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingHorizontal="4dp"
+    android:paddingVertical="10dp">
+
+    <androidx.cardview.widget.CardView
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_margin="4dp"
+        app:cardBackgroundColor="@color/orange"
+        app:cardCornerRadius="20dp"
+        app:cardElevation="2dp">
+
+        <ImageView
+            android:id="@+id/searchResultAvatar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:contentDescription="@string/profile_image_description"
+            android:scaleType="centerCrop"
+            android:src="@drawable/placeholder_profile_image" />
+    </androidx.cardview.widget.CardView>
+
+    <TextView
+        android:id="@+id/searchResultUsername"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_weight="1"
+        android:fontFamily="@font/montserratalternatess_bold"
+        android:textColor="@color/black"
+        android:textSize="14sp" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnSendInvite"
+        android:layout_width="wrap_content"
+        android:layout_height="36dp"
+        android:background="@drawable/rounded_button"
+        android:fontFamily="@font/montserratalternatess_bold"
+        android:paddingHorizontal="16dp"
+        android:text="Invite"
+        android:textColor="@color/whitest"
+        android:textSize="12sp"
+        app:backgroundTint="@null" />
+
+</LinearLayout>

@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/crewItemContainer"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="?attr/selectableItemBackground"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:padding="10dp">
+
+        <androidx.cardview.widget.CardView
+            android:id="@+id/crewAvatarCard"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
+            android:layout_margin="4dp"
+            app:cardBackgroundColor="@color/orange"
+            app:cardCornerRadius="22dp"
+            app:cardElevation="2dp">
+
+            <ImageView
+                android:id="@+id/crewAvatarImage"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:contentDescription="@string/profile_image_description"
+                android:scaleType="centerCrop"
+                android:src="@drawable/placeholder_profile_image" />
+        </androidx.cardview.widget.CardView>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/crewUsername"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:textColor="@color/black"
+                    android:textSize="15sp" />
+
+                <TextView
+                    android:id="@+id/crewGuestBadge"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/bg_profile_card"
+                    android:paddingHorizontal="8dp"
+                    android:layout_marginStart="8dp"
+                    android:paddingVertical="3dp"
+                    android:text="Guest"
+                    android:textColor="@color/orange"
+                    android:textSize="10sp"
+                    android:visibility="visible" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/crewStatusText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textColor="@color/grey"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <ImageButton
+            android:id="@+id/crewMessageBtn"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:background="@drawable/ic_send"
+            android:backgroundTint="@color/lightgrey"
+            android:contentDescription="Send message"
+            android:padding="8dp"
+            android:src="@drawable/ic_email_small"
+            app:tint="@color/darkBlue" />
+
+        <ImageButton
+            android:id="@+id/crewRemoveBtn"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/bg_profile_card"
+            android:elevation="2dp"
+            android:contentDescription="Remove crew member"
+            android:scaleType="centerCrop"
+            android:padding="3dp"
+            android:src="@drawable/ic_close_24dp"
+            app:tint="@color/red" />
+    </LinearLayout>
+
+    <View
+        android:id="@+id/crewDivider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginHorizontal="16dp"
+        android:background="@color/lightgrey" />
+
+</LinearLayout>

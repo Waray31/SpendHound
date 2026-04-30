@@ -57,9 +57,17 @@ import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-
+import com.waray.spendhound.AddCrewActivity
+import com.waray.spendhound.CrewMember
+import com.waray.spendhound.CrewMembersActivity
+import com.waray.spendhound.DirectMessageActivity
+import com.waray.spendhound.ui.profile.CrewMembersAdapter
+import com.waray.spendhound.ui.profile.CrewViewModel
+import com.waray.spendhound.ui.profile.PendingInvitesAdapter
+import com.waray.spendhound.ui.profile.UserSearchAdapter
 class ProfileFragment : Fragment() {
     private val viewModel: ProfileViewModel by viewModels()
+    private val crewViewModel: CrewViewModel by viewModels()
     private var profileImageView: ImageView? = null
     private var profileCardView: View? = null
     private var profileSkeleton: View? = null
@@ -80,7 +88,7 @@ class ProfileFragment : Fragment() {
     private var currentNickname: String? = ""
     private var balance = 0.0
     private var unpaid = 0.0
-    
+
     private var currentOwe = 0.0
     private var currentDebt = 0.0
     private var balanceUnpaidLayout: View? = null
@@ -96,8 +104,20 @@ class ProfileFragment : Fragment() {
     private var emptyGroupsLayout: LinearLayout? = null
     private var profileGroupsAdapter: ProfileGroupsAdapter? = null
 
+    // Crew views
+    private var crewRecyclerView: RecyclerView? = null
+    private var crewSkeletonLayout: LinearLayout? = null
+    private var emptyCrewLayout: LinearLayout? = null
+    private var btnAddCrew: TextView? = null
+    private var btnSeeAllCrew: TextView? = null
+    private var btnCrewNotification: android.widget.ImageButton? = null
+    private var tvCrewPendingBadge: TextView? = null
+    private var crewAdapter: CrewMembersAdapter? = null
+    private var currentUserId: Long = -1L
+
     private var imageUpdatedAt: String? = null
     private var isTabClickEnabled = true
+
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -129,6 +149,14 @@ class ProfileFragment : Fragment() {
         groupsSkeletonLayout = view.findViewById(R.id.groupsSkeletonLayout)
         emptyGroupsLayout = view.findViewById(R.id.emptyGroupsLayout)
 
+        crewRecyclerView = view.findViewById(R.id.crewRecyclerView)
+        crewSkeletonLayout = view.findViewById(R.id.crewSkeletonLayout)
+        emptyCrewLayout = view.findViewById(R.id.emptyCrewLayout)
+        btnAddCrew = view.findViewById(R.id.btnAddCrew)
+        btnSeeAllCrew = view.findViewById(R.id.btnSeeAllCrew)
+        btnCrewNotification = view.findViewById(R.id.btnCrewNotification)
+        tvCrewPendingBadge = view.findViewById(R.id.tvCrewPendingBadge)
+
         balanceUnpaidDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.round_border_glassy)
         balanceUnpaidDrawableTransparent = ContextCompat.getDrawable(requireContext(), R.drawable.transparent_background)
         oweDebtDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.round_border_glassy)
@@ -142,6 +170,7 @@ class ProfileFragment : Fragment() {
 
         profileImageView?.isClickable = false
         setupRecyclerView(view)
+        setupCrewSection()
         setupEditProfileTV()
         setupUnpaidButton()
         setupBalanceButton()
@@ -162,6 +191,27 @@ class ProfileFragment : Fragment() {
     }
 
     private fun observeViewModel() {
+        viewLifecycleOwner.lifecycleScope.launch {
+            crewViewModel.crewList.collectLatest { list ->
+                crewSkeletonLayout?.visibility = View.GONE
+                val preview = list.take(3)
+                if (preview.isEmpty()) {
+                    emptyCrewLayout?.visibility = View.VISIBLE
+                    crewRecyclerView?.visibility = View.GONE
+                } else {
+                    emptyCrewLayout?.visibility = View.GONE
+                    crewRecyclerView?.visibility = View.VISIBLE
+                    crewAdapter?.updateItems(preview)
+                }
+            }
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
+            crewViewModel.pendingInvites.collectLatest { pending ->
+                val count = pending.size
+                tvCrewPendingBadge?.visibility = if (count > 0) View.VISIBLE else View.GONE
+                tvCrewPendingBadge?.text = count.toString()
+            }
+        }
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.profile.collectLatest { data ->
                 data ?: return@collectLatest
@@ -301,7 +351,6 @@ class ProfileFragment : Fragment() {
 
     internal fun loadNicknameAndData() {
         val authId = mAuth?.currentUserOrNull()?.id ?: return
-        // Show skeletons only on first load (no data yet)
         val isFirstLoad = nicknameTextView?.text.isNullOrBlank() || nicknameTextView?.visibility == View.GONE
         if (isFirstLoad) {
             nicknameSkeleton?.visibility = View.VISIBLE
@@ -311,7 +360,6 @@ class ProfileFragment : Fragment() {
             userStatsSkeletonLayout?.visibility = View.VISIBLE
             userStatsLayout?.visibility = View.GONE
         }
-        // Resolve userId then delegate to ViewModel (emits cache first, network if stale)
         lifecycleScope.launch {
             try {
                 val user = withContext(Dispatchers.IO) {
@@ -320,8 +368,19 @@ class ProfileFragment : Fragment() {
                     }.decodeSingleOrNull<User>()
                 }
                 user?.id?.let { userId ->
+                    currentUserId = userId
                     viewModel.load(userId, authId)
-                    // Also fetch balance for the legacy balance/owe/debt buttons
+                    crewViewModel.loadCrew(userId)
+                    // Init crew adapter now that we have userId
+                    if (crewAdapter == null) {
+                        crewAdapter = CrewMembersAdapter(
+                            currentUserId = userId,
+                            onMessage = { otherUser, _ -> openDm(otherUser) },
+                            onRemove = { crew -> confirmRemoveCrew(crew) }
+                        )
+                        crewRecyclerView?.layoutManager = LinearLayoutManager(requireContext())
+                        crewRecyclerView?.adapter = crewAdapter
+                    }
                     val userBalance = withContext(Dispatchers.IO) {
                         DeclareDatabase.userBalanceTable.select {
                             filter { eq("user_id", userId) }
@@ -336,6 +395,62 @@ class ProfileFragment : Fragment() {
                 Log.e("ProfileFragment", "Error resolving user: ${e.message}")
             }
         }
+    }
+
+    private fun setupCrewSection() {
+        btnAddCrew?.setOnClickListener { openAddCrewActivity() }
+        btnSeeAllCrew?.setOnClickListener {
+            startActivity(android.content.Intent(requireContext(), CrewMembersActivity::class.java))
+        }
+        btnCrewNotification?.setOnClickListener { showPendingInvitesDialog() }
+    }
+
+    private fun openAddCrewActivity() {
+        startActivity(Intent(requireContext(), AddCrewActivity::class.java).apply {
+            if (currentUserId != -1L) {
+                putExtra(AddCrewActivity.EXTRA_OWNER_USER_ID, currentUserId)
+            }
+        })
+    }
+
+    private fun showPendingInvitesDialog() {
+        val dialogView = layoutInflater.inflate(R.layout.dialog_pending_invites, null)
+        val rvPending = dialogView.findViewById<RecyclerView>(R.id.rvPendingInvites)
+        val tvNoPending = dialogView.findViewById<TextView>(R.id.tvNoPending)
+        val btnClose = dialogView.findViewById<android.widget.ImageButton>(R.id.btnClosePending)
+
+        val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext()).setView(dialogView).create()
+        btnClose.setOnClickListener { dialog.dismiss() }
+
+        val pendingAdapter = PendingInvitesAdapter(
+            onAccept = { crew -> crewViewModel.respondToInvite(crew.id!!, true, currentUserId); dialog.dismiss() },
+            onDecline = { crew -> crewViewModel.respondToInvite(crew.id!!, false, currentUserId); dialog.dismiss() }
+        )
+        rvPending.layoutManager = LinearLayoutManager(requireContext())
+        rvPending.adapter = pendingAdapter
+
+        val pending = crewViewModel.pendingInvites.value
+        if (pending.isEmpty()) { tvNoPending.visibility = View.VISIBLE; rvPending.visibility = View.GONE }
+        else { tvNoPending.visibility = View.GONE; rvPending.visibility = View.VISIBLE; pendingAdapter.updateItems(pending) }
+
+        dialog.show()
+    }
+
+    private fun confirmRemoveCrew(crew: CrewMember) {
+        androidx.appcompat.app.AlertDialog.Builder(requireContext())
+            .setTitle("Remove crew member")
+            .setMessage("Are you sure you want to remove this person from your crew?")
+            .setPositiveButton("Remove") { _, _ -> crewViewModel.removeCrew(crew.id!!, currentUserId) }
+            .setNegativeButton("Cancel", null)
+            .show()
+    }
+
+    private fun openDm(user: User) {
+        startActivity(android.content.Intent(requireContext(), DirectMessageActivity::class.java).apply {
+            putExtra(DirectMessageActivity.EXTRA_RECIPIENT_ID, user.id)
+            putExtra(DirectMessageActivity.EXTRA_RECIPIENT_NAME, user.username)
+            putExtra(DirectMessageActivity.EXTRA_RECIPIENT_AVATAR, user.profileImageUrl)
+        })
     }
 
 

@@ -1,0 +1,259 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/white"
+    android:orientation="vertical">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bottom_round_border"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="20dp"
+        android:paddingTop="32dp"
+        android:paddingBottom="16dp">
+
+        <ImageButton
+            android:id="@+id/btnBack"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/circular_button_background"
+            android:backgroundTint="@color/glassy_background"
+            android:contentDescription="Back"
+            android:src="@drawable/ic_back"
+            app:tint="@color/white" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="Add new Crewmate"
+            android:textColor="@color/whitest"
+            android:textSize="22sp" />
+
+        <ImageButton
+            android:id="@+id/btnPendingInvites"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:background="@drawable/glassy_background3"
+            android:contentDescription="Pending invites"
+            android:padding="9dp"
+            android:src="@drawable/ic_notifications_black_24dp"
+            app:tint="@color/white" />
+
+        <TextView
+            android:id="@+id/tvPendingBadge"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:layout_marginStart="-12dp"
+            android:layout_marginTop="-4dp"
+            android:layout_gravity="top"
+            android:background="@drawable/bubble_red"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:gravity="center"
+            android:textColor="@color/whitest"
+            android:textSize="10sp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <androidx.core.widget.NestedScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingHorizontal="20dp"
+            android:paddingTop="20dp"
+            android:paddingBottom="32dp">
+
+            <!-- Tab toggle: Invite / Guest -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="20dp"
+                android:background="@drawable/bg_light_toggle_container"
+                android:orientation="horizontal"
+                android:padding="4dp">
+
+                <TextView
+                    android:id="@+id/tabInviteRegistered"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/toggle_selected_background"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:gravity="center"
+                    android:paddingVertical="10dp"
+                    android:text="Invite User"
+                    android:textColor="@color/whitest"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/tabAddGuest"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:gravity="center"
+                    android:paddingVertical="10dp"
+                    android:text="Add Guest"
+                    android:textColor="@color/grey"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
+            <!-- Flow 1: Invite registered user -->
+            <LinearLayout
+                android:id="@+id/layoutInviteRegistered"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:hint="Search by username"
+                    app:boxCornerRadiusBottomEnd="24dp"
+                    app:boxCornerRadiusBottomStart="24dp"
+                    app:boxCornerRadiusTopEnd="24dp"
+                    app:boxCornerRadiusTopStart="24dp"
+                    app:boxStrokeColor="@color/end_orange"
+                    app:hintTextColor="@color/end_orange">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etSearchUser"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:inputType="textEmailAddress"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="16sp" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvSearchResults"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp"
+                    android:nestedScrollingEnabled="false"
+                    android:visibility="visible" />
+
+                <TextView
+                    android:id="@+id/tvNoResults"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="12dp"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:gravity="center"
+                    android:text="No users found"
+                    android:textColor="@color/grey"
+                    android:textSize="13sp"
+                    android:visibility="gone" />
+            </LinearLayout>
+
+            <!-- Flow 2: Add guest user -->
+            <LinearLayout
+                android:id="@+id/layoutAddGuest"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:hint="Guest Nickname"
+                    app:boxCornerRadiusBottomEnd="24dp"
+                    app:boxCornerRadiusBottomStart="24dp"
+                    app:boxCornerRadiusTopEnd="24dp"
+                    app:boxCornerRadiusTopStart="24dp"
+                    app:boxStrokeColor="@color/end_orange"
+                    app:hintTextColor="@color/end_orange">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etGuestName"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:inputType="textEmailAddress"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="16sp" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:hint="Email (optional)"
+                    app:boxCornerRadiusBottomEnd="24dp"
+                    app:boxCornerRadiusBottomStart="24dp"
+                    app:boxCornerRadiusTopEnd="24dp"
+                    app:boxCornerRadiusTopStart="24dp"
+                    app:boxStrokeColor="@color/end_orange"
+                    app:hintTextColor="@color/end_orange">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etGuestEmail"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:inputType="textEmailAddress"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="16sp" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:hint="Phone number (optional)"
+                    app:boxCornerRadiusBottomEnd="24dp"
+                    app:boxCornerRadiusBottomStart="24dp"
+                    app:boxCornerRadiusTopEnd="24dp"
+                    app:boxCornerRadiusTopStart="24dp"
+                    app:boxStrokeColor="@color/end_orange"
+                    app:hintTextColor="@color/end_orange">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/etGuestPhone"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:inputType="textEmailAddress"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="16sp" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnAddGuest"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:elevation="2dp"
+                    android:layout_marginTop="16dp"
+                    android:background="@drawable/rounded_button"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="Add Guest"
+                    android:textColor="@color/whitest"
+                    android:textSize="14sp"
+                    app:backgroundTint="@null" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </androidx.core.widget.NestedScrollView>
+
+</LinearLayout>

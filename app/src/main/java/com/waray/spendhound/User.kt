@@ -32,5 +32,12 @@ data class User(
     @SerialName("created_at")
     val createdAt: String? = null,
     @SerialName("updated_at")
-    val updatedAt: String? = null
+    val updatedAt: String? = null,
+    // 1 = registered, 2 = guest
+    @SerialName("user_type")
+    val userType: Int? = 1,
+    @SerialName("invited_by_user_id")
+    val invitedByUserId: Long? = null,
+    @SerialName("guest_token")
+    val guestToken: String? = null
 )

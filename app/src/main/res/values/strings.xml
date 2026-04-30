@@ -208,6 +208,12 @@
     <string name="label_borrowed">Borrowed</string>
     <string name="label_my_groups">MY GROUPS</string>
     <string name="label_see_all_groups">See all groups</string>
+    <string name="label_my_crew">MY CREW</string>
+    <string name="label_add_crew">+ Add crew</string>
+    <string name="label_see_all_crew">See all crew</string>
+    <string name="label_invite_user">Invite User</string>
+    <string name="label_add_guest">Add Guest</string>
+    <string name="label_crew_pending_invites">Pending Invites</string>
     <string name="label_preferences">PREFERENCES</string>
     <string name="label_currency">Currency</string>
     <string name="label_notifications">Notifications</string>
