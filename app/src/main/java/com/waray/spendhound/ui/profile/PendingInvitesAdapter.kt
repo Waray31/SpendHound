@@ -22,8 +22,8 @@ class PendingInvitesAdapter(
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val avatar: ImageView = view.findViewById(R.id.pendingAvatarImage)
         val username: TextView = view.findViewById(R.id.pendingUsername)
-        val acceptBtn: MaterialButton = view.findViewById(R.id.btnAcceptInvite)
-        val declineBtn: MaterialButton = view.findViewById(R.id.btnDeclineInvite)
+        val acceptBtn: TextView = view.findViewById(R.id.btnAcceptInvite)
+        val declineBtn: TextView = view.findViewById(R.id.btnDeclineInvite)
         val divider: View = view.findViewById(R.id.pendingDivider)
     }
 
