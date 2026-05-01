@@ -39,7 +39,6 @@
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
                 android:contentDescription="@string/profile_image_description"
-                android:padding="6dp"
                 android:scaleType="centerCrop"
                 android:src="@drawable/placeholder_profile_image" />
         </androidx.cardview.widget.CardView>
@@ -109,14 +108,15 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:background="@drawable/bg_dark_input"
+            android:background="@drawable/spinner_border_grey"
             android:fontFamily="@font/montserratalternatess_regular"
-            android:hint="Message…"
+            android:hint="Type a message…"
+            android:imeOptions="actionNone"
             android:inputType="textMultiLine"
             android:maxLines="4"
-            android:padding="12dp"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="8dp"
             android:textColor="@color/black"
-            android:textColorHint="@color/grey"
             android:textSize="14sp" />
 
         <ImageButton

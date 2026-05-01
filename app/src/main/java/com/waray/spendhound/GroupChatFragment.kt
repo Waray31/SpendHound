@@ -47,7 +47,8 @@ import java.util.TimeZone
 data class ReactionInsert(
     @SerialName("message_id") val messageId: Long,
     @SerialName("user_id") val userId: Long,
-    @SerialName("emoji") val emoji: String
+    @SerialName("emoji") val emoji: String,
+    @SerialName("message_type") val messageType: Int = MessageType.GROUP
 )
 
 class GroupChatFragment : Fragment() {
@@ -93,8 +94,10 @@ class GroupChatFragment : Fragment() {
         adapter = ChatAdapter()
         rvMessages.layoutManager = LinearLayoutManager(requireContext()).also { it.stackFromEnd = true }
         rvMessages.adapter = adapter
+        rvMessages.visibility = View.GONE
         rvSkeleton.layoutManager = LinearLayoutManager(requireContext())
         rvSkeleton.adapter = SkeletonAdapter(R.layout.item_skeleton_chat, 5)
+        rvSkeleton.visibility = View.VISIBLE
 
         // Dismiss popups when tapping outside
         view.setOnClickListener { dismissPopups() }
@@ -155,6 +158,7 @@ class GroupChatFragment : Fragment() {
     @SuppressLint("NotifyDataSetChanged")
     private suspend fun loadMessages() {
         try {
+            Log.d(TAG, "loadMessages: start groupId=$groupId")
             val raw = withContext(Dispatchers.IO) {
                 DeclareDatabase.groupMessagesTable.select {
                     filter { eq("group_id", groupId) }
@@ -162,6 +166,7 @@ class GroupChatFragment : Fragment() {
                     limit(200)
                 }.decodeList<GroupMessage>().filter { !it.isDeleted }
             }
+            Log.d(TAG, "loadMessages: raw=${raw.size}")
 
             val userIds = raw.mapNotNull { it.userId }.distinct()
             val allUsers = withContext(Dispatchers.IO) {
@@ -170,40 +175,55 @@ class GroupChatFragment : Fragment() {
                 }.decodeList<User>() else emptyList()
             }
             val enriched = enrichMessages(raw, allUsers)
+            Log.d(TAG, "loadMessages: enriched=${enriched.size}")
 
             val msgIds = enriched.mapNotNull { it.id }
             if (msgIds.isNotEmpty()) {
                 withContext(Dispatchers.IO) {
-                    DeclareDatabase.groupMessageReactionsTable.select {
-                        filter { isIn("message_id", msgIds) }
-                    }.decodeList<GroupMessageReaction>().forEach { r ->
-                        val mid = r.messageId ?: return@forEach
-                        reactions.getOrPut(mid) { mutableListOf() }.add(r)
+                    try {
+                        DeclareDatabase.groupMessageReactionsTable.select {
+                            filter { isIn("message_id", msgIds) }
+                        }.decodeList<GroupMessageReaction>().forEach { r ->
+                            val mid = r.messageId ?: return@forEach
+                            reactions.getOrPut(mid) { mutableListOf() }.add(r)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "loadMessages: reactions fetch failed: ${e.message}", e)
                     }
 
-                    DeclareDatabase.messageReadsTable.select {
-                        filter { isIn("message_id", msgIds) }
-                    }.decodeList<MessageRead>().forEach { r ->
-                        val mid = r.messageId ?: return@forEach
-                        val uid = r.userId ?: return@forEach
-                        readReceipts.getOrPut(mid) { mutableSetOf() }.add(uid)
+                    try {
+                        DeclareDatabase.messageReadsTable.select {
+                            filter { isIn("message_id", msgIds) }
+                        }.decodeList<MessageRead>().forEach { r ->
+                            val mid = r.messageId ?: return@forEach
+                            val uid = r.userId ?: return@forEach
+                            readReceipts.getOrPut(mid) { mutableSetOf() }.add(uid)
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "loadMessages: reads fetch failed: ${e.message}", e)
                     }
                 }
             }
 
             messages.clear()
             messages.addAll(enriched)
+            Log.d(TAG, "loadMessages: messages list size=${messages.size}")
 
             requireActivity().runOnUiThread {
                 rvSkeleton.visibility = View.GONE
+                rvMessages.visibility = View.VISIBLE
                 adapter.notifyDataSetChanged()
                 if (messages.isNotEmpty()) rvMessages.scrollToPosition(messages.size - 1)
+                Log.d(TAG, "loadMessages: UI updated")
             }
-            markMessagesRead()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to load messages", e)
-            requireActivity().runOnUiThread { rvSkeleton.visibility = View.GONE }
+            Log.e(TAG, "loadMessages: FAILED: ${e.message}", e)
+            requireActivity().runOnUiThread {
+                rvSkeleton.visibility = View.GONE
+                rvMessages.visibility = View.VISIBLE
+            }
         }
+        markMessagesRead()
     }
 
     private suspend fun enrichMessages(raw: List<GroupMessage>, users: List<User>): List<GroupMessage> {
@@ -358,6 +378,7 @@ class GroupChatFragment : Fragment() {
                     filter {
                         eq("user_id", uid)
                         eq("group_id", groupId)
+                        eq("message_type", MessageType.GROUP)
                         gte("message_id", maxMsgId)
                     }
                     limit(1)

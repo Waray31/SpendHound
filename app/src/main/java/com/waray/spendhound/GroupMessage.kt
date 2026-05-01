@@ -4,6 +4,11 @@ import kotlinx.serialization.ExperimentalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
+object MessageType {
+    const val GROUP = 1
+    const val DIRECT = 2
+}
+
 @Serializable
 data class GroupMessage(
     @SerialName("id")
@@ -41,7 +46,9 @@ data class MessageRead(
     @SerialName("user_id")
     val userId: Long? = null,
     @SerialName("read_at")
-    val readAt: String? = null
+    val readAt: String? = null,
+    @SerialName("message_type")
+    val messageType: Int? = null
 )
 
 @Serializable
@@ -69,7 +76,9 @@ data class GroupMessageReaction(
     @SerialName("emoji")
     val emoji: String? = null,
     @SerialName("created_at")
-    val createdAt: String? = null
+    val createdAt: String? = null,
+    @SerialName("message_type")
+    val messageType: Int? = null
 )
 
 @Serializable
@@ -88,7 +97,8 @@ data class MessageReadInsert(
     @SerialName("message_id") val messageId: Long,
     @SerialName("user_id") val userId: Long,
     @SerialName("group_id") val groupId: Long,
-    @SerialName("read_at") val readAt: String? = null
+    @SerialName("read_at") val readAt: String? = null,
+    @SerialName("message_type") val messageType: Int = MessageType.GROUP
 )
 
 @Serializable
