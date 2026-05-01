@@ -26,6 +26,7 @@ class DirectMessageActivity : AppCompatActivity() {
         const val EXTRA_RECIPIENT_ID = "recipient_id"
         const val EXTRA_RECIPIENT_NAME = "recipient_name"
         const val EXTRA_RECIPIENT_AVATAR = "recipient_avatar"
+        private val COMMON_EMOJIS = listOf("👍", "❤️", "😂", "😮", "😢", "🔥")
     }
 
     private val repo = CrewRepository()
@@ -37,6 +38,7 @@ class DirectMessageActivity : AppCompatActivity() {
     private lateinit var btnSend: ImageButton
     private lateinit var layoutInput: LinearLayout
     private lateinit var layoutBlocked: LinearLayout
+    private lateinit var emojiPopup: LinearLayout
     private lateinit var dmAdapter: DirectMessageAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -53,6 +55,7 @@ class DirectMessageActivity : AppCompatActivity() {
         btnSend = findViewById(R.id.btnSendDm)
         layoutInput = findViewById(R.id.layoutDmInput)
         layoutBlocked = findViewById(R.id.layoutGuestBlocked)
+        emojiPopup = findViewById(R.id.emojiPopup)
 
         findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
         findViewById<TextView>(R.id.tvDmRecipientName).text = recipientName
@@ -64,6 +67,9 @@ class DirectMessageActivity : AppCompatActivity() {
                 transformations(CircleCropTransformation())
             }
         }
+
+        // Dismiss emoji popup on outside tap
+        findViewById<View>(android.R.id.content).setOnClickListener { dismissPopup() }
 
         resolveUserAndInit()
     }
@@ -79,7 +85,6 @@ class DirectMessageActivity : AppCompatActivity() {
                 }
                 currentUserId = user?.id ?: return@launch
 
-                // Check DM eligibility
                 val canDm = withContext(Dispatchers.IO) { repo.canSendDm(currentUserId, recipientId) }
                 if (!canDm) {
                     layoutInput.visibility = View.GONE
@@ -87,11 +92,11 @@ class DirectMessageActivity : AppCompatActivity() {
                 } else {
                     layoutInput.visibility = View.VISIBLE
                     layoutBlocked.visibility = View.GONE
-                    setupSendButton()
                 }
 
                 setupMessageList()
                 loadMessages()
+                setupSendButton()
             } catch (e: Exception) {
                 Toast.makeText(this@DirectMessageActivity, "Failed to load messages.", Toast.LENGTH_SHORT).show()
             }
@@ -99,7 +104,11 @@ class DirectMessageActivity : AppCompatActivity() {
     }
 
     private fun setupMessageList() {
-        dmAdapter = DirectMessageAdapter(currentUserId)
+        dmAdapter = DirectMessageAdapter(
+            currentUserId = currentUserId,
+            onLongPress = { msg, bubble -> showEmojiPopup(msg, bubble) },
+            recipientAvatarUrl = intent.getStringExtra(EXTRA_RECIPIENT_AVATAR)
+        )
         rvMessages.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         rvMessages.adapter = dmAdapter
     }
@@ -122,18 +131,87 @@ class DirectMessageActivity : AppCompatActivity() {
         btnSend.setOnClickListener {
             val content = etMessage.text.toString().trim()
             if (content.isBlank()) return@setOnClickListener
-            btnSend.isEnabled = false
-            lifecycleScope.launch {
-                try {
-                    withContext(Dispatchers.IO) { repo.sendDirectMessage(currentUserId, recipientId, content) }
-                    etMessage.setText("")
-                    loadMessages()
-                } catch (e: Exception) {
+            sendMessage(content)
+            etMessage.setText("")
+        }
+    }
+
+    private fun sendMessage(content: String) {
+        val tempId = -(System.currentTimeMillis())
+        val optimistic = DirectMessage(
+            id = tempId,
+            senderId = currentUserId,
+            recipientId = recipientId,
+            content = content,
+            sentAt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault()).apply {
+                timeZone = java.util.TimeZone.getTimeZone("UTC")
+            }.format(java.util.Date())
+        )
+        dmAdapter.pendingTempId = tempId
+        val currentItems = dmAdapter.getItems().toMutableList()
+        currentItems.add(optimistic)
+        dmAdapter.updateItems(currentItems)
+        rvMessages.scrollToPosition(currentItems.size - 1)
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                repo.sendDirectMessage(currentUserId, recipientId, content)
+                val messages = repo.getDirectMessages(currentUserId, recipientId)
+                withContext(Dispatchers.Main) {
+                    dmAdapter.pendingTempId = null
+                    dmAdapter.updateItems(messages)
+                    if (messages.isNotEmpty()) rvMessages.scrollToPosition(messages.size - 1)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    dmAdapter.pendingTempId = null
+                    val withoutTemp = currentItems.filter { it.id != tempId }
+                    dmAdapter.updateItems(withoutTemp)
                     Toast.makeText(this@DirectMessageActivity, "Failed to send message.", Toast.LENGTH_SHORT).show()
-                } finally {
-                    btnSend.isEnabled = true
                 }
             }
         }
+    }
+
+    private fun showEmojiPopup(msg: DirectMessage, bubbleView: View) {
+        val uid = currentUserId
+        emojiPopup.removeAllViews()
+
+        val userReacted = dmAdapter.getReactionsForUser(msg.id ?: -1L, uid)
+        COMMON_EMOJIS.forEach { emoji ->
+            val tv = TextView(this).apply {
+                text = emoji
+                textSize = 24f
+                setPadding(12, 8, 12, 8)
+                alpha = if (emoji in userReacted) 0.4f else 1f
+                setOnClickListener {
+                    dismissPopup()
+                    val msgId = msg.id ?: return@setOnClickListener
+                    if (emoji in userReacted) {
+                        dmAdapter.removeReaction(msgId, uid, emoji)
+                    } else {
+                        dmAdapter.addReaction(msgId, uid, emoji)
+                    }
+                }
+            }
+            emojiPopup.addView(tv)
+        }
+
+        // Position above the bubble
+        val loc = IntArray(2)
+        bubbleView.getLocationOnScreen(loc)
+        val rootLoc = IntArray(2)
+        findViewById<View>(android.R.id.content).getLocationOnScreen(rootLoc)
+        val bubbleTop = loc[1] - rootLoc[1]
+
+        emojiPopup.visibility = View.INVISIBLE
+        emojiPopup.post {
+            emojiPopup.y = (bubbleTop - emojiPopup.height - 8).coerceAtLeast(0).toFloat()
+            emojiPopup.visibility = View.VISIBLE
+        }
+    }
+
+    private fun dismissPopup() {
+        emojiPopup.visibility = View.GONE
     }
 }

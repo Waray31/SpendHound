@@ -13,8 +13,7 @@
         android:background="@drawable/bottom_round_border"
         android:gravity="center_vertical"
         android:paddingHorizontal="20dp"
-        android:paddingTop="32dp"
-        android:paddingBottom="16dp">
+        android:paddingVertical="16dp">
 
         <ImageButton
             android:id="@+id/btnBack"
@@ -54,6 +53,18 @@
             android:textSize="18sp" />
     </LinearLayout>
 
+    <!-- Emoji reaction popup -->
+    <LinearLayout
+        android:id="@+id/emojiPopup"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@drawable/bg_light_card_outline"
+        android:paddingHorizontal="8dp"
+        android:paddingVertical="6dp"
+        android:elevation="8dp"
+        android:visibility="gone" />
+
     <!-- Messages list -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/rvDirectMessages"
@@ -61,8 +72,7 @@
         android:layout_height="0dp"
         android:layout_weight="1"
         android:clipToPadding="false"
-        android:paddingHorizontal="12dp"
-        android:paddingVertical="8dp" />
+        android:paddingHorizontal="12dp"/>
 
     <!-- Guest blocked banner -->
     <LinearLayout

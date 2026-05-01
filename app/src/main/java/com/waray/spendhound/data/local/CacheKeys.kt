@@ -4,6 +4,7 @@ object CacheKeys {
     fun home(userId: Long) = "home_$userId"
     fun homeRecent(userId: Long) = "home_recent_$userId"
     fun profile(userId: Long) = "profile_$userId"
+    fun profileCrew(userId: Long) = "profile_crew_$userId"
     fun profileGroups(userId: Long) = "profile_groups_$userId"
     fun transactions(userId: Long) = "transactions_$userId"
     fun borrows(userId: Long) = "borrows_$userId"

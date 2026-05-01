@@ -1,36 +1,107 @@
 package com.waray.spendhound.data.repository
 
+import android.util.Log
 import com.waray.spendhound.CrewMember
 import com.waray.spendhound.DeclareDatabase
+import com.waray.spendhound.SpendHoundApplication
 import com.waray.spendhound.User
+import com.waray.spendhound.data.local.AppDatabase
+import com.waray.spendhound.data.local.CacheKeys
 import io.github.jan.supabase.postgrest.query.Columns
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-class CrewRepository {
+data class CrewWithUser(
+    val crewId: Long?,
+    val ownerUserId: Long?,
+    val memberUserId: Long?,
+    val status: Int?,
+    val userId: Long?,
+    val username: String?,
+    val profileImageUrl: String?,
+    val userType: Int?
+)
 
-    // Returns accepted crew members for the given user (both directions)
-    suspend fun getCrewList(userId: Long): List<Pair<CrewMember, User>> {
-        val asOwner = DeclareDatabase.crewMembersTable.select {
-            filter { eq("owner_user_id", userId); eq("status", 1) }
-        }.decodeList<CrewMember>()
+class CrewRepository(private val db: AppDatabase) {
 
-        val asMember = DeclareDatabase.crewMembersTable.select {
-            filter { eq("member_user_id", userId); eq("status", 1) }
-        }.decodeList<CrewMember>()
+    constructor() : this(AppDatabase.getInstance(SpendHoundApplication.instance))
 
-        val all = asOwner + asMember
-        return all.mapNotNull { crew ->
+    // Cached — emits from Room instantly, re-fetches from network only when stale
+    fun getCrewListFlow(userId: Long): Flow<List<Pair<CrewMember, User>>> {
+        Log.d("CrewDebug", "getCrewListFlow called for userId=$userId")
+        val flow: Flow<List<CrewWithUser>> = db.cachedFlow(
+            key = CacheKeys.profileCrew(userId),
+            staleTtlMs = CacheKeys.STALE_PROFILE,
+            type = typeOf<List<CrewWithUser>>()
+        ) {
+            Log.d("CrewDebug", "getCrewListFlow fetch block execution for userId=$userId")
+            fetchCrewList(userId).map { (crew, user) ->
+                CrewWithUser(
+                    crewId = crew.id, ownerUserId = crew.ownerUserId, memberUserId = crew.memberUserId,
+                    status = crew.status, userId = user.id, username = user.username,
+                    profileImageUrl = user.profileImageUrl, userType = user.userType
+                )
+            }
+        }
+        return flow.map { list ->
+            Log.d("CrewDebug", "getCrewListFlow mapping list size=${list.size}")
+            list.map { c ->
+                CrewMember(
+                    id = c.crewId, ownerUserId = c.ownerUserId,
+                    memberUserId = c.memberUserId, status = c.status
+                ) to User(
+                    id = c.userId, username = c.username,
+                    profileImageUrl = c.profileImageUrl, userType = c.userType
+                )
+            }
+        }
+    }
+
+    suspend fun getCrewList(userId: Long): List<Pair<CrewMember, User>> = fetchCrewList(userId)
+
+    private suspend fun fetchCrewList(userId: Long): List<Pair<CrewMember, User>> {
+        Log.d("CrewDebug", "fetchCrewList START for userId=$userId")
+        
+        // This log helps us see if Supabase is actually being queried
+        Log.i("CrewDebug", "Supabase: Querying crew_members for userId=$userId")
+
+        val asOwner = try {
+            DeclareDatabase.crewMembersTable.select {
+                filter { eq("owner_user_id", userId); eq("status", 1) }
+            }.decodeList<CrewMember>()
+        } catch (e: Exception) {
+            Log.e("CrewDebug", "fetchCrewList asOwner EXCEPTION: ${e.message}"); emptyList()
+        }
+
+        val asMember = try {
+            DeclareDatabase.crewMembersTable.select {
+                filter { eq("member_user_id", userId); eq("status", 1) }
+            }.decodeList<CrewMember>()
+        } catch (e: Exception) {
+            Log.e("CrewDebug", "fetchCrewList asMember EXCEPTION: ${e.message}"); emptyList()
+        }
+
+        val totalRecords = asOwner.size + asMember.size
+        Log.i("CrewDebug", "Supabase: Found $totalRecords crew records (Owner: ${asOwner.size}, Member: ${asMember.size})")
+
+        return (asOwner + asMember).mapNotNull { crew ->
             val otherUserId = if (crew.ownerUserId == userId) crew.memberUserId else crew.ownerUserId
+            Log.d("CrewDebug", "fetchCrewList resolving otherUserId=$otherUserId for crewId=${crew.id}")
             otherUserId ?: return@mapNotNull null
-            val user = DeclareDatabase.usersTable.select(
-                Columns.list("user_id", "username", "profile_image_url", "user_type")
-            ) { filter { eq("user_id", otherUserId) } }.decodeSingleOrNull<User>()
+            val user = try {
+                DeclareDatabase.usersTable.select(
+                    Columns.list("user_id", "username", "profile_image_url", "user_type")
+                ) { filter { eq("user_id", otherUserId) } }.decodeSingleOrNull<User>()
+            } catch (e: Exception) {
+                Log.e("CrewDebug", "fetchCrewList user fetch EXCEPTION: ${e.message}"); null
+            }
+            Log.d("CrewDebug", "fetchCrewList resolved user=${user?.username}")
             user?.let { crew to it }
         }
     }
 
-    // Returns pending invites received by userId (status = 3, member = userId)
     suspend fun getPendingInvites(userId: Long): List<Pair<CrewMember, User>> {
         val pending = DeclareDatabase.crewMembersTable.select {
             filter { eq("member_user_id", userId); eq("status", 3) }
@@ -44,8 +115,6 @@ class CrewRepository {
         }
     }
 
-    // Checks both directions to prevent duplicates, then inserts
-    // Returns error message string or null on success
     suspend fun sendInvite(ownerUserId: Long, memberUserId: Long): String? {
         if (ownerUserId == memberUserId) return "You cannot invite yourself."
 
@@ -65,9 +134,7 @@ class CrewRepository {
         ) { filter { eq("user_id", memberUserId) } }.decodeSingleOrNull<User>()
             ?: return "User not found."
 
-        // Guest users are auto-accepted (status = 1), registered users get pending (status = 3)
         val status = if (memberUser.userType == 2) 1 else 3
-
         DeclareDatabase.crewMembersTable.insert(buildJsonObject {
             put("owner_user_id", ownerUserId)
             put("member_user_id", memberUserId)
@@ -84,23 +151,22 @@ class CrewRepository {
         }) { filter { eq("id", crewId) } }
     }
 
+    suspend fun invalidateCrew(userId: Long) {
+        db.jsonBlobDao().delete(CacheKeys.profileCrew(userId))
+    }
+
     suspend fun removeCrew(crewId: Long) {
         DeclareDatabase.crewMembersTable.delete { filter { eq("id", crewId) } }
     }
 
-    // Fetch all registered users excluding current user (used for suggestions)
     suspend fun getAllUsers(currentUserId: Long): List<User> {
         return DeclareDatabase.usersTable.select(
             Columns.list("user_id", "username", "profile_image_url", "user_type")
         ) {
-            filter {
-                neq("user_id", currentUserId)
-                eq("user_type", 1)
-            }
+            filter { neq("user_id", currentUserId); eq("user_type", 1) }
         }.decodeList<User>().sortedBy { it.username?.lowercase() }
     }
 
-    // Filter and sort locally — starts-with matches ranked above contains matches
     fun filterAndSort(query: String, allUsers: List<User>): List<User> {
         if (query.isBlank()) return allUsers
         val q = query.lowercase()
@@ -113,8 +179,7 @@ class CrewRepository {
         return startsWith + contains
     }
 
-    // Creates a guest user row; returns the new user or null on failure
-    suspend fun createGuestUser(name: String, email: String?, phone: String?, invitedByUserId: Long): User? {
+    suspend fun createGuestUser(name: String, email: String?, invitedByUserId: Long): User? {
         val token = java.util.UUID.randomUUID().toString()
         val data = buildJsonObject {
             put("username", name)
@@ -128,7 +193,6 @@ class CrewRepository {
         }.decodeSingleOrNull<User>()
     }
 
-    // DM eligibility: both users must be registered (user_type = 1)
     suspend fun canSendDm(senderId: Long, recipientId: Long): Boolean {
         val users = DeclareDatabase.usersTable.select(
             Columns.list("user_id", "user_type")

@@ -17,10 +17,12 @@ import com.waray.spendhound.User
 
 class CrewMembersAdapter(
     private var items: List<Pair<CrewMember, User>> = emptyList(),
-    private val currentUserId: Long,
+    private var currentUserId: Long,
     private val onMessage: (User, CrewMember) -> Unit,
     private val onRemove: (CrewMember) -> Unit
 ) : RecyclerView.Adapter<CrewMembersAdapter.ViewHolder>() {
+
+    fun updateCurrentUserId(id: Long) { currentUserId = id }
 
     class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
         val avatarCard: CardView = view.findViewById(R.id.crewAvatarCard)
@@ -49,17 +51,18 @@ class CrewMembersAdapter(
         val isOwner = crew.ownerUserId == currentUserId
         holder.statusText.text = if (isOwner) "You invited" else "In your crew"
 
-        // Disable DM button for guests
-        if (isGuest) {
-            holder.messageBtn.alpha = 0.4f
-            holder.messageBtn.isEnabled = false
-        } else {
-            holder.messageBtn.alpha = 1f
-            holder.messageBtn.isEnabled = true
-            holder.messageBtn.setOnClickListener { onMessage(user, crew) }
-        }
+        // Hide message button — only show when there are unread notifications (not yet implemented)
+        holder.messageBtn.visibility = View.GONE
 
         holder.removeBtn.setOnClickListener { onRemove(crew) }
+
+        // Tap entire row to open DM (guests cannot DM)
+        if (!isGuest) {
+            holder.itemView.setOnClickListener { onMessage(user, crew) }
+        } else {
+            holder.itemView.setOnClickListener(null)
+            holder.itemView.isClickable = false
+        }
 
         // Load avatar
         val profileUrl = user.profileImageUrl

@@ -362,9 +362,9 @@
                     android:orientation="vertical"
                     android:visibility="visible">
 
-                    <include layout="@layout/item_skeleton_profile_group" />
+                    <include layout="@layout/item_skeleton_profile_crew" />
 
-                    <include layout="@layout/item_skeleton_profile_group" />
+                    <include layout="@layout/item_skeleton_profile_crew" />
                 </LinearLayout>
 
                 <!-- Empty crew state -->

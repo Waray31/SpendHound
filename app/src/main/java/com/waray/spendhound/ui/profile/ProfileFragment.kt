@@ -65,6 +65,7 @@ import com.waray.spendhound.ui.profile.CrewMembersAdapter
 import com.waray.spendhound.ui.profile.CrewViewModel
 import com.waray.spendhound.ui.profile.PendingInvitesAdapter
 import com.waray.spendhound.ui.profile.UserSearchAdapter
+
 class ProfileFragment : Fragment() {
     private val viewModel: ProfileViewModel by viewModels()
     private val crewViewModel: CrewViewModel by viewModels()
@@ -115,14 +116,19 @@ class ProfileFragment : Fragment() {
     private var crewAdapter: CrewMembersAdapter? = null
     private var currentUserId: Long = -1L
 
-    private var imageUpdatedAt: String? = null
+    private var imageUpdatedAtValue: String? = null
     private var isTabClickEnabled = true
 
+    companion object {
+        private const val REQUEST_EDIT_PROFILE = 100
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
+        Log.i("CrewDebug", "ProfileFragment: onCreateView() called")
+        if (mAuth == null) { mAuth = DeclareDatabase.auth }
         val view: View = inflater.inflate(R.layout.fragment_profile, container, false)
 
         profileImageView = view.findViewById(R.id.profileImageView)
@@ -134,7 +140,6 @@ class ProfileFragment : Fragment() {
         userStatsLayout = view.findViewById(R.id.userStats_Layout)
         transactionsCountTextView = view.findViewById(R.id.transactionsCountTextView)
         groupsCountTextView = view.findViewById(R.id.groupsCountTextView)
-        Log.d("ProfileFragment", "Views initialized - nicknameTextView: $nicknameTextView")
         editProfileTV = view.findViewById(R.id.editProfile_TV)
         totalBalancedTextView = view.findViewById(R.id.totalBalancedTextView)
         totalTextView = view.findViewById(R.id.totalTextView)
@@ -167,7 +172,6 @@ class ProfileFragment : Fragment() {
         balanceTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.yellow))
 
         mAuth = DeclareDatabase.auth
-
         profileImageView?.isClickable = false
         setupRecyclerView(view)
         setupCrewSection()
@@ -192,13 +196,29 @@ class ProfileFragment : Fragment() {
 
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
+            crewViewModel.isLoading.collectLatest { loading ->
+                Log.i("CrewDebug", "ProfileFragment: isLoading observer: $loading")
+                val hasItems = (crewAdapter?.itemCount ?: 0) > 0
+                if (loading && !hasItems) {
+                    crewSkeletonLayout?.visibility = View.VISIBLE
+                    crewRecyclerView?.visibility = View.GONE
+                    emptyCrewLayout?.visibility = View.GONE
+                } else if (!loading) {
+                    crewSkeletonLayout?.visibility = View.GONE
+                }
+            }
+        }
+        viewLifecycleOwner.lifecycleScope.launch {
             crewViewModel.crewList.collectLatest { list ->
+                Log.i("CrewDebug", "ProfileFragment: crewList observer size: ${list.size}")
                 crewSkeletonLayout?.visibility = View.GONE
                 val preview = list.take(3)
                 if (preview.isEmpty()) {
+                    Log.i("CrewDebug", "ProfileFragment: showing empty state")
                     emptyCrewLayout?.visibility = View.VISIBLE
                     crewRecyclerView?.visibility = View.GONE
                 } else {
+                    Log.i("CrewDebug", "ProfileFragment: showing list of ${preview.size}")
                     emptyCrewLayout?.visibility = View.GONE
                     crewRecyclerView?.visibility = View.VISIBLE
                     crewAdapter?.updateItems(preview)
@@ -228,7 +248,6 @@ class ProfileFragment : Fragment() {
                 if (totalTextView?.text == getString(R.string.label_borrowed)) {
                     totalBalancedTextView?.text = data.activeBorrowsCount.toString()
                 }
-                // Load profile image via Coil (disk cache handles 10-min freshness)
                 profileImageView?.let { setProfileImage(it) }
             }
         }
@@ -239,12 +258,10 @@ class ProfileFragment : Fragment() {
                 if (items.isEmpty()) {
                     emptyGroupsLayout?.visibility = View.VISIBLE
                     groupsRecyclerView?.visibility = View.GONE
-                    breakdownBtn?.text = "Create group"
                 } else {
                     emptyGroupsLayout?.visibility = View.GONE
                     groupsRecyclerView?.visibility = View.VISIBLE
-                    breakdownBtn?.text = getString(R.string.label_see_all_groups)
-                    profileGroupsAdapter?.updateItems(items)
+                    profileGroupsAdapter?.updateItems(items.take(3))
                 }
             }
         }
@@ -259,76 +276,44 @@ class ProfileFragment : Fragment() {
         if (!isAdded) return
         val authId = mAuth?.currentUserOrNull()?.id
         if (authId == null) {
-            Log.e("ProfileFragment", "setProfileImage: authId is null")
             imageView.setImageResource(R.drawable.placeholder_profile_image)
             return
         }
-
-        // Get CardView reference
         val cardView = view?.findViewById<androidx.cardview.widget.CardView>(R.id.profileCardView)
-
         lifecycleScope.launch(Dispatchers.IO) {
             try {
-                // Remove updated_at from column list as it doesn't exist in the DB schema
-                val user = DeclareDatabase.usersTable.select(Columns.list("user_id", "profile_image_url", "created_at")) {
+                val user = DeclareDatabase.usersTable.select(Columns.list("profile_image_url", "updated_at")) {
                     filter { eq("auth_id", authId) }
                 }.decodeSingleOrNull<User>()
 
-                val profileUrl = user?.profileImageUrl
-                if (profileUrl == null || profileUrl == "placeholder_profile_image") {
-                    withContext(Dispatchers.Main) {
-                        // No uploaded image - remove tint, set orange background, and add padding
-                        imageView.setImageResource(R.drawable.placeholder_profile_image)
-                        imageView.imageTintList = null
-                        imageView.setPadding(4.dpToPx(), 4.dpToPx(), 4.dpToPx(), 4.dpToPx())
-                        cardView?.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.orange))
-                    }
-                    return@launch
-                }
-
-                // Use created_at if updated_at is missing, though profileUrl often has ?t= already
-                val timestamp = user.createdAt
-                val url = ImageUtils.bustCache(profileUrl, timestamp)
-
                 withContext(Dispatchers.Main) {
-                    if (url != null) {
-                        imageView.load(url) {
+                    if (!isAdded || view == null) return@withContext
+                    val currentContext = context ?: return@withContext
+
+                    if (user?.profileImageUrl != null) {
+                        val imageUrl = user.profileImageUrl
+                        val updatedAt = user.updatedAt
+                        imageView.load(imageUrl) {
                             crossfade(true)
+                            transformations(CircleCropTransformation())
                             placeholder(R.drawable.placeholder_profile_image)
                             error(R.drawable.placeholder_profile_image)
-                            transformations(CircleCropTransformation())
-                            listener(
-                                onSuccess = { _, _ ->
-                                    // Successfully loaded image - remove tint, remove padding, and set orange background
-                                    imageView.imageTintList = null
-                                    imageView.setPadding(0, 0, 0, 0)
-                                    cardView?.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.orange))
-                                },
-                                onError = { _, _ ->
-                                    // Error loading image - remove tint, add padding, and set orange background
-                                    imageView.imageTintList = null
-                                    imageView.setPadding(4.dpToPx(), 4.dpToPx(), 4.dpToPx(), 4.dpToPx())
-                                    cardView?.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.orange))
-                                }
-                            )
+                            diskCachePolicy(CachePolicy.ENABLED)
+                            memoryCachePolicy(CachePolicy.ENABLED)
+                            if (imageUpdatedAtValue != updatedAt) {
+                                memoryCacheKey(imageUrl + updatedAt)
+                                diskCacheKey(imageUrl + updatedAt)
+                                imageUpdatedAtValue = updatedAt
+                            }
                         }
+                        cardView?.setCardBackgroundColor(ContextCompat.getColor(currentContext, R.color.orange))
                     } else {
-                        // No valid URL - remove tint, add padding, and set orange background
                         imageView.setImageResource(R.drawable.placeholder_profile_image)
-                        imageView.imageTintList = null
-                        imageView.setPadding(4.dpToPx(), 4.dpToPx(), 4.dpToPx(), 4.dpToPx())
-                        cardView?.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.orange))
+                        cardView?.setCardBackgroundColor(ContextCompat.getColor(currentContext, R.color.orange))
                     }
                 }
             } catch (e: Exception) {
-                Log.e("ProfileFragment", "setProfileImage error: ${e.message}", e)
-                withContext(Dispatchers.Main) {
-                    // Error - remove tint, add padding, and set orange background
-                    imageView.setImageResource(R.drawable.placeholder_profile_image)
-                    imageView.imageTintList = null
-                    imageView.setPadding(4.dpToPx(), 4.dpToPx(), 4.dpToPx(), 4.dpToPx())
-                    cardView?.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.orange))
-                }
+                Log.e("CrewDebug", "setProfileImage error: ${e.message}")
             }
         }
     }
@@ -350,7 +335,13 @@ class ProfileFragment : Fragment() {
     }
 
     internal fun loadNicknameAndData() {
-        val authId = mAuth?.currentUserOrNull()?.id ?: return
+        Log.i("CrewDebug", "ProfileFragment: loadNicknameAndData() called")
+        val authId = mAuth?.currentUserOrNull()?.id
+        Log.i("CrewDebug", "ProfileFragment: authId=$authId")
+        if (authId == null) {
+            Log.e("CrewDebug", "ProfileFragment: authId is NULL")
+            return
+        }
         val isFirstLoad = nicknameTextView?.text.isNullOrBlank() || nicknameTextView?.visibility == View.GONE
         if (isFirstLoad) {
             nicknameSkeleton?.visibility = View.VISIBLE
@@ -360,6 +351,11 @@ class ProfileFragment : Fragment() {
             userStatsSkeletonLayout?.visibility = View.VISIBLE
             userStatsLayout?.visibility = View.GONE
         }
+        if (crewRecyclerView?.visibility != View.VISIBLE && emptyCrewLayout?.visibility != View.VISIBLE) {
+            crewSkeletonLayout?.visibility = View.VISIBLE
+            emptyCrewLayout?.visibility = View.GONE
+            crewRecyclerView?.visibility = View.GONE
+        }
         lifecycleScope.launch {
             try {
                 val user = withContext(Dispatchers.IO) {
@@ -368,10 +364,10 @@ class ProfileFragment : Fragment() {
                     }.decodeSingleOrNull<User>()
                 }
                 user?.id?.let { userId ->
+                    Log.i("CrewDebug", "ProfileFragment: Resolved userId=$userId")
                     currentUserId = userId
                     viewModel.load(userId, authId)
                     crewViewModel.loadCrew(userId)
-                    // Init crew adapter now that we have userId
                     if (crewAdapter == null) {
                         crewAdapter = CrewMembersAdapter(
                             currentUserId = userId,
@@ -453,10 +449,6 @@ class ProfileFragment : Fragment() {
         })
     }
 
-
-    // loadTopGroups is now handled by ProfileViewModel + observeViewModel()
-
-
     private fun setupBalanceButton() {
         balanceTextView?.setOnClickListener {
             balanceUnpaidLayout?.foreground = balanceUnpaidDrawable
@@ -491,14 +483,14 @@ class ProfileFragment : Fragment() {
             debtTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
 
             totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(unpaid)
-            totalTextView?.text = "Total Unpaid Balance:"
+            totalTextView?.text = "Total Unpaid:"
         }
     }
 
     private fun setupOweButton() {
         oweTextView?.setOnClickListener {
-            oweDebtLayout?.foreground = oweDebtDrawable
             balanceUnpaidLayout?.foreground = balanceUnpaidDrawableTransparent
+            oweDebtLayout?.foreground = oweDebtDrawable
 
             balanceTextView?.setBackgroundResource(R.drawable.button_background_invisible)
             balanceTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
@@ -510,14 +502,14 @@ class ProfileFragment : Fragment() {
             debtTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
 
             totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(currentOwe)
-            totalTextView?.text = "Total Owed Balance:"
+            totalTextView?.text = "Total Owed To You:"
         }
     }
 
     private fun setupDebtButton() {
         debtTextView?.setOnClickListener {
-            oweDebtLayout?.foreground = oweDebtDrawable
             balanceUnpaidLayout?.foreground = balanceUnpaidDrawableTransparent
+            oweDebtLayout?.foreground = oweDebtDrawable
 
             balanceTextView?.setBackgroundResource(R.drawable.button_background_invisible)
             balanceTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
@@ -533,363 +525,21 @@ class ProfileFragment : Fragment() {
         }
     }
 
-    private fun formatDate(dateStr: String?): String {
-        if (dateStr == null) return "Unknown"
-        return try {
-            // dateStr is typically ISO 8601 from Supabase: 2024-05-20T12:00:00.000Z
-            val datePart = dateStr.split("T")[0] // 2024-05-20
-            val parts = datePart.split("-")
-            val year = parts[0]
-            val month = parts[1]
-            val monthNames = arrayOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-            val monthName = monthNames.getOrNull(month.toInt() - 1) ?: month
-            "$monthName $year"
-        } catch (e: Exception) {
-            "Unknown"
-        }
-    }
-
-    private fun selectNewProfilePhoto() {
-        val takePictureIntent = Intent(MediaStore.ACTION_IMAGE_CAPTURE)
-        if (takePictureIntent.resolveActivity(requireActivity().packageManager) != null) {
-            startActivityForResult(takePictureIntent, REQUEST_IMAGE_CAPTURE)
-        }
-    }
-
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        if (requestCode == REQUEST_EDIT_PROFILE && resultCode == Activity.RESULT_OK) {
-            return
-        }
-        if (resultCode == Activity.RESULT_OK) {
-            when (requestCode) {
-                REQUEST_IMAGE_CAPTURE -> {
-                    val extras = data?.extras
-                    val imageBitmap = extras?.get("data") as? Bitmap
-                    imageBitmap?.let { bmp ->
-                        val imageUri = getImageUri(requireContext(), bmp)
-                        if (imageUri != null) {
-                            imageUpdatedAt = System.currentTimeMillis().toString()
-                            profileImageView?.load(imageUri) {
-                                crossfade(true)
-                                transformations(CircleCropTransformation())
-                            }
-                        }
-                    }
-                }
-                REQUEST_IMAGE_PICK -> {
-                    val imageUri = data?.data
-                    if (imageUri != null) {
-                        imageUpdatedAt = System.currentTimeMillis().toString()
-                        profileImageView?.load(imageUri) {
-                            crossfade(true)
-                            transformations(CircleCropTransformation())
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    private fun getImageUri(context: Context, bitmap: Bitmap): Uri? {
-        val bytes = ByteArrayOutputStream()
-        bitmap.compress(Bitmap.CompressFormat.JPEG, 100, bytes)
-        val path = MediaStore.Images.Media.insertImage(context.contentResolver, bitmap, "Profile", null)
-        return Uri.parse(path)
-    }
-
-
     private fun setupProfileLogoutButton() {
         profileLogout?.setOnClickListener {
             lifecycleScope.launch {
-                mAuth?.signOut()
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(requireContext(), "Logout Successfully", Toast.LENGTH_SHORT).show()
-                    startActivity(Intent(requireContext(), LoginActivity::class.java))
-                    requireActivity().finish()
-                }
+                DeclareDatabase.auth.signOut()
+                val intent = Intent(requireContext(), LoginActivity::class.java)
+                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+                startActivity(intent)
             }
         }
     }
 
     private fun setupBreakdownButton() {
         breakdownBtn?.setOnClickListener {
-            if (emptyGroupsLayout?.visibility == View.VISIBLE) {
-                startActivity(Intent(requireContext(), com.waray.spendhound.CreateGroupActivity::class.java))
-            } else {
-                startActivity(Intent(requireContext(), com.waray.spendhound.GroupsActivity::class.java))
-            }
+            val intent = Intent(requireContext(), com.waray.spendhound.GroupsActivity::class.java)
+            startActivity(intent)
         }
-    }
-
-    private fun showBreakdownDialog() {
-        val dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_breakdown, null)
-        val btnClose = dialogView.findViewById<ImageView>(R.id.btnCloseBreakdown)
-        val tabBalance = dialogView.findViewById<Button>(R.id.tabBalance)
-        val tabUnpaid = dialogView.findViewById<Button>(R.id.tabUnpaid)
-        val tabOwe = dialogView.findViewById<Button>(R.id.tabOwe)
-        val tabDebt = dialogView.findViewById<Button>(R.id.tabDebt)
-        val categoryTitle = dialogView.findViewById<TextView>(R.id.breakdownCategoryTitle)
-        val totalAmount = dialogView.findViewById<TextView>(R.id.breakdownTotalAmount)
-        val recyclerView = dialogView.findViewById<RecyclerView>(R.id.breakdownRecyclerView)
-        val emptyStateLayout = dialogView.findViewById<View>(R.id.emptyStateLayout)
-        val emptyStateText = dialogView.findViewById<TextView>(R.id.emptyStateText)
-        val progressBar = dialogView.findViewById<View>(R.id.breakdownProgressBar)
-
-        val adapter = BreakdownAdapter(requireContext())
-        recyclerView.layoutManager = LinearLayoutManager(requireContext())
-        recyclerView.adapter = adapter
-
-        val breakdownDialog = AlertDialog.Builder(requireContext()).setView(dialogView).create()
-        btnClose.setOnClickListener { breakdownDialog.dismiss() }
-
-        val tabs = listOf(tabBalance, tabUnpaid, tabOwe, tabDebt)
-        val categories = listOf(BreakdownItem.Category.BALANCE, BreakdownItem.Category.UNPAID, BreakdownItem.Category.OWE, BreakdownItem.Category.DEBT)
-
-        tabs.forEachIndexed { index, button ->
-            button.setOnClickListener {
-                tabs.forEach { 
-                    it.backgroundTintList = ContextCompat.getColorStateList(requireContext(), R.color.grey)
-                    it.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
-                }
-                button.backgroundTintList = ContextCompat.getColorStateList(requireContext(), R.color.yellow)
-                button.setTextColor(ContextCompat.getColor(requireContext(), R.color.darkBlue))
-
-                loadBreakdownData(categories[index], categoryTitle, totalAmount, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar)
-            }
-        }
-
-        loadBreakdownData(BreakdownItem.Category.BALANCE, categoryTitle, totalAmount, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar)
-        breakdownDialog.show()
-    }
-
-    private fun loadBreakdownData(
-        category: BreakdownItem.Category, categoryTitle: TextView, totalAmount: TextView,
-        adapter: BreakdownAdapter, recyclerView: RecyclerView, emptyStateLayout: View,
-        emptyStateText: TextView, progressBar: View
-    ) {
-        progressBar.visibility = View.VISIBLE
-        recyclerView.visibility = View.GONE
-        emptyStateLayout.visibility = View.GONE
-
-        val items = ArrayList<BreakdownItem?>()
-
-        when (category) {
-            BreakdownItem.Category.BALANCE -> {
-                categoryTitle.text = "Total Balance"
-                totalAmount.text = CurrencyUtils.formatAmountWithCurrency(balance)
-                loadBalanceBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar)
-            }
-            BreakdownItem.Category.UNPAID -> {
-                categoryTitle.text = "Total Unpaid"
-                totalAmount.text = CurrencyUtils.formatAmountWithCurrency(unpaid)
-                loadUnpaidBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar)
-            }
-            BreakdownItem.Category.OWE -> {
-                categoryTitle.text = "Total Owed"
-                totalAmount.text = CurrencyUtils.formatAmountWithCurrency(currentOwe)
-                loadOweBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar)
-            }
-            BreakdownItem.Category.DEBT -> {
-                categoryTitle.text = "Total Debt"
-                totalAmount.text = CurrencyUtils.formatAmountWithCurrency(currentDebt)
-                loadDebtBreakdown(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar)
-            }
-        }
-    }
-
-    private fun loadBalanceBreakdown(
-        items: ArrayList<BreakdownItem?>, adapter: BreakdownAdapter,
-        recyclerView: RecyclerView, emptyStateLayout: View,
-        emptyStateText: TextView, progressBar: View
-    ) {
-        progressBar.visibility = View.VISIBLE
-        recyclerView.visibility = View.GONE
-        emptyStateLayout.visibility = View.GONE
-
-        lifecycleScope.launch {
-            try {
-                val transactions = withContext(Dispatchers.IO) {
-                    DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
-                }
-                items.clear()
-                for (transaction in transactions) {
-                    val individualPayment = transaction.individualPayment
-                    val payorsList = transaction.payorsDisplayNames ?: transaction.contributors ?: emptyList()
-                    val amountsPaidList = transaction.amountPaidList ?: emptyList()
-                    val dateStr = transaction.monthYear ?: "Unknown Date"
-                    val transactionType = transaction.transactionType ?: ""
-
-                    val userIndex = payorsList.indexOf(currentNickname)
-                    if (userIndex != -1 && userIndex < amountsPaidList.size) {
-                        val userPayment = amountsPaidList[userIndex] ?: 0.0
-                        val transactionBalance = userPayment - individualPayment
-                        if (transactionBalance > 0) {
-                            items.add(BreakdownItem(BreakdownItem.Category.BALANCE, dateStr, "Transaction", transactionBalance, "Completed", transactionType))
-                        }
-                    }
-                }
-                updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No balance transactions found")
-            } catch (e: Exception) {
-                Log.e("Supabase", "Error loading balance breakdown: ${e.message}", e)
-                progressBar.visibility = View.GONE
-                emptyStateLayout.visibility = View.VISIBLE
-                emptyStateText.text = "Error loading data"
-            }
-        }
-    }
-
-    private fun loadUnpaidBreakdown(
-        items: ArrayList<BreakdownItem?>, adapter: BreakdownAdapter,
-        recyclerView: RecyclerView, emptyStateLayout: View,
-        emptyStateText: TextView, progressBar: View
-    ) {
-        progressBar.visibility = View.VISIBLE
-        recyclerView.visibility = View.GONE
-        emptyStateLayout.visibility = View.GONE
-
-        lifecycleScope.launch {
-            try {
-                val transactions = withContext(Dispatchers.IO) {
-                    DeclareDatabase.transactionsTable.select().decodeList<Transaction>()
-                }
-                items.clear()
-                for (transaction in transactions) {
-                    val individualPayment = transaction.individualPayment
-                    val payorsList = transaction.payorsDisplayNames ?: transaction.contributors ?: emptyList()
-                    val amountsPaidList = transaction.amountPaidList ?: emptyList()
-                    val dateStr = transaction.monthYear ?: "Unknown Date"
-                    val transactionType = transaction.transactionType ?: ""
-
-                    val userIndex = payorsList.indexOf(currentNickname)
-                    if (userIndex != -1 && userIndex < amountsPaidList.size) {
-                        val userPayment = amountsPaidList[userIndex] ?: 0.0
-                        val transactionUnpaid = individualPayment - userPayment
-                        if (transactionUnpaid > 0) {
-                            items.add(BreakdownItem(BreakdownItem.Category.UNPAID, dateStr, "Transaction", transactionUnpaid, "Pending", transactionType))
-                        }
-                    }
-                }
-                updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No unpaid transactions found")
-            } catch (e: Exception) {
-                Log.e("Supabase", "Error loading unpaid breakdown: ${e.message}", e)
-                progressBar.visibility = View.GONE
-                emptyStateLayout.visibility = View.VISIBLE
-                emptyStateText.text = "Error loading data"
-            }
-        }
-    }
-
-    private fun loadOweBreakdown(
-        items: ArrayList<BreakdownItem?>, adapter: BreakdownAdapter,
-        recyclerView: RecyclerView, emptyStateLayout: View,
-        emptyStateText: TextView, progressBar: View
-    ) {
-        val authId = mAuth?.currentUserOrNull()?.id ?: return
-        progressBar.visibility = View.VISIBLE
-        recyclerView.visibility = View.GONE
-        emptyStateLayout.visibility = View.GONE
-
-        lifecycleScope.launch {
-            try {
-                val user = withContext(Dispatchers.IO) {
-                    DeclareDatabase.usersTable.select(Columns.list("user_id")) {
-                        filter { eq("auth_id", authId) }
-                    }.decodeSingleOrNull<User>()
-                }
-                
-                if (user?.id != null) {
-                    val borrows = withContext(Dispatchers.IO) {
-                        DeclareDatabase.borrowsTable.select {
-                            filter { eq("lender_id", user.id) }
-                        }.decodeList<BorrowNowTransaction>()
-                    }
-                    items.clear()
-                    for (borrow in borrows) {
-                        val dateStr = borrow.createdAt ?: "Unknown Date"
-                        val borrowerName = borrow.borrowerName ?: "Unknown"
-                        val borrowedAmount = borrow.borrowedAmount ?: 0.0
-                        val status = borrow.getStatus() ?: "Pending"
-                        items.add(BreakdownItem(BreakdownItem.Category.OWE, dateStr, "From: $borrowerName", borrowedAmount, status))
-                    }
-                    updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No owed amounts found")
-                }
-            } catch (e: Exception) {
-                Log.e("Supabase", "Error loading owe breakdown: ${e.message}", e)
-                progressBar.visibility = View.GONE
-                emptyStateLayout.visibility = View.VISIBLE
-                emptyStateText.text = "Error loading data"
-            }
-        }
-    }
-
-    private fun loadDebtBreakdown(
-        items: ArrayList<BreakdownItem?>, adapter: BreakdownAdapter,
-        recyclerView: RecyclerView, emptyStateLayout: View,
-        emptyStateText: TextView, progressBar: View
-    ) {
-        val authId = mAuth?.currentUserOrNull()?.id ?: return
-        progressBar.visibility = View.VISIBLE
-        recyclerView.visibility = View.GONE
-        emptyStateLayout.visibility = View.GONE
-
-        lifecycleScope.launch {
-            try {
-                val user = withContext(Dispatchers.IO) {
-                    DeclareDatabase.usersTable.select(Columns.list("user_id")) {
-                        filter { eq("auth_id", authId) }
-                    }.decodeSingleOrNull<User>()
-                }
-                
-                if (user?.id != null) {
-                    val borrows = withContext(Dispatchers.IO) {
-                        DeclareDatabase.borrowsTable.select {
-                            filter { eq("borrower_id", user.id) }
-                        }.decodeList<BorrowNowTransaction>()
-                    }
-                    items.clear()
-                    for (borrow in borrows) {
-                        val dateStr = borrow.createdAt ?: "Unknown Date"
-                        val lenderName = borrow.lender ?: "Unknown"
-                        val borrowedAmount = borrow.borrowedAmount ?: 0.0
-                        val status = borrow.getStatus() ?: "Pending"
-                        items.add(BreakdownItem(BreakdownItem.Category.DEBT, dateStr, "To: $lenderName", borrowedAmount, status))
-                    }
-                    updateBreakdownUI(items, adapter, recyclerView, emptyStateLayout, emptyStateText, progressBar, "No debt found")
-                }
-            } catch (e: Exception) {
-                Log.e("Supabase", "Error loading debt breakdown: ${e.message}", e)
-                progressBar.visibility = View.GONE
-                emptyStateLayout.visibility = View.VISIBLE
-                emptyStateText.text = "Error loading data"
-            }
-        }
-    }
-
-    private fun updateBreakdownUI(
-        items: ArrayList<BreakdownItem?>, adapter: BreakdownAdapter,
-        recyclerView: RecyclerView, emptyStateLayout: View,
-        emptyStateText: TextView, progressBar: View, emptyMessage: String?
-    ) {
-        progressBar.visibility = View.GONE
-        if (items.isEmpty()) {
-            recyclerView.visibility = View.GONE
-            emptyStateLayout.visibility = View.VISIBLE
-            emptyStateText.text = emptyMessage
-        } else {
-            recyclerView.visibility = View.VISIBLE
-            emptyStateLayout.visibility = View.GONE
-            adapter.updateData(items)
-        }
-    }
-
-    companion object {
-        private const val REQUEST_IMAGE_CAPTURE = 1
-        private const val REQUEST_IMAGE_PICK = 2
-        private const val REQUEST_EDIT_PROFILE = 3
-    }
-
-    private fun Int.dpToPx(): Int {
-        return (this * resources.displayMetrics.density).toInt()
     }
 }

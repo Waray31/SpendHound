@@ -93,7 +93,12 @@ class MainActivity : AppCompatActivity() {
 
         navView?.setOnItemSelectedListener { item ->
             if (isFabMenuOpen) closeFabMenu()
-            NavigationUI.onNavDestinationSelected(item, navController)
+            val handled = NavigationUI.onNavDestinationSelected(item, navController)
+            if (item.itemId == R.id.navigation_profile) {
+                val fragment = navHostFragment.childFragmentManager.primaryNavigationFragment
+                (fragment as? com.waray.spendhound.ui.profile.ProfileFragment)?.loadNicknameAndData()
+            }
+            handled
         }
 
         navView?.setOnItemReselectedListener { item ->

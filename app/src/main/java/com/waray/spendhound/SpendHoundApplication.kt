@@ -10,10 +10,16 @@ import java.io.File
 
 class SpendHoundApplication : Application() {
 
+    companion object {
+        lateinit var instance: SpendHoundApplication
+            private set
+    }
+
     val database by lazy { AppDatabase.getInstance(this) }
 
     override fun onCreate() {
         super.onCreate()
+        instance = this
         DeclareDatabase.initialize(this)
         setupCoil()
     }

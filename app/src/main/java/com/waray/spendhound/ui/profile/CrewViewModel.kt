@@ -1,5 +1,6 @@
 package com.waray.spendhound.ui.profile
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.waray.spendhound.CrewMember
@@ -35,14 +36,58 @@ class CrewViewModel : ViewModel() {
     val isLoading: StateFlow<Boolean> = _isLoading
 
     fun loadCrew(userId: Long) {
+        Log.d("CrewDebug", "loadCrew called userId=$userId isLoading=${_isLoading.value}")
         viewModelScope.launch {
+            if (_isLoading.value) {
+                Log.d("CrewDebug", "loadCrew SKIPPED — already loading")
+                return@launch
+            }
             _isLoading.value = true
+            Log.d("CrewDebug", "loadCrew isLoading=true")
             try {
-                _crewList.value = repo.getCrewList(userId)
-                _pendingInvites.value = repo.getPendingInvites(userId)
+                Log.d("CrewDebug", "loadCrew: Starting flow collection")
+                repo.getCrewListFlow(userId).collect { list ->
+                    Log.d("CrewDebug", "loadCrew: Flow emitted size=${list.size}")
+                    _crewList.value = list
+                    _isLoading.value = false
+                    Log.d("CrewDebug", "loadCrew: isLoading=false")
+                }
             } catch (e: Exception) {
+                Log.e("CrewDebug", "loadCrew EXCEPTION: ${e.message}", e)
                 _actionError.value = "Failed to load crew."
+                _isLoading.value = false
             } finally {
+                // Ensure loading is stopped if collect finishes/fails
+                _isLoading.value = false
+            }
+        }
+        viewModelScope.launch {
+            try {
+                val pending = repo.getPendingInvites(userId)
+                Log.d("CrewDebug", "loadCrew pendingInvites size=${pending.size}")
+                _pendingInvites.value = pending
+            } catch (e: Exception) {
+                Log.e("CrewDebug", "getPendingInvites EXCEPTION: ${e.message}", e)
+            }
+        }
+    }
+
+    fun reloadCrew(userId: Long) {
+        Log.d("CrewDebug", "reloadCrew called userId=$userId")
+        viewModelScope.launch {
+            try {
+                repo.invalidateCrew(userId)
+                Log.d("CrewDebug", "reloadCrew cache invalidated")
+                _isLoading.value = true
+                repo.getCrewListFlow(userId).collect { list ->
+                    Log.d("CrewDebug", "reloadCrew crewList emit size=${list.size}")
+                    _crewList.value = list
+                    _isLoading.value = false
+                }
+                Log.d("CrewDebug", "reloadCrew flow COMPLETED")
+            } catch (e: Exception) {
+                Log.e("CrewDebug", "reloadCrew EXCEPTION: ${e.message}", e)
+                _actionError.value = "Failed to reload crew."
                 _isLoading.value = false
             }
         }
@@ -53,7 +98,7 @@ class CrewViewModel : ViewModel() {
             try {
                 val users = repo.getAllUsers(currentUserId)
                 _allUsers.value = users
-                _searchResults.value = users // show all as suggestions initially
+                _searchResults.value = users
             } catch (e: Exception) {
                 _actionError.value = "Failed to load users."
             }
@@ -81,7 +126,7 @@ class CrewViewModel : ViewModel() {
     fun createGuestAndInvite(name: String, email: String?, phone: String?, invitedByUserId: Long, onDone: (String?) -> Unit) {
         viewModelScope.launch {
             try {
-                val guest = repo.createGuestUser(name, email, phone, invitedByUserId)
+                val guest = repo.createGuestUser(name, email, invitedByUserId)
                     ?: return@launch onDone("Failed to create guest user.")
                 val error = repo.sendInvite(invitedByUserId, guest.id!!)
                 onDone(error)
@@ -95,7 +140,8 @@ class CrewViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 repo.respondToInvite(crewId, accept)
-                loadCrew(userId)
+                repo.invalidateCrew(userId)
+                reloadCrew(userId)
             } catch (e: Exception) {
                 _actionError.value = "Failed to respond to invite."
             }
@@ -106,7 +152,8 @@ class CrewViewModel : ViewModel() {
         viewModelScope.launch {
             try {
                 repo.removeCrew(crewId)
-                loadCrew(userId)
+                repo.invalidateCrew(userId)
+                reloadCrew(userId)
             } catch (e: Exception) {
                 _actionError.value = "Failed to remove crew member."
             }

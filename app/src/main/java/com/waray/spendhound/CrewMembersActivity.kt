@@ -1,6 +1,7 @@
 package com.waray.spendhound
 
 import android.os.Bundle
+import android.util.Log
 import android.view.View
 import android.widget.ImageButton
 import android.widget.LinearLayout
@@ -29,6 +30,7 @@ class CrewMembersActivity : AppCompatActivity() {
 
     private lateinit var rvCrewMembers: RecyclerView
     private lateinit var emptyCrewState: LinearLayout
+    private lateinit var crewSkeletonContainer: LinearLayout
     private lateinit var crewProgressBar: ProgressBar
     private lateinit var tvCrewCount: TextView
     private lateinit var crewAdapter: CrewMembersAdapter
@@ -37,11 +39,21 @@ class CrewMembersActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_crew_members)
         supportActionBar?.hide()
+        Log.d("CrewDebug", "CrewMembersActivity onCreate")
 
         rvCrewMembers = findViewById(R.id.rvCrewMembers)
         emptyCrewState = findViewById(R.id.emptyCrewState)
+        crewSkeletonContainer = findViewById(R.id.crewSkeletonContainer)
         crewProgressBar = findViewById(R.id.crewProgressBar)
         tvCrewCount = findViewById(R.id.tvCrewCount)
+
+        crewAdapter = CrewMembersAdapter(
+            currentUserId = -1L,
+            onMessage = { otherUser, _ -> openDm(otherUser) },
+            onRemove = { crew -> confirmRemove(crew.id!!) }
+        )
+        rvCrewMembers.layoutManager = LinearLayoutManager(this)
+        rvCrewMembers.adapter = crewAdapter
 
         findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
         findViewById<ImageButton>(R.id.btnAddCrewHeader).setOnClickListener {
@@ -56,46 +68,72 @@ class CrewMembersActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        Log.d("CrewDebug", "CrewMembersActivity onResume currentUserId=$currentUserId")
         if (currentUserId != -1L) viewModel.loadCrew(currentUserId)
     }
 
     private fun resolveUserAndLoad() {
+        Log.i("CrewDebug", "CrewMembersActivity: resolveUserAndLoad() called")
         lifecycleScope.launch {
+            Log.i("CrewDebug", "CrewMembersActivity: Coroutine started")
             try {
-                val authId = DeclareDatabase.auth.currentUserOrNull()?.id ?: return@launch
+                val authId = DeclareDatabase.auth.currentUserOrNull()?.id
+                Log.i("CrewDebug", "CrewMembersActivity: authId=$authId")
+                if (authId == null) { 
+                    Log.e("CrewDebug", "CrewMembersActivity: authId is NULL — aborting")
+                    return@launch 
+                }
                 val user = withContext(Dispatchers.IO) {
                     DeclareDatabase.usersTable.select(Columns.list("user_id")) {
                         filter { eq("auth_id", authId) }
                     }.decodeSingleOrNull<User>()
                 }
-                currentUserId = user?.id ?: return@launch
-                crewAdapter = CrewMembersAdapter(
-                    currentUserId = currentUserId,
-                    onMessage = { otherUser, _ -> openDm(otherUser) },
-                    onRemove = { crew -> confirmRemove(crew.id!!) }
-                )
-                rvCrewMembers.layoutManager = LinearLayoutManager(this@CrewMembersActivity)
-                rvCrewMembers.adapter = crewAdapter
+                Log.i("CrewDebug", "CrewMembersActivity: Resolved user=${user?.id}")
+                if (user?.id == null) { 
+                    Log.e("CrewDebug", "CrewMembersActivity: user is NULL — aborting")
+                    return@launch 
+                }
+                currentUserId = user.id
+                crewAdapter.updateCurrentUserId(currentUserId)
+                Log.i("CrewDebug", "CrewMembersActivity: calling loadCrew userId=$currentUserId")
                 viewModel.loadCrew(currentUserId)
             } catch (e: Exception) {
-                Toast.makeText(this@CrewMembersActivity, "Failed to load user.", Toast.LENGTH_SHORT).show()
+                Log.e("CrewDebug", "CrewMembersActivity EXCEPTION: ${e.message}", e)
+                if (!isFinishing) {
+                    Toast.makeText(this@CrewMembersActivity, "Failed to load user.", Toast.LENGTH_SHORT).show()
+                }
             }
         }
     }
 
     private fun observeViewModel() {
+        Log.i("CrewDebug", "CrewMembersActivity: observeViewModel START")
         lifecycleScope.launch {
             viewModel.isLoading.collectLatest { loading ->
-                crewProgressBar.visibility = if (loading) View.VISIBLE else View.GONE
+                Log.i("CrewDebug", "CrewMembersActivity: isLoading observer fired loading=$loading")
+                if (loading) {
+                    crewSkeletonContainer.visibility = View.VISIBLE
+                    rvCrewMembers.visibility = View.GONE
+                    emptyCrewState.visibility = View.GONE
+                } else {
+                    crewSkeletonContainer.visibility = View.GONE
+                }
             }
         }
         lifecycleScope.launch {
             viewModel.crewList.collectLatest { list ->
+                Log.i("CrewDebug", "CrewMembersActivity: crewList observer fired size=${list.size} isLoading=${viewModel.isLoading.value}")
+                
+                // FORCE HIDE SKELETON ON EMISSION
+                crewSkeletonContainer.visibility = View.GONE
+                
                 tvCrewCount.text = "${list.size} members"
                 if (list.isEmpty()) {
+                    Log.i("CrewDebug", "CrewMembersActivity: showing emptyCrewState")
                     emptyCrewState.visibility = View.VISIBLE
                     rvCrewMembers.visibility = View.GONE
                 } else {
+                    Log.i("CrewDebug", "CrewMembersActivity: showing rvCrewMembers size=${list.size}")
                     emptyCrewState.visibility = View.GONE
                     rvCrewMembers.visibility = View.VISIBLE
                     crewAdapter.updateItems(list)
@@ -105,6 +143,7 @@ class CrewMembersActivity : AppCompatActivity() {
         lifecycleScope.launch {
             viewModel.actionError.collectLatest { err ->
                 err ?: return@collectLatest
+                Log.e("CrewDebug", "actionError: $err")
                 Toast.makeText(this@CrewMembersActivity, err, Toast.LENGTH_SHORT).show()
                 viewModel.clearError()
             }

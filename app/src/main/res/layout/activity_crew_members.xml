@@ -37,7 +37,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/montserratalternatess_bold"
-                android:text="My Crew"
+                android:text="My Crewmates"
                 android:textColor="@color/whitest"
                 android:textSize="22sp" />
 
@@ -46,7 +46,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/montserratalternatess_regular"
-                android:text="0 members"
+                android:text="0 contacts"
                 android:textColor="@color/white"
                 android:textSize="12sp" />
         </LinearLayout>
@@ -88,11 +88,25 @@
                     android:background="@drawable/bg_profile_card"
                     android:orientation="vertical">
 
+                    <!-- Skeleton shown while loading -->
+                    <LinearLayout
+                        android:id="@+id/crewSkeletonContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="visible">
+
+                        <include layout="@layout/item_skeleton_profile_crew" />
+                        <include layout="@layout/item_skeleton_profile_crew" />
+                        <include layout="@layout/item_skeleton_profile_crew" />
+                    </LinearLayout>
+
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/rvCrewMembers"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:nestedScrollingEnabled="false" />
+                        android:nestedScrollingEnabled="false"
+                        android:visibility="gone" />
                 </LinearLayout>
 
                 <LinearLayout
