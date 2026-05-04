@@ -1,15 +1,15 @@
 package com.waray.spendhound.ui.profile
 
+import android.graphics.Typeface
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageButton
 import android.widget.ImageView
 import android.widget.TextView
 import androidx.cardview.widget.CardView
-import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
+import coil.request.CachePolicy
 import coil.transform.CircleCropTransformation
 import com.waray.spendhound.CrewMember
 import com.waray.spendhound.R
@@ -30,8 +30,6 @@ class CrewMembersAdapter(
         val username: TextView = view.findViewById(R.id.crewUsername)
         val guestBadge: TextView = view.findViewById(R.id.crewGuestBadge)
         val statusText: TextView = view.findViewById(R.id.crewStatusText)
-        val messageBtn: ImageButton = view.findViewById(R.id.crewMessageBtn)
-        val removeBtn: ImageButton = view.findViewById(R.id.crewRemoveBtn)
         val divider: View = view.findViewById(R.id.crewDivider)
     }
 
@@ -46,22 +44,48 @@ class CrewMembersAdapter(
         holder.username.text = user.username ?: "Unknown"
 
         val isGuest = user.userType == 2
-        holder.guestBadge.visibility = if (isGuest) View.VISIBLE else View.GONE
 
-        val isOwner = crew.ownerUserId == currentUserId
-        holder.statusText.text = if (isOwner) "You invited" else "In your crew"
-
-        // Hide message button — only show when there are unread notifications (not yet implemented)
-        holder.messageBtn.visibility = View.GONE
-
-        holder.removeBtn.setOnClickListener { onRemove(crew) }
-
-        // Tap entire row to open DM (guests cannot DM)
-        if (!isGuest) {
-            holder.itemView.setOnClickListener { onMessage(user, crew) }
-        } else {
+        if (isGuest) {
+            // Guest: show badge below name, hide message preview
+            holder.guestBadge.visibility = View.VISIBLE
+            holder.statusText.visibility = View.GONE
             holder.itemView.setOnClickListener(null)
             holder.itemView.isClickable = false
+        } else {
+            // Registered: hide badge, show last message preview
+            holder.guestBadge.visibility = View.GONE
+            val unread = crew.unreadCount
+            val last = crew.lastMessage
+            when {
+                unread > 1 -> {
+                    holder.statusText.visibility = View.VISIBLE
+                    holder.statusText.text = "$unread unread messages"
+                    holder.statusText.setTypeface(null, Typeface.BOLD)
+                    holder.statusText.setTextColor(
+                        holder.itemView.context.getColor(R.color.black)
+                    )
+                }
+                unread == 1 -> {
+                    holder.statusText.visibility = View.VISIBLE
+                    holder.statusText.text = last ?: "1 unread message"
+                    holder.statusText.setTypeface(null, Typeface.BOLD)
+                    holder.statusText.setTextColor(
+                        holder.itemView.context.getColor(R.color.black)
+                    )
+                }
+                !last.isNullOrBlank() -> {
+                    holder.statusText.visibility = View.VISIBLE
+                    holder.statusText.text = last
+                    holder.statusText.setTypeface(null, Typeface.NORMAL)
+                    holder.statusText.setTextColor(
+                        holder.itemView.context.getColor(R.color.grey)
+                    )
+                }
+                else -> {
+                    holder.statusText.visibility = View.GONE
+                }
+            }
+            holder.itemView.setOnClickListener { onMessage(user, crew) }
         }
 
         // Load avatar
@@ -70,6 +94,10 @@ class CrewMembersAdapter(
             holder.avatarImage.load(profileUrl) {
                 crossfade(true)
                 transformations(CircleCropTransformation())
+                memoryCachePolicy(CachePolicy.ENABLED)
+                diskCachePolicy(CachePolicy.ENABLED)
+                memoryCacheKey(profileUrl)
+                diskCacheKey(profileUrl)
                 listener(
                     onSuccess = { _, _ ->
                         holder.avatarImage.imageTintList = null

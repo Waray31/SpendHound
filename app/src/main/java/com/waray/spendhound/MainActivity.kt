@@ -75,6 +75,8 @@ class MainActivity : AppCompatActivity() {
         val binding = com.waray.spendhound.databinding.ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        Log.d("APP_CHECK", "APP STARTED");
+
         mAuth = DeclareDatabase.auth
         
         val currentSupabaseUser = mAuth?.currentUserOrNull()

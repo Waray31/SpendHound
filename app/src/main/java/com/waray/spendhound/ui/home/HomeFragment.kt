@@ -92,6 +92,7 @@ class HomeFragment : Fragment() {
     ): View {
         binding = FragmentHomeBinding.inflate(inflater, container, false)
         val view = binding!!.root
+        Log.d("TEST", "App started");
 
         mAuth = DeclareDatabase.auth
 

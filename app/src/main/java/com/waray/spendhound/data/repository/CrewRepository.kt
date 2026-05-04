@@ -3,11 +3,14 @@ package com.waray.spendhound.data.repository
 import android.util.Log
 import com.waray.spendhound.CrewMember
 import com.waray.spendhound.DeclareDatabase
+import com.waray.spendhound.DirectMessage
 import com.waray.spendhound.SpendHoundApplication
 import com.waray.spendhound.User
 import com.waray.spendhound.data.local.AppDatabase
 import com.waray.spendhound.data.local.CacheKeys
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.postgrest.query.Order
+import io.github.jan.supabase.postgrest.query.filter.FilterOperator
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.buildJsonObject
@@ -21,36 +24,36 @@ data class CrewWithUser(
     val userId: Long?,
     val username: String?,
     val profileImageUrl: String?,
-    val userType: Int?
+    val userType: Int?,
+    val lastMessage: String? = null,
+    val unreadCount: Int = 0
 )
 
 class CrewRepository(private val db: AppDatabase) {
 
     constructor() : this(AppDatabase.getInstance(SpendHoundApplication.instance))
 
-    // Cached — emits from Room instantly, re-fetches from network only when stale
     fun getCrewListFlow(userId: Long): Flow<List<Pair<CrewMember, User>>> {
-        Log.d("CrewDebug", "getCrewListFlow called for userId=$userId")
         val flow: Flow<List<CrewWithUser>> = db.cachedFlow(
             key = CacheKeys.profileCrew(userId),
-            staleTtlMs = CacheKeys.STALE_PROFILE,
+            staleTtlMs = CacheKeys.STALE_CREW,
             type = typeOf<List<CrewWithUser>>()
         ) {
-            Log.d("CrewDebug", "getCrewListFlow fetch block execution for userId=$userId")
             fetchCrewList(userId).map { (crew, user) ->
                 CrewWithUser(
                     crewId = crew.id, ownerUserId = crew.ownerUserId, memberUserId = crew.memberUserId,
                     status = crew.status, userId = user.id, username = user.username,
-                    profileImageUrl = user.profileImageUrl, userType = user.userType
+                    profileImageUrl = user.profileImageUrl, userType = user.userType,
+                    lastMessage = crew.lastMessage, unreadCount = crew.unreadCount
                 )
             }
         }
         return flow.map { list ->
-            Log.d("CrewDebug", "getCrewListFlow mapping list size=${list.size}")
             list.map { c ->
                 CrewMember(
                     id = c.crewId, ownerUserId = c.ownerUserId,
-                    memberUserId = c.memberUserId, status = c.status
+                    memberUserId = c.memberUserId, status = c.status,
+                    lastMessage = c.lastMessage, unreadCount = c.unreadCount
                 ) to User(
                     id = c.userId, username = c.username,
                     profileImageUrl = c.profileImageUrl, userType = c.userType
@@ -62,11 +65,6 @@ class CrewRepository(private val db: AppDatabase) {
     suspend fun getCrewList(userId: Long): List<Pair<CrewMember, User>> = fetchCrewList(userId)
 
     private suspend fun fetchCrewList(userId: Long): List<Pair<CrewMember, User>> {
-        Log.d("CrewDebug", "fetchCrewList START for userId=$userId")
-        
-        // This log helps us see if Supabase is actually being queried
-        Log.i("CrewDebug", "Supabase: Querying crew_members for userId=$userId")
-
         val asOwner = try {
             DeclareDatabase.crewMembersTable.select {
                 filter { eq("owner_user_id", userId); eq("status", 1) }
@@ -83,12 +81,8 @@ class CrewRepository(private val db: AppDatabase) {
             Log.e("CrewDebug", "fetchCrewList asMember EXCEPTION: ${e.message}"); emptyList()
         }
 
-        val totalRecords = asOwner.size + asMember.size
-        Log.i("CrewDebug", "Supabase: Found $totalRecords crew records (Owner: ${asOwner.size}, Member: ${asMember.size})")
-
         return (asOwner + asMember).mapNotNull { crew ->
             val otherUserId = if (crew.ownerUserId == userId) crew.memberUserId else crew.ownerUserId
-            Log.d("CrewDebug", "fetchCrewList resolving otherUserId=$otherUserId for crewId=${crew.id}")
             otherUserId ?: return@mapNotNull null
             val user = try {
                 DeclareDatabase.usersTable.select(
@@ -96,9 +90,41 @@ class CrewRepository(private val db: AppDatabase) {
                 ) { filter { eq("user_id", otherUserId) } }.decodeSingleOrNull<User>()
             } catch (e: Exception) {
                 Log.e("CrewDebug", "fetchCrewList user fetch EXCEPTION: ${e.message}"); null
+            } ?: return@mapNotNull null
+
+            // Only fetch DM preview for registered users
+            if (user.userType == 1) {
+                val lastMsg: String?
+                val unread: Int
+                try {
+                    val messages = DeclareDatabase.directMessagesTable.select {
+                        filter {
+                            or {
+                                and { eq("sender_id", userId); eq("recipient_id", otherUserId) }
+                                and { eq("sender_id", otherUserId); eq("recipient_id", userId) }
+                            }
+                        }
+                        order("sent_at", Order.DESCENDING)
+                        limit(1)
+                    }.decodeList<DirectMessage>()
+                    lastMsg = messages.firstOrNull()?.content
+                    unread = try {
+                        DeclareDatabase.directMessagesTable.select(Columns.list("id")) {
+                            filter {
+                                eq("sender_id", otherUserId)
+                                eq("recipient_id", userId)
+                                filter("read_at", FilterOperator.IS, "null")
+                            }
+                        }.decodeList<DirectMessage>().size
+                    } catch (e: Exception) { 0 }
+                } catch (e: Exception) {
+                    Log.e("CrewDebug", "fetchCrewList DM preview EXCEPTION: ${e.message}")
+                    return@mapNotNull crew.copy(lastMessage = null, unreadCount = 0) to user
+                }
+                crew.copy(lastMessage = lastMsg, unreadCount = unread) to user
+            } else {
+                crew.copy(lastMessage = null, unreadCount = 0) to user
             }
-            Log.d("CrewDebug", "fetchCrewList resolved user=${user?.username}")
-            user?.let { crew to it }
         }
     }
 
@@ -117,7 +143,6 @@ class CrewRepository(private val db: AppDatabase) {
 
     suspend fun sendInvite(ownerUserId: Long, memberUserId: Long): String? {
         if (ownerUserId == memberUserId) return "You cannot invite yourself."
-
         val existing = DeclareDatabase.crewMembersTable.select {
             filter {
                 or {
@@ -126,14 +151,11 @@ class CrewRepository(private val db: AppDatabase) {
                 }
             }
         }.decodeList<CrewMember>()
-
         if (existing.isNotEmpty()) return "Crew relationship already exists."
-
         val memberUser = DeclareDatabase.usersTable.select(
             Columns.list("user_id", "user_type")
         ) { filter { eq("user_id", memberUserId) } }.decodeSingleOrNull<User>()
             ?: return "User not found."
-
         val status = if (memberUser.userType == 2) 1 else 3
         DeclareDatabase.crewMembersTable.insert(buildJsonObject {
             put("owner_user_id", ownerUserId)
@@ -208,7 +230,7 @@ class CrewRepository(private val db: AppDatabase) {
         })
     }
 
-    suspend fun getDirectMessages(userId: Long, otherUserId: Long): List<com.waray.spendhound.DirectMessage> {
+    suspend fun getDirectMessages(userId: Long, otherUserId: Long): List<DirectMessage> {
         return DeclareDatabase.directMessagesTable.select {
             filter {
                 or {

@@ -6,6 +6,8 @@ object CacheKeys {
     fun profile(userId: Long) = "profile_$userId"
     fun profileCrew(userId: Long) = "profile_crew_$userId"
     fun profileGroups(userId: Long) = "profile_groups_$userId"
+
+    const val STALE_CREW = 5 * 60 * 1000L
     fun transactions(userId: Long) = "transactions_$userId"
     fun borrows(userId: Long) = "borrows_$userId"
     fun groupsList(userId: Long) = "groups_list_$userId"

@@ -38,65 +38,41 @@
             android:layout_weight="1"
             android:orientation="vertical">
 
-            <LinearLayout
-                android:layout_width="match_parent"
+            <TextView
+                android:id="@+id/crewUsername"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:textColor="@color/black"
+                android:textSize="15sp" />
 
-                <TextView
-                    android:id="@+id/crewUsername"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/montserratalternatess_bold"
-                    android:textColor="@color/black"
-                    android:textSize="15sp" />
+            <!-- Shown below name for guest users -->
+            <TextView
+                android:id="@+id/crewGuestBadge"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:background="@drawable/bg_profile_card"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="3dp"
+                android:text="Guest"
+                android:textColor="@color/orange"
+                android:textSize="10sp"
+                android:visibility="gone" />
 
-                <TextView
-                    android:id="@+id/crewGuestBadge"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:background="@drawable/bg_profile_card"
-                    android:paddingHorizontal="8dp"
-                    android:layout_marginStart="8dp"
-                    android:paddingVertical="3dp"
-                    android:text="Guest"
-                    android:textColor="@color/orange"
-                    android:textSize="10sp"
-                    android:visibility="visible" />
-            </LinearLayout>
-
+            <!-- Last message preview for registered users -->
             <TextView
                 android:id="@+id/crewStatusText"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
                 android:textColor="@color/grey"
-                android:textSize="12sp" />
+                android:textSize="12sp"
+                android:visibility="gone" />
+
         </LinearLayout>
 
-        <ImageButton
-            android:id="@+id/crewMessageBtn"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:background="@drawable/ic_send"
-            android:backgroundTint="@color/lightgrey"
-            android:contentDescription="Send message"
-            android:padding="8dp"
-            android:src="@drawable/ic_email_small"
-            app:tint="@color/darkBlue" />
-
-        <ImageButton
-            android:id="@+id/crewRemoveBtn"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/bg_profile_card"
-            android:elevation="2dp"
-            android:contentDescription="Remove crew member"
-            android:scaleType="centerCrop"
-            android:padding="3dp"
-            android:src="@drawable/ic_close_24dp"
-            app:tint="@color/red" />
     </LinearLayout>
 
     <View

@@ -89,7 +89,6 @@ class ProfileFragment : Fragment() {
     private var currentNickname: String? = ""
     private var balance = 0.0
     private var unpaid = 0.0
-
     private var currentOwe = 0.0
     private var currentDebt = 0.0
     private var balanceUnpaidLayout: View? = null
@@ -105,7 +104,6 @@ class ProfileFragment : Fragment() {
     private var emptyGroupsLayout: LinearLayout? = null
     private var profileGroupsAdapter: ProfileGroupsAdapter? = null
 
-    // Crew views
     private var crewRecyclerView: RecyclerView? = null
     private var crewSkeletonLayout: LinearLayout? = null
     private var emptyCrewLayout: LinearLayout? = null
@@ -115,8 +113,7 @@ class ProfileFragment : Fragment() {
     private var tvCrewPendingBadge: TextView? = null
     private var crewAdapter: CrewMembersAdapter? = null
     private var currentUserId: Long = -1L
-
-    private var imageUpdatedAtValue: String? = null
+    private var hasLoadedOnce = false
     private var isTabClickEnabled = true
 
     companion object {
@@ -127,7 +124,6 @@ class ProfileFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
-        Log.i("CrewDebug", "ProfileFragment: onCreateView() called")
         if (mAuth == null) { mAuth = DeclareDatabase.auth }
         val view: View = inflater.inflate(R.layout.fragment_profile, container, false)
 
@@ -153,7 +149,6 @@ class ProfileFragment : Fragment() {
         breakdownBtn = view.findViewById(R.id.breakdown_btn)
         groupsSkeletonLayout = view.findViewById(R.id.groupsSkeletonLayout)
         emptyGroupsLayout = view.findViewById(R.id.emptyGroupsLayout)
-
         crewRecyclerView = view.findViewById(R.id.crewRecyclerView)
         crewSkeletonLayout = view.findViewById(R.id.crewSkeletonLayout)
         emptyCrewLayout = view.findViewById(R.id.emptyCrewLayout)
@@ -167,7 +162,6 @@ class ProfileFragment : Fragment() {
         oweDebtDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.round_border_glassy)
         oweDebtDrawableTransparent = ContextCompat.getDrawable(requireContext(), R.drawable.transparent_background)
         balanceUnpaidLayout?.foreground = balanceUnpaidDrawable
-
         balanceTextView?.setBackgroundResource(R.drawable.button_background_visible)
         balanceTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.yellow))
 
@@ -191,37 +185,107 @@ class ProfileFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        // Apply cached StateFlow values synchronously — same frame, no coroutine gap
+        // This is exactly why groups has no flash: its observer fires synchronously here
+        applyCachedState()
         observeViewModel()
+    }
+
+    /**
+     * Reads current StateFlow values synchronously and applies them to views immediately.
+     * Called before observeViewModel() so there is zero blank frame on revisit.
+     */
+    private fun applyCachedState() {
+        // Profile image — read from ViewModel memory, load from Coil memory/disk cache instantly
+        val cachedProfile = viewModel.profile.value
+        if (cachedProfile != null) {
+            nicknameTextView?.text = cachedProfile.nickname
+            nicknameSkeleton?.visibility = View.GONE
+            nicknameTextView?.visibility = View.VISIBLE
+            profileSkeleton?.visibility = View.GONE
+            profileCardView?.visibility = View.VISIBLE
+            userStatsSkeletonLayout?.visibility = View.GONE
+            userStatsLayout?.visibility = View.VISIBLE
+            transactionsCountTextView?.text = cachedProfile.transactionsCount.toString()
+            groupsCountTextView?.text = cachedProfile.groupsCount.toString()
+
+            val imageUrl = cachedProfile.profileImageUrl
+            if (!imageUrl.isNullOrBlank()) {
+                profileImageView?.load(imageUrl) {
+                    crossfade(false)
+                    transformations(CircleCropTransformation())
+                    placeholder(null)
+                    error(R.drawable.placeholder_profile_image)
+                    memoryCachePolicy(CachePolicy.ENABLED)
+                    diskCachePolicy(CachePolicy.ENABLED)
+                    memoryCacheKey(imageUrl)
+                    diskCacheKey(imageUrl)
+                }
+                profileCardView?.let {
+                    (it as? androidx.cardview.widget.CardView)
+                        ?.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.orange))
+                }
+            }
+            hasLoadedOnce = true
+        }
+
+        // Crew list — create adapter immediately (currentUserId not needed yet, updated later)
+        // then bind cached data synchronously so there is zero blank frame
+        val cachedCrew = crewViewModel.crewList.value
+        if (cachedCrew.isNotEmpty()) {
+            if (crewAdapter == null) {
+                crewAdapter = CrewMembersAdapter(
+                    currentUserId = currentUserId, // -1L placeholder, updated in loadNicknameAndData
+                    onMessage = { otherUser, _ -> openDm(otherUser) },
+                    onRemove = { crew -> confirmRemoveCrew(crew) }
+                )
+                crewRecyclerView?.layoutManager = LinearLayoutManager(requireContext())
+                crewRecyclerView?.adapter = crewAdapter
+            }
+            crewAdapter?.updateItems(cachedCrew.take(3))
+            crewSkeletonLayout?.visibility = View.GONE
+            emptyCrewLayout?.visibility = View.GONE
+            crewRecyclerView?.visibility = View.VISIBLE
+            hasLoadedOnce = true
+        }
     }
 
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
             crewViewModel.isLoading.collectLatest { loading ->
-                Log.i("CrewDebug", "ProfileFragment: isLoading observer: $loading")
-                val hasItems = (crewAdapter?.itemCount ?: 0) > 0
-                if (loading && !hasItems) {
-                    crewSkeletonLayout?.visibility = View.VISIBLE
-                    crewRecyclerView?.visibility = View.GONE
-                    emptyCrewLayout?.visibility = View.GONE
-                } else if (!loading) {
+                if (loading) {
+                    if (!hasLoadedOnce) {
+                        crewSkeletonLayout?.visibility = View.VISIBLE
+                        crewRecyclerView?.visibility = View.GONE
+                        emptyCrewLayout?.visibility = View.GONE
+                    }
+                } else {
                     crewSkeletonLayout?.visibility = View.GONE
+                    val list = crewViewModel.crewList.value
+                    if (list.isNotEmpty()) {
+                        hasLoadedOnce = true
+                        emptyCrewLayout?.visibility = View.GONE
+                        crewRecyclerView?.visibility = View.VISIBLE
+                        crewAdapter?.updateItems(list.take(3))
+                    } else if (!hasLoadedOnce) {
+                        emptyCrewLayout?.visibility = View.VISIBLE
+                        crewRecyclerView?.visibility = View.GONE
+                    }
                 }
             }
         }
         viewLifecycleOwner.lifecycleScope.launch {
             crewViewModel.crewList.collectLatest { list ->
-                Log.i("CrewDebug", "ProfileFragment: crewList observer size: ${list.size}")
+                if (crewViewModel.isLoading.value) return@collectLatest
                 crewSkeletonLayout?.visibility = View.GONE
-                val preview = list.take(3)
-                if (preview.isEmpty()) {
-                    Log.i("CrewDebug", "ProfileFragment: showing empty state")
-                    emptyCrewLayout?.visibility = View.VISIBLE
-                    crewRecyclerView?.visibility = View.GONE
-                } else {
-                    Log.i("CrewDebug", "ProfileFragment: showing list of ${preview.size}")
+                if (list.isNotEmpty()) {
+                    hasLoadedOnce = true
                     emptyCrewLayout?.visibility = View.GONE
                     crewRecyclerView?.visibility = View.VISIBLE
-                    crewAdapter?.updateItems(preview)
+                    crewAdapter?.updateItems(list.take(3))
+                } else if (!hasLoadedOnce) {
+                    emptyCrewLayout?.visibility = View.VISIBLE
+                    crewRecyclerView?.visibility = View.GONE
                 }
             }
         }
@@ -248,7 +312,26 @@ class ProfileFragment : Fragment() {
                 if (totalTextView?.text == getString(R.string.label_borrowed)) {
                     totalBalancedTextView?.text = data.activeBorrowsCount.toString()
                 }
-                profileImageView?.let { setProfileImage(it) }
+                val imageUrl = data.profileImageUrl
+                if (!imageUrl.isNullOrBlank()) {
+                    profileImageView?.load(imageUrl) {
+                        crossfade(true)
+                        transformations(CircleCropTransformation())
+                        placeholder(R.drawable.placeholder_profile_image)
+                        error(R.drawable.placeholder_profile_image)
+                        memoryCachePolicy(CachePolicy.ENABLED)
+                        diskCachePolicy(CachePolicy.ENABLED)
+                        memoryCacheKey(imageUrl)
+                        diskCacheKey(imageUrl)
+                    }
+                    profileCardView?.let {
+                        (it as? androidx.cardview.widget.CardView)
+                            ?.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.orange))
+                    }
+                } else {
+                    profileImageView?.setImageResource(R.drawable.placeholder_profile_image)
+                }
+                hasLoadedOnce = true
             }
         }
         viewLifecycleOwner.lifecycleScope.launch {
@@ -272,52 +355,6 @@ class ProfileFragment : Fragment() {
         loadNicknameAndData()
     }
 
-    private fun setProfileImage(imageView: ImageView) {
-        if (!isAdded) return
-        val authId = mAuth?.currentUserOrNull()?.id
-        if (authId == null) {
-            imageView.setImageResource(R.drawable.placeholder_profile_image)
-            return
-        }
-        val cardView = view?.findViewById<androidx.cardview.widget.CardView>(R.id.profileCardView)
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val user = DeclareDatabase.usersTable.select(Columns.list("profile_image_url", "updated_at")) {
-                    filter { eq("auth_id", authId) }
-                }.decodeSingleOrNull<User>()
-
-                withContext(Dispatchers.Main) {
-                    if (!isAdded || view == null) return@withContext
-                    val currentContext = context ?: return@withContext
-
-                    if (user?.profileImageUrl != null) {
-                        val imageUrl = user.profileImageUrl
-                        val updatedAt = user.updatedAt
-                        imageView.load(imageUrl) {
-                            crossfade(true)
-                            transformations(CircleCropTransformation())
-                            placeholder(R.drawable.placeholder_profile_image)
-                            error(R.drawable.placeholder_profile_image)
-                            diskCachePolicy(CachePolicy.ENABLED)
-                            memoryCachePolicy(CachePolicy.ENABLED)
-                            if (imageUpdatedAtValue != updatedAt) {
-                                memoryCacheKey(imageUrl + updatedAt)
-                                diskCacheKey(imageUrl + updatedAt)
-                                imageUpdatedAtValue = updatedAt
-                            }
-                        }
-                        cardView?.setCardBackgroundColor(ContextCompat.getColor(currentContext, R.color.orange))
-                    } else {
-                        imageView.setImageResource(R.drawable.placeholder_profile_image)
-                        cardView?.setCardBackgroundColor(ContextCompat.getColor(currentContext, R.color.orange))
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("CrewDebug", "setProfileImage error: ${e.message}")
-            }
-        }
-    }
-
     private fun setupRecyclerView(view: View) {
         groupsRecyclerView = view.findViewById(R.id.groupsRecyclerView)
         profileGroupsAdapter = ProfileGroupsAdapter()
@@ -335,27 +372,20 @@ class ProfileFragment : Fragment() {
     }
 
     internal fun loadNicknameAndData() {
-        Log.i("CrewDebug", "ProfileFragment: loadNicknameAndData() called")
-        val authId = mAuth?.currentUserOrNull()?.id
-        Log.i("CrewDebug", "ProfileFragment: authId=$authId")
-        if (authId == null) {
-            Log.e("CrewDebug", "ProfileFragment: authId is NULL")
-            return
-        }
-        val isFirstLoad = nicknameTextView?.text.isNullOrBlank() || nicknameTextView?.visibility == View.GONE
-        if (isFirstLoad) {
+        val authId = mAuth?.currentUserOrNull()?.id ?: return
+        if (!hasLoadedOnce) {
             nicknameSkeleton?.visibility = View.VISIBLE
             nicknameTextView?.visibility = View.GONE
             profileSkeleton?.visibility = View.VISIBLE
             profileCardView?.visibility = View.GONE
             userStatsSkeletonLayout?.visibility = View.VISIBLE
             userStatsLayout?.visibility = View.GONE
-        }
-        if (crewRecyclerView?.visibility != View.VISIBLE && emptyCrewLayout?.visibility != View.VISIBLE) {
             crewSkeletonLayout?.visibility = View.VISIBLE
             emptyCrewLayout?.visibility = View.GONE
             crewRecyclerView?.visibility = View.GONE
         }
+        // On revisit hasLoadedOnce=true — applyCachedState() already restored views synchronously,
+        // so we just trigger background refresh without touching visibility
         lifecycleScope.launch {
             try {
                 val user = withContext(Dispatchers.IO) {
@@ -364,7 +394,6 @@ class ProfileFragment : Fragment() {
                     }.decodeSingleOrNull<User>()
                 }
                 user?.id?.let { userId ->
-                    Log.i("CrewDebug", "ProfileFragment: Resolved userId=$userId")
                     currentUserId = userId
                     viewModel.load(userId, authId)
                     crewViewModel.loadCrew(userId)
@@ -376,6 +405,8 @@ class ProfileFragment : Fragment() {
                         )
                         crewRecyclerView?.layoutManager = LinearLayoutManager(requireContext())
                         crewRecyclerView?.adapter = crewAdapter
+                    } else {
+                        crewAdapter?.updateCurrentUserId(userId)
                     }
                     val userBalance = withContext(Dispatchers.IO) {
                         DeclareDatabase.userBalanceTable.select {
@@ -403,9 +434,7 @@ class ProfileFragment : Fragment() {
 
     private fun openAddCrewActivity() {
         startActivity(Intent(requireContext(), AddCrewActivity::class.java).apply {
-            if (currentUserId != -1L) {
-                putExtra(AddCrewActivity.EXTRA_OWNER_USER_ID, currentUserId)
-            }
+            if (currentUserId != -1L) putExtra(AddCrewActivity.EXTRA_OWNER_USER_ID, currentUserId)
         })
     }
 
@@ -414,21 +443,17 @@ class ProfileFragment : Fragment() {
         val rvPending = dialogView.findViewById<RecyclerView>(R.id.rvPendingInvites)
         val tvNoPending = dialogView.findViewById<TextView>(R.id.tvNoPending)
         val btnClose = dialogView.findViewById<android.widget.ImageButton>(R.id.btnClosePending)
-
         val dialog = androidx.appcompat.app.AlertDialog.Builder(requireContext()).setView(dialogView).create()
         btnClose.setOnClickListener { dialog.dismiss() }
-
         val pendingAdapter = PendingInvitesAdapter(
             onAccept = { crew -> crewViewModel.respondToInvite(crew.id!!, true, currentUserId); dialog.dismiss() },
             onDecline = { crew -> crewViewModel.respondToInvite(crew.id!!, false, currentUserId); dialog.dismiss() }
         )
         rvPending.layoutManager = LinearLayoutManager(requireContext())
         rvPending.adapter = pendingAdapter
-
         val pending = crewViewModel.pendingInvites.value
         if (pending.isEmpty()) { tvNoPending.visibility = View.VISIBLE; rvPending.visibility = View.GONE }
         else { tvNoPending.visibility = View.GONE; rvPending.visibility = View.VISIBLE; pendingAdapter.updateItems(pending) }
-
         dialog.show()
     }
 
@@ -453,7 +478,6 @@ class ProfileFragment : Fragment() {
         balanceTextView?.setOnClickListener {
             balanceUnpaidLayout?.foreground = balanceUnpaidDrawable
             oweDebtLayout?.foreground = oweDebtDrawableTransparent
-
             balanceTextView?.setBackgroundResource(R.drawable.button_background_visible)
             balanceTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.yellow))
             unpaidTextView?.setBackgroundResource(R.drawable.button_background_invisible)
@@ -462,7 +486,6 @@ class ProfileFragment : Fragment() {
             oweTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
             debtTextView?.setBackgroundResource(R.drawable.button_background_invisible)
             debtTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
-
             totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(balance)
             totalTextView?.text = "Total Balance:"
         }
@@ -472,7 +495,6 @@ class ProfileFragment : Fragment() {
         unpaidTextView?.setOnClickListener {
             balanceUnpaidLayout?.foreground = balanceUnpaidDrawable
             oweDebtLayout?.foreground = oweDebtDrawableTransparent
-
             balanceTextView?.setBackgroundResource(R.drawable.button_background_invisible)
             balanceTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
             unpaidTextView?.setBackgroundResource(R.drawable.button_background_visible)
@@ -481,7 +503,6 @@ class ProfileFragment : Fragment() {
             oweTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
             debtTextView?.setBackgroundResource(R.drawable.button_background_invisible)
             debtTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
-
             totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(unpaid)
             totalTextView?.text = "Total Unpaid:"
         }
@@ -491,7 +512,6 @@ class ProfileFragment : Fragment() {
         oweTextView?.setOnClickListener {
             balanceUnpaidLayout?.foreground = balanceUnpaidDrawableTransparent
             oweDebtLayout?.foreground = oweDebtDrawable
-
             balanceTextView?.setBackgroundResource(R.drawable.button_background_invisible)
             balanceTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
             unpaidTextView?.setBackgroundResource(R.drawable.button_background_invisible)
@@ -500,7 +520,6 @@ class ProfileFragment : Fragment() {
             oweTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.yellow))
             debtTextView?.setBackgroundResource(R.drawable.button_background_invisible)
             debtTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
-
             totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(currentOwe)
             totalTextView?.text = "Total Owed To You:"
         }
@@ -510,7 +529,6 @@ class ProfileFragment : Fragment() {
         debtTextView?.setOnClickListener {
             balanceUnpaidLayout?.foreground = balanceUnpaidDrawableTransparent
             oweDebtLayout?.foreground = oweDebtDrawable
-
             balanceTextView?.setBackgroundResource(R.drawable.button_background_invisible)
             balanceTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
             unpaidTextView?.setBackgroundResource(R.drawable.button_background_invisible)
@@ -519,7 +537,6 @@ class ProfileFragment : Fragment() {
             oweTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
             debtTextView?.setBackgroundResource(R.drawable.button_background_visible)
             debtTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.yellow))
-
             totalBalancedTextView?.text = CurrencyUtils.formatAmountWithCurrency(currentDebt)
             totalTextView?.text = "Total Debt:"
         }
@@ -538,8 +555,7 @@ class ProfileFragment : Fragment() {
 
     private fun setupBreakdownButton() {
         breakdownBtn?.setOnClickListener {
-            val intent = Intent(requireContext(), com.waray.spendhound.GroupsActivity::class.java)
-            startActivity(intent)
+            startActivity(Intent(requireContext(), com.waray.spendhound.GroupsActivity::class.java))
         }
     }
 }

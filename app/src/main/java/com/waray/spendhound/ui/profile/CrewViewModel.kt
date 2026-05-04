@@ -36,35 +36,23 @@ class CrewViewModel : ViewModel() {
     val isLoading: StateFlow<Boolean> = _isLoading
 
     fun loadCrew(userId: Long) {
-        Log.d("CrewDebug", "loadCrew called userId=$userId isLoading=${_isLoading.value}")
         viewModelScope.launch {
-            if (_isLoading.value) {
-                Log.d("CrewDebug", "loadCrew SKIPPED — already loading")
-                return@launch
-            }
             _isLoading.value = true
-            Log.d("CrewDebug", "loadCrew isLoading=true")
             try {
-                Log.d("CrewDebug", "loadCrew: Starting flow collection")
                 repo.getCrewListFlow(userId).collect { list ->
-                    Log.d("CrewDebug", "loadCrew: Flow emitted size=${list.size}")
                     _crewList.value = list
                     _isLoading.value = false
-                    Log.d("CrewDebug", "loadCrew: isLoading=false")
                 }
             } catch (e: Exception) {
                 Log.e("CrewDebug", "loadCrew EXCEPTION: ${e.message}", e)
                 _actionError.value = "Failed to load crew."
-                _isLoading.value = false
             } finally {
-                // Ensure loading is stopped if collect finishes/fails
                 _isLoading.value = false
             }
         }
         viewModelScope.launch {
             try {
                 val pending = repo.getPendingInvites(userId)
-                Log.d("CrewDebug", "loadCrew pendingInvites size=${pending.size}")
                 _pendingInvites.value = pending
             } catch (e: Exception) {
                 Log.e("CrewDebug", "getPendingInvites EXCEPTION: ${e.message}", e)
