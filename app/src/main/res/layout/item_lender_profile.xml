@@ -11,7 +11,7 @@
         android:layout_width="60dp"
         android:layout_height="45dp"
         android:scaleType="centerInside"
-        android:src="@drawable/placeholder_profile_image"/>
+        android:src="@drawable/ic_profile_silhouette"/>
         <!--app:shapeAppearanceOverlay="@style/CircleImageView"
         xmlns:app="http://schemas.android.com/apk/res-auto"-->
 

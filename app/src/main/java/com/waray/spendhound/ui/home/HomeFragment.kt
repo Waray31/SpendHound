@@ -254,7 +254,8 @@ class HomeFragment : Fragment() {
             set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59)
         }
 
-        viewLifecycleOwner.lifecycleScope.launch {
+        val lifecycleOwner = try { viewLifecycleOwner } catch (_: IllegalStateException) { return }
+        lifecycleOwner.lifecycleScope.launch {
             try {
                 val userSplits = withContext(Dispatchers.IO) {
                     DeclareDatabase.transactionSplitsTable.select {
@@ -485,7 +486,8 @@ class HomeFragment : Fragment() {
 
         val userId = currentUserNumericId ?: return
 
-        viewLifecycleOwner.lifecycleScope.launch {
+        val lifecycleOwner = try { viewLifecycleOwner } catch (_: IllegalStateException) { return }
+        lifecycleOwner.lifecycleScope.launch {
             try {
                 val allTransactions = withContext(Dispatchers.IO) {
                     DeclareDatabase.transactionsTable.select().decodeList<TransactionFull>()

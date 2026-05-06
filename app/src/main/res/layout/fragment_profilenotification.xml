@@ -14,7 +14,7 @@
         android:layout_width="40dp"
         android:layout_height="40dp"
         android:layout_marginEnd="10dp"
-        android:background="@drawable/placeholder_profile_image"
+        android:background="@drawable/ic_profile_silhouette"
         android:padding="8dp"/>
 
     <LinearLayout

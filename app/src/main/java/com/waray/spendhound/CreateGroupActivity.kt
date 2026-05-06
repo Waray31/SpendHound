@@ -174,11 +174,11 @@ class CreateGroupActivity : AppCompatActivity() {
                     .load(url)
                     .circleCrop()
                     .diskCacheStrategy(DiskCacheStrategy.ALL)
-                    .placeholder(R.drawable.placeholder_profile_image)
-                    .error(R.drawable.placeholder_profile_image)
+                    .placeholder(R.drawable.ic_profile_silhouette)
+                    .error(R.drawable.ic_profile_silhouette)
                     .into(iv)
             } catch (e: Exception) {
-                iv.setImageResource(R.drawable.placeholder_profile_image)
+                iv.setImageResource(R.drawable.ic_profile_silhouette)
             }
         }
     }

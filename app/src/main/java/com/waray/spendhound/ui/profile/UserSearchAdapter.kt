@@ -39,12 +39,12 @@ class UserSearchAdapter(
                 crossfade(true)
                 transformations(CircleCropTransformation())
                 listener(onError = { _, _ ->
-                    holder.avatar.setImageResource(R.drawable.placeholder_profile_image)
+                    holder.avatar.setImageResource(R.drawable.ic_profile_silhouette)
                     holder.avatar.imageTintList = null
                 })
             }
         } else {
-            holder.avatar.setImageResource(R.drawable.placeholder_profile_image)
+            holder.avatar.setImageResource(R.drawable.ic_profile_silhouette)
             holder.avatar.imageTintList = null
         }
 

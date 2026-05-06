@@ -710,8 +710,8 @@ class GroupChatFragment : Fragment() {
                         if (!avatarPath.isNullOrBlank()) {
                             iv.load(DeclareDatabase.profileImagesBucket.publicUrl(avatarPath)) {
                                 crossfade(true)
-                                placeholder(R.drawable.placeholder_profile_image)
-                                error(R.drawable.placeholder_profile_image)
+                                placeholder(R.drawable.ic_profile_silhouette)
+                                error(R.drawable.ic_profile_silhouette)
                                 transformations(CircleCropTransformation())
                             }
                         }

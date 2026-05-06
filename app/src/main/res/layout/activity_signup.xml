@@ -168,8 +168,7 @@
                         android:layout_height="match_parent"
                         android:padding="2dp"
                         android:scaleType="centerCrop"
-                        android:src="@drawable/placeholder_profile_image"
-                        app:shapeAppearanceOverlay="@style/CircleImageView"
+                        android:src="@drawable/ic_profile_silhouette"
                         app:strokeColor="@color/yellow"
                         app:strokeWidth="2dp" />
 

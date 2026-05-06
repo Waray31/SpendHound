@@ -210,20 +210,19 @@ class ProfileFragment : Fragment() {
             groupsCountTextView?.text = cachedProfile.groupsCount.toString()
 
             val imageUrl = cachedProfile.profileImageUrl
+            profileCardView?.visibility = View.VISIBLE
+            (profileCardView as? androidx.cardview.widget.CardView)
+                ?.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.orange))
             if (!imageUrl.isNullOrBlank()) {
                 profileImageView?.load(imageUrl) {
                     crossfade(false)
                     transformations(CircleCropTransformation())
-                    placeholder(null)
-                    error(R.drawable.placeholder_profile_image)
+                    placeholder(R.drawable.ic_profile_silhouette)
+                    error(R.drawable.ic_profile_silhouette)
                     memoryCachePolicy(CachePolicy.ENABLED)
                     diskCachePolicy(CachePolicy.ENABLED)
                     memoryCacheKey(imageUrl)
                     diskCacheKey(imageUrl)
-                }
-                profileCardView?.let {
-                    (it as? androidx.cardview.widget.CardView)
-                        ?.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.orange))
                 }
             }
             hasLoadedOnce = true
@@ -313,23 +312,22 @@ class ProfileFragment : Fragment() {
                     totalBalancedTextView?.text = data.activeBorrowsCount.toString()
                 }
                 val imageUrl = data.profileImageUrl
+                profileCardView?.visibility = View.VISIBLE
+                (profileCardView as? androidx.cardview.widget.CardView)
+                    ?.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.orange))
                 if (!imageUrl.isNullOrBlank()) {
                     profileImageView?.load(imageUrl) {
-                        crossfade(true)
+                        crossfade(false)
                         transformations(CircleCropTransformation())
-                        placeholder(R.drawable.placeholder_profile_image)
-                        error(R.drawable.placeholder_profile_image)
+                        placeholder(R.drawable.ic_profile_silhouette)
+                        error(R.drawable.ic_profile_silhouette)
                         memoryCachePolicy(CachePolicy.ENABLED)
                         diskCachePolicy(CachePolicy.ENABLED)
                         memoryCacheKey(imageUrl)
                         diskCacheKey(imageUrl)
                     }
-                    profileCardView?.let {
-                        (it as? androidx.cardview.widget.CardView)
-                            ?.setCardBackgroundColor(ContextCompat.getColor(requireContext(), R.color.orange))
-                    }
                 } else {
-                    profileImageView?.setImageResource(R.drawable.placeholder_profile_image)
+                    profileImageView?.setImageResource(R.drawable.ic_profile_silhouette)
                 }
                 hasLoadedOnce = true
             }

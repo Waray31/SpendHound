@@ -17,7 +17,7 @@
             android:id="@+id/profile_image_placeholder"
             android:layout_width="100dp"
             android:layout_height="100dp"
-            android:src="@drawable/placeholder_profile_image"
+            android:src="@drawable/ic_profile_silhouette"
             app:tint="@color/lightgrey" />
     </androidx.cardview.widget.CardView>
 

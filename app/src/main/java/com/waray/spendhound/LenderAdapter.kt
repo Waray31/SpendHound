@@ -61,7 +61,7 @@ class LenderAdapter(private val lenders: MutableList<User?>) :
                 PayorAdapter.sDownloadUrlCache[userId] = url
                 loadGlideImage(holder, url)
             } else {
-                holder.profileImage.setImageResource(R.drawable.placeholder_profile_image)
+                holder.profileImage.setImageResource(R.drawable.ic_profile_silhouette)
             }
         }
     }
@@ -70,8 +70,8 @@ class LenderAdapter(private val lenders: MutableList<User?>) :
         Glide.with(holder.itemView.context)
             .load(url)
             .diskCacheStrategy(DiskCacheStrategy.ALL)
-            .placeholder(R.drawable.placeholder_profile_image)
-            .error(R.drawable.placeholder_profile_image)
+            .placeholder(R.drawable.ic_profile_silhouette)
+            .error(R.drawable.ic_profile_silhouette)
             .circleCrop()
             .into(holder.profileImage)
     }

@@ -91,12 +91,12 @@ class DirectMessageAdapter(
                 if (!url.isNullOrBlank()) {
                     iv.load(url) {
                         crossfade(true)
-                        placeholder(R.drawable.placeholder_profile_image)
-                        error(R.drawable.placeholder_profile_image)
+                        placeholder(R.drawable.ic_profile_silhouette)
+                        error(R.drawable.ic_profile_silhouette)
                         transformations(coil.transform.CircleCropTransformation())
                     }
                 } else {
-                    iv.setImageResource(R.drawable.placeholder_profile_image)
+                    iv.setImageResource(R.drawable.ic_profile_silhouette)
                 }
             } else {
                 iv.visibility = View.INVISIBLE

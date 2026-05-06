@@ -15,7 +15,7 @@
             android:layout_width="56dp"
             android:layout_height="56dp"
             android:scaleType="centerCrop"
-            android:src="@drawable/placeholder_profile_image" />
+            android:src="@drawable/ic_profile_silhouette" />
 
         <ImageView
             android:id="@+id/ivRemove"

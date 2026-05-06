@@ -54,7 +54,7 @@ class PayerListTransactionAdapter(
         holder.payerNameTV.text = transaction.borrowee
         holder.amountPaidTV.text = transaction.borrowedAmountStr
 
-        holder.payerImg.setImageResource(R.drawable.placeholder_profile_image)
+        holder.payerImg.setImageResource(R.drawable.ic_profile_silhouette)
         holder.payerImg.tag = transaction.borrowee
 
         setProfileImage(holder.payerImg, transaction.borrowee)
@@ -250,7 +250,7 @@ class PayerListTransactionAdapter(
                 }
                 val imageUrl = user?.profileImageUrl
                 if (imageUrl != null && payerName == imageView.tag && context != null) {
-                    Glide.with(context).load(imageUrl).placeholder(R.drawable.placeholder_profile_image).into(imageView)
+                    Glide.with(context).load(imageUrl).placeholder(R.drawable.ic_profile_silhouette).into(imageView)
                 }
             } catch (e: Exception) {
                 Log.e("PayerListTransactionAdapter", "Profile image error", e)

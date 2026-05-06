@@ -26,6 +26,7 @@ data class CrewWithUser(
     val profileImageUrl: String?,
     val userType: Int?,
     val lastMessage: String? = null,
+    val lastMessageSenderId: Long? = null,
     val unreadCount: Int = 0
 )
 
@@ -44,7 +45,8 @@ class CrewRepository(private val db: AppDatabase) {
                     crewId = crew.id, ownerUserId = crew.ownerUserId, memberUserId = crew.memberUserId,
                     status = crew.status, userId = user.id, username = user.username,
                     profileImageUrl = user.profileImageUrl, userType = user.userType,
-                    lastMessage = crew.lastMessage, unreadCount = crew.unreadCount
+                    lastMessage = crew.lastMessage, lastMessageSenderId = crew.lastMessageSenderId,
+                    unreadCount = crew.unreadCount
                 )
             }
         }
@@ -53,7 +55,8 @@ class CrewRepository(private val db: AppDatabase) {
                 CrewMember(
                     id = c.crewId, ownerUserId = c.ownerUserId,
                     memberUserId = c.memberUserId, status = c.status,
-                    lastMessage = c.lastMessage, unreadCount = c.unreadCount
+                    lastMessage = c.lastMessage, lastMessageSenderId = c.lastMessageSenderId,
+                    unreadCount = c.unreadCount
                 ) to User(
                     id = c.userId, username = c.username,
                     profileImageUrl = c.profileImageUrl, userType = c.userType
@@ -92,12 +95,9 @@ class CrewRepository(private val db: AppDatabase) {
                 Log.e("CrewDebug", "fetchCrewList user fetch EXCEPTION: ${e.message}"); null
             } ?: return@mapNotNull null
 
-            // Only fetch DM preview for registered users
             if (user.userType == 1) {
-                val lastMsg: String?
-                val unread: Int
                 try {
-                    val messages = DeclareDatabase.directMessagesTable.select {
+                    val lastDm = DeclareDatabase.directMessagesTable.select {
                         filter {
                             or {
                                 and { eq("sender_id", userId); eq("recipient_id", otherUserId) }
@@ -106,9 +106,9 @@ class CrewRepository(private val db: AppDatabase) {
                         }
                         order("sent_at", Order.DESCENDING)
                         limit(1)
-                    }.decodeList<DirectMessage>()
-                    lastMsg = messages.firstOrNull()?.content
-                    unread = try {
+                    }.decodeList<DirectMessage>().firstOrNull()
+
+                    val unread = try {
                         DeclareDatabase.directMessagesTable.select(Columns.list("id")) {
                             filter {
                                 eq("sender_id", otherUserId)
@@ -117,13 +117,18 @@ class CrewRepository(private val db: AppDatabase) {
                             }
                         }.decodeList<DirectMessage>().size
                     } catch (e: Exception) { 0 }
+
+                    crew.copy(
+                        lastMessage = lastDm?.content,
+                        lastMessageSenderId = lastDm?.senderId,
+                        unreadCount = unread
+                    ) to user
                 } catch (e: Exception) {
                     Log.e("CrewDebug", "fetchCrewList DM preview EXCEPTION: ${e.message}")
-                    return@mapNotNull crew.copy(lastMessage = null, unreadCount = 0) to user
+                    crew.copy(lastMessage = null, lastMessageSenderId = null, unreadCount = 0) to user
                 }
-                crew.copy(lastMessage = lastMsg, unreadCount = unread) to user
             } else {
-                crew.copy(lastMessage = null, unreadCount = 0) to user
+                crew.copy(lastMessage = null, lastMessageSenderId = null, unreadCount = 0) to user
             }
         }
     }
@@ -132,7 +137,6 @@ class CrewRepository(private val db: AppDatabase) {
         val pending = DeclareDatabase.crewMembersTable.select {
             filter { eq("member_user_id", userId); eq("status", 3) }
         }.decodeList<CrewMember>()
-
         return pending.mapNotNull { crew ->
             val owner = DeclareDatabase.usersTable.select(
                 Columns.list("user_id", "username", "profile_image_url", "user_type")

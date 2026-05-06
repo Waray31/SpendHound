@@ -197,7 +197,7 @@ class PayorAdapter(
                         sDownloadUrlCache[userId] = url
                         loadGlideImage(holder, url, position)
                     } catch (e: Exception) {
-                        holder.payorImage.setImageResource(R.drawable.placeholder_profile_image)
+                        holder.payorImage.setImageResource(R.drawable.ic_profile_silhouette)
                         checkLoadingComplete(position)
                     }
                 }
@@ -214,7 +214,7 @@ class PayorAdapter(
     private fun loadGlideImage(holder: PayorViewHolder, url: String?, position: Int) {
         Glide.with(holder.itemView.context)
             .load(url)
-            .placeholder(R.drawable.placeholder_profile_image)
+            .placeholder(R.drawable.ic_profile_silhouette)
             .diskCacheStrategy(DiskCacheStrategy.ALL)
             .circleCrop()
             .listener(object : RequestListener<Drawable?> {

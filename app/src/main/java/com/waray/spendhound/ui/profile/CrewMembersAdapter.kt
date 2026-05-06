@@ -1,5 +1,7 @@
 package com.waray.spendhound.ui.profile
 
+import androidx.core.content.ContextCompat
+import android.content.res.ColorStateList
 import android.graphics.Typeface
 import android.view.LayoutInflater
 import android.view.View
@@ -46,49 +48,56 @@ class CrewMembersAdapter(
         val isGuest = user.userType == 2
 
         if (isGuest) {
-            // Guest: show badge below name, hide message preview
             holder.guestBadge.visibility = View.VISIBLE
             holder.statusText.visibility = View.GONE
             holder.itemView.setOnClickListener(null)
             holder.itemView.isClickable = false
         } else {
-            // Registered: hide badge, show last message preview
             holder.guestBadge.visibility = View.GONE
-            val unread = crew.unreadCount
+
             val last = crew.lastMessage
+            val senderId = crew.lastMessageSenderId
+            val unread = crew.unreadCount
+            val isMine = senderId != null && senderId == currentUserId
+
             when {
+                // No messages at all
+                last.isNullOrBlank() -> {
+                    holder.statusText.visibility = View.GONE
+                }
+                // Current user sent the last message — always normal grey with "You: " prefix
+                isMine -> {
+                    holder.statusText.visibility = View.VISIBLE
+                    holder.statusText.text = "You: $last"
+                    holder.statusText.setTypeface(null, Typeface.NORMAL)
+                    holder.statusText.setTextColor(holder.itemView.context.getColor(R.color.grey))
+                }
+                // Other user sent — multiple unread
                 unread > 1 -> {
                     holder.statusText.visibility = View.VISIBLE
                     holder.statusText.text = "$unread unread messages"
                     holder.statusText.setTypeface(null, Typeface.BOLD)
-                    holder.statusText.setTextColor(
-                        holder.itemView.context.getColor(R.color.black)
-                    )
+                    holder.statusText.setTextColor(holder.itemView.context.getColor(R.color.black))
                 }
+                // Other user sent — single unread
                 unread == 1 -> {
                     holder.statusText.visibility = View.VISIBLE
-                    holder.statusText.text = last ?: "1 unread message"
+                    holder.statusText.text = last
                     holder.statusText.setTypeface(null, Typeface.BOLD)
-                    holder.statusText.setTextColor(
-                        holder.itemView.context.getColor(R.color.black)
-                    )
+                    holder.statusText.setTextColor(holder.itemView.context.getColor(R.color.black))
                 }
-                !last.isNullOrBlank() -> {
+                // Other user sent — already read
+                else -> {
                     holder.statusText.visibility = View.VISIBLE
                     holder.statusText.text = last
                     holder.statusText.setTypeface(null, Typeface.NORMAL)
-                    holder.statusText.setTextColor(
-                        holder.itemView.context.getColor(R.color.grey)
-                    )
-                }
-                else -> {
-                    holder.statusText.visibility = View.GONE
+                    holder.statusText.setTextColor(holder.itemView.context.getColor(R.color.grey))
                 }
             }
+
             holder.itemView.setOnClickListener { onMessage(user, crew) }
         }
 
-        // Load avatar
         val profileUrl = user.profileImageUrl
         if (!profileUrl.isNullOrBlank() && profileUrl != "placeholder_profile_image") {
             holder.avatarImage.load(profileUrl) {
@@ -114,9 +123,11 @@ class CrewMembersAdapter(
     }
 
     private fun setPlaceholderAvatar(holder: ViewHolder) {
-        holder.avatarImage.setImageResource(R.drawable.placeholder_profile_image)
-        holder.avatarImage.imageTintList = null
-        val pad = (8 * holder.itemView.resources.displayMetrics.density).toInt()
+        holder.avatarImage.setImageResource(R.drawable.ic_profile_silhouette)
+        holder.avatarImage.imageTintList = ColorStateList.valueOf(
+            ContextCompat.getColor(holder.itemView.context, R.color.white)
+        )
+        val pad = (4 * holder.itemView.resources.displayMetrics.density).toInt()
         holder.avatarImage.setPadding(pad, pad, pad, pad)
     }
 

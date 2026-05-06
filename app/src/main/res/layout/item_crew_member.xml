@@ -28,7 +28,9 @@
                 android:layout_height="match_parent"
                 android:contentDescription="@string/profile_image_description"
                 android:scaleType="centerCrop"
-                android:src="@drawable/placeholder_profile_image" />
+                app:tint="@color/white"
+                android:src="@drawable/ic_profile_silhouette"
+                 />
         </androidx.cardview.widget.CardView>
 
         <LinearLayout

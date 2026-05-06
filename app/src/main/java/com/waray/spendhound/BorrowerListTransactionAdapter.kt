@@ -54,7 +54,7 @@ class BorrowerListTransactionAdapter(
         holder.borrowerNameTV.text = transaction.borrowee
         holder.amountBorrowedTV.text = transaction.borrowedAmountStr
 
-        holder.borrowerImg.setImageResource(R.drawable.placeholder_profile_image)
+        holder.borrowerImg.setImageResource(R.drawable.ic_profile_silhouette)
         holder.borrowerImg.tag = transaction.borrowee
 
         setProfileImage(holder.borrowerImg, transaction.borrowee)
@@ -206,7 +206,7 @@ class BorrowerListTransactionAdapter(
                 }
                 val imageUrl = user?.profileImageUrl
                 if (imageUrl != null && borrowerName == imageView.tag && context != null) {
-                    Glide.with(context).load(imageUrl).placeholder(R.drawable.placeholder_profile_image).into(imageView)
+                    Glide.with(context).load(imageUrl).placeholder(R.drawable.ic_profile_silhouette).into(imageView)
                 }
             } catch (e: Exception) {
                 Log.e("BorrowerListTransactionAdapter", "Profile image error", e)

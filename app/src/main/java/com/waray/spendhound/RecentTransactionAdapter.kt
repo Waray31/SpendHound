@@ -231,7 +231,7 @@ class RecentTransactionAdapter(
     private fun loadCreatorImage(holder: ViewHolder, transaction: RecentTransaction) {
         val creatorUserId = transaction.createdByUserId
         if (creatorUserId.isNullOrBlank()) {
-            holder.createdByImageView.setImageResource(R.drawable.placeholder_profile_image)
+            holder.createdByImageView.setImageResource(R.drawable.ic_profile_silhouette)
             return
         }
 
@@ -247,7 +247,7 @@ class RecentTransactionAdapter(
                     PayorAdapter.sDownloadUrlCache[creatorUserId] = url
                     loadGlideImageForCreator(holder, url)
                 } catch (e: Exception) {
-                    holder.createdByImageView.setImageResource(R.drawable.placeholder_profile_image)
+                    holder.createdByImageView.setImageResource(R.drawable.ic_profile_silhouette)
                 }
             }
         }
@@ -257,7 +257,7 @@ class RecentTransactionAdapter(
     private fun loadGlideImageForCreator(holder: ViewHolder, url: String) {
         Glide.with(holder.itemView.context)
             .load(url)
-            .placeholder(R.drawable.placeholder_profile_image)
+            .placeholder(R.drawable.ic_profile_silhouette)
             .diskCacheStrategy(DiskCacheStrategy.ALL)
             .circleCrop()
             .into(holder.createdByImageView)

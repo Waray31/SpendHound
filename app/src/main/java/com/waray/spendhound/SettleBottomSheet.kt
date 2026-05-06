@@ -760,7 +760,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
             if (cachedUrl != null) {
                 Glide.with(holder.itemView.context).load(cachedUrl)
                     .circleCrop().diskCacheStrategy(DiskCacheStrategy.ALL)
-                    .placeholder(R.drawable.placeholder_profile_image)
+                    .placeholder(R.drawable.ic_profile_silhouette)
                     .into(holder.avatar)
             } else if (userId != null) {
                 scope.launch {
@@ -771,10 +771,10 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
                         PayorAdapter.sDownloadUrlCache[userId] = url
                         Glide.with(holder.itemView.context).load(url)
                             .circleCrop().diskCacheStrategy(DiskCacheStrategy.ALL)
-                            .placeholder(R.drawable.placeholder_profile_image)
+                            .placeholder(R.drawable.ic_profile_silhouette)
                             .into(holder.avatar)
                     } catch (_: Exception) {
-                        holder.avatar.setImageResource(R.drawable.placeholder_profile_image)
+                        holder.avatar.setImageResource(R.drawable.ic_profile_silhouette)
                     }
                 }
             }

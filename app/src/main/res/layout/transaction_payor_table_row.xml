@@ -18,7 +18,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
-            android:src="@drawable/placeholder_profile_image"/>
+            android:src="@drawable/ic_profile_silhouette"/>
     </androidx.cardview.widget.CardView>
 
     <!-- Column 2: Name -->

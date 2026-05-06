@@ -12,7 +12,7 @@
         android:layout_width="48dp"
         android:layout_height="48dp"
         android:scaleType="centerCrop"
-        android:src="@drawable/placeholder_profile_image" />
+        android:src="@drawable/ic_profile_silhouette" />
 
     <TextView
         android:id="@+id/tvUsername"
