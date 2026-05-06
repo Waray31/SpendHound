@@ -15,7 +15,8 @@ import java.util.Locale
 data class HomeData(
     val totalMonthSpends: Double,
     val youOweAmount: Double,
-    val youreOwedAmount: Double
+    val youreOwedAmount: Double,
+    val lastMonthTotal: Double = 0.0
 )
 
 class HomeRepository(private val db: AppDatabase) {
@@ -34,34 +35,52 @@ class HomeRepository(private val db: AppDatabase) {
         }.decodeList<TransactionSplitTable>()
 
         val involvedIds = splits.mapNotNull { it.transactionId }.toSet()
-        val thisMonthTotal = if (involvedIds.isNotEmpty()) {
-            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-            val cal = Calendar.getInstance()
-            val monthStart = (cal.clone() as Calendar).apply {
-                set(Calendar.DAY_OF_MONTH, 1)
-                set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-            }
-            val monthEnd = (cal.clone() as Calendar).apply {
-                set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
-                set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59)
-            }
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+        val cal = Calendar.getInstance()
+
+        val monthStart = (cal.clone() as Calendar).apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }
+        val monthEnd = (cal.clone() as Calendar).apply {
+            set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
+            set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59)
+        }
+        val lastMonthCal = (cal.clone() as Calendar).apply { add(Calendar.MONTH, -1) }
+        val lastMonthStart = (lastMonthCal.clone() as Calendar).apply {
+            set(Calendar.DAY_OF_MONTH, 1)
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }
+        val lastMonthEnd = (lastMonthCal.clone() as Calendar).apply {
+            set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
+            set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59)
+        }
+
+        var thisMonthTotal = 0.0
+        var lastMonthTotal = 0.0
+
+        if (involvedIds.isNotEmpty()) {
             val txs = DeclareDatabase.transactionsTable.select {
                 filter { isIn("id", involvedIds.toList()) }
             }.decodeList<TransactionFull>()
             val splitsByTx = splits.groupBy { it.transactionId }
-            txs.sumOf { tx ->
+            for (tx in txs) {
                 val ts = try { sdf.parse(tx.createdAt ?: "")?.time ?: 0L } catch (e: Exception) { 0L }
-                if (ts in monthStart.timeInMillis..monthEnd.timeInMillis)
-                    splitsByTx[tx.id]?.sumOf { it.amount } ?: 0.0
-                else 0.0
+                val amount = splitsByTx[tx.id]?.sumOf { it.amount } ?: 0.0
+                when (ts) {
+                    in monthStart.timeInMillis..monthEnd.timeInMillis -> thisMonthTotal += amount
+                    in lastMonthStart.timeInMillis..lastMonthEnd.timeInMillis -> lastMonthTotal += amount
+                }
             }
-        } else 0.0
+        }
 
         HomeData(
             totalMonthSpends = thisMonthTotal,
             youOweAmount = balance?.unpaidTotalGroup ?: 0.0,
-            youreOwedAmount = balance?.receivableTotalGroup ?: 0.0
+            youreOwedAmount = balance?.receivableTotalGroup ?: 0.0,
+            lastMonthTotal = lastMonthTotal
         )
     }
 

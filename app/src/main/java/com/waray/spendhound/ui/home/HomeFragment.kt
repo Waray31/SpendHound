@@ -83,6 +83,7 @@ class HomeFragment : Fragment() {
     private var cachedDailyTotals: DoubleArray? = null
     private var cachedMonthlyEntries: List<Entry>? = null
     private var cachedMonthlyLabels: List<String>? = null
+    private var hasLoadedOnce = false
 
     private val viewModel: HomeViewModel by viewModels()
 
@@ -141,22 +142,52 @@ class HomeFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        applyCachedState()
         observeViewModel()
+    }
+
+    // Reads StateFlow.value synchronously — zero coroutine gap, same frame as layout
+    private fun applyCachedState() {
+        viewModel.homeData.value?.let { data ->
+            binding?.totalMonthSpends?.text = CurrencyUtils.formatAmountWithCurrency(data.totalMonthSpends)
+            youOweAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(data.youOweAmount)
+            youreOwedAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(data.youreOwedAmount)
+            (activity as? MainActivity)?.totalMonthSpends = data.totalMonthSpends
+            updateMonthChangeText(data.totalMonthSpends, data.lastMonthTotal)
+            hasLoadedOnce = true
+        }
+        val cachedTx = viewModel.recentTransactions.value
+        if (cachedTx.isNotEmpty()) {
+            recentTransactionList.clear()
+            recentTransactionList.addAll(cachedTx)
+            recentAdapter?.notifyDataSetChanged()
+            context?.let { recentAdapter?.preloadAllImages(it) }
+            recentEmptyState?.visibility = View.GONE
+            transactionListRecycler?.visibility = View.VISIBLE
+            hideLoading()
+            hasLoadedOnce = true
+        }
     }
 
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.homeData.collectLatest { data ->
                 data ?: return@collectLatest
-                binding?.totalMonthSpends?.text = CurrencyUtils.formatAmountWithCurrency(data.totalMonthSpends)
-                youOweAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(data.youOweAmount)
-                youreOwedAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(data.youreOwedAmount)
-                // Keep MainActivity in sync for analytics
+                // Silent update — only write to views if value actually changed
+                val newSpend = CurrencyUtils.formatAmountWithCurrency(data.totalMonthSpends)
+                val newOwe = CurrencyUtils.formatAmountWithCurrency(data.youOweAmount)
+                val newOwed = CurrencyUtils.formatAmountWithCurrency(data.youreOwedAmount)
+                if (binding?.totalMonthSpends?.text != newSpend) binding?.totalMonthSpends?.text = newSpend
+                if (youOweAmountTV?.text != newOwe) youOweAmountTV?.text = newOwe
+                if (youreOwedAmountTV?.text != newOwed) youreOwedAmountTV?.text = newOwed
                 (activity as? MainActivity)?.totalMonthSpends = data.totalMonthSpends
+                updateMonthChangeText(data.totalMonthSpends, data.lastMonthTotal)
             }
         }
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.recentTransactions.collectLatest { list ->
+                // If we already have cached data and fresh list is empty, do nothing
+                if (list.isEmpty() && hasLoadedOnce) return@collectLatest
                 updateRecentTransactionsUI(list)
             }
         }
@@ -209,10 +240,6 @@ class HomeFragment : Fragment() {
 
     private fun refreshAnalytics() {
         val mainActivity = activity as? MainActivity ?: return
-        mainActivity.getTotalMonthSpends { currentTotal ->
-            activity?.runOnUiThread { updateTotalMonthSpendsUI() }
-            fetchMonthChangeText(currentTotal)
-        }
         mainActivity.getEverydaySpends {
             activity?.runOnUiThread { updateWeeklyChartUI() }
         }
@@ -222,9 +249,12 @@ class HomeFragment : Fragment() {
     @SuppressLint("NotifyDataSetChanged")
     private fun updateRecentTransactionsUI(list: List<RecentTransaction>) {
         if (list.isEmpty() && recentTransactionList.isEmpty()) {
-            showLoading()
+            if (!hasLoadedOnce) showLoading()
             return
         }
+        // Preserve scroll position so background refresh doesn't jump the user
+        val scrollView = binding?.homeNestedScrollView
+        val scrollY = scrollView?.scrollY ?: 0
         recentTransactionList.clear()
         recentTransactionList.addAll(list)
         recentAdapter?.notifyDataSetChanged()
@@ -237,75 +267,28 @@ class HomeFragment : Fragment() {
             recentEmptyState?.visibility = View.GONE
             transactionListRecycler?.visibility = View.VISIBLE
         }
+        hasLoadedOnce = true
+        scrollView?.post { scrollView.scrollTo(0, scrollY) }
         pullToRefreshHelper?.stopRefreshing()
     }
 
-    private fun fetchMonthChangeText(currentTotal: Double) {
-        val userId = currentUserNumericId ?: return
-        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
-
-        val lastMonth = Calendar.getInstance().apply { add(Calendar.MONTH, -1) }
-        val lastStart = (lastMonth.clone() as Calendar).apply {
-            set(Calendar.DAY_OF_MONTH, 1)
-            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
-        }
-        val lastEnd = (lastMonth.clone() as Calendar).apply {
-            set(Calendar.DAY_OF_MONTH, getActualMaximum(Calendar.DAY_OF_MONTH))
-            set(Calendar.HOUR_OF_DAY, 23); set(Calendar.MINUTE, 59); set(Calendar.SECOND, 59)
-        }
-
-        val lifecycleOwner = try { viewLifecycleOwner } catch (_: IllegalStateException) { return }
-        lifecycleOwner.lifecycleScope.launch {
-            try {
-                val userSplits = withContext(Dispatchers.IO) {
-                    DeclareDatabase.transactionSplitsTable.select {
-                        filter { eq("user_id", userId) }
-                    }.decodeList<TransactionSplitTable>()
-                }
-                val involvedTxIds = userSplits.mapNotNull { it.transactionId }.toSet()
-                val allTransactions = if (involvedTxIds.isNotEmpty()) withContext(Dispatchers.IO) {
-                    DeclareDatabase.transactionsTable.select {
-                        filter { isIn("id", involvedTxIds.toList()) }
-                    }.decodeList<TransactionFull>()
-                } else emptyList()
-
-                val userSplitsByTx = userSplits.groupBy { it.transactionId }
-                var lastMonthTotal = 0.0
-                for (tx in allTransactions) {
-                    val txId = tx.id ?: continue
-                    if (txId !in userSplitsByTx) continue
-                    val timestamp = try { sdf.parse(tx.createdAt ?: "")?.time ?: 0L } catch (e: Exception) { 0L }
-                    if (timestamp !in lastStart.timeInMillis..lastEnd.timeInMillis) continue
-                    lastMonthTotal += userSplitsByTx[txId]?.sumOf { it.amount } ?: 0.0
-                }
-
-                withContext(Dispatchers.Main) {
-                    val (label, arrowColor, arrow) = when {
-                        lastMonthTotal == 0.0 && currentTotal == 0.0 -> Triple("● No data yet", "#FFFFFF", "●")
-                        lastMonthTotal == 0.0 -> Triple("● No data from last month", "#FFFFFF", "●")
-                        currentTotal == lastMonthTotal -> Triple("● No change from last month", "#FFFFFF", "●")
-                        else -> {
-                            val pct = ((currentTotal - lastMonthTotal) / lastMonthTotal * 100).toInt()
-                            if (currentTotal > lastMonthTotal)
-                                Triple("↑ +$pct% from last month", "#FF4444", "↑")
-                            else
-                                Triple("↓ ${pct}% from last month", "#00CC66", "↓")
-                        }
-                    }
-                    val spannable = android.text.SpannableString(label)
-                    spannable.setSpan(android.text.style.ForegroundColorSpan(Color.parseColor(arrowColor)), 0, arrow.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    spannable.setSpan(android.text.style.ForegroundColorSpan(Color.parseColor("#FFFFFF")), arrow.length, label.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-                    binding?.monthChangeText?.text = spannable
-                }
-            } catch (e: Exception) {
-                Log.e("HomeFragment", "Error fetching month change: ${e.message}")
+    private fun updateMonthChangeText(currentTotal: Double, lastMonthTotal: Double) {
+        val (label, arrowColor, arrow) = when {
+            lastMonthTotal == 0.0 && currentTotal == 0.0 -> Triple("● No data yet", "#FFFFFF", "●")
+            lastMonthTotal == 0.0 -> Triple("● No data from last month", "#FFFFFF", "●")
+            currentTotal == lastMonthTotal -> Triple("● No change from last month", "#FFFFFF", "●")
+            else -> {
+                val pct = ((currentTotal - lastMonthTotal) / lastMonthTotal * 100).toInt()
+                if (currentTotal > lastMonthTotal)
+                    Triple("↑ +$pct% from last month", "#FF4444", "↑")
+                else
+                    Triple("↓ ${pct}% from last month", "#00CC66", "↓")
             }
         }
-    }
-
-    private fun updateTotalMonthSpendsUI() {
-        val mainActivity = activity as? MainActivity ?: return
-        binding?.totalMonthSpends?.text = CurrencyUtils.formatAmountWithCurrency(mainActivity.totalMonthSpends)
+        val spannable = android.text.SpannableString(label)
+        spannable.setSpan(android.text.style.ForegroundColorSpan(Color.parseColor(arrowColor)), 0, arrow.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+        spannable.setSpan(android.text.style.ForegroundColorSpan(Color.parseColor("#FFFFFF")), arrow.length, label.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+        binding?.monthChangeText?.text = spannable
     }
 
     private fun updateWeeklyChartUI(dailyTotals: DoubleArray? = null) {
@@ -575,7 +558,8 @@ class HomeFragment : Fragment() {
     }
 
     private fun showLoading() {
-        if (recentTransactionList.isEmpty()) {
+        // Only show skeleton on first-ever load — never flash it on revisit
+        if (!hasLoadedOnce && recentTransactionList.isEmpty()) {
             rvSkeletonHome?.visibility = View.VISIBLE
             transactionListRecycler?.visibility = View.GONE
             recentEmptyState?.visibility = View.GONE
