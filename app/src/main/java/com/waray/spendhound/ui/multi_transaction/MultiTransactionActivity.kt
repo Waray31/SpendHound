@@ -41,15 +41,11 @@ class MultiTransactionActivity : AppCompatActivity() {
 
     private var currentGroups: List<PayerGroup> = emptyList()
     private var currentMembers: List<User> = emptyList()
-    private var isSingleTransactionMode = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityAddTransactionsMultiBinding.inflate(layoutInflater)
         setContentView(binding.root)
-
-        val transactionMode = intent.getStringExtra("TRANSACTION_MODE")
-        isSingleTransactionMode = transactionMode == "SINGLE"
 
         setupTransactionMode()
         setupToolbar()
@@ -59,13 +55,9 @@ class MultiTransactionActivity : AppCompatActivity() {
     }
 
     private fun setupTransactionMode() {
-        if (isSingleTransactionMode) {
-            binding.btnAddRow.visibility = View.GONE
-            binding.toolbar.title = "Add Transaction"
-        } else {
-            binding.btnAddRow.visibility = View.VISIBLE
-            binding.toolbar.title = "Add Transactions"
-        }
+        // Always show add row button and use "Add Transactions" title
+        binding.btnAddRow.visibility = View.VISIBLE
+        binding.toolbar.title = "Add Transactions"
     }
 
     private fun setPaymentMode(isMultiple: Boolean) {
@@ -109,7 +101,7 @@ class MultiTransactionActivity : AppCompatActivity() {
         binding.btnSubmit.setOnClickListener {
             val selectedGroup = currentGroups.getOrNull(binding.spinnerGroup.selectedItemPosition)
             if (selectedGroup?.groupId != null) {
-                val requireTitle = !isSingleTransactionMode
+                val requireTitle = adapter.getTransactions().size > 1
                 viewModel.submit(selectedGroup.groupId!!, requireTitle)
             }
         }
@@ -136,7 +128,7 @@ class MultiTransactionActivity : AppCompatActivity() {
 
     private fun validateSubmission() {
         val transactions = adapter.getTransactions()
-        val titleRequired = !isSingleTransactionMode
+        val titleRequired = transactions.size > 1
         val titleFilled = !titleRequired || binding.etTransactionTitle.text?.isNotBlank() == true
         var allValid = transactions.isNotEmpty() && titleFilled
 
@@ -201,6 +193,18 @@ class MultiTransactionActivity : AppCompatActivity() {
         return super.dispatchTouchEvent(event)
     }
 
+    private fun updateTitleSectionVisibility(itemCount: Int) {
+        // Find the title input section only (not the entire card)
+        val titleLabel = findViewById<TextView>(R.id.titleLabel)
+        val titleInputLayout = findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.titleInputLayout)
+        val titleDivider = findViewById<View>(R.id.titleDivider)
+        
+        val visibility = if (itemCount > 1) View.VISIBLE else View.GONE
+        titleLabel?.visibility = visibility
+        titleInputLayout?.visibility = visibility
+        titleDivider?.visibility = visibility
+    }
+
     private fun observeState() {
         lifecycleScope.launch {
             repeatOnLifecycle(Lifecycle.State.STARTED) {
@@ -241,7 +245,11 @@ class MultiTransactionActivity : AppCompatActivity() {
                             )
                         }
                         adapter.setTransactions(multiItems)
-                        binding.btnSubmit.text = if (isSingleTransactionMode) "Add Transaction" else "Add ${transactions.size} Transactions"
+                        binding.btnSubmit.text = if (transactions.size == 1) "Add Transaction" else "Add ${transactions.size} Transactions"
+                        
+                        // Handle title section visibility based on item count
+                        updateTitleSectionVisibility(transactions.size)
+                        
                         viewModel.calculateTotals()
                         validateSubmission()
                     }

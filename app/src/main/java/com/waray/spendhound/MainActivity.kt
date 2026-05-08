@@ -42,10 +42,8 @@ class MainActivity : AppCompatActivity() {
     private var containerLendSub: LinearLayout? = null
     private var containerAddTransaction: LinearLayout? = null
     private var containerAddGroup: LinearLayout? = null
-    private var containerSingleTransaction: LinearLayout? = null
-    private var containerMultiTransaction: LinearLayout? = null
     private var isFabMenuOpen = false
-    private var isTransactionSubMenuOpen = false
+
     private var isBorrowSubMenuOpen = false
     private var selectedLenderName = ""
 
@@ -122,8 +120,6 @@ class MainActivity : AppCompatActivity() {
         containerLendSub = findViewById(R.id.container_lend_sub)
         containerAddTransaction = findViewById(R.id.container_add_transaction)
         containerAddGroup = findViewById(R.id.container_add_group)
-        containerSingleTransaction = findViewById(R.id.container_single_transaction)
-        containerMultiTransaction = findViewById(R.id.container_multi_transaction)
 
         fabMain?.setOnClickListener { toggleFabMenu() }
         fabMenuOverlay?.setOnClickListener { if (isFabMenuOpen) toggleFabMenu() }
@@ -133,8 +129,6 @@ class MainActivity : AppCompatActivity() {
         val fabLendSub = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_lend_sub)
         val fabAddTransaction = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_add_transaction)
         val fabAddGroup = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_add_group)
-        val fabSingle = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_single_transaction)
-        val fabMulti = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_multi_transaction)
 
         fabBorrow?.setOnClickListener {
             if (isBorrowSubMenuOpen) closeBorrowSubMenu()
@@ -156,8 +150,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         fabAddTransaction?.setOnClickListener {
-            if (isTransactionSubMenuOpen) closeTransactionSubMenu()
-            else openTransactionSubMenu()
+            toggleFabMenu()
+            startActivity(Intent(this, MultiTransactionActivity::class.java))
         }
 
         fabAddGroup?.setOnClickListener {
@@ -165,19 +159,7 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, GroupsActivity::class.java))
         }
 
-        fabSingle?.setOnClickListener {
-            toggleFabMenu()
-            val intent = Intent(this, MultiTransactionActivity::class.java)
-            intent.putExtra("TRANSACTION_MODE", "SINGLE")
-            startActivity(intent)
-        }
 
-        fabMulti?.setOnClickListener {
-            toggleFabMenu()
-            val intent = Intent(this, MultiTransactionActivity::class.java)
-            intent.putExtra("TRANSACTION_MODE", "MULTIPLE")
-            startActivity(intent)
-        }
     }
 
     private fun toggleFabMenu() {
@@ -197,7 +179,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun closeFabMenu() {
         isFabMenuOpen = false
-        isTransactionSubMenuOpen = false
         isBorrowSubMenuOpen = false
         fabMain?.setImageResource(R.drawable.baseline_add_24)
         fabMenuOverlay?.animate()?.alpha(0f)?.setDuration(300)?.withEndAction {
@@ -207,33 +188,13 @@ class MainActivity : AppCompatActivity() {
         hideFabOption(containerBorrow)
         hideFabOption(containerAddTransaction)
         hideFabOption(containerAddGroup)
-        hideFabOption(containerSingleTransaction)
-        hideFabOption(containerMultiTransaction)
         hideFabOption(containerBorrowSub)
         hideFabOption(containerLendSub)
     }
 
-    private fun openTransactionSubMenu() {
-        if (isBorrowSubMenuOpen) closeBorrowSubMenu()
-        isTransactionSubMenuOpen = true
-        // container_add_transaction sits at angle 90° → translationX=0, translationY=-300
-        // Sub-FABs branch left and right above it, adding extra upward offset
-        val baseX = 0f
-        val baseY = -300f
-        val spread = 140f
-        val extraUp = 260f
-        showFabOptionAt(containerSingleTransaction, baseX - spread, baseY - extraUp)
-        showFabOptionAt(containerMultiTransaction, baseX + spread, baseY - extraUp)
-    }
 
-    private fun closeTransactionSubMenu() {
-        isTransactionSubMenuOpen = false
-        hideFabOption(containerSingleTransaction)
-        hideFabOption(containerMultiTransaction)
-    }
 
     private fun openBorrowSubMenu() {
-        if (isTransactionSubMenuOpen) closeTransactionSubMenu()
         isBorrowSubMenuOpen = true
         // container_borrow sits at angle 150°
         val radius = 300f
