@@ -23,10 +23,14 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.waray.spendhound.CurrencyUtils
+import com.waray.spendhound.MultiTransactionItem
+import com.waray.spendhound.PayerContribution
 import com.waray.spendhound.PayerGroup
+import com.waray.spendhound.PaymentConfigBottomSheet
 import com.waray.spendhound.R
 import com.waray.spendhound.User
 import com.waray.spendhound.databinding.ActivityAddTransactionsMultiBinding
+import com.waray.spendhound.ui.multi_transaction.PayorEntry
 import kotlinx.coroutines.launch
 
 class MultiTransactionActivity : AppCompatActivity() {
@@ -56,36 +60,17 @@ class MultiTransactionActivity : AppCompatActivity() {
 
     private fun setupTransactionMode() {
         if (isSingleTransactionMode) {
-            binding.titleSection.visibility = View.GONE
             binding.btnAddRow.visibility = View.GONE
             binding.toolbar.title = "Add Transaction"
         } else {
-            binding.titleSection.visibility = View.VISIBLE
             binding.btnAddRow.visibility = View.VISIBLE
             binding.toolbar.title = "Add Transactions"
         }
     }
 
     private fun setPaymentMode(isMultiple: Boolean) {
-        if (isMultiple) {
-            binding.btnMultiplePayors.setBackgroundResource(R.drawable.bg_toggle_selected_orange)
-            binding.btnMultiplePayors.setTypeface(ResourcesCompat.getFont(this, R.font.montserratalternatess_bold))
-            binding.btnMultiplePayors.setTextColor(getColor(R.color.whitest))
-            binding.btnSinglePayor.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-            binding.btnSinglePayor.setTypeface(ResourcesCompat.getFont(this, R.font.montserratalternatess_regular))
-            binding.btnSinglePayor.setTextColor(getColor(R.color.white_70))
-            binding.titleSection.visibility = View.VISIBLE
-        } else {
-            binding.btnSinglePayor.setBackgroundResource(R.drawable.bg_toggle_selected_orange)
-            binding.btnSinglePayor.setTypeface(ResourcesCompat.getFont(this, R.font.montserratalternatess_bold))
-            binding.btnSinglePayor.setTextColor(getColor(R.color.whitest))
-            binding.btnMultiplePayors.setBackgroundColor(android.graphics.Color.TRANSPARENT)
-            binding.btnMultiplePayors.setTypeface(ResourcesCompat.getFont(this, R.font.montserratalternatess_regular))
-            binding.btnMultiplePayors.setTextColor(getColor(R.color.white_70))
-            binding.titleSection.visibility = View.GONE
-            binding.etTransactionTitle.text?.clear()
-            viewModel.setTransactionTitle("")
-        }
+        // Payment mode toggle has been removed - this method is no longer used
+        // Individual items now handle their own payment configuration via bottom sheets
         viewModel.setMultiplePayorsMode(isMultiple)
         validateSubmission()
     }
@@ -99,16 +84,14 @@ class MultiTransactionActivity : AppCompatActivity() {
         adapter = MultiTransactionAdapter(
             onAmountChanged = { viewModel.calculateTotals() },
             onValidationChanged = { validateSubmission() },
-            onRemoveItem = { position -> viewModel.removeTransaction(position) }
+            onRemoveItem = { position -> viewModel.removeTransaction(position) },
+            onPaymentConfigClick = { position, item -> showPaymentConfigBottomSheet(position, item) }
         )
         binding.rvTransactions.layoutManager = LinearLayoutManager(this)
         binding.rvTransactions.adapter = adapter
     }
 
     private fun setupListeners() {
-        binding.btnSinglePayor.setOnClickListener { setPaymentMode(false) }
-        binding.btnMultiplePayors.setOnClickListener { setPaymentMode(true) }
-
         binding.btnAddRow.setOnClickListener {
             viewModel.addTransaction()
             binding.rvTransactions.smoothScrollToPosition(adapter.itemCount - 1)
@@ -126,7 +109,7 @@ class MultiTransactionActivity : AppCompatActivity() {
         binding.btnSubmit.setOnClickListener {
             val selectedGroup = currentGroups.getOrNull(binding.spinnerGroup.selectedItemPosition)
             if (selectedGroup?.groupId != null) {
-                val requireTitle = binding.titleSection.visibility == View.VISIBLE
+                val requireTitle = !isSingleTransactionMode
                 viewModel.submit(selectedGroup.groupId!!, requireTitle)
             }
         }
@@ -142,8 +125,6 @@ class MultiTransactionActivity : AppCompatActivity() {
     private fun setContentEnabled(enabled: Boolean) {
         binding.etTransactionTitle.isEnabled = enabled
         binding.spinnerGroup.isEnabled = enabled
-        binding.btnSinglePayor.isClickable = enabled
-        binding.btnMultiplePayors.isClickable = enabled
         binding.btnAddRow.isClickable = enabled
         binding.rvTransactions.isEnabled = enabled
         binding.btnSubmit.isEnabled = enabled && binding.btnSubmit.isVisible
@@ -151,7 +132,7 @@ class MultiTransactionActivity : AppCompatActivity() {
 
     private fun validateSubmission() {
         val transactions = adapter.getTransactions()
-        val titleRequired = binding.titleSection.visibility == View.VISIBLE
+        val titleRequired = !isSingleTransactionMode
         val titleFilled = !titleRequired || binding.etTransactionTitle.text?.isNotBlank() == true
         var allValid = transactions.isNotEmpty() && titleFilled
 
@@ -167,35 +148,25 @@ class MultiTransactionActivity : AppCompatActivity() {
     }
 
     private fun updatePayorsChips(members: List<User>) {
-        binding.layoutPayorsChips.removeAllViews()
-        val selectedPayors = viewModel.globalPayors.value
+        // Payment mode chips have been removed from the main activity
+        // Individual items now handle their own payment configuration via bottom sheets
+        // This method is no longer needed but kept for compatibility
+    }
 
-        members.forEach { member ->
-            val isSelected = selectedPayors.any { it.userId == member.id }
-            val chipLayoutId = if (isSelected) R.layout.item_payor_chip_dark else R.layout.item_payor_chip_dark_outline
-            val chipView = layoutInflater.inflate(chipLayoutId, binding.layoutPayorsChips, false)
-
-            val tvInitial = chipView.findViewById<TextView>(R.id.tvInitial)
-            val tvName = chipView.findViewById<TextView>(R.id.tvName)
-
-            tvInitial?.text = member.username?.take(1)?.uppercase() ?: "?"
-            tvName?.text = member.username ?: "Unknown"
-
-            if (isSelected) {
-                tvName.setTextColor(getColor(R.color.black))
-            } else {
-                tvName.setTextColor(getColor(R.color.darkBlue))
-            }
-
-            chipView.setOnClickListener {
-                if (!viewModel.isMultiplePayorsMode.value) {
-                    viewModel.updateGlobalPayors(listOf(PayorEntry(member.id!!, member.username!!)))
-                    updatePayorsChips(members)
-                    validateSubmission()
-                }
-            }
-            binding.layoutPayorsChips.addView(chipView)
+    private fun showPaymentConfigBottomSheet(position: Int, item: MultiTransactionItem) {
+        val bottomSheet = PaymentConfigBottomSheet.newInstance(
+            itemTitle = if (item.title.isNotEmpty()) item.title else "Item ${position + 1}",
+            itemAmount = item.amount,
+            groupMembers = currentMembers,
+            currentPayers = item.payers,
+            currentParticipants = item.includedMembers
+        )
+        
+        bottomSheet.setOnConfirmListener { payers, participants ->
+            viewModel.updateItemPaymentConfig(position, payers, participants)
         }
+        
+        bottomSheet.show(supportFragmentManager, "PaymentConfigBottomSheet")
     }
 
     override fun dispatchTouchEvent(event: MotionEvent): Boolean {
@@ -231,16 +202,30 @@ class MultiTransactionActivity : AppCompatActivity() {
                     viewModel.members.collect { members ->
                         currentMembers = members
                         adapter.setMembers(members)
-
-                        // Update Payors Chips
-                        updatePayorsChips(members)
-
                         viewModel.calculateTotals()
                     }
                 }
                 launch {
                     viewModel.transactions.collect { transactions ->
-                        adapter.setTransactions(transactions)
+                        // Convert TransactionEntry to MultiTransactionItem for adapter
+                        val multiItems = transactions.map { entry ->
+                            MultiTransactionItem(
+                                id = "",
+                                title = entry.title,
+                                amount = entry.amount,
+                                category = entry.category,
+                                payers = entry.payors.map { payor ->
+                                    PayerContribution(
+                                        payerId = payor.userId.toString(),
+                                        payerName = payor.username,
+                                        amount = payor.amount
+                                    )
+                                },
+                                includedMembers = currentMembers.map { it.id.toString() }, // Default all members included
+                                isValid = entry.amount > 0 && entry.category.isNotEmpty() && entry.payors.isNotEmpty()
+                            )
+                        }
+                        adapter.setTransactions(multiItems)
                         binding.btnSubmit.text = if (isSingleTransactionMode) "Add Transaction" else "Add ${transactions.size} Transactions"
                         viewModel.calculateTotals()
                         validateSubmission()
@@ -256,7 +241,6 @@ class MultiTransactionActivity : AppCompatActivity() {
                 }
                 launch {
                     viewModel.isMultiplePayorsMode.collect { isMultiple ->
-                        // binding.layoutSinglePayor.isVisible = !isMultiple
                         adapter.setMode(isMultiple)
                         validateSubmission()
                     }

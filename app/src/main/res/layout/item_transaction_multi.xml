@@ -423,51 +423,93 @@
             </LinearLayout>
         </HorizontalScrollView>
 
-        <!-- Payor Detail Section (Visible in Multi-Payor Mode) -->
+        <!-- Payment & Participants Summary -->
         <LinearLayout
-            android:id="@+id/layoutPayerRow"
+            android:id="@+id/layoutPaymentSummary"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="8dp"
-            android:orientation="vertical"
-            android:visibility="gone"
-            tools:visibility="visible">
+            android:layout_marginTop="12dp"
+            android:orientation="vertical">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Who paid?"
-                android:textColor="@color/darkBlue"
-                android:textSize="12sp"
-                android:textStyle="bold" />
-
-            <!-- Single Payor Dropdown -->
-            <Spinner
-                android:id="@+id/spinnerSinglePayor"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:background="@drawable/spinner_border_grey"
-                android:minHeight="48dp" />
-
-            <!-- Multi Payor Split Container -->
             <LinearLayout
-                android:id="@+id/layoutMultiPayorContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:orientation="vertical"
-                android:visibility="gone" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
-            <TextView
-                android:id="@+id/tvRemainingAmount"
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Payment &amp; Split"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:textColor="@color/darkBlue"
+                    android:textSize="12sp" />
+
+                <ImageView
+                    android:id="@+id/ivValidationError"
+                    android:layout_width="16dp"
+                    android:layout_height="16dp"
+                    android:layout_marginStart="8dp"
+                    android:src="@drawable/ic_error_24dp"
+                    android:visibility="gone"
+                    app:tint="#F44336" />
+
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/layoutPaymentChip"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:text="Remaining: ₱0.00"
-                android:textColor="#F44336"
-                android:textSize="12sp"
-                android:visibility="gone" />
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_payment_chip"
+                android:orientation="vertical"
+                android:padding="12dp"
+                android:clickable="true"
+                android:focusable="true">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/tvPaymentSummary"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Tap to select payer"
+                            android:fontFamily="@font/montserratalternatess_regular"
+                            android:textColor="@color/grey"
+                            android:textSize="14sp"
+                            android:textStyle="italic" />
+
+                        <TextView
+                            android:id="@+id/tvParticipantSummary"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="2dp"
+                            android:text="All members"
+                            android:fontFamily="@font/montserratalternatess_regular"
+                            android:textColor="@color/grey"
+                            android:textSize="12sp" />
+
+                    </LinearLayout>
+
+                    <ImageView
+                        android:layout_width="20dp"
+                        android:layout_height="20dp"
+                        android:src="@drawable/ic_chevron_right_24dp"
+                        app:tint="@color/grey" />
+
+                </LinearLayout>
+
+            </LinearLayout>
 
         </LinearLayout>
 

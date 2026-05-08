@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="20dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Payment &amp; Split Details"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:textColor="@color/darkBlue"
+            android:textSize="18sp" />
+
+        <ImageButton
+            android:id="@+id/btnClose"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_close_24dp"
+            app:tint="@color/grey" />
+
+    </LinearLayout>
+
+    <!-- Item Info -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="24dp"
+        android:background="@drawable/bg_item_info"
+        android:padding="12dp">
+
+        <TextView
+            android:id="@+id/tvItemTitle"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Item 1"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:textColor="@color/darkBlue"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/tvItemAmount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="₱500.00"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:textColor="@color/darkBlue"
+            android:textSize="16sp" />
+
+    </LinearLayout>
+
+    <!-- Members Section -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Per Member"
+        android:fontFamily="@font/montserratalternatess_bold"
+        android:textColor="@color/darkBlue"
+        android:textSize="14sp"
+        android:layout_marginBottom="12dp" />
+
+    <!-- Column Headers -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="8dp"
+        android:layout_marginBottom="8dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:text="Name"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:textColor="@color/grey"
+            android:textSize="12sp" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="2"
+            android:layout_marginHorizontal="8dp"
+            android:text="Amount Paid"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:textColor="@color/grey"
+            android:textSize="12sp"
+            android:gravity="center" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_weight="1"
+            android:layout_height="wrap_content"
+            android:text="Split"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:textColor="@color/grey"
+            android:textSize="12sp"
+            android:gravity="center" />
+
+    </LinearLayout>
+
+    <!-- Members List -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvMembers"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Remaining Amount -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="24dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Remaining:"
+            android:fontFamily="@font/montserratalternatess_regular"
+            android:textColor="@color/darkBlue"
+            android:textSize="14sp" />
+
+        <TextView
+            android:id="@+id/tvRemainingAmount"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="₱500.00"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:textColor="#F44336"
+            android:textSize="14sp" />
+
+    </LinearLayout>
+
+    <!-- Confirm Button -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnConfirm"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Confirm"
+        android:fontFamily="@font/montserratalternatess_bold"
+        android:textAllCaps="false"
+        android:textColor="@color/whitest"
+        android:textSize="14sp"
+        android:paddingVertical="12dp"
+        android:enabled="false"
+        app:backgroundTint="@null"
+        android:background="@drawable/rounded_button" />
+
+</LinearLayout>

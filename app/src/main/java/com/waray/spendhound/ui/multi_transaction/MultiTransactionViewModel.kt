@@ -3,6 +3,7 @@ package com.waray.spendhound.ui.multi_transaction
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.waray.spendhound.DeclareDatabase
+import com.waray.spendhound.PayerContribution
 import com.waray.spendhound.PayerGroup
 import com.waray.spendhound.User
 import io.github.jan.supabase.postgrest.postgrest
@@ -180,6 +181,24 @@ class MultiTransactionViewModel(
             }.onFailure {
                 _uiState.value = UiState.Error(it.message ?: "Submission failed")
             }
+        }
+    }
+
+    fun updateItemPaymentConfig(position: Int, payers: List<PayerContribution>, participants: List<String>) {
+        val currentList = _transactions.value.toMutableList()
+        if (position in currentList.indices) {
+            // Convert to existing PayorEntry format for compatibility
+            val payorEntries = payers.map { payer ->
+                PayorEntry(
+                    userId = payer.payerId.toLongOrNull() ?: 0L,
+                    username = payer.payerName,
+                    amount = payer.amount
+                )
+            }.toMutableList()
+            
+            currentList[position] = currentList[position].copy(payors = payorEntries)
+            _transactions.value = currentList
+            calculateTotals()
         }
     }
 

@@ -5,14 +5,11 @@ import android.text.TextWatcher
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.AdapterView
-import android.widget.ArrayAdapter
-import android.widget.LinearLayout
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
-import com.google.android.material.textfield.TextInputEditText
-import com.google.android.material.textfield.TextInputLayout
-import com.waray.spendhound.CurrencyUtils
+import com.waray.spendhound.MultiTransactionItem
+import com.waray.spendhound.PayerContribution
+import com.waray.spendhound.PaymentConfigBottomSheet
 import com.waray.spendhound.R
 import com.waray.spendhound.User
 import com.waray.spendhound.databinding.ItemTransactionMultiBinding
@@ -20,15 +17,14 @@ import com.waray.spendhound.databinding.ItemTransactionMultiBinding
 class MultiTransactionAdapter(
     private val onAmountChanged: () -> Unit,
     private val onValidationChanged: () -> Unit,
-    private val onRemoveItem: (Int) -> Unit
+    private val onRemoveItem: (Int) -> Unit,
+    private val onPaymentConfigClick: (Int, MultiTransactionItem) -> Unit
 ) : RecyclerView.Adapter<MultiTransactionAdapter.TransactionViewHolder>() {
 
-    private val transactions = mutableListOf<TransactionEntry>()
-    private var isMultiplePayorsMode = false
+    private val transactions = mutableListOf<MultiTransactionItem>()
     private var groupMembers = listOf<User>()
-    private val expandedSplits = mutableSetOf<Int>()
 
-    fun setTransactions(newTransactions: List<TransactionEntry>) {
+    fun setTransactions(newTransactions: List<MultiTransactionItem>) {
         transactions.clear()
         transactions.addAll(newTransactions)
         notifyDataSetChanged()
@@ -40,14 +36,30 @@ class MultiTransactionAdapter(
     }
 
     fun setMode(isMultiple: Boolean) {
-        isMultiplePayorsMode = isMultiple
+        // Mode is now handled per-item via bottom sheets
         notifyDataSetChanged()
     }
 
-    fun getTransactions() = transactions
+    fun getTransactions(): List<TransactionEntry> {
+        // Convert MultiTransactionItem back to TransactionEntry for compatibility
+        return transactions.map { item ->
+            TransactionEntry(
+                title = item.title,
+                amount = item.amount,
+                category = item.category,
+                payors = item.payers.map { payer ->
+                    PayorEntry(
+                        userId = payer.payerId.toLongOrNull() ?: 0L,
+                        username = payer.payerName,
+                        amount = payer.amount
+                    )
+                }.toMutableList()
+            )
+        }
+    }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): TransactionViewHolder {
-        val binding = com.waray.spendhound.databinding.ItemTransactionMultiBinding.inflate(LayoutInflater.from(parent.context), parent, false)
+        val binding = ItemTransactionMultiBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         return TransactionViewHolder(binding)
     }
 
@@ -57,27 +69,79 @@ class MultiTransactionAdapter(
 
     override fun getItemCount() = transactions.size
 
-    inner class TransactionViewHolder(private val binding: com.waray.spendhound.databinding.ItemTransactionMultiBinding) : RecyclerView.ViewHolder(binding.root) {
+    inner class TransactionViewHolder(private val binding: ItemTransactionMultiBinding) : RecyclerView.ViewHolder(binding.root) {
         
         private var amountWatcher: TextWatcher? = null
         private var titleWatcher: TextWatcher? = null
 
-        fun bind(entry: TransactionEntry, position: Int) {
-            binding.etTitle.setText(entry.title)
-            binding.etAmount.setText(if (entry.amount > 0) entry.amount.toString() else "")
+        fun bind(item: MultiTransactionItem, position: Int) {
+            binding.etTitle.setText(item.title)
+            binding.etAmount.setText(if (item.amount > 0) item.amount.toString() else "")
 
-            // 1. Item number
-            binding.tvItemNumber.text = "Item ${position + 1} — ${entry.category.lowercase()}"
+            // Item number
+            binding.tvItemNumber.text = "Item ${position + 1}${if (item.category.isNotEmpty()) " — ${item.category.lowercase()}" else ""}"
 
-            // 2. Hide remove button when only 1 item
+            // Hide remove button when only 1 item
             binding.btnRemoveItem.isVisible = transactions.size > 1
             binding.btnRemoveItem.setOnClickListener {
                 onRemoveItem(adapterPosition)
             }
 
-            binding.layoutPayerRow.isVisible = isMultiplePayorsMode
+            // Validation indicator
+            binding.ivValidationError.isVisible = !item.isValid
+
+            // Payment summary
+            updatePaymentSummary(item)
+
+            // Payment chip click listener
+            binding.layoutPaymentChip.setOnClickListener {
+                onPaymentConfigClick(adapterPosition, item)
+            }
             
-            // 1. Category chips using CategorySpinnerAdapter icons
+            // Category chips
+            setupCategoryChips(item, position)
+
+            // Amount listener
+            binding.etAmount.removeTextChangedListener(amountWatcher)
+            amountWatcher = object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    val newAmount = s.toString().toDoubleOrNull() ?: 0.0
+                    transactions[adapterPosition] = item.copy(amount = newAmount)
+                    updateValidation(adapterPosition)
+                    onAmountChanged()
+                    onValidationChanged()
+                }
+            }
+            binding.etAmount.addTextChangedListener(amountWatcher)
+
+            // Title listener
+            binding.etTitle.removeTextChangedListener(titleWatcher)
+            titleWatcher = object : TextWatcher {
+                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+                override fun afterTextChanged(s: Editable?) {
+                    transactions[adapterPosition] = item.copy(title = s.toString())
+                }
+            }
+            binding.etTitle.addTextChangedListener(titleWatcher)
+        }
+
+        private fun updatePaymentSummary(item: MultiTransactionItem) {
+            binding.tvPaymentSummary.text = item.getPaymentSummary()
+            binding.tvParticipantSummary.text = item.getParticipantSummary(groupMembers.size)
+            
+            // Update text color based on configuration state
+            val textColor = if (item.payers.isEmpty()) {
+                binding.root.context.getColor(R.color.grey)
+            } else {
+                binding.root.context.getColor(R.color.darkBlue)
+            }
+            binding.tvPaymentSummary.setTextColor(textColor)
+        }
+
+        private fun setupCategoryChips(item: MultiTransactionItem, position: Int) {
             val chipMap = mapOf(
                 binding.catFood to "Foods",
                 binding.catTransport to "Transportation",
@@ -91,6 +155,7 @@ class MultiTransactionAdapter(
                 binding.catInternet to "Internet",
                 binding.catOthers to "Others"
             )
+            
             fun updateChipSelection(selected: View) {
                 chipMap.forEach { (view, category) ->
                     view.setBackgroundResource(
@@ -98,119 +163,31 @@ class MultiTransactionAdapter(
                         else R.drawable.bg_dark_chip_outline
                     )
                 }
-                binding.tvItemNumber.text = "Item ${position + 1} — ${entry.category.lowercase()}"
+                binding.tvItemNumber.text = "Item ${position + 1} — ${item.category.lowercase()}"
             }
+            
             chipMap.forEach { (view, category) ->
                 view.setOnClickListener {
-                    entry.category = category
+                    transactions[adapterPosition] = item.copy(category = category)
                     updateChipSelection(view)
+                    updateValidation(adapterPosition)
                     onValidationChanged()
                 }
             }
-            val selectedChip = chipMap.entries.firstOrNull { it.value == entry.category }?.key
+            
+            val selectedChip = chipMap.entries.firstOrNull { it.value == item.category }?.key
             if (selectedChip != null) updateChipSelection(selectedChip)
-
-            if (isMultiplePayorsMode) {
-                setupPayorLogic(entry, position)
-            }
-
-            // Amount Listener
-            binding.etAmount.removeTextChangedListener(amountWatcher)
-            amountWatcher = object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-                override fun afterTextChanged(s: Editable?) {
-                    entry.amount = s.toString().toDoubleOrNull() ?: 0.0
-                    if (!expandedSplits.contains(position) && entry.payors.size == 1) {
-                        entry.payors[0].amount = entry.amount
-                    }
-                    if (isMultiplePayorsMode) updateRemainingAmount(entry)
-                    onAmountChanged()
-                    onValidationChanged()
-                }
-            }
-            binding.etAmount.addTextChangedListener(amountWatcher)
-
-            binding.etTitle.removeTextChangedListener(titleWatcher)
-            titleWatcher = object : TextWatcher {
-                override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-                override fun afterTextChanged(s: Editable?) { entry.title = s.toString() }
-            }
-            binding.etTitle.addTextChangedListener(titleWatcher)
         }
 
-        private fun setupPayorLogic(entry: TransactionEntry, position: Int) {
-            val isExpanded = expandedSplits.contains(position)
-            binding.spinnerSinglePayor.isVisible = !isExpanded
-            // binding.rvSplitDetails.isVisible = isExpanded // rvSplitDetails is missing in the current layout
-            binding.tvRemainingAmount.isVisible = isExpanded
-
-            if (!isExpanded) {
-                val memberNames = groupMembers.map { it.username ?: "Unknown" }
-                val memberAdapter = ArrayAdapter(itemView.context, android.R.layout.simple_spinner_item, memberNames)
-                memberAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-                binding.spinnerSinglePayor.adapter = memberAdapter
-
-                // Initial selection for Single Payor
-                if (entry.payors.isNotEmpty()) {
-                    val currentPayorId = entry.payors[0].userId
-                    val index = groupMembers.indexOfFirst { it.id == currentPayorId }
-                    if (index != -1) binding.spinnerSinglePayor.setSelection(index)
-                }
-
-                binding.spinnerSinglePayor.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
-                    override fun onItemSelected(p0: AdapterView<*>?, p1: View?, pos: Int, p3: Long) {
-                        if (!expandedSplits.contains(position)) {
-                            val member = groupMembers[pos]
-                            entry.payors = mutableListOf(PayorEntry(member.id!!, member.username!!, entry.amount))
-                            onValidationChanged()
-                        }
-                    }
-                    override fun onNothingSelected(p0: AdapterView<*>?) {}
-                }
-            } else {
-                // Multi-payor split logic using rvSplitDetails
-                // (Implementation for rvSplitDetails adapter would go here)
-                renderMultiPayorInputs(entry)
-            }
-        }
-
-        private fun renderMultiPayorInputs(entry: TransactionEntry) {
-            binding.layoutMultiPayorContainer.removeAllViews()
-            entry.payors.forEachIndexed { index, payor ->
-                val inputLayout = TextInputLayout(itemView.context, null, com.google.android.material.R.attr.textInputStyle).apply {
-                    hint = payor.username
-                    layoutParams = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.MATCH_PARENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).apply { setMargins(0, 8, 0, 0) }
-                }
-                val editText = TextInputEditText(inputLayout.context).apply {
-                    inputType = android.text.InputType.TYPE_CLASS_NUMBER or android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
-                    setText(if (payor.amount > 0) payor.amount.toString() else "")
-                    addTextChangedListener(object : TextWatcher {
-                        override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-                        override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
-                        override fun afterTextChanged(s: Editable?) {
-                            payor.amount = s.toString().toDoubleOrNull() ?: 0.0
-                            if (isMultiplePayorsMode) updateRemainingAmount(entry)
-                            onValidationChanged()
-                        }
-                    })
-                }
-                inputLayout.addView(editText)
-                binding.layoutMultiPayorContainer.addView(inputLayout)
-            }
-            updateRemainingAmount(entry)
-        }
-
-        private fun updateRemainingAmount(entry: TransactionEntry) {
-            if (!isMultiplePayorsMode) return
-            val totalPaid = entry.payors.sumOf { it.amount }
-            val remaining = entry.amount - totalPaid
-            binding.tvRemainingAmount.text = "Remaining: ${CurrencyUtils.formatAmountWithCurrency(remaining)}"
-            binding.tvRemainingAmount.setTextColor(if (remaining == 0.0) 0xFF4CAF50.toInt() else 0xFFF44336.toInt())
+        private fun updateValidation(position: Int) {
+            val item = transactions[position]
+            val isValid = item.amount > 0 && 
+                         item.category.isNotEmpty() && 
+                         item.payers.isNotEmpty() && 
+                         item.isPaymentComplete()
+            
+            transactions[position] = item.copy(isValid = isValid)
+            binding.ivValidationError.isVisible = !isValid
         }
     }
 }
