@@ -85,13 +85,14 @@ class MultiTransactionViewModel(
                 _transactions.value = listOf(TransactionEntry())
                 calculateTotals()
 
-                if (!_isMultiplePayorsMode.value) {
-                    val currentId = _currentUserNumericId.value
-                    val user = fetchedMembers.find { it.id == currentId }
-                    if (user != null && currentId != null) {
-                        updateGlobalPayors(listOf(PayorEntry(currentId, user.username ?: "Me")))
-                    }
-                }
+                // Remove automatic payor assignment - let users configure payments manually
+                // if (!_isMultiplePayorsMode.value) {
+                //     val currentId = _currentUserNumericId.value
+                //     val user = fetchedMembers.find { it.id == currentId }
+                //     if (user != null && currentId != null) {
+                //         updateGlobalPayors(listOf(PayorEntry(currentId, user.username ?: "Me")))
+                //     }
+                // }
             } catch (e: Exception) {
                 _uiState.value = UiState.Error(e.message ?: "Failed to fetch members")
             } finally {
@@ -128,6 +129,12 @@ class MultiTransactionViewModel(
         var total = 0.0
         _transactions.value.forEach { total += it.amount }
         _totalAmount.value = total
+        
+        // Debug logging
+        android.util.Log.d("MultiTransactionVM", "calculateTotals - total: $total, transactions: ${_transactions.value.size}")
+        _transactions.value.forEachIndexed { index, tx ->
+            android.util.Log.d("MultiTransactionVM", "Transaction $index: amount=${tx.amount}")
+        }
     }
 
     fun updatePayorsForTransaction(position: Int, selectedPayors: List<PayorEntry>) {
@@ -203,6 +210,23 @@ class MultiTransactionViewModel(
             currentList[position] = currentList[position].copy(payors = payorEntries)
             _transactions.value = currentList
             calculateTotals()
+        }
+    }
+    
+    fun updateTransactionAmount(position: Int, amount: Double) {
+        val currentList = _transactions.value.toMutableList()
+        if (position in currentList.indices) {
+            currentList[position] = currentList[position].copy(amount = amount)
+            _transactions.value = currentList
+            calculateTotals()
+        }
+    }
+    
+    fun updateTransactionCategory(position: Int, category: String) {
+        val currentList = _transactions.value.toMutableList()
+        if (position in currentList.indices) {
+            currentList[position] = currentList[position].copy(category = category)
+            _transactions.value = currentList
         }
     }
 

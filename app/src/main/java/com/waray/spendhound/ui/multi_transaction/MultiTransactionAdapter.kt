@@ -15,7 +15,8 @@ import com.waray.spendhound.User
 import com.waray.spendhound.databinding.ItemTransactionMultiBinding
 
 class MultiTransactionAdapter(
-    private val onAmountChanged: () -> Unit,
+    private val onAmountChanged: (Int, Double) -> Unit,
+    private val onCategoryChanged: (Int, String) -> Unit,
     private val onValidationChanged: () -> Unit,
     private val onRemoveItem: (Int) -> Unit,
     private val onPaymentConfigClick: (Int, MultiTransactionItem) -> Unit
@@ -39,10 +40,10 @@ class MultiTransactionAdapter(
             transactions.clear()
             transactions.addAll(newTransactions)
             
-            // Initialize included members for new items to "All members" if not already tracked
+            // Initialize included members for new items to empty list if not already tracked
             for (i in oldSize until newSize) {
                 if (!currentIncludedMembers.containsKey(i)) {
-                    currentIncludedMembers[i] = groupMembers.map { it.id.toString() }
+                    currentIncludedMembers[i] = emptyList()
                 }
             }
             
@@ -224,7 +225,7 @@ class MultiTransactionAdapter(
                     binding.layoutPaymentChip.alpha = if (hasAmount) 1.0f else 0.5f
                     
                     updateValidation(adapterPosition)
-                    onAmountChanged()
+                    onAmountChanged(adapterPosition, newAmount)
                     onValidationChanged()
                 }
             }
@@ -258,11 +259,11 @@ class MultiTransactionAdapter(
             
             // Use tracked included members if available, otherwise use item's included members
             val includedMembers = currentIncludedMembers[adapterPosition] ?: item.includedMembers
-            val participantCount = if (includedMembers.isNotEmpty()) includedMembers.size else groupMembers.size
             
             binding.tvParticipantSummary.text = when {
-                participantCount == groupMembers.size -> "All members"
-                else -> "$participantCount/${groupMembers.size} members"
+                includedMembers.isEmpty() -> "Tap to configure"
+                includedMembers.size == groupMembers.size -> "All members"
+                else -> "${includedMembers.size}/${groupMembers.size} members"
             }
             
             // Update text color based on configuration state
@@ -305,13 +306,15 @@ class MultiTransactionAdapter(
                 
                 // Update transaction data
                 transactions[adapterPosition] = item.copy(category = category)
+                
+                // Notify ViewModel of category change
+                onCategoryChanged(adapterPosition, category)
             }
             
             chipMap.forEach { (view, category) ->
                 view.setOnClickListener {
                     updateChipSelection(view, category)
                     updateValidation(adapterPosition)
-                    onValidationChanged()
                 }
             }
             

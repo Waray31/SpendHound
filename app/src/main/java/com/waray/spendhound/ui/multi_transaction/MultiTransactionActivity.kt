@@ -74,7 +74,13 @@ class MultiTransactionActivity : AppCompatActivity() {
 
     private fun setupRecyclerView() {
         adapter = MultiTransactionAdapter(
-            onAmountChanged = { viewModel.calculateTotals() },
+            onAmountChanged = { position, amount -> 
+                viewModel.updateTransactionAmount(position, amount)
+            },
+            onCategoryChanged = { position, category ->
+                viewModel.updateTransactionCategory(position, category)
+                validateSubmission()
+            },
             onValidationChanged = { validateSubmission() },
             onRemoveItem = { position -> viewModel.removeTransaction(position) },
             onPaymentConfigClick = { position, item -> showPaymentConfigBottomSheet(position, item) }
@@ -135,12 +141,21 @@ class MultiTransactionActivity : AppCompatActivity() {
         for (tx in transactions) {
             if (tx.amount <= 0) { allValid = false; break }
             if (tx.category.isBlank()) { allValid = false; break }
-            val totalPaid = tx.payors.sumOf { it.amount }
-            if (Math.abs(tx.amount - totalPaid) > 0.01) { allValid = false; break }
+            
+            // Check if there are any payment amounts configured
+            val hasPaymentAmounts = tx.payors.any { it.amount > 0 }
+            if (!hasPaymentAmounts) { allValid = false; break }
         }
 
         binding.btnSubmit.isVisible = allValid
         binding.btnSubmit.isEnabled = allValid
+        
+        // Debug logging
+        android.util.Log.d("MultiTransaction", "Validation - allValid: $allValid, transactions: ${transactions.size}")
+        transactions.forEachIndexed { index, tx ->
+            val hasPayments = tx.payors.any { it.amount > 0 }
+            android.util.Log.d("MultiTransaction", "Transaction $index: amount=${tx.amount}, category='${tx.category}', payors=${tx.payors.size}, hasPayments=$hasPayments")
+        }
     }
 
     private fun updatePayorsChips(members: List<User>) {
@@ -171,6 +186,9 @@ class MultiTransactionActivity : AppCompatActivity() {
             
             // Update ViewModel for consistency
             viewModel.updateItemPaymentConfig(position, payers, participants)
+            
+            // Trigger validation after payment config changes
+            validateSubmission()
         }
         
         bottomSheet.show(supportFragmentManager, "PaymentConfigBottomSheet")
@@ -240,7 +258,7 @@ class MultiTransactionActivity : AppCompatActivity() {
                                         amount = payor.amount
                                     )
                                 },
-                                includedMembers = currentMembers.map { it.id.toString() }, // Default all members included
+                                includedMembers = emptyList(), // Start with empty - let users configure
                                 isValid = entry.amount > 0 && entry.category.isNotEmpty() && entry.payors.isNotEmpty()
                             )
                         }
