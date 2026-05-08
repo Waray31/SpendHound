@@ -23,11 +23,90 @@ class MultiTransactionAdapter(
 
     private val transactions = mutableListOf<MultiTransactionItem>()
     private var groupMembers = listOf<User>()
+    
+    // Track current EditText values, selected categories, and included members to preserve them across updates
+    private val currentTitles = mutableMapOf<Int, String>()
+    private val currentAmounts = mutableMapOf<Int, String>()
+    private val currentCategories = mutableMapOf<Int, String>()
+    private val currentIncludedMembers = mutableMapOf<Int, List<String>>()
 
     fun setTransactions(newTransactions: List<MultiTransactionItem>) {
+        val oldSize = transactions.size
+        val newSize = newTransactions.size
+        
+        if (newSize > oldSize) {
+            // Items were added - preserve existing tracked values and initialize new items
+            transactions.clear()
+            transactions.addAll(newTransactions)
+            
+            // Initialize included members for new items to "All members" if not already tracked
+            for (i in oldSize until newSize) {
+                if (!currentIncludedMembers.containsKey(i)) {
+                    currentIncludedMembers[i] = groupMembers.map { it.id.toString() }
+                }
+            }
+            
+            notifyItemRangeInserted(oldSize, newSize - oldSize)
+            // Update remove button visibility for all existing items
+            if (oldSize == 1) {
+                notifyItemChanged(0) // First item now needs remove button
+            }
+        } else if (newSize < oldSize) {
+            // Items were removed - clean up tracked values for removed positions
+            for (i in newSize until oldSize) {
+                currentTitles.remove(i)
+                currentAmounts.remove(i)
+                currentCategories.remove(i)
+                currentIncludedMembers.remove(i)
+            }
+            transactions.clear()
+            transactions.addAll(newTransactions)
+            notifyItemRangeRemoved(newSize, oldSize - newSize)
+            // Update remove button visibility if we're down to 1 item
+            if (newSize == 1) {
+                notifyItemChanged(0) // Last item should hide remove button
+            }
+        } else {
+            // Same size, only update payment-related changes without affecting EditTexts or categories
+            for (i in transactions.indices) {
+                if (transactions[i].payers != newTransactions[i].payers || 
+                    transactions[i].includedMembers != newTransactions[i].includedMembers ||
+                    transactions[i].isValid != newTransactions[i].isValid) {
+                    transactions[i] = newTransactions[i]
+                    notifyItemChanged(i)
+                }
+            }
+        }
+    }
+
+    fun updateTransactionPayment(position: Int, updatedItem: MultiTransactionItem) {
+        if (position in transactions.indices) {
+            transactions[position] = updatedItem
+            notifyItemChanged(position)
+        }
+    }
+
+    fun updateIncludedMembers(position: Int, includedMembers: List<String>) {
+        currentIncludedMembers[position] = includedMembers
+    }
+
+    fun resetToSingleItem() {
+        // Clear all tracked data
+        currentTitles.clear()
+        currentAmounts.clear()
+        currentCategories.clear()
+        currentIncludedMembers.clear()
+        
+        // Reset to single empty item
         transactions.clear()
-        transactions.addAll(newTransactions)
+        transactions.add(MultiTransactionItem())
+        
         notifyDataSetChanged()
+    }
+
+    fun clearCategorySelections() {
+        // This will be called after notifyDataSetChanged to ensure views are bound
+        // The setupCategoryChips method will handle clearing selections based on empty category
     }
 
     fun setMembers(members: List<User>) {
@@ -75,15 +154,30 @@ class MultiTransactionAdapter(
         private var titleWatcher: TextWatcher? = null
 
         fun bind(item: MultiTransactionItem, position: Int) {
-            binding.etTitle.setText(item.title)
-            binding.etAmount.setText(if (item.amount > 0) item.amount.toString() else "")
+            // Use tracked values if available, otherwise use item values
+            val titleToShow = currentTitles[position] ?: item.title
+            val amountToShow = currentAmounts[position] ?: (if (item.amount > 0) item.amount.toString() else "")
+            val categoryToShow = currentCategories[position] ?: item.category
+            
+            // Only set EditText values if they're different to avoid clearing user input
+            if (binding.etTitle.text.toString() != titleToShow) {
+                binding.etTitle.setText(titleToShow)
+            }
+            if (binding.etAmount.text.toString() != amountToShow) {
+                binding.etAmount.setText(amountToShow)
+            }
 
-            // Item number
-            binding.tvItemNumber.text = "Item ${position + 1}${if (item.category.isNotEmpty()) " — ${item.category.lowercase()}" else ""}"
+            // Item number with category display
+            binding.tvItemNumber.text = "Item ${position + 1}${if (categoryToShow.isNotEmpty()) " — ${categoryToShow.lowercase()}" else ""}"
 
-            // Hide remove button when only 1 item
+            // Show remove button when there are multiple items
             binding.btnRemoveItem.isVisible = transactions.size > 1
             binding.btnRemoveItem.setOnClickListener {
+                // Clear tracked values for this position
+                currentTitles.remove(adapterPosition)
+                currentAmounts.remove(adapterPosition)
+                currentCategories.remove(adapterPosition)
+                currentIncludedMembers.remove(adapterPosition)
                 onRemoveItem(adapterPosition)
             }
 
@@ -95,11 +189,19 @@ class MultiTransactionAdapter(
 
             // Payment chip click listener
             binding.layoutPaymentChip.setOnClickListener {
-                onPaymentConfigClick(adapterPosition, item)
+                // Get current amount from EditText instead of stored item amount
+                val currentAmount = binding.etAmount.text.toString().toDoubleOrNull() ?: 0.0
+                // Use tracked included members if available, otherwise use item's included members
+                val includedMembers = currentIncludedMembers[adapterPosition] ?: item.includedMembers
+                val updatedItem = item.copy(
+                    amount = currentAmount,
+                    includedMembers = includedMembers
+                )
+                onPaymentConfigClick(adapterPosition, updatedItem)
             }
             
             // Category chips
-            setupCategoryChips(item, position)
+            setupCategoryChips(item, position, categoryToShow)
 
             // Amount listener
             binding.etAmount.removeTextChangedListener(amountWatcher)
@@ -108,13 +210,31 @@ class MultiTransactionAdapter(
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
                 override fun afterTextChanged(s: Editable?) {
                     val newAmount = s.toString().toDoubleOrNull() ?: 0.0
+                    val amountText = s.toString()
+                    
+                    // Track the current amount text
+                    currentAmounts[adapterPosition] = amountText
+                    
                     transactions[adapterPosition] = item.copy(amount = newAmount)
+                    
+                    // Enable/disable payment section based on amount
+                    val hasAmount = newAmount > 0
+                    binding.layoutPaymentChip.isClickable = hasAmount
+                    binding.layoutPaymentChip.isFocusable = hasAmount
+                    binding.layoutPaymentChip.alpha = if (hasAmount) 1.0f else 0.5f
+                    
                     updateValidation(adapterPosition)
                     onAmountChanged()
                     onValidationChanged()
                 }
             }
             binding.etAmount.addTextChangedListener(amountWatcher)
+            
+            // Initial payment section state based on current amount
+            val hasAmount = (currentAmounts[position]?.toDoubleOrNull() ?: item.amount) > 0
+            binding.layoutPaymentChip.isClickable = hasAmount
+            binding.layoutPaymentChip.isFocusable = hasAmount
+            binding.layoutPaymentChip.alpha = if (hasAmount) 1.0f else 0.5f
 
             // Title listener
             binding.etTitle.removeTextChangedListener(titleWatcher)
@@ -122,7 +242,12 @@ class MultiTransactionAdapter(
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
                 override fun afterTextChanged(s: Editable?) {
-                    transactions[adapterPosition] = item.copy(title = s.toString())
+                    val titleText = s.toString()
+                    
+                    // Track the current title text
+                    currentTitles[adapterPosition] = titleText
+                    
+                    transactions[adapterPosition] = item.copy(title = titleText)
                 }
             }
             binding.etTitle.addTextChangedListener(titleWatcher)
@@ -130,7 +255,15 @@ class MultiTransactionAdapter(
 
         private fun updatePaymentSummary(item: MultiTransactionItem) {
             binding.tvPaymentSummary.text = item.getPaymentSummary()
-            binding.tvParticipantSummary.text = item.getParticipantSummary(groupMembers.size)
+            
+            // Use tracked included members if available, otherwise use item's included members
+            val includedMembers = currentIncludedMembers[adapterPosition] ?: item.includedMembers
+            val participantCount = if (includedMembers.isNotEmpty()) includedMembers.size else groupMembers.size
+            
+            binding.tvParticipantSummary.text = when {
+                participantCount == groupMembers.size -> "All members"
+                else -> "$participantCount/${groupMembers.size} members"
+            }
             
             // Update text color based on configuration state
             val textColor = if (item.payers.isEmpty()) {
@@ -141,7 +274,7 @@ class MultiTransactionAdapter(
             binding.tvPaymentSummary.setTextColor(textColor)
         }
 
-        private fun setupCategoryChips(item: MultiTransactionItem, position: Int) {
+        private fun setupCategoryChips(item: MultiTransactionItem, position: Int, currentCategory: String) {
             val chipMap = mapOf(
                 binding.catFood to "Foods",
                 binding.catTransport to "Transportation",
@@ -156,27 +289,49 @@ class MultiTransactionAdapter(
                 binding.catOthers to "Others"
             )
             
-            fun updateChipSelection(selected: View) {
-                chipMap.forEach { (view, category) ->
+            fun updateChipSelection(selected: View, category: String) {
+                chipMap.forEach { (view, cat) ->
                     view.setBackgroundResource(
                         if (view == selected) R.drawable.bg_dark_chip_selected
                         else R.drawable.bg_dark_chip_outline
                     )
                 }
-                binding.tvItemNumber.text = "Item ${position + 1} — ${item.category.lowercase()}"
+                
+                // Track the selected category
+                currentCategories[adapterPosition] = category
+                
+                // Update item number display
+                binding.tvItemNumber.text = "Item ${position + 1} — ${category.lowercase()}"
+                
+                // Update transaction data
+                transactions[adapterPosition] = item.copy(category = category)
             }
             
             chipMap.forEach { (view, category) ->
                 view.setOnClickListener {
-                    transactions[adapterPosition] = item.copy(category = category)
-                    updateChipSelection(view)
+                    updateChipSelection(view, category)
                     updateValidation(adapterPosition)
                     onValidationChanged()
                 }
             }
             
-            val selectedChip = chipMap.entries.firstOrNull { it.value == item.category }?.key
-            if (selectedChip != null) updateChipSelection(selectedChip)
+            // Set initial selection based on tracked category or item category
+            if (currentCategory.isNotEmpty()) {
+                val selectedChip = chipMap.entries.firstOrNull { it.value == currentCategory }?.key
+                if (selectedChip != null) {
+                    chipMap.forEach { (view, cat) ->
+                        view.setBackgroundResource(
+                            if (view == selectedChip) R.drawable.bg_dark_chip_selected
+                            else R.drawable.bg_dark_chip_outline
+                        )
+                    }
+                }
+            } else {
+                // No category selected - reset all chips to unselected state
+                chipMap.forEach { (view, cat) ->
+                    view.setBackgroundResource(R.drawable.bg_dark_chip_outline)
+                }
+            }
         }
 
         private fun updateValidation(position: Int) {

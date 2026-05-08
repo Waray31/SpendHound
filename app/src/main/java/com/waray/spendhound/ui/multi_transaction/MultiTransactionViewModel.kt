@@ -81,6 +81,10 @@ class MultiTransactionViewModel(
                 val fetchedMembers = repository.getGroupMembers(groupId)
                 _members.value = fetchedMembers
 
+                // Reset transactions to single empty item when group changes
+                _transactions.value = listOf(TransactionEntry())
+                calculateTotals()
+
                 if (!_isMultiplePayorsMode.value) {
                     val currentId = _currentUserNumericId.value
                     val user = fetchedMembers.find { it.id == currentId }

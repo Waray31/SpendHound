@@ -116,7 +116,11 @@ class MultiTransactionActivity : AppCompatActivity() {
 
         binding.spinnerGroup.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(p0: AdapterView<*>?, p1: View?, pos: Int, p3: Long) {
-                currentGroups.getOrNull(pos)?.groupId?.let { viewModel.onGroupSelected(it) }
+                currentGroups.getOrNull(pos)?.groupId?.let { groupId ->
+                    // Reset adapter to single item when group changes
+                    adapter.resetToSingleItem()
+                    viewModel.onGroupSelected(groupId)
+                }
             }
             override fun onNothingSelected(p0: AdapterView<*>?) {}
         }
@@ -163,6 +167,17 @@ class MultiTransactionActivity : AppCompatActivity() {
         )
         
         bottomSheet.setOnConfirmListener { payers, participants ->
+            // Update the item directly in adapter first
+            val updatedItem = item.copy(
+                payers = payers,
+                includedMembers = participants
+            )
+            adapter.updateTransactionPayment(position, updatedItem)
+            
+            // Track the included members for this position
+            adapter.updateIncludedMembers(position, participants)
+            
+            // Update ViewModel for consistency
             viewModel.updateItemPaymentConfig(position, payers, participants)
         }
         

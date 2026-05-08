@@ -1,9 +1,15 @@
 package com.waray.spendhound
 
+import android.content.Context
+import android.graphics.Rect
 import android.os.Bundle
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
+import android.widget.EditText
 import androidx.core.widget.addTextChangedListener
 import android.text.TextWatcher
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -83,6 +89,7 @@ class PaymentConfigBottomSheet : BottomSheetDialogFragment() {
         initViews(view)
         setupAdapter()
         updateUI()
+        setupKeyboardDismissal(view)
         
         btnClose.setOnClickListener { dismiss() }
         btnConfirm.setOnClickListener { 
@@ -134,10 +141,30 @@ class PaymentConfigBottomSheet : BottomSheetDialogFragment() {
         }
         tvRemainingAmount.setTextColor(color)
         
-        // Enable confirm only when exactly balanced
-        btnConfirm.isEnabled = Math.abs(remaining) < 0.01 && memberStates.any { it.amountPaid > 0 }
+        // Enable confirm when amounts are valid (don't require exact balance)
+        // Allow confirmation if at least one person has paid something
+        btnConfirm.isEnabled = memberStates.any { it.amountPaid > 0 }
         
         // Don't call notifyDataSetChanged() here - let individual items update themselves
+    }
+    
+    private fun setupKeyboardDismissal(view: View) {
+        // Set up touch listener to dismiss keyboard when touching outside EditText
+        view.setOnTouchListener { v, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                val focusedView = dialog?.currentFocus
+                if (focusedView is EditText) {
+                    val outRect = Rect()
+                    focusedView.getGlobalVisibleRect(outRect)
+                    if (!outRect.contains(event.rawX.toInt(), event.rawY.toInt())) {
+                        focusedView.clearFocus()
+                        val imm = requireContext().getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                        imm.hideSoftInputFromWindow(focusedView.windowToken, 0)
+                    }
+                }
+            }
+            false
+        }
     }
     
     fun setOnConfirmListener(listener: (List<PayerContribution>, List<String>) -> Unit) {
@@ -190,6 +217,9 @@ class MembersAdapter(
         // Update toggle appearance
         updateToggleAppearance(holder, memberState.isIncludedInSplit)
         
+        // Setup keyboard dismissal for this item
+        setupItemKeyboardDismissal(holder)
+        
         // Amount change listener
         val textWatcher = holder.etMemberAmount.addTextChangedListener { text ->
             val amount = text.toString().toDoubleOrNull() ?: 0.0
@@ -202,6 +232,18 @@ class MembersAdapter(
             }
         }
         holder.etMemberAmount.tag = textWatcher
+        
+        // Handle done action on keyboard
+        holder.etMemberAmount.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == EditorInfo.IME_ACTION_DONE) {
+                holder.etMemberAmount.clearFocus()
+                val imm = holder.itemView.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                imm.hideSoftInputFromWindow(holder.etMemberAmount.windowToken, 0)
+                true
+            } else {
+                false
+            }
+        }
         
         // Toggle click listener
         holder.layoutSplitToggle.setOnClickListener {
@@ -225,6 +267,24 @@ class MembersAdapter(
                     e.printStackTrace()
                 }
             }
+        }
+    }
+    
+    private fun setupItemKeyboardDismissal(holder: ViewHolder) {
+        holder.itemView.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                val focusedView = holder.etMemberAmount
+                if (focusedView.isFocused) {
+                    val outRect = Rect()
+                    focusedView.getGlobalVisibleRect(outRect)
+                    if (!outRect.contains(event.rawX.toInt(), event.rawY.toInt())) {
+                        focusedView.clearFocus()
+                        val imm = holder.itemView.context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
+                        imm.hideSoftInputFromWindow(focusedView.windowToken, 0)
+                    }
+                }
+            }
+            false
         }
     }
     

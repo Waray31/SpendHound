@@ -99,8 +99,9 @@
                         android:id="@+id/spinnerGroup"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:background="@drawable/bg_payment_chip"
                         android:layout_marginTop="4dp"
-                        android:minHeight="48dp" />
+                        android:minHeight="44dp" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
