@@ -226,20 +226,24 @@ class PayorAdapter(
         when {
             paid <= 0 -> {
                 holder.payorStatus.text = "Unpaid"
-                holder.payorStatus.setTextColor(ContextCompat.getColor(context, android.R.color.holo_red_dark))
-                holder.payorStatusBadge.visibility = View.GONE
+                holder.payorStatus.setTextColor(ContextCompat.getColor(context, R.color.bright_red))
+                holder.payorStatusBadge.visibility = View.VISIBLE
+                holder.payorStatusBadge.setImageResource(R.drawable.ic_circle_checked)
+                holder.payorStatusBadge.setColorFilter(ContextCompat.getColor(context, R.color.bright_red))
             }
             paid < individualPayment -> {
                 holder.payorStatus.text = "Paid Partially"
-                holder.payorStatus.setTextColor(ContextCompat.getColor(context, android.R.color.holo_orange_dark))
+                holder.payorStatus.setTextColor(ContextCompat.getColor(context, R.color.mid_orange))
                 holder.payorStatusBadge.visibility = View.VISIBLE
-                holder.payorStatusBadge.setColorFilter(ContextCompat.getColor(context, android.R.color.holo_orange_dark))
+                holder.payorStatusBadge.setImageResource(R.drawable.ic_circle_checked)
+                holder.payorStatusBadge.setColorFilter(ContextCompat.getColor(context, R.color.mid_orange))
             }
             else -> {
                 holder.payorStatus.text = "Paid"
-                holder.payorStatus.setTextColor(ContextCompat.getColor(context, android.R.color.holo_green_dark))
+                holder.payorStatus.setTextColor(ContextCompat.getColor(context, R.color.green))
                 holder.payorStatusBadge.visibility = View.VISIBLE
-                holder.payorStatusBadge.setColorFilter(ContextCompat.getColor(context, android.R.color.holo_green_dark))
+                holder.payorStatusBadge.setImageResource(R.drawable.ic_circle_checked)
+                holder.payorStatusBadge.setColorFilter(ContextCompat.getColor(context, R.color.green))
             }
         }
     }
