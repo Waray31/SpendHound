@@ -182,8 +182,30 @@ class MultiTransactionAdapter(
                 onRemoveItem(adapterPosition)
             }
 
-            // Validation indicator
-            binding.ivValidationError.isVisible = !item.isValid
+            // Validation indicator and message
+            val currentAmount = currentAmounts[position]?.toDoubleOrNull() ?: item.amount
+            val hasAmountInput = currentAmount > 0
+            val hasPaymentConfig = item.payers.isNotEmpty() && item.isPaymentComplete()
+            
+            when {
+                !hasAmountInput -> {
+                    // No amount inputted
+                    binding.ivValidationError.isVisible = true
+                    binding.tvValidationMessage.isVisible = true
+                    binding.tvValidationMessage.text = "Please input amount first"
+                }
+                hasAmountInput && !hasPaymentConfig -> {
+                    // Amount inputted but no payment config
+                    binding.ivValidationError.isVisible = true
+                    binding.tvValidationMessage.isVisible = true
+                    binding.tvValidationMessage.text = "Select a payor and input payment"
+                }
+                else -> {
+                    // Amount and payment config complete
+                    binding.ivValidationError.isVisible = false
+                    binding.tvValidationMessage.isVisible = false
+                }
+            }
 
             // Payment summary
             updatePaymentSummary(item)
@@ -261,7 +283,7 @@ class MultiTransactionAdapter(
             val includedMembers = currentIncludedMembers[adapterPosition] ?: item.includedMembers
             
             binding.tvParticipantSummary.text = when {
-                includedMembers.isEmpty() -> "Tap to configure"
+                includedMembers.isEmpty() -> "All members"
                 includedMembers.size == groupMembers.size -> "All members"
                 else -> "${includedMembers.size}/${groupMembers.size} members"
             }
@@ -294,7 +316,7 @@ class MultiTransactionAdapter(
                 chipMap.forEach { (view, cat) ->
                     view.setBackgroundResource(
                         if (view == selected) R.drawable.bg_dark_chip_selected
-                        else R.drawable.bg_dark_chip_outline
+                        else R.drawable.bg_profile_card
                     )
                 }
                 
@@ -325,27 +347,44 @@ class MultiTransactionAdapter(
                     chipMap.forEach { (view, cat) ->
                         view.setBackgroundResource(
                             if (view == selectedChip) R.drawable.bg_dark_chip_selected
-                            else R.drawable.bg_dark_chip_outline
+                            else R.drawable.bg_profile_card
                         )
                     }
                 }
             } else {
                 // No category selected - reset all chips to unselected state
                 chipMap.forEach { (view, cat) ->
-                    view.setBackgroundResource(R.drawable.bg_dark_chip_outline)
+                    view.setBackgroundResource(R.drawable.bg_profile_card)
                 }
             }
         }
 
         private fun updateValidation(position: Int) {
             val item = transactions[position]
-            val isValid = item.amount > 0 && 
-                         item.category.isNotEmpty() && 
-                         item.payers.isNotEmpty() && 
-                         item.isPaymentComplete()
+            val currentAmount = currentAmounts[position]?.toDoubleOrNull() ?: item.amount
+            val hasAmountInput = currentAmount > 0
+            val hasPaymentConfig = item.payers.isNotEmpty() && item.isPaymentComplete()
+            val isValid = hasAmountInput && item.category.isNotEmpty() && hasPaymentConfig
             
             transactions[position] = item.copy(isValid = isValid)
-            binding.ivValidationError.isVisible = !isValid
+            
+            // Update validation display
+            when {
+                !hasAmountInput -> {
+                    binding.ivValidationError.isVisible = true
+                    binding.tvValidationMessage.isVisible = true
+                    binding.tvValidationMessage.text = "Please input amount first"
+                }
+                hasAmountInput && !hasPaymentConfig -> {
+                    binding.ivValidationError.isVisible = true
+                    binding.tvValidationMessage.isVisible = true
+                    binding.tvValidationMessage.text = "Select a payor and input payment"
+                }
+                else -> {
+                    binding.ivValidationError.isVisible = false
+                    binding.tvValidationMessage.isVisible = false
+                }
+            }
         }
     }
 }
