@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/relativeLayout_recent"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -236,13 +237,23 @@
                     android:paddingHorizontal="12dp"
                     android:paddingVertical="8dp">
 
-                    <ImageView
-                        android:id="@+id/createdByImageView"
+                    <androidx.cardview.widget.CardView
+                        android:id="@+id/createdByCardView"
                         android:layout_width="32dp"
                         android:layout_height="32dp"
                         android:layout_marginEnd="8dp"
-                        android:background="@drawable/rounded_background9"
-                        android:scaleType="centerCrop" />
+                        app:cardCornerRadius="16dp"
+                        app:cardElevation="0dp"
+                        app:cardBackgroundColor="@color/orange">
+
+                        <ImageView
+                            android:id="@+id/createdByImageView"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
+                            android:scaleType="centerCrop"
+                            android:src="@drawable/ic_profile_silhouette" />
+
+                    </androidx.cardview.widget.CardView>
 
                     <LinearLayout
                         android:layout_width="wrap_content"

@@ -12,7 +12,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
+import coil.load
+import coil.transform.CircleCropTransformation
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -250,7 +251,11 @@ class PayerListTransactionAdapter(
                 }
                 val imageUrl = user?.profileImageUrl
                 if (imageUrl != null && payerName == imageView.tag && context != null) {
-                    Glide.with(context).load(imageUrl).placeholder(R.drawable.ic_profile_silhouette).into(imageView)
+                    imageView.load(imageUrl) {
+                        placeholder(R.drawable.ic_profile_silhouette)
+                        error(R.drawable.ic_profile_silhouette)
+                        transformations(CircleCropTransformation())
+                    }
                 }
             } catch (e: Exception) {
                 Log.e("PayerListTransactionAdapter", "Profile image error", e)

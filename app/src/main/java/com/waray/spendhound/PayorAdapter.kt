@@ -10,12 +10,9 @@ import android.widget.ImageView
 import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.DataSource
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.bumptech.glide.load.engine.GlideException
-import com.bumptech.glide.request.RequestListener
-import com.bumptech.glide.request.target.Target
+import coil.imageLoader
+import coil.load
+import coil.transform.CircleCropTransformation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -96,21 +93,16 @@ class PayorAdapter(
     }
 
     private fun preloadProfileImage(context: Context, url: String, position: Int) {
-        Glide.with(context)
-            .load(url)
-            .circleCrop()
-            .diskCacheStrategy(DiskCacheStrategy.ALL)
-            .listener(object : RequestListener<Drawable?> {
-                override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable?>?, isFirstResource: Boolean): Boolean {
-                    checkLoadingComplete(position)
-                    return false
-                }
-                override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable?>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
-                    checkLoadingComplete(position)
-                    return false
-                }
-            })
-            .preload()
+        // Coil preloading
+        val request = coil.request.ImageRequest.Builder(context)
+            .data(url)
+            .transformations(CircleCropTransformation())
+            .listener(
+                onSuccess = { _, _ -> checkLoadingComplete(position) },
+                onError = { _, _ -> checkLoadingComplete(position) }
+            )
+            .build()
+        context.imageLoader.enqueue(request)
     }
 
     fun setEditMode(editMode: Boolean) {
@@ -187,7 +179,7 @@ class PayorAdapter(
         if (userId != null) {
             val cachedUrl = sDownloadUrlCache[userId]
             if (cachedUrl != null) {
-                loadGlideImage(holder, cachedUrl, position)
+                loadCoilImage(holder, cachedUrl, position)
             } else {
                 scope.launch {
                     try {
@@ -195,9 +187,10 @@ class PayorAdapter(
                             DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
                         }
                         sDownloadUrlCache[userId] = url
-                        loadGlideImage(holder, url, position)
+                        loadCoilImage(holder, url, position)
                     } catch (e: Exception) {
                         holder.payorImage.setImageResource(R.drawable.ic_profile_silhouette)
+                        holder.payorImage.imageTintList = ContextCompat.getColorStateList(holder.itemView.context, R.color.white)
                         checkLoadingComplete(position)
                     }
                 }
@@ -211,23 +204,21 @@ class PayorAdapter(
         }
     }
 
-    private fun loadGlideImage(holder: PayorViewHolder, url: String?, position: Int) {
-        Glide.with(holder.itemView.context)
-            .load(url)
-            .placeholder(R.drawable.ic_profile_silhouette)
-            .diskCacheStrategy(DiskCacheStrategy.ALL)
-            .circleCrop()
-            .listener(object : RequestListener<Drawable?> {
-                override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable?>?, isFirstResource: Boolean): Boolean {
-                    checkLoadingComplete(position)
-                    return false
+    private fun loadCoilImage(holder: PayorViewHolder, url: String?, position: Int) {
+        holder.payorImage.imageTintList = null
+        holder.payorImage.load(url) {
+            placeholder(R.drawable.ic_profile_silhouette)
+            error(R.drawable.ic_profile_silhouette)
+            transformations(CircleCropTransformation())
+            listener(
+                onSuccess = { _, _ -> checkLoadingComplete(position) },
+                onError = { _, _ -> 
+                    holder.payorImage.setImageResource(R.drawable.ic_profile_silhouette)
+                    holder.payorImage.imageTintList = ContextCompat.getColorStateList(holder.itemView.context, R.color.white)
+                    checkLoadingComplete(position) 
                 }
-                override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable?>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
-                    checkLoadingComplete(position)
-                    return false
-                }
-            })
-            .into(holder.payorImage)
+            )
+        }
     }
 
     private fun updateStatusUI(holder: PayorViewHolder, paid: Double) {
@@ -301,11 +292,11 @@ class PayorAdapter(
         }
 
         private fun preloadOnly(context: Context, url: String) {
-            Glide.with(context)
-                .load(url)
-                .circleCrop()
-                .diskCacheStrategy(DiskCacheStrategy.ALL)
-                .preload()
+            val request = coil.request.ImageRequest.Builder(context)
+                .data(url)
+                .transformations(CircleCropTransformation())
+                .build()
+            context.imageLoader.enqueue(request)
         }
     }
 }

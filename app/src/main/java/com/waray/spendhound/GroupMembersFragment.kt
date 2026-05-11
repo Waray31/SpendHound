@@ -13,8 +13,8 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
+import coil.load
+import coil.transform.CircleCropTransformation
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.launch
 
@@ -176,13 +176,11 @@ class GroupMembersFragment : Fragment() {
         lifecycleScope.launch {
             try {
                 val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
-                Glide.with(this@GroupMembersFragment)
-                    .load(url)
-                    .circleCrop()
-                    .diskCacheStrategy(DiskCacheStrategy.ALL)
-                    .placeholder(R.drawable.ic_profile_silhouette)
-                    .error(R.drawable.ic_profile_silhouette)
-                    .into(iv)
+                iv.load(url) {
+                    placeholder(R.drawable.ic_profile_silhouette)
+                    error(R.drawable.ic_profile_silhouette)
+                    transformations(CircleCropTransformation())
+                }
             } catch (_: Exception) {
                 iv.setImageResource(R.drawable.ic_profile_silhouette)
             }

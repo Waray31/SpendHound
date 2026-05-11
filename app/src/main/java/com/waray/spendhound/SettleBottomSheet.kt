@@ -27,8 +27,8 @@ import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.core.content.res.ResourcesCompat
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
+import coil.load
+import coil.transform.CircleCropTransformation
 import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import com.google.android.material.button.MaterialButton
@@ -758,10 +758,16 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
 
             val cachedUrl = PayorAdapter.sDownloadUrlCache[userId]
             if (cachedUrl != null) {
-                Glide.with(holder.itemView.context).load(cachedUrl)
-                    .circleCrop().diskCacheStrategy(DiskCacheStrategy.ALL)
-                    .placeholder(R.drawable.ic_profile_silhouette)
-                    .into(holder.avatar)
+                holder.avatar.imageTintList = null
+                holder.avatar.load(cachedUrl) {
+                    placeholder(R.drawable.ic_profile_silhouette)
+                    error(R.drawable.ic_profile_silhouette)
+                    transformations(CircleCropTransformation())
+                    listener(onError = { _, _ ->
+                        holder.avatar.setImageResource(R.drawable.ic_profile_silhouette)
+                        holder.avatar.imageTintList = ContextCompat.getColorStateList(holder.itemView.context, R.color.white)
+                    })
+                }
             } else if (userId != null) {
                 scope.launch {
                     try {
@@ -769,12 +775,19 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
                             DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
                         }
                         PayorAdapter.sDownloadUrlCache[userId] = url
-                        Glide.with(holder.itemView.context).load(url)
-                            .circleCrop().diskCacheStrategy(DiskCacheStrategy.ALL)
-                            .placeholder(R.drawable.ic_profile_silhouette)
-                            .into(holder.avatar)
+                        holder.avatar.imageTintList = null
+                        holder.avatar.load(url) {
+                            placeholder(R.drawable.ic_profile_silhouette)
+                            error(R.drawable.ic_profile_silhouette)
+                            transformations(CircleCropTransformation())
+                            listener(onError = { _, _ ->
+                                holder.avatar.setImageResource(R.drawable.ic_profile_silhouette)
+                                holder.avatar.imageTintList = ContextCompat.getColorStateList(holder.itemView.context, R.color.white)
+                            })
+                        }
                     } catch (_: Exception) {
                         holder.avatar.setImageResource(R.drawable.ic_profile_silhouette)
+                        holder.avatar.imageTintList = ContextCompat.getColorStateList(holder.itemView.context, R.color.white)
                     }
                 }
             }

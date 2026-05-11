@@ -19,8 +19,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
+import coil.load
+import coil.transform.CircleCropTransformation
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.textfield.TextInputEditText
 import com.waray.spendhound.utils.ImageUtils
@@ -62,7 +62,9 @@ class EditGroupActivity : AppCompatActivity() {
         selectedImageUri = uri
         dialogImageView?.let {
             it.imageTintList = null
-            Glide.with(this).load(uri).centerCrop().into(it)
+            it.load(uri) {
+                crossfade(true)
+            }
         }
     }
 
@@ -194,13 +196,11 @@ class EditGroupActivity : AppCompatActivity() {
                 val url = withContext(Dispatchers.IO) {
                     DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
                 }
-                Glide.with(this@EditGroupActivity)
-                    .load(url)
-                    .circleCrop()
-                    .diskCacheStrategy(DiskCacheStrategy.ALL)
-                    .placeholder(R.drawable.ic_profile_silhouette)
-                    .error(R.drawable.ic_profile_silhouette)
-                    .into(iv)
+                iv.load(url) {
+                    placeholder(R.drawable.ic_profile_silhouette)
+                    error(R.drawable.ic_profile_silhouette)
+                    transformations(CircleCropTransformation())
+                }
             } catch (e: Exception) {
                 iv.setImageResource(R.drawable.ic_profile_silhouette)
             }
@@ -219,8 +219,9 @@ class EditGroupActivity : AppCompatActivity() {
 
         if (!existingGroupImage.isNullOrBlank()) {
             ivGroupImage.imageTintList = null
-            Glide.with(this).load(existingGroupImage).centerCrop()
-                .placeholder(R.drawable.add_group).into(ivGroupImage)
+            ivGroupImage.load(existingGroupImage) {
+                placeholder(R.drawable.add_group)
+            }
         }
 
         ivContainer.setOnClickListener { imagePickerLauncher.launch("image/*") }

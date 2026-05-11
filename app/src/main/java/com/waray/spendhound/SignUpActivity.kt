@@ -21,7 +21,8 @@ import android.widget.Toast
 import androidx.activity.OnBackPressedCallback
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import com.bumptech.glide.Glide
+import coil.load
+import coil.transform.CircleCropTransformation
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.query.Columns
@@ -482,10 +483,10 @@ class SignUpActivity : AppCompatActivity() {
         if (requestCode == PICK_IMAGE_REQUEST && resultCode == RESULT_OK && data != null && data.data != null) {
             profileImageUri = data.data
             profileImageView?.let {
-                Glide.with(this)
-                    .load(profileImageUri)
-                    .centerCrop()
-                    .into(it)
+                it.load(profileImageUri) {
+                    crossfade(true)
+                    transformations(CircleCropTransformation())
+                }
             }
         }
     }

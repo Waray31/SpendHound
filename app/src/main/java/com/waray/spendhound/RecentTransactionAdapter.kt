@@ -12,8 +12,8 @@ import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.engine.DiskCacheStrategy
+import coil.load
+import coil.transform.CircleCropTransformation
 import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.CoroutineScope
@@ -237,7 +237,7 @@ class RecentTransactionAdapter(
 
         val cachedUrl = PayorAdapter.sDownloadUrlCache[creatorUserId]
         if (cachedUrl != null) {
-            loadGlideImageForCreator(holder, cachedUrl)
+            loadCoilImageForCreator(holder, cachedUrl)
         } else {
             scope.launch {
                 try {
@@ -245,22 +245,27 @@ class RecentTransactionAdapter(
                         DeclareDatabase.profileImagesBucket.publicUrl("$creatorUserId/$creatorUserId.jpg")
                     }
                     PayorAdapter.sDownloadUrlCache[creatorUserId] = url
-                    loadGlideImageForCreator(holder, url)
+                    loadCoilImageForCreator(holder, url)
                 } catch (e: Exception) {
                     holder.createdByImageView.setImageResource(R.drawable.ic_profile_silhouette)
+                    holder.createdByImageView.imageTintList = ContextCompat.getColorStateList(holder.itemView.context, R.color.white)
                 }
             }
         }
     }
 
-    /** Loads image using Glide for the creator profile. */
-    private fun loadGlideImageForCreator(holder: ViewHolder, url: String) {
-        Glide.with(holder.itemView.context)
-            .load(url)
-            .placeholder(R.drawable.ic_profile_silhouette)
-            .diskCacheStrategy(DiskCacheStrategy.ALL)
-            .circleCrop()
-            .into(holder.createdByImageView)
+    /** Loads image using Coil for the creator profile. */
+    private fun loadCoilImageForCreator(holder: ViewHolder, url: String) {
+        holder.createdByImageView.imageTintList = null
+        holder.createdByImageView.load(url) {
+            placeholder(R.drawable.ic_profile_silhouette)
+            error(R.drawable.ic_profile_silhouette)
+            transformations(CircleCropTransformation())
+            listener(onError = { _, _ ->
+                holder.createdByImageView.setImageResource(R.drawable.ic_profile_silhouette)
+                holder.createdByImageView.imageTintList = ContextCompat.getColorStateList(holder.itemView.context, R.color.white)
+            })
+        }
     }
 
     private fun buildItemsTable(holder: ViewHolder, transaction: RecentTransaction) {

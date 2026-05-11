@@ -7,12 +7,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import androidx.recyclerview.widget.RecyclerView
-import com.bumptech.glide.Glide
-import com.bumptech.glide.load.DataSource
-import com.bumptech.glide.load.engine.DiskCacheStrategy
-import com.bumptech.glide.load.engine.GlideException
-import com.bumptech.glide.request.RequestListener
-import com.bumptech.glide.request.target.Target
+import coil.imageLoader
+import coil.load
+import coil.transform.CircleCropTransformation
 import com.google.android.material.imageview.ShapeableImageView
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -51,29 +48,27 @@ class LenderAdapter(private val lenders: MutableList<User?>) :
             val cachedUrl: String? = if (authId != null) PayorAdapter.sDownloadUrlCache[authId] else if (userId != null) PayorAdapter.sDownloadUrlCache[userId] else null
 
             if (cachedUrl != null) {
-                loadGlideImage(holder, cachedUrl)
+                loadCoilImage(holder, cachedUrl)
             } else if (!lender.profileImageUrl.isNullOrEmpty() && lender.profileImageUrl!!.startsWith("http")) {
-                loadGlideImage(holder, lender.profileImageUrl)
+                loadCoilImage(holder, lender.profileImageUrl)
             } else if (userId != null) {
                 // Use user_id/user_id.jpg format
                 val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
                 if (authId != null) PayorAdapter.sDownloadUrlCache[authId] = url
                 PayorAdapter.sDownloadUrlCache[userId] = url
-                loadGlideImage(holder, url)
+                loadCoilImage(holder, url)
             } else {
                 holder.profileImage.setImageResource(R.drawable.ic_profile_silhouette)
             }
         }
     }
 
-    private fun loadGlideImage(holder: ViewHolder, url: String?) {
-        Glide.with(holder.itemView.context)
-            .load(url)
-            .diskCacheStrategy(DiskCacheStrategy.ALL)
-            .placeholder(R.drawable.ic_profile_silhouette)
-            .error(R.drawable.ic_profile_silhouette)
-            .circleCrop()
-            .into(holder.profileImage)
+    private fun loadCoilImage(holder: ViewHolder, url: String?) {
+        holder.profileImage.load(url) {
+            placeholder(R.drawable.ic_profile_silhouette)
+            error(R.drawable.ic_profile_silhouette)
+            transformations(CircleCropTransformation())
+        }
     }
 
     override fun getItemCount(): Int = lenders.size
@@ -128,25 +123,23 @@ class LenderAdapter(private val lenders: MutableList<User?>) :
         total: Int,
         onComplete: Runnable?
     ) {
-        Glide.with(context)
-            .load(url)
-            .diskCacheStrategy(DiskCacheStrategy.ALL)
-            .listener(object : RequestListener<Drawable?> {
-                override fun onLoadFailed(e: GlideException?, model: Any?, target: Target<Drawable?>?, isFirstResource: Boolean): Boolean {
-                    checkComplete()
-                    return false
-                }
-                override fun onResourceReady(resource: Drawable?, model: Any?, target: Target<Drawable?>?, dataSource: DataSource?, isFirstResource: Boolean): Boolean {
-                    checkComplete()
-                    return false
-                }
-                fun checkComplete() {
+        val request = coil.request.ImageRequest.Builder(context)
+            .data(url)
+            .transformations(CircleCropTransformation())
+            .listener(
+                onSuccess = { _, _ -> 
+                    if (loadedCount.incrementAndGet() >= total) {
+                        onComplete?.run()
+                    }
+                },
+                onError = { _, _ ->
                     if (loadedCount.incrementAndGet() >= total) {
                         onComplete?.run()
                     }
                 }
-            })
-            .preload()
+            )
+            .build()
+        context.imageLoader.enqueue(request)
     }
 
     class ViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
