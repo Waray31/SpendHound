@@ -10,6 +10,10 @@ import io.github.jan.supabase.postgrest.postgrest
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 class MultiTransactionViewModel(
@@ -30,6 +34,17 @@ class MultiTransactionViewModel(
 
     private val _totalAmount = MutableStateFlow(0.0)
     val totalAmount: StateFlow<Double> = _totalAmount.asStateFlow()
+
+    val averageSplitPerIncludedMember: StateFlow<Double> = combine(
+        _totalAmount,
+        _transactions,
+        _members
+    ) { total, transactions, members ->
+        val totalIncludedMembers = transactions.sumOf { entry ->
+            if (entry.includedMemberIds.isEmpty()) members.size else entry.includedMemberIds.size
+        }
+        if (totalIncludedMembers > 0) total / totalIncludedMembers else 0.0
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), 0.0)
 
     private val _transactionTitle = MutableStateFlow("")
     val transactionTitle: StateFlow<String> = _transactionTitle.asStateFlow()
@@ -207,7 +222,13 @@ class MultiTransactionViewModel(
                 )
             }.toMutableList()
             
-            currentList[position] = currentList[position].copy(payors = payorEntries)
+            // Convert participant IDs to Long list
+            val includedMemberIds = participants.mapNotNull { it.toLongOrNull() }
+            
+            currentList[position] = currentList[position].copy(
+                payors = payorEntries,
+                includedMemberIds = includedMemberIds
+            )
             _transactions.value = currentList
             calculateTotals()
         }

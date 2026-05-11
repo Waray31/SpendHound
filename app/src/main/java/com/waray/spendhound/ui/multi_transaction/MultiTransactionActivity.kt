@@ -275,9 +275,12 @@ class MultiTransactionActivity : AppCompatActivity() {
                 launch {
                     viewModel.totalAmount.collect { total ->
                         binding.tvTotalAmount.text = CurrencyUtils.formatAmountWithCurrency(total)
-                        val memberCount = currentMembers.size.coerceAtLeast(1)
-                        binding.tvEachOwes.text = CurrencyUtils.formatAmountWithCurrency(total / memberCount)
                         validateSubmission()
+                    }
+                }
+                launch {
+                    viewModel.averageSplitPerIncludedMember.collect { averageSplit ->
+                        binding.tvEachOwes.text = CurrencyUtils.formatAmountWithCurrency(averageSplit)
                     }
                 }
                 launch {

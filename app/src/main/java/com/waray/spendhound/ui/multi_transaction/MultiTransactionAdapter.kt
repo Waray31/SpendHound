@@ -133,7 +133,8 @@ class MultiTransactionAdapter(
                         username = payer.payerName,
                         amount = payer.amount
                     )
-                }.toMutableList()
+                }.toMutableList(),
+                includedMemberIds = item.includedMembers.mapNotNull { it.toLongOrNull() }
             )
         }
     }

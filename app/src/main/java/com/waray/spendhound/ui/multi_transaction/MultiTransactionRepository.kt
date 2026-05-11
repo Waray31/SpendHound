@@ -59,7 +59,8 @@ class MultiTransactionRepository {
             val txId = txResponse.id ?: throw Exception("Failed to get transaction ID")
 
             // Calculate total split amount per member across all items
-            val totalSplitPerMember = totalAmount / groupMembers.size
+            // Build a map of user total split owed based on their participation in each item
+            val userTotalSplitOwed = mutableMapOf<Long, Double>()
             
             // Track total initial payment per user across all items
             val userTotalInitialPayments = mutableMapOf<Long, Double>()
@@ -105,11 +106,24 @@ class MultiTransactionRepository {
                     }
                 }
 
-                // 4. Equal split across all group members
-                if (groupMembers.isNotEmpty()) {
-                    val splitAmount = entry.amount / groupMembers.size
+                // 4. Split only among included members for this entry
+                val membersToSplit = if (entry.includedMemberIds.isNotEmpty()) {
+                    groupMembers.filter { member -> entry.includedMemberIds.contains(member.id) }
+                } else {
+                    groupMembers // Default to all members if no specific inclusion list
+                }
+                
+                if (membersToSplit.isNotEmpty()) {
+                    val splitAmount = entry.amount / membersToSplit.size
+                    
+                    // Track each user's total split owed across all items
+                    membersToSplit.forEach { member ->
+                        userTotalSplitOwed[member.id!!] = 
+                            (userTotalSplitOwed[member.id!!] ?: 0.0) + splitAmount
+                    }
+                    
                     client.postgrest.from("transaction_splits").insert(
-                        groupMembers.map { member ->
+                        membersToSplit.map { member ->
                             TransactionSplitInsert(
                                 transactionId = txId,
                                 userId = member.id!!,
@@ -123,11 +137,12 @@ class MultiTransactionRepository {
             
             // 5. Update all payors with calculated excess_amount and status based on total payments
             userTotalInitialPayments.forEach { (userId, totalInitialPaid) ->
-                val currentPaid = if (totalInitialPaid > totalSplitPerMember) totalSplitPerMember else totalInitialPaid
-                val excess = if (totalInitialPaid > totalSplitPerMember) totalInitialPaid - totalSplitPerMember else 0.0
+                val userSplitOwed = userTotalSplitOwed[userId] ?: 0.0
+                val currentPaid = if (totalInitialPaid > userSplitOwed) userSplitOwed else totalInitialPaid
+                val excess = if (totalInitialPaid > userSplitOwed) totalInitialPaid - userSplitOwed else 0.0
                 val status = when {
                     currentPaid == 0.0 -> 0
-                    currentPaid >= totalSplitPerMember -> 1
+                    currentPaid >= userSplitOwed -> 1
                     else -> 2
                 }
                 client.postgrest.from("transaction_payors").update(

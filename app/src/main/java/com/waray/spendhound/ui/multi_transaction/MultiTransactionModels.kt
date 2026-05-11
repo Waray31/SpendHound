@@ -12,7 +12,8 @@ data class TransactionEntry(
     var title: String = "",           // maps to transaction_items.item_description
     var amount: Double = 0.0,
     var category: String = "",        // maps to transaction_items.category
-    var payors: MutableList<PayorEntry> = mutableListOf()
+    var payors: MutableList<PayorEntry> = mutableListOf(),
+    var includedMemberIds: List<Long> = emptyList()  // members included in split for this item
 )
 
 @OptIn(InternalSerializationApi::class)
