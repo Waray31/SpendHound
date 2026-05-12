@@ -98,10 +98,11 @@ class TransactionRepository(private val db: AppDatabase) {
             val amountsPaid = contributorIds.map { uid ->
                 payors.filter { it.userId == uid }.sumOf { it.currentAmountPaid } as Double?
             }.toMutableList()
-            val individualPayment = splits.groupBy { it.userId }.values.firstOrNull()?.sumOf { it.amount } ?: 0.0
+            val userOwedMap = splits.groupBy { it.userId }.mapValues { it.value.sumOf { s -> s.amount } }
+            val individualPayment = userOwedMap.values.firstOrNull() ?: 0.0
             val paidByUser = payors.groupBy { it.userId }.mapValues { e -> e.value.sumOf { it.currentAmountPaid } }
-            val allSettled = splits.map { it.userId }.distinct().let { members ->
-                members.isNotEmpty() && members.all { (paidByUser[it] ?: 0.0) >= individualPayment }
+            val allSettled = userOwedMap.isNotEmpty() && userOwedMap.all { (userId, owed) ->
+                (paidByUser[userId] ?: 0.0) >= owed - 0.01
             }
             val itemPayorMap = items.associate { item ->
                 val itemId = item.id ?: 0L

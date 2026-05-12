@@ -406,6 +406,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun buildUpdatedAmounts(transaction: RecentTransaction, baseAmounts: List<Double>): List<Double> {
+        val userOwedMap = transaction.rawSplitRows.groupBy { it.userId }.mapValues { it.value.sumOf { s -> s.amount } }
         val payerTotals = mutableMapOf<Long, Double>()
         for (row in instructionRows) {
             val payerId = row.instruction.payerId ?: continue
@@ -416,9 +417,9 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         return (transaction.payorUserIds ?: emptyList()).mapIndexed { index, userIdStr ->
             val userId = userIdStr?.toLongOrNull()
             val basePaid = baseAmounts.getOrElse(index) { 0.0 }
-            val owed = transaction.totalIndividualPayment
+            val owed = userOwedMap[userId] ?: 0.0
             val existingRow = transaction.rawPayorRows.firstOrNull { it.userId == userId }
-            if (existingRow != null && existingRow.initialAmountPaid >= owed) {
+            if (existingRow != null && existingRow.initialAmountPaid >= owed - epsilon) {
                 existingRow.initialAmountPaid
             } else {
                 basePaid + (payerTotals[userId] ?: 0.0)
@@ -450,20 +451,21 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
                     receiverTotals[receiverId] = (receiverTotals[receiverId] ?: 0.0) + amount
                 }
 
+                val userOwedMap = transaction.rawSplitRows.groupBy { it.userId }.mapValues { it.value.sumOf { s -> s.amount } }
                 payorUserIds.forEachIndexed { index, userIdStr ->
                     val userId = userIdStr?.toLongOrNull() ?: return@forEachIndexed
                     val newTotalAmount = updatedAmounts.getOrElse(index) { 0.0 }
-                    val totalOwed = transaction.totalIndividualPayment
-                    val excess = if (newTotalAmount > totalOwed) newTotalAmount - totalOwed else 0.0
+                    val totalOwed = userOwedMap[userId] ?: 0.0
+                    val excess = if (newTotalAmount > totalOwed + epsilon) newTotalAmount - totalOwed else 0.0
                     val status = when {
-                        newTotalAmount <= 0.0 -> 0
-                        newTotalAmount >= totalOwed -> 1
+                        newTotalAmount <= epsilon -> 0
+                        newTotalAmount >= totalOwed - epsilon -> 1
                         else -> 2
                     }
                     val paidTo = payorToReceivers[userId]?.singleOrNull()
 
                     val existingRow = transaction.rawPayorRows.firstOrNull { it.userId == userId }
-                    if (existingRow != null && existingRow.initialAmountPaid >= totalOwed) return@forEachIndexed
+                    if (existingRow != null && existingRow.initialAmountPaid >= totalOwed - epsilon) return@forEachIndexed
 
                     withContext(Dispatchers.IO) {
                         if (existingRow != null) {
@@ -503,7 +505,11 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
                 }
 
                 val allSettled = updatedAmounts.isNotEmpty() &&
-                    updatedAmounts.all { it >= transaction.totalIndividualPayment }
+                    updatedAmounts.indices.all { i ->
+                        val uid = payorUserIds[i]?.toLongOrNull()
+                        val owed = userOwedMap[uid] ?: 0.0
+                        updatedAmounts[i] >= owed - epsilon
+                    }
 
                 val txStatus = if (allSettled) 3 else 2
                 withContext(Dispatchers.IO) {
@@ -560,12 +566,13 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun buildParticipantBalances(tx: RecentTransaction, amounts: List<Double>): List<ParticipantBalance> {
-        val owed = tx.totalIndividualPayment
+        val userOwedMap = tx.rawSplitRows.groupBy { it.userId }.mapValues { it.value.sumOf { s -> s.amount } }
         return (tx.payorUserIds ?: emptyList()).mapIndexedNotNull { index, uid ->
             val userId = uid?.toLongOrNull() ?: return@mapIndexedNotNull null
             val existingRow = tx.rawPayorRows.firstOrNull { it.userId == userId }
+            val owed = userOwedMap[userId] ?: 0.0
             val paid = amounts.getOrElse(index) { 0.0 }
-            val effectivePaid = if (existingRow != null && existingRow.initialAmountPaid >= owed) {
+            val effectivePaid = if (existingRow != null && existingRow.initialAmountPaid >= owed - epsilon) {
                 existingRow.initialAmountPaid
             } else {
                 paid
@@ -675,17 +682,28 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun styleSettleTotal(totalTV: TextView, tx: RecentTransaction) {
+        val userOwedMap = tx.rawSplitRows.groupBy { it.userId }.mapValues { it.value.sumOf { s -> s.amount } }
+        val owedAmounts = userOwedMap.values.distinct()
+        val allSame = owedAmounts.size <= 1
+        
         val totalLabel = "Total: "
         val totalAmount = tx.mostRecentPaymentAmountStr ?: CurrencyUtils.formatAmountWithCurrency(0.0)
-        val eachLabel = "  •  Each owes: "
-        val eachAmount = CurrencyUtils.formatAmountWithCurrency(tx.totalIndividualPayment)
+        val eachLabel = if (allSame) "  •  Each owes: " else "  •  Avg owe: "
+        
+        val avgOwe = if (userOwedMap.isNotEmpty()) userOwedMap.values.average() else 0.0
+        val displayAmount = if (allSame) {
+            CurrencyUtils.formatAmountWithCurrency(owedAmounts.firstOrNull() ?: 0.0)
+        } else {
+            CurrencyUtils.formatAmountWithCurrency(avgOwe)
+        }
+        
         val text = SpannableStringBuilder(totalLabel)
         val totalStart = text.length
         text.append(totalAmount)
         val totalEnd = text.length
         text.append(eachLabel)
         val eachStart = text.length
-        text.append(eachAmount)
+        text.append(displayAmount)
         val eachEnd = text.length
 
         fun applyAmountHighlight(start: Int, end: Int) {
@@ -718,14 +736,16 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         private val tx: RecentTransaction,
         private val amounts: MutableList<Double>
     ) : RecyclerView.Adapter<SettlePayorAdapter.VH>() {
+        
+        private val userOwedMap = tx.rawSplitRows.groupBy { it.userId }.mapValues { it.value.sumOf { s -> s.amount } }
 
         private val statuses: MutableList<Int> = (tx.payorUserIds ?: emptyList()).mapIndexed { index, uid ->
             val userId = uid?.toLongOrNull()
             val paid = amounts.getOrElse(index) { 0.0 }
-            val owed = tx.totalIndividualPayment
+            val owed = userOwedMap[userId] ?: 0.0
             val userRows = tx.rawPayorRows.filter { it.userId == userId }
             when {
-                paid >= owed && owed > 0 -> 1
+                paid >= owed - epsilon && owed > epsilon -> 1
                 userRows.isEmpty() -> 0
                 userRows.all { it.status == 1 } -> 1
                 userRows.any { it.currentAmountPaid > 0 } -> 2
@@ -741,10 +761,11 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         override fun onBindViewHolder(holder: VH, position: Int) {
             val name = tx.payorsList?.getOrNull(position) ?: "User"
             val userId = tx.payorUserIds?.getOrNull(position)
-            val owed = tx.totalIndividualPayment
+            val uidLong = userId?.toLongOrNull()
+            val owed = userOwedMap[uidLong] ?: 0.0
             val paid = amounts.getOrElse(position) { 0.0 }
-            val existingRow = userId?.toLongOrNull()?.let { uid -> tx.rawPayorRows.firstOrNull { it.userId == uid } }
-            val effectivePaid = if (existingRow != null && existingRow.initialAmountPaid >= owed) {
+            val existingRow = uidLong?.let { uid -> tx.rawPayorRows.firstOrNull { it.userId == uid } }
+            val effectivePaid = if (existingRow != null && existingRow.initialAmountPaid >= owed - epsilon) {
                 existingRow.initialAmountPaid
             } else {
                 paid
@@ -752,7 +773,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
             val excessAmount = existingRow?.excessAmount ?: 0.0
 
             holder.nameTV.text = name
-            holder.owedTV.text = "${CurrencyUtils.formatAmountWithCurrency(paid)} / ${CurrencyUtils.formatAmountWithCurrency(owed)}"
+            holder.owedTV.text = "${CurrencyUtils.formatAmountWithCurrency(effectivePaid)} / ${CurrencyUtils.formatAmountWithCurrency(owed)}"
             if (excessAmount > 0.0) {
                 holder.excessTV.text = "+${CurrencyUtils.formatAmountWithCurrency(excessAmount)}"
                 holder.excessTV.visibility = View.VISIBLE

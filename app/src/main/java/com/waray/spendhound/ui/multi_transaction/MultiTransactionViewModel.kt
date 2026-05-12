@@ -40,10 +40,22 @@ class MultiTransactionViewModel(
         _transactions,
         _members
     ) { total, transactions, members ->
-        val totalIncludedMembers = transactions.sumOf { entry ->
-            if (entry.includedMemberIds.isEmpty()) members.size else entry.includedMemberIds.size
+        val userOwedMap = mutableMapOf<Long, Double>()
+        transactions.forEach { entry ->
+            val participants = if (entry.includedMemberIds.isEmpty()) members.mapNotNull { it.id } else entry.includedMemberIds
+            if (participants.isNotEmpty()) {
+                val split = entry.amount / participants.size
+                participants.forEach { uid ->
+                    userOwedMap[uid] = (userOwedMap[uid] ?: 0.0) + split
+                }
+            }
         }
-        if (totalIncludedMembers > 0) total / totalIncludedMembers else 0.0
+        val participatingUsers = userOwedMap.filter { it.value > 0.01 }
+        if (participatingUsers.isNotEmpty()) {
+            participatingUsers.values.average()
+        } else {
+            0.0
+        }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), 0.0)
 
     private val _transactionTitle = MutableStateFlow("")

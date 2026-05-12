@@ -6,6 +6,8 @@ import com.waray.spendhound.GroupMember
 import com.waray.spendhound.PayerGroup
 import com.waray.spendhound.User
 import io.github.jan.supabase.postgrest.postgrest
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -145,9 +147,10 @@ class MultiTransactionRepository {
                     currentPaid >= userSplitOwed -> 1
                     else -> 2
                 }
-                client.postgrest.from("transaction_payors").update(
-                    TransactionPayorPartialUpdate(excessAmount = excess, status = status)
-                ) {
+                client.postgrest.from("transaction_payors").update(buildJsonObject {
+                    put("excess_amount", excess)
+                    put("status", status)
+                }) {
                     filter { eq("transaction_id", txId); eq("user_id", userId) }
                 }
             }
@@ -189,13 +192,11 @@ class MultiTransactionRepository {
                 else -> 2  // pending (partial payment)
             }
             
-            client.postgrest.from("transaction_payors").update(
-                TransactionPayorUpdate(
-                    currentAmountPaid = newAmountPaid,
-                    excessAmount = excess,
-                    status = status
-                )
-            ) {
+            client.postgrest.from("transaction_payors").update(buildJsonObject {
+                put("current_amount_paid", newAmountPaid)
+                put("excess_amount", excess)
+                put("status", status)
+            }) {
                 filter {
                     eq("transaction_id", transactionId)
                     eq("user_id", userId)
@@ -221,12 +222,10 @@ class MultiTransactionRepository {
             val totalAmount = entries.sumOf { it.amount }
 
             // 1. Update main transaction
-            client.postgrest.from("transactions").update(
-                mapOf(
-                    "total_amount" to totalAmount,
-                    "description" to title.ifBlank { null }
-                )
-            ) {
+            client.postgrest.from("transactions").update(buildJsonObject {
+                put("total_amount", totalAmount)
+                put("description", title.ifBlank { null })
+            }) {
                 filter { eq("id", transactionId) }
             }
 
@@ -323,9 +322,10 @@ class MultiTransactionRepository {
                     currentPaid >= userSplitOwed -> 1
                     else -> 2
                 }
-                client.postgrest.from("transaction_payors").update(
-                    TransactionPayorPartialUpdate(excessAmount = excess, status = status)
-                ) {
+                client.postgrest.from("transaction_payors").update(buildJsonObject {
+                    put("excess_amount", excess)
+                    put("status", status)
+                }) {
                     filter { eq("transaction_id", transactionId); eq("user_id", userId) }
                 }
             }

@@ -146,7 +146,8 @@ class RecentTransactionAdapter(
         val payorUserIds   = transaction.payorUserIds
         val payorsNames    = transaction.payorsList
         val amountsPaid    = transaction.amountsPaidList
-        val individualPayment = transaction.totalIndividualPayment
+        val userOwedMap = transaction.rawSplitRows.groupBy { it.userId }.mapValues { it.value.sumOf { s -> s.amount } }
+        val individualPayments = payorUserIds?.map { uid -> userOwedMap[uid?.toLongOrNull()] ?: 0.0 } ?: emptyList()
 
         if (payorUserIds == null) {
             holder.loadingOverlay.visibility = View.GONE
@@ -157,7 +158,7 @@ class RecentTransactionAdapter(
         val payorAdapter = PayorAdapter(
             payorUserIds, payorsNames,
             amountsPaid ?: mutableListOf(),
-            individualPayment,
+            individualPayments,
             object : PayorAdapter.OnPayorClickListener {
                 override fun onPayorClick(index: Int, paid: Double) {}
                 override fun onPartialClick(index: Int, currentPaid: Double) {}

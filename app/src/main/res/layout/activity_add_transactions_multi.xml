@@ -206,9 +206,10 @@
                     android:orientation="vertical">
 
                     <TextView
+                        android:id="@+id/tvEachOwesLabel"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Each owes"
+                        android:text="Avg. per person"
                         android:textSize="12sp" />
 
                     <TextView

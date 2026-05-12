@@ -296,7 +296,7 @@ class MultiTransactionActivity : AppCompatActivity() {
                                         amount = payor.amount
                                     )
                                 },
-                                includedMembers = emptyList(), // Start with empty - let users configure
+                                includedMembers = entry.includedMemberIds.map { it.toString() },
                                 isValid = entry.amount > 0 && entry.category.isNotEmpty() && entry.payors.isNotEmpty()
                             )
                         }

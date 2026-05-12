@@ -23,7 +23,7 @@ class PayorAdapter(
     private val payorUserIds: MutableList<String?>?,
     private val payorsNames: MutableList<String?>?,
     amountsPaid: MutableList<Double?>,
-    private val individualPayment: Double,
+    private val individualPayments: List<Double>,
     private val onPayorClickListener: OnPayorClickListener?
 ) : RecyclerView.Adapter<PayorAdapter.PayorViewHolder>() {
     var amountsPaid: MutableList<Double?>? = null
@@ -149,9 +149,10 @@ class PayorAdapter(
         holder.payorName.text = name
 
 
-        updateStatusUI(holder, paid)
+        updateStatusUI(holder, paid, position)
 
         if (isEditMode) {
+            val individualPayment = individualPayments.getOrNull(position) ?: 0.0
             holder.editButtonsLayout.visibility = View.VISIBLE
             holder.unpaidBtn.visibility = if (paid > 0) View.VISIBLE else View.GONE
             holder.paidBtn.visibility = if (paid < individualPayment) View.VISIBLE else View.GONE
@@ -221,8 +222,9 @@ class PayorAdapter(
         }
     }
 
-    private fun updateStatusUI(holder: PayorViewHolder, paid: Double) {
+    private fun updateStatusUI(holder: PayorViewHolder, paid: Double, position: Int) {
         val context = holder.itemView.context
+        val individualPayment = individualPayments.getOrNull(position) ?: 0.0
         when {
             paid <= 0 -> {
                 holder.payorStatus.text = "Unpaid"

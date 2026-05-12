@@ -40,13 +40,6 @@ class MultiTransactionAdapter(
             transactions.clear()
             transactions.addAll(newTransactions)
             
-            // Initialize included members for new items to empty list if not already tracked
-            for (i in oldSize until newSize) {
-                if (!currentIncludedMembers.containsKey(i)) {
-                    currentIncludedMembers[i] = emptyList()
-                }
-            }
-            
             notifyItemRangeInserted(oldSize, newSize - oldSize)
             // Update remove button visibility for all existing items
             if (oldSize == 1) {

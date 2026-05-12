@@ -52,6 +52,14 @@ data class TransactionFull(
     @SerialName("is_archived")  val isArchived: Boolean? = false
 )
 
+/** UPDATE - for editing basic details */
+@OptIn(InternalSerializationApi::class)
+@Serializable
+data class TransactionUpdate(
+    @SerialName("total_amount") val totalAmount: Double,
+    @SerialName("description")  val description: String?
+)
+
 /** Minimal response after insert — only need the id back */
 @OptIn(InternalSerializationApi::class)
 @Serializable
