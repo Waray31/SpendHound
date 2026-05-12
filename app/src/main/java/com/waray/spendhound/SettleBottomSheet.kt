@@ -112,6 +112,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         advancedToggleTV = view.findViewById(R.id.settleAdvancedToggleTV)
         val recycler = view.findViewById<RecyclerView>(R.id.settlePayorsRecyclerView)
         settlementInstructions = view.findViewById(R.id.settlement_instructions)
+        recycler.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(requireContext())
         recycler.adapter = SettlePayorAdapter(tx, amounts)
 
         val plan = buildSettlementPlan(tx, amounts)
@@ -179,10 +180,14 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun setupAdvancedToggle() {
-        advancedToggleTV?.setOnClickListener {
-            val expanded = advancedContainer?.visibility == View.VISIBLE
-            advancedContainer?.visibility = if (expanded) View.GONE else View.VISIBLE
-            advancedToggleTV?.text = if (expanded) "Show" else "Hide"
+        advancedToggleTV?.apply {
+            isClickable = true
+            isFocusable = true
+            setOnClickListener {
+                val expanded = advancedContainer?.visibility == View.VISIBLE
+                advancedContainer?.visibility = if (expanded) View.GONE else View.VISIBLE
+                text = if (expanded) "Show" else "Hide"
+            }
         }
     }
 
