@@ -55,6 +55,11 @@ class GroupExpensesFragment : Fragment() {
     private var archivedAdapter: RecentTransactionAdapter? = null
     private var isArchivedExpanded = false
     private lateinit var repo: GroupRepository
+    private var groupName: String? = null
+
+    private var currentMonthTextView: TextView? = null
+    private var transactionCountTextView: TextView? = null
+    private var popupOverlay: View? = null
 
     private var selectedStatusTab = "All"
     private var isTabClickEnabled = true
@@ -72,9 +77,14 @@ class GroupExpensesFragment : Fragment() {
         val rv = view.findViewById<RecyclerView>(R.id.rvExpenses)
         rvSkeleton = view.findViewById(R.id.rvSkeleton)
         transactionActionsPopup = view.findViewById(R.id.transactionActionsPopup)
+        popupOverlay = view.findViewById(R.id.popupOverlay)
+        currentMonthTextView = view.findViewById(R.id.currentMonthTextView)
+        transactionCountTextView = view.findViewById(R.id.transactionCountTextView)
         showArchivedSection = view.findViewById(R.id.showArchivedSection)
         showArchivedToggle = view.findViewById(R.id.showArchivedToggle)
         archivedRecyclerView = view.findViewById(R.id.archivedTransactionsRecyclerView)
+
+        popupOverlay?.setOnClickListener { dismissPopup() }
         
         adapter = RecentTransactionAdapter(transactionList, { loadExpenses() }, { tx ->
             if (tx == null) return@RecentTransactionAdapter
@@ -158,6 +168,17 @@ class GroupExpensesFragment : Fragment() {
 
     private suspend fun buildTransactions(cached: List<CachedTransaction>): List<RecentTransaction> {
         if (cached.isEmpty()) return emptyList()
+
+        if (groupName == null) {
+            try {
+                val group = withContext(Dispatchers.IO) {
+                    DeclareDatabase.groupsTable.select {
+                        filter { eq("group_id", groupId) }
+                    }.decodeSingleOrNull<PayerGroup>()
+                }
+                groupName = group?.groupName
+            } catch (_: Exception) {}
+        }
 
         val txIds = cached.mapNotNull { it.id }
 
@@ -261,6 +282,7 @@ class GroupExpensesFragment : Fragment() {
             rt.rawSplitRows = splits
             rt.isUnread = txId !in readTxIds && tx.createdBy != currentUserId
             rt.groupId = tx.groupId
+            rt.groupName = groupName
             rt.isArchived = tx.isArchived ?: false
             rt
         }.sortedByDescending { it.timestamp }
@@ -321,6 +343,14 @@ class GroupExpensesFragment : Fragment() {
         
         updateArchivedSection()
 
+        val count = transactionList.size
+        transactionCountTextView?.text = String.format(Locale.getDefault(), "%d %s", count, if (count == 1) "transaction" else "transactions")
+        
+        // Update date text - for now just current month or similar to TransactionsFragment
+        val cal = Calendar.getInstance()
+        val sdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+        currentMonthTextView?.text = sdf.format(cal.time)
+
         if (transactionList.isEmpty()) showEmpty() else showList()
     }
 
@@ -331,7 +361,7 @@ class GroupExpensesFragment : Fragment() {
                 it.timeZone = TimeZone.getTimeZone("UTC")
             }
             val date = parser.parse(createdAt.take(19)) ?: return ""
-            SimpleDateFormat("MMM d", Locale.getDefault()).format(date).uppercase()
+            SimpleDateFormat("MMM - d", Locale.getDefault()).format(date)
         } catch (_: Exception) { "" }
     }
 
@@ -474,6 +504,7 @@ class GroupExpensesFragment : Fragment() {
                 dismissPopup()
             }
             
+            popupOverlay?.visibility = View.VISIBLE
             popup.visibility = View.VISIBLE
         }
     }
@@ -502,12 +533,14 @@ class GroupExpensesFragment : Fragment() {
                 dismissPopup()
             }
             
+            popupOverlay?.visibility = View.VISIBLE
             popup.visibility = View.VISIBLE
         }
     }
     
     private fun dismissPopup() {
         transactionActionsPopup?.visibility = View.GONE
+        popupOverlay?.visibility = View.GONE
         transactionActionsPopup?.findViewById<TextView>(R.id.tvEdit)?.visibility = View.VISIBLE
         transactionActionsPopup?.findViewById<TextView>(R.id.tvArchive)?.text = "Archive"
     }
