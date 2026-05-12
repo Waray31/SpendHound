@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="center_vertical"
@@ -7,12 +8,23 @@
     android:paddingHorizontal="16dp"
     android:paddingVertical="10dp">
 
-    <ImageView
-        android:id="@+id/ivAvatar"
+    <androidx.cardview.widget.CardView
+        android:id="@+id/avatarCardView"
         android:layout_width="48dp"
         android:layout_height="48dp"
-        android:scaleType="centerCrop"
-        android:src="@drawable/ic_profile_silhouette" />
+        app:cardCornerRadius="24dp"
+        app:cardElevation="0dp"
+        app:cardBackgroundColor="@color/orange">
+
+        <ImageView
+            android:id="@+id/ivAvatar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_profile_silhouette"
+            android:tint="@color/white" />
+
+    </androidx.cardview.widget.CardView>
 
     <TextView
         android:id="@+id/tvUsername"

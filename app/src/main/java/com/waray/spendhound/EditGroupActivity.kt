@@ -191,6 +191,10 @@ class EditGroupActivity : AppCompatActivity() {
 
     private fun loadAvatar(iv: ImageView, userId: Long?) {
         if (userId == null) return
+        
+        // Get CardView reference
+        val cardView = (iv.parent as? androidx.cardview.widget.CardView)
+        
         lifecycleScope.launch {
             try {
                 val url = withContext(Dispatchers.IO) {
@@ -200,9 +204,33 @@ class EditGroupActivity : AppCompatActivity() {
                     placeholder(R.drawable.ic_profile_silhouette)
                     error(R.drawable.ic_profile_silhouette)
                     transformations(CircleCropTransformation())
+                    listener(
+                        onSuccess = { _, _ ->
+                            // Remove tint and orange background for real images
+                            iv.imageTintList = null
+                            cardView?.setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
+                        },
+                        onError = { _, _ ->
+                            // Set placeholder with orange background and white tint
+                            iv.setImageResource(R.drawable.ic_profile_silhouette)
+                            iv.imageTintList = android.content.res.ColorStateList.valueOf(
+                                androidx.core.content.ContextCompat.getColor(this@EditGroupActivity, R.color.white)
+                            )
+                            cardView?.setCardBackgroundColor(
+                                androidx.core.content.ContextCompat.getColor(this@EditGroupActivity, R.color.orange)
+                            )
+                        }
+                    )
                 }
             } catch (e: Exception) {
+                // Set placeholder with orange background and white tint
                 iv.setImageResource(R.drawable.ic_profile_silhouette)
+                iv.imageTintList = android.content.res.ColorStateList.valueOf(
+                    androidx.core.content.ContextCompat.getColor(this@EditGroupActivity, R.color.white)
+                )
+                cardView?.setCardBackgroundColor(
+                    androidx.core.content.ContextCompat.getColor(this@EditGroupActivity, R.color.orange)
+                )
             }
         }
     }
@@ -293,6 +321,7 @@ class EditGroupActivity : AppCompatActivity() {
     ) : RecyclerView.Adapter<UserSelectAdapter.VH>() {
 
         inner class VH(view: View) : RecyclerView.ViewHolder(view) {
+            val avatarCardView: androidx.cardview.widget.CardView = view.findViewById(R.id.avatarCardView)
             val ivAvatar: ImageView = view.findViewById(R.id.ivAvatar)
             val tvUsername: TextView = view.findViewById(R.id.tvUsername)
             val ivCheck: ImageView = view.findViewById(R.id.ivCheck)
@@ -313,7 +342,41 @@ class EditGroupActivity : AppCompatActivity() {
             holder.ivCheck.alpha = if (isCurrentUser) 0.5f else 1f
             holder.itemView.alpha = if (isCurrentUser) 0.6f else 1f
 
-            loadAvatar(holder.ivAvatar, user.id)
+            // Load avatar with proper CardView handling
+            val profileUrl = user.profileImageUrl
+            if (!profileUrl.isNullOrBlank() && profileUrl != "placeholder_profile_image") {
+                holder.ivAvatar.load(profileUrl) {
+                    crossfade(true)
+                    transformations(CircleCropTransformation())
+                    listener(
+                        onSuccess = { _, _ ->
+                            // Remove tint and orange background for real images
+                            holder.ivAvatar.imageTintList = null
+                            holder.avatarCardView.setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
+                        },
+                        onError = { _, _ ->
+                            // Set placeholder with orange background and white tint
+                            holder.ivAvatar.setImageResource(R.drawable.ic_profile_silhouette)
+                            holder.ivAvatar.imageTintList = android.content.res.ColorStateList.valueOf(
+                                androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.white)
+                            )
+                            holder.avatarCardView.setCardBackgroundColor(
+                                androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.orange)
+                            )
+                        }
+                    )
+                }
+            } else {
+                // Set placeholder with orange background and white tint
+                holder.ivAvatar.setImageResource(R.drawable.ic_profile_silhouette)
+                holder.ivAvatar.imageTintList = android.content.res.ColorStateList.valueOf(
+                    androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.white)
+                )
+                holder.avatarCardView.setCardBackgroundColor(
+                    androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.orange)
+                )
+            }
+            
             holder.itemView.setOnClickListener { if (!isCurrentUser) onToggle(user) }
         }
 

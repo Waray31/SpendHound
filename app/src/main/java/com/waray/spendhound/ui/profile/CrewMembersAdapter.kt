@@ -109,8 +109,10 @@ class CrewMembersAdapter(
                 diskCacheKey(profileUrl)
                 listener(
                     onSuccess = { _, _ ->
+                        // Remove tint and orange background for real images
                         holder.avatarImage.imageTintList = null
                         holder.avatarImage.setPadding(0, 0, 0, 0)
+                        holder.avatarCard.setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
                     },
                     onError = { _, _ -> setPlaceholderAvatar(holder) }
                 )
@@ -126,6 +128,9 @@ class CrewMembersAdapter(
         holder.avatarImage.setImageResource(R.drawable.ic_profile_silhouette)
         holder.avatarImage.imageTintList = ColorStateList.valueOf(
             ContextCompat.getColor(holder.itemView.context, R.color.white)
+        )
+        holder.avatarCard.setCardBackgroundColor(
+            ContextCompat.getColor(holder.itemView.context, R.color.orange)
         )
         val pad = (4 * holder.itemView.resources.displayMetrics.density).toInt()
         holder.avatarImage.setPadding(pad, pad, pad, pad)

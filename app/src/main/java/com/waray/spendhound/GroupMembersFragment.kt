@@ -173,6 +173,10 @@ class GroupMembersFragment : Fragment() {
 
     private fun loadAvatar(iv: ImageView, userId: Long?) {
         if (userId == null) return
+        
+        // Get CardView reference
+        val cardView = (iv.parent as? androidx.cardview.widget.CardView)
+        
         lifecycleScope.launch {
             try {
                 val url = DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
@@ -180,9 +184,33 @@ class GroupMembersFragment : Fragment() {
                     placeholder(R.drawable.ic_profile_silhouette)
                     error(R.drawable.ic_profile_silhouette)
                     transformations(CircleCropTransformation())
+                    listener(
+                        onSuccess = { _, _ ->
+                            // Remove tint and orange background for real images
+                            iv.imageTintList = null
+                            cardView?.setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
+                        },
+                        onError = { _, _ ->
+                            // Set placeholder with orange background and white tint
+                            iv.setImageResource(R.drawable.ic_profile_silhouette)
+                            iv.imageTintList = android.content.res.ColorStateList.valueOf(
+                                androidx.core.content.ContextCompat.getColor(requireContext(), R.color.white)
+                            )
+                            cardView?.setCardBackgroundColor(
+                                androidx.core.content.ContextCompat.getColor(requireContext(), R.color.orange)
+                            )
+                        }
+                    )
                 }
             } catch (_: Exception) {
+                // Set placeholder with orange background and white tint
                 iv.setImageResource(R.drawable.ic_profile_silhouette)
+                iv.imageTintList = android.content.res.ColorStateList.valueOf(
+                    androidx.core.content.ContextCompat.getColor(requireContext(), R.color.white)
+                )
+                cardView?.setCardBackgroundColor(
+                    androidx.core.content.ContextCompat.getColor(requireContext(), R.color.orange)
+                )
             }
         }
     }
@@ -190,6 +218,7 @@ class GroupMembersFragment : Fragment() {
     inner class MemberAdapter : RecyclerView.Adapter<MemberAdapter.VH>() {
 
         inner class VH(view: View) : RecyclerView.ViewHolder(view) {
+            val memberAvatarCardView: androidx.cardview.widget.CardView = view.findViewById(R.id.memberAvatarCardView)
             val ivAvatar: ImageView = view.findViewById(R.id.ivMemberAvatar)
             val tvName: TextView = view.findViewById(R.id.tvMemberName)
             val tvAdmin: TextView = view.findViewById(R.id.tvAdminBadge)
@@ -208,7 +237,41 @@ class GroupMembersFragment : Fragment() {
 
             holder.tvName.text = if (user.id == currentUid) "${user.username} (You)" else user.username ?: "Unknown"
             holder.tvAdmin.visibility = if (member.admin) View.VISIBLE else View.GONE
-            loadAvatar(holder.ivAvatar, user.id)
+            
+            // Load avatar with proper CardView handling
+            val profileUrl = user.profileImageUrl
+            if (!profileUrl.isNullOrBlank() && profileUrl != "placeholder_profile_image") {
+                holder.ivAvatar.load(profileUrl) {
+                    crossfade(true)
+                    transformations(CircleCropTransformation())
+                    listener(
+                        onSuccess = { _, _ ->
+                            // Remove tint and orange background for real images
+                            holder.ivAvatar.imageTintList = null
+                            holder.memberAvatarCardView.setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
+                        },
+                        onError = { _, _ ->
+                            // Set placeholder with orange background and white tint
+                            holder.ivAvatar.setImageResource(R.drawable.ic_profile_silhouette)
+                            holder.ivAvatar.imageTintList = android.content.res.ColorStateList.valueOf(
+                                androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.white)
+                            )
+                            holder.memberAvatarCardView.setCardBackgroundColor(
+                                androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.orange)
+                            )
+                        }
+                    )
+                }
+            } else {
+                // Set placeholder with orange background and white tint
+                holder.ivAvatar.setImageResource(R.drawable.ic_profile_silhouette)
+                holder.ivAvatar.imageTintList = android.content.res.ColorStateList.valueOf(
+                    androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.white)
+                )
+                holder.memberAvatarCardView.setCardBackgroundColor(
+                    androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.orange)
+                )
+            }
 
             // Admin can remove others (not themselves)
             if (isAdmin && user.id != currentUid) {

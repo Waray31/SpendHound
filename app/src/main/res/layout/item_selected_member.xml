@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
     android:gravity="center_horizontal"
@@ -10,12 +11,23 @@
         android:layout_width="56dp"
         android:layout_height="56dp">
 
-        <ImageView
-            android:id="@+id/ivSelectedAvatar"
+        <androidx.cardview.widget.CardView
+            android:id="@+id/selectedAvatarCardView"
             android:layout_width="56dp"
             android:layout_height="56dp"
-            android:scaleType="centerCrop"
-            android:src="@drawable/ic_profile_silhouette" />
+            app:cardCornerRadius="28dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="@color/orange">
+
+            <ImageView
+                android:id="@+id/ivSelectedAvatar"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_profile_silhouette"
+                android:tint="@color/white" />
+
+        </androidx.cardview.widget.CardView>
 
         <ImageView
             android:id="@+id/ivRemove"

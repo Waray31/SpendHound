@@ -38,14 +38,36 @@ class UserSearchAdapter(
             holder.avatar.load(profileUrl) {
                 crossfade(true)
                 transformations(CircleCropTransformation())
-                listener(onError = { _, _ ->
-                    holder.avatar.setImageResource(R.drawable.ic_profile_silhouette)
-                    holder.avatar.imageTintList = null
-                })
+                listener(
+                    onSuccess = { _, _ ->
+                        // Remove tint and orange background for real images
+                        holder.avatar.imageTintList = null
+                        val cardView = holder.itemView.findViewById<androidx.cardview.widget.CardView>(R.id.searchResultCardView)
+                        cardView?.setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    },
+                    onError = { _, _ ->
+                        // Set placeholder with orange background and white tint
+                        holder.avatar.setImageResource(R.drawable.ic_profile_silhouette)
+                        holder.avatar.imageTintList = android.content.res.ColorStateList.valueOf(
+                            androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.white)
+                        )
+                        val cardView = holder.itemView.findViewById<androidx.cardview.widget.CardView>(R.id.searchResultCardView)
+                        cardView?.setCardBackgroundColor(
+                            androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.orange)
+                        )
+                    }
+                )
             }
         } else {
+            // Set placeholder with orange background and white tint
             holder.avatar.setImageResource(R.drawable.ic_profile_silhouette)
-            holder.avatar.imageTintList = null
+            holder.avatar.imageTintList = android.content.res.ColorStateList.valueOf(
+                androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.white)
+            )
+            val cardView = holder.itemView.findViewById<androidx.cardview.widget.CardView>(R.id.searchResultCardView)
+            cardView?.setCardBackgroundColor(
+                androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.orange)
+            )
         }
 
         holder.inviteBtn.setOnClickListener { onInvite(user) }
