@@ -13,6 +13,14 @@
         android:layout_height="0dp"
         android:layout_weight="1">
 
+    <!-- Transaction Actions Popup -->
+    <include
+        android:id="@+id/transactionActionsPopup"
+        layout="@layout/popup_transaction_actions"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:visibility="gone" />
+
     <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
@@ -235,6 +243,39 @@
                         android:layout_height="wrap_content"
                         android:nestedScrollingEnabled="false"
                         tools:listitem="@layout/item_transaction" />
+
+                    <!-- Show Archived Section -->
+                    <LinearLayout
+                        android:id="@+id/showArchivedSection"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone"
+                        android:layout_marginTop="16dp">
+
+                        <TextView
+                            android:id="@+id/showArchivedToggle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="🗂 2 archived transactions — Show"
+                            android:fontFamily="@font/montserratalternatess_regular"
+                            android:textColor="@color/grey"
+                            android:textSize="14sp"
+                            android:padding="12dp"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:background="?android:attr/selectableItemBackground" />
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/archivedTransactionsRecyclerView"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:nestedScrollingEnabled="false"
+                            android:visibility="gone"
+                            android:alpha="0.6"
+                            tools:listitem="@layout/item_transaction" />
+
+                    </LinearLayout>
 
                     <View
                         android:layout_width="match_parent"

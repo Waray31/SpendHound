@@ -111,9 +111,9 @@ class HomeFragment : Fragment() {
         transactionListRecycler = view.findViewById(R.id.transactionListRecycler)
         recentEmptyState = view.findViewById(R.id.recentEmptyState)
         rvSkeletonHome = view.findViewById(R.id.rvSkeletonHome)
-        recentAdapter = RecentTransactionAdapter(recentTransactionList) {
+        recentAdapter = RecentTransactionAdapter(recentTransactionList, {
             invalidateAndRefresh()
-        }
+        }, null, null)
         transactionListRecycler?.layoutManager = LinearLayoutManager(context)
         transactionListRecycler?.adapter = recentAdapter
         rvSkeletonHome?.layoutManager = LinearLayoutManager(context)

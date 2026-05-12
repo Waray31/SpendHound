@@ -25,7 +25,8 @@ data class CachedTransaction(
     val totalAmount: Double,
     val status: Int?,
     val createdBy: Long?,
-    val createdAt: String?
+    val createdAt: String?,
+    val isArchived: Boolean = false
 )
 
 @Entity(tableName = "cached_json_blobs")

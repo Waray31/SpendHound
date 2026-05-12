@@ -1,6 +1,7 @@
 package com.waray.spendhound.ui.transactions
 
 import android.annotation.SuppressLint
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -30,6 +31,7 @@ import com.waray.spendhound.SpinnerItemMonths
 import com.waray.spendhound.TransactionRead
 import com.waray.spendhound.TransactionReadInsert
 import com.waray.spendhound.User
+import com.waray.spendhound.ui.multi_transaction.MultiTransactionActivity
 import com.waray.spendhound.ui.multi_transaction.TransactionFull
 import io.github.jan.supabase.postgrest.query.Columns
 import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
@@ -78,6 +80,13 @@ class TransactionsFragment : Fragment() {
     private var pullToRefreshHelper: PullToRefreshHelper? = null
     private var rvSkeletonTransactions: RecyclerView? = null
     private var fullTransactions: List<RecentTransaction> = emptyList()
+    private var archivedTransactions: List<RecentTransaction> = emptyList()
+    private var transactionActionsPopup: View? = null
+    private var showArchivedSection: LinearLayout? = null
+    private var showArchivedToggle: TextView? = null
+    private var archivedRecyclerView: RecyclerView? = null
+    private var archivedAdapter: RecentTransactionAdapter? = null
+    private var isArchivedExpanded = false
 
     private val viewModel: TransactionsViewModel by viewModels()
 
@@ -158,6 +167,10 @@ class TransactionsFragment : Fragment() {
         transactionCountTextView = root.findViewById(R.id.transactionCountTextView)
         emptyStateLayout = root.findViewById(R.id.emptyStateLayout)
         rvSkeletonTransactions = root.findViewById(R.id.rvSkeletonTransactions)
+        transactionActionsPopup = root.findViewById(R.id.transactionActionsPopup)
+        showArchivedSection = root.findViewById(R.id.showArchivedSection)
+        showArchivedToggle = root.findViewById(R.id.showArchivedToggle)
+        archivedRecyclerView = root.findViewById(R.id.archivedTransactionsRecyclerView)
 
         allTabTV = root.findViewById(R.id.allTabTV)
         paidTabTV = root.findViewById(R.id.paidTabTV)
@@ -174,7 +187,7 @@ class TransactionsFragment : Fragment() {
         rvSkeletonTransactions?.layoutManager = LinearLayoutManager(context)
         rvSkeletonTransactions?.adapter = SkeletonAdapter(R.layout.item_skeleton_transaction)
 
-        adapter = RecentTransactionAdapter(transactionList, { refreshTransactions() }) { tx ->
+        adapter = RecentTransactionAdapter(transactionList, { refreshTransactions() }, { tx ->
             if (tx == null) return@RecentTransactionAdapter
             tx.isExpanded = !tx.isExpanded
             val pos = transactionList.indexOf(tx)
@@ -182,9 +195,29 @@ class TransactionsFragment : Fragment() {
                 markTransactionsRead(listOf(tx), currentUserNumericId!!)
             }
             if (pos != -1) adapter?.notifyItemChanged(pos)
+        }) { transaction, view ->
+            showTransactionPopup(transaction, view)
         }
+        
+        archivedAdapter = RecentTransactionAdapter(arrayListOf(), { refreshTransactions() }, { tx ->
+            if (tx == null) return@RecentTransactionAdapter
+            tx.isExpanded = !tx.isExpanded
+            val pos = archivedTransactions.indexOf(tx)
+            if (pos != -1) archivedAdapter?.notifyItemChanged(pos)
+        }) { transaction, view ->
+            showArchivedTransactionPopup(transaction, view)
+        }
+        
         recyclerView?.layoutManager = LinearLayoutManager(context)
         recyclerView?.adapter = adapter
+        
+        archivedRecyclerView?.layoutManager = LinearLayoutManager(context)
+        archivedRecyclerView?.adapter = archivedAdapter
+        
+        setupArchivedSection()
+        
+        // Dismiss popup when clicking outside
+        view?.setOnClickListener { dismissPopup() }
     }
 
     private fun setupStatusTabs() {
@@ -205,15 +238,27 @@ class TransactionsFragment : Fragment() {
 
     @SuppressLint("NotifyDataSetChanged")
     private fun applyStatusFilter() {
-        val filtered = fullTransactions.filter { tx ->
+        val (active, archived) = fullTransactions.partition { !it.isArchived }
+        
+        val filtered = active.filter { tx ->
             val statusOk = selectedStatusTab == "All" || tx.transactionStatus.equals(selectedStatusTab, ignoreCase = true)
             val dateOk = tx.timestamp in startDate..endDate
             val groupOk = selectedGroupId == -1L || tx.groupId == selectedGroupId
             statusOk && dateOk && groupOk
         }
+        
+        archivedTransactions = archived.filter { tx ->
+            val dateOk = tx.timestamp in startDate..endDate
+            val groupOk = selectedGroupId == -1L || tx.groupId == selectedGroupId
+            dateOk && groupOk
+        }
+        
         transactionList.clear()
         transactionList.addAll(filtered)
         adapter?.notifyDataSetChanged()
+        
+        updateArchivedSection()
+        
         val count = transactionList.size
         transactionCountTextView?.text = String.format(Locale.getDefault(), "%d %s", count, if (count == 1) "transaction" else "transactions")
         if (transactionList.isEmpty() && !isLoading) {
@@ -384,6 +429,157 @@ class TransactionsFragment : Fragment() {
         if (transactionList.isNotEmpty()) {
             recyclerView?.visibility = View.VISIBLE
             emptyStateLayout?.visibility = View.GONE
+        }
+    }
+    
+    private fun setupArchivedSection() {
+        showArchivedToggle?.setOnClickListener {
+            isArchivedExpanded = !isArchivedExpanded
+            archivedRecyclerView?.visibility = if (isArchivedExpanded) View.VISIBLE else View.GONE
+            updateArchivedToggleText()
+        }
+    }
+    
+    private fun updateArchivedToggleText() {
+        val count = archivedTransactions.size
+        val action = if (isArchivedExpanded) "Hide" else "Show"
+        showArchivedToggle?.text = "🗂 $count archived transactions — $action"
+    }
+    
+    private fun showTransactionPopup(transaction: RecentTransaction, anchorView: View) {
+        transactionActionsPopup?.let { popup ->
+            // Position popup
+            val location = IntArray(2)
+            anchorView.getLocationOnScreen(location)
+            val rootLocation = IntArray(2)
+            view?.getLocationOnScreen(rootLocation)
+            
+            popup.x = (location[0] - rootLocation[0]).toFloat()
+            popup.y = (location[1] - rootLocation[1] + anchorView.height + 8).toFloat()
+            
+            // Setup click listeners
+            popup.findViewById<TextView>(R.id.tvEdit)?.setOnClickListener {
+                editTransaction(transaction)
+                dismissPopup()
+            }
+            
+            popup.findViewById<TextView>(R.id.tvArchive)?.setOnClickListener {
+                archiveTransaction(transaction)
+                dismissPopup()
+            }
+            
+            popup.findViewById<TextView>(R.id.tvCancel)?.setOnClickListener {
+                dismissPopup()
+            }
+            
+            popup.visibility = View.VISIBLE
+        }
+    }
+    
+    private fun showArchivedTransactionPopup(transaction: RecentTransaction, anchorView: View) {
+        transactionActionsPopup?.let { popup ->
+            // Position popup
+            val location = IntArray(2)
+            anchorView.getLocationOnScreen(location)
+            val rootLocation = IntArray(2)
+            view?.getLocationOnScreen(rootLocation)
+            
+            popup.x = (location[0] - rootLocation[0]).toFloat()
+            popup.y = (location[1] - rootLocation[1] + anchorView.height + 8).toFloat()
+            
+            // Setup click listeners for archived transaction (only unarchive)
+            popup.findViewById<TextView>(R.id.tvEdit)?.visibility = View.GONE
+            popup.findViewById<TextView>(R.id.tvArchive)?.apply {
+                text = "Unarchive"
+                visibility = View.VISIBLE
+                setOnClickListener {
+                    unarchiveTransaction(transaction)
+                    dismissPopup()
+                }
+            }
+            
+            popup.findViewById<TextView>(R.id.tvCancel)?.setOnClickListener {
+                dismissPopup()
+            }
+            
+            popup.visibility = View.VISIBLE
+        }
+    }
+    
+    private fun dismissPopup() {
+        transactionActionsPopup?.visibility = View.GONE
+        // Reset archive button text and visibility
+        transactionActionsPopup?.findViewById<TextView>(R.id.tvEdit)?.visibility = View.VISIBLE
+        transactionActionsPopup?.findViewById<TextView>(R.id.tvArchive)?.text = "Archive"
+    }
+    
+    private fun editTransaction(transaction: RecentTransaction) {
+        val intent = Intent(requireContext(), MultiTransactionActivity::class.java)
+        intent.putExtra("TRANSACTION_ID", transaction.transactionId)
+        intent.putExtra("EDIT_MODE", true)
+        startActivity(intent)
+    }
+    
+    private fun archiveTransaction(transaction: RecentTransaction) {
+        val txId = transaction.transactionId ?: return
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                DeclareDatabase.transactionsTable.update({ set("is_archived", true) }) {
+                    filter { eq("id", txId) }
+                }
+                withContext(Dispatchers.Main) {
+                    transaction.isArchived = true
+                    moveToArchived(transaction)
+                    refreshTransactions()
+                }
+            } catch (e: Exception) {
+                Log.e("TransactionsFragment", "Error archiving transaction", e)
+            }
+        }
+    }
+    
+    private fun unarchiveTransaction(transaction: RecentTransaction) {
+        val txId = transaction.transactionId ?: return
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                DeclareDatabase.transactionsTable.update({ set("is_archived", false) }) {
+                    filter { eq("id", txId) }
+                }
+                withContext(Dispatchers.Main) {
+                    transaction.isArchived = false
+                    moveFromArchived(transaction)
+                    refreshTransactions()
+                }
+            } catch (e: Exception) {
+                Log.e("TransactionsFragment", "Error unarchiving transaction", e)
+            }
+        }
+    }
+    
+    private fun moveToArchived(transaction: RecentTransaction) {
+        transactionList.remove(transaction)
+        adapter?.notifyDataSetChanged()
+        archivedTransactions = archivedTransactions + transaction
+        updateArchivedSection()
+    }
+    
+    private fun moveFromArchived(transaction: RecentTransaction) {
+        archivedTransactions = archivedTransactions.filter { it.transactionId != transaction.transactionId }
+        updateArchivedSection()
+        applyStatusFilter() // This will add it back to main list
+    }
+    
+    private fun updateArchivedSection() {
+        val hasArchived = archivedTransactions.isNotEmpty()
+        showArchivedSection?.visibility = if (hasArchived && selectedStatusTab == "All") View.VISIBLE else View.GONE
+        
+        if (hasArchived) {
+            updateArchivedToggleText()
+            (archivedAdapter?.recentTransactionList as? ArrayList)?.let { list ->
+                list.clear()
+                list.addAll(archivedTransactions)
+                archivedAdapter?.notifyDataSetChanged()
+            }
         }
     }
 }

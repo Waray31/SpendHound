@@ -124,6 +124,7 @@ class TransactionRepository(private val db: AppDatabase) {
                 it.rawSplitRows = splits
                 it.isUnread = tx.groupId != null && txId !in readTxIds && tx.createdBy != userId
                 it.groupId = tx.groupId
+                it.isArchived = tx.isArchived ?: false
             }
         }.sortedByDescending { it.timestamp }
     }

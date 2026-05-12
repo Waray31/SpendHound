@@ -85,7 +85,8 @@ class GroupRepository(private val db: AppDatabase) {
                     totalAmount = tx.totalAmount,
                     status = tx.status,
                     createdBy = tx.createdBy,
-                    createdAt = tx.createdAt
+                    createdAt = tx.createdAt,
+                    isArchived = tx.isArchived ?: false
                 )
             }
         }

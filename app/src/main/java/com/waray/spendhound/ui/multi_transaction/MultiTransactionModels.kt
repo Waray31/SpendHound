@@ -48,7 +48,8 @@ data class TransactionFull(
     @SerialName("group_id")     val groupId: Long? = null,
     @SerialName("created_by")   val createdBy: Long? = null,
     @SerialName("created_at")   val createdAt: String? = null,
-    @SerialName("status")       val status: Int? = null
+    @SerialName("status")       val status: Int? = null,
+    @SerialName("is_archived")  val isArchived: Boolean? = false
 )
 
 /** Minimal response after insert — only need the id back */

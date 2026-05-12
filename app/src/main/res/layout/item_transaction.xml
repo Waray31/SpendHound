@@ -85,6 +85,20 @@
                             android:fontFamily="@font/montserratalternatess_bold"
                             android:text="Unpaid"
                             android:textSize="12sp" />
+
+                        <!-- Archived Badge -->
+                        <TextView
+                            android:id="@+id/archivedBadge"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Archived"
+                            android:textSize="10sp"
+                            android:textColor="@color/grey"
+                            android:background="@drawable/spinner_border_grey"
+                            android:paddingHorizontal="8dp"
+                            android:paddingVertical="2dp"
+                            android:layout_marginStart="8dp"
+                            android:visibility="gone" />
                     </LinearLayout>
 
                 </LinearLayout>

@@ -208,4 +208,136 @@ class MultiTransactionRepository {
             Result.failure(e)
         }
     }
+    
+    suspend fun updateTransaction(
+        transactionId: Long,
+        groupId: Long,
+        createdBy: Long,
+        title: String,
+        entries: List<TransactionEntry>,
+        groupMembers: List<User>
+    ): Result<Unit> = withContext(Dispatchers.IO) {
+        try {
+            val totalAmount = entries.sumOf { it.amount }
+
+            // 1. Update main transaction
+            client.postgrest.from("transactions").update(
+                mapOf(
+                    "total_amount" to totalAmount,
+                    "description" to title.ifBlank { null }
+                )
+            ) {
+                filter { eq("id", transactionId) }
+            }
+
+            // 2. Delete existing related records
+            client.postgrest.from("transaction_payors").delete {
+                filter { eq("transaction_id", transactionId) }
+            }
+            client.postgrest.from("transaction_splits").delete {
+                filter { eq("transaction_id", transactionId) }
+            }
+            client.postgrest.from("transaction_items").delete {
+                filter { eq("transaction_id", transactionId) }
+            }
+
+            // 3. Re-insert with new data (same logic as submitTransactions)
+            val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault())
+            val createdAt = isoFormat.format(Date())
+            
+            val userTotalSplitOwed = mutableMapOf<Long, Double>()
+            val userTotalInitialPayments = mutableMapOf<Long, Double>()
+            
+            entries.forEach { entry ->
+                val itemResponse = client.postgrest.from("transaction_items").insert(
+                    TransactionItemInsert(
+                        transactionId = transactionId,
+                        amount = entry.amount,
+                        category = entry.category,
+                        itemDescription = entry.title.ifBlank { null },
+                        createdAt = createdAt
+                    )
+                ) { select() }.decodeSingle<TransactionItemFull>()
+
+                val itemId = itemResponse.id ?: throw Exception("Failed to get transaction_item ID")
+
+                entry.payors.forEach { payor ->
+                    userTotalInitialPayments[payor.userId] = 
+                        (userTotalInitialPayments[payor.userId] ?: 0.0) + payor.amount
+                }
+
+                if (entry.payors.isNotEmpty()) {
+                    val payorRecords = entry.payors
+                        .filter { it.amount > 0.0 }
+                        .map { payor ->
+                            TransactionPayorInsert(
+                                transactionId = transactionId,
+                                userId = payor.userId,
+                                initialAmountPaid = payor.amount,
+                                currentAmountPaid = payor.amount,
+                                excessAmount = 0.0,
+                                transactionItemsId = itemId,
+                                status = 0
+                            )
+                        }
+                    
+                    if (payorRecords.isNotEmpty()) {
+                        client.postgrest.from("transaction_payors").insert(payorRecords)
+                    }
+                }
+
+                val membersToSplit = if (entry.includedMemberIds.isNotEmpty()) {
+                    groupMembers.filter { member -> entry.includedMemberIds.contains(member.id) }
+                } else {
+                    groupMembers
+                }
+                
+                if (membersToSplit.isNotEmpty()) {
+                    val splitAmount = entry.amount / membersToSplit.size
+                    
+                    membersToSplit.forEach { member ->
+                        userTotalSplitOwed[member.id!!] = 
+                            (userTotalSplitOwed[member.id!!] ?: 0.0) + splitAmount
+                    }
+                    
+                    client.postgrest.from("transaction_splits").insert(
+                        membersToSplit.map { member ->
+                            TransactionSplitInsert(
+                                transactionId = transactionId,
+                                userId = member.id!!,
+                                amount = splitAmount,
+                                transactionItemsId = itemId
+                            )
+                        }
+                    )
+                }
+            }
+            
+            // Update payors with calculated values
+            userTotalInitialPayments.forEach { (userId, totalInitialPaid) ->
+                val userSplitOwed = userTotalSplitOwed[userId] ?: 0.0
+                val currentPaid = if (totalInitialPaid > userSplitOwed) userSplitOwed else totalInitialPaid
+                val excess = if (totalInitialPaid > userSplitOwed) totalInitialPaid - userSplitOwed else 0.0
+                val status = when {
+                    currentPaid == 0.0 -> 0
+                    currentPaid >= userSplitOwed -> 1
+                    else -> 2
+                }
+                client.postgrest.from("transaction_payors").update(
+                    TransactionPayorPartialUpdate(excessAmount = excess, status = status)
+                ) {
+                    filter { eq("transaction_id", transactionId); eq("user_id", userId) }
+                }
+            }
+
+            // Refresh balances
+            groupMembers.forEach { member ->
+                member.id?.let { BalanceHelper.refreshUserBalance(it) }
+            }
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 }

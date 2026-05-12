@@ -34,6 +34,7 @@ class RecentTransaction {
     var rawPayorRows: List<TransactionPayorTable> = emptyList()
     var rawSplitRows: List<TransactionSplitTable> = emptyList()
     var groupId: Long? = null
+    var isArchived: Boolean = false
 
     constructor()
 

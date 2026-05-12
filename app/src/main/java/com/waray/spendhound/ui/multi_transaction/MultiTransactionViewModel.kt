@@ -89,16 +89,18 @@ class MultiTransactionViewModel(
         }
     }
 
-    fun onGroupSelected(groupId: Long) {
+    fun onGroupSelected(groupId: Long, resetTransactions: Boolean = true) {
         _isLoading.value = true
         viewModelScope.launch {
             try {
                 val fetchedMembers = repository.getGroupMembers(groupId)
                 _members.value = fetchedMembers
 
-                // Reset transactions to single empty item when group changes
-                _transactions.value = listOf(TransactionEntry())
-                calculateTotals()
+                if (resetTransactions) {
+                    // Reset transactions to single empty item when group changes
+                    _transactions.value = listOf(TransactionEntry())
+                    calculateTotals()
+                }
 
                 // Remove automatic payor assignment - let users configure payments manually
                 // if (!_isMultiplePayorsMode.value) {
@@ -256,5 +258,75 @@ class MultiTransactionViewModel(
         object Loading : UiState()
         object Success : UiState()
         data class Error(val message: String) : UiState()
+    }
+    
+    fun loadExistingTransaction(
+        transaction: TransactionFull,
+        items: List<TransactionItemFull>,
+        payors: List<TransactionPayorTable>,
+        splits: List<TransactionSplitTable>
+    ) {
+        // Convert existing transaction data to TransactionEntry format
+        val transactionEntries = items.map { item ->
+            val itemPayors = payors.filter { it.transactionItemsId == item.id }
+            val payorEntries = itemPayors.map { payor ->
+                val user = _members.value.find { it.id == payor.userId }
+                PayorEntry(
+                    userId = payor.userId,
+                    username = user?.username ?: "Unknown",
+                    amount = payor.currentAmountPaid
+                )
+            }.toMutableList()
+            
+            val itemSplits = splits.filter { it.transactionItemsId == item.id }
+            val includedMemberIds = itemSplits.map { it.userId }
+            
+            TransactionEntry(
+                title = item.itemDescription ?: "",
+                amount = item.amount,
+                category = item.category ?: "",
+                payors = payorEntries,
+                includedMemberIds = includedMemberIds
+            )
+        }
+        
+        _transactions.value = transactionEntries
+        _transactionTitle.value = transaction.description ?: ""
+        calculateTotals()
+    }
+    
+    fun updateTransaction(transactionId: Long, groupId: Long, requireTitle: Boolean = true) {
+        val creatorId = _currentUserNumericId.value
+        if (creatorId == null) {
+            _uiState.value = UiState.Error("User session not found")
+            return
+        }
+
+        if (requireTitle && _transactionTitle.value.isBlank()) {
+            _uiState.value = UiState.Error("Please enter a transaction title")
+            return
+        }
+
+        if (_transactions.value.any { it.amount <= 0 }) {
+            _uiState.value = UiState.Error("Please fill in all amounts")
+            return
+        }
+
+        if (_transactions.value.any { it.payors.isEmpty() }) {
+            _uiState.value = UiState.Error("Please select who paid for each transaction")
+            return
+        }
+
+        viewModelScope.launch {
+            _uiState.value = UiState.Loading
+            val result = repository.updateTransaction(
+                transactionId, groupId, creatorId, _transactionTitle.value, _transactions.value, _members.value
+            )
+            result.onSuccess {
+                _uiState.value = UiState.Success
+            }.onFailure {
+                _uiState.value = UiState.Error(it.message ?: "Update failed")
+            }
+        }
     }
 }

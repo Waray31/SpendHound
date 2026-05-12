@@ -1,6 +1,7 @@
 package com.waray.spendhound
 
 import android.content.Context
+import android.content.Intent
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -14,6 +15,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import coil.load
 import coil.transform.CircleCropTransformation
+import com.waray.spendhound.ui.multi_transaction.MultiTransactionActivity
 import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.CoroutineScope
@@ -22,9 +24,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 class RecentTransactionAdapter(
-    private val recentTransactionList: ArrayList<RecentTransaction>?,
+    val recentTransactionList: ArrayList<RecentTransaction>?,
     private val onSettleRefresh: (() -> Unit)? = null,
-    private var clickListener: OnTransactionClickListener? = null
+    private var clickListener: OnTransactionClickListener? = null,
+    private val onLongPress: ((RecentTransaction, View) -> Unit)? = null
 ) : RecyclerView.Adapter<RecentTransactionAdapter.ViewHolder>() {
 
     private val scope = CoroutineScope(Dispatchers.Main)
@@ -69,6 +72,16 @@ class RecentTransactionAdapter(
             transaction.mostRecentTransactionType ?: "Transaction"
         holder.amountTextView.text = transaction.mostRecentPaymentAmountStr
         holder.iconImageView.setImageResource(getIconForItems(transaction.transactionItems))
+
+        // Archived badge visibility
+        holder.archivedBadge.visibility = if (transaction.isArchived) View.VISIBLE else View.GONE
+        
+        // Apply archived styling
+        if (transaction.isArchived) {
+            holder.itemView.alpha = 0.6f
+        } else {
+            holder.itemView.alpha = 1.0f
+        }
 
         // Status: Settled = green, Pending = yellow
         val status = transaction.transactionStatus
@@ -120,6 +133,12 @@ class RecentTransactionAdapter(
         holder.itemView.setOnClickListener {
             Log.i("TX_DEBUG", "Adapter: Item clicked for transaction ID=${transaction.transactionId}")
             clickListener?.onTransactionClick(transaction)
+        }
+        
+        // Long press for popup menu
+        holder.itemView.setOnLongClickListener {
+            onLongPress?.invoke(transaction, holder.itemView)
+            true
         }
     }
 
@@ -323,5 +342,6 @@ class RecentTransactionAdapter(
         val editTransactionBtn: TextView       = itemView.findViewById(R.id.editTransaction_btn)
         val settlementLL: View               = itemView.findViewById(R.id.settlement_LL)
         val unreadIndicator: View            = itemView.findViewById(R.id.unreadIndicator)
+        val archivedBadge: TextView          = itemView.findViewById(R.id.archivedBadge)
     }
 }

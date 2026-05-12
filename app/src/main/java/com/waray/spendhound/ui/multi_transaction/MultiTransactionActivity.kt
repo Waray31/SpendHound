@@ -23,6 +23,7 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.waray.spendhound.CurrencyUtils
+import com.waray.spendhound.DeclareDatabase
 import com.waray.spendhound.MultiTransactionItem
 import com.waray.spendhound.PayerContribution
 import com.waray.spendhound.PayerGroup
@@ -31,7 +32,10 @@ import com.waray.spendhound.R
 import com.waray.spendhound.User
 import com.waray.spendhound.databinding.ActivityAddTransactionsMultiBinding
 import com.waray.spendhound.ui.multi_transaction.PayorEntry
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MultiTransactionActivity : AppCompatActivity() {
 
@@ -41,23 +45,34 @@ class MultiTransactionActivity : AppCompatActivity() {
 
     private var currentGroups: List<PayerGroup> = emptyList()
     private var currentMembers: List<User> = emptyList()
+    private var editTransactionId: Long? = null
+    private var isEditMode = false
+    private var pendingGroupId: Long? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         binding = ActivityAddTransactionsMultiBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
+        // Check if in edit mode
+        editTransactionId = intent.getLongExtra("TRANSACTION_ID", -1L).takeIf { it != -1L }
+        isEditMode = intent.getBooleanExtra("EDIT_MODE", false) && editTransactionId != null
+
         setupTransactionMode()
         setupToolbar()
         setupRecyclerView()
         setupListeners()
         observeState()
+        
+        if (isEditMode) {
+            loadTransactionForEdit()
+        }
     }
 
     private fun setupTransactionMode() {
         // Always show add row button and use "Add Transactions" title
         binding.btnAddRow.visibility = View.VISIBLE
-        binding.toolbar.title = "Add Transactions"
+        binding.toolbar.title = if (isEditMode) "Edit Transaction" else "Add Transactions"
     }
 
     private fun setPaymentMode(isMultiple: Boolean) {
@@ -108,19 +123,39 @@ class MultiTransactionActivity : AppCompatActivity() {
             val selectedGroup = currentGroups.getOrNull(binding.spinnerGroup.selectedItemPosition)
             if (selectedGroup?.groupId != null) {
                 val requireTitle = adapter.getTransactions().size > 1
-                viewModel.submit(selectedGroup.groupId!!, requireTitle)
+                if (isEditMode) {
+                    viewModel.updateTransaction(editTransactionId!!, selectedGroup.groupId!!, requireTitle)
+                } else {
+                    viewModel.submit(selectedGroup.groupId!!, requireTitle)
+                }
             }
         }
 
         binding.spinnerGroup.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(p0: AdapterView<*>?, p1: View?, pos: Int, p3: Long) {
                 currentGroups.getOrNull(pos)?.groupId?.let { groupId ->
-                    // Reset adapter to single item when group changes
-                    adapter.resetToSingleItem()
-                    viewModel.onGroupSelected(groupId)
+                    if (isEditMode && groupId == pendingGroupId) {
+                        // Initial load for edit mode - don't reset transactions
+                        viewModel.onGroupSelected(groupId, resetTransactions = false)
+                        pendingGroupId = null // Clear once matched
+                    } else {
+                        // Regular group change or manual selection
+                        adapter.resetToSingleItem()
+                        viewModel.onGroupSelected(groupId)
+                    }
                 }
             }
             override fun onNothingSelected(p0: AdapterView<*>?) {}
+        }
+    }
+
+    private fun trySelectPendingGroup() {
+        val groupId = pendingGroupId ?: return
+        if (currentGroups.isNotEmpty()) {
+            val index = currentGroups.indexOfFirst { it.groupId == groupId }
+            if (index != -1) {
+                binding.spinnerGroup.setSelection(index)
+            }
         }
     }
 
@@ -233,6 +268,9 @@ class MultiTransactionActivity : AppCompatActivity() {
                         val groupAdapter = ArrayAdapter(this@MultiTransactionActivity, android.R.layout.simple_spinner_item, names)
                         groupAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
                         binding.spinnerGroup.adapter = groupAdapter
+                        
+                        // Try to select pending group if we're in edit mode
+                        trySelectPendingGroup()
                     }
                 }
                 launch {
@@ -263,7 +301,12 @@ class MultiTransactionActivity : AppCompatActivity() {
                             )
                         }
                         adapter.setTransactions(multiItems)
-                        binding.btnSubmit.text = if (transactions.size == 1) "Add Transaction" else "Add ${transactions.size} Transactions"
+                        val buttonText = if (isEditMode) {
+                            "Update Transaction"
+                        } else {
+                            if (transactions.size == 1) "Add Transaction" else "Add ${transactions.size} Transactions"
+                        }
+                        binding.btnSubmit.text = buttonText
                         
                         // Handle title section visibility based on item count
                         updateTitleSectionVisibility(transactions.size)
@@ -315,6 +358,59 @@ class MultiTransactionActivity : AppCompatActivity() {
                         }
                     }
                 }
+            }
+        }
+    }
+    
+    private fun loadTransactionForEdit() {
+        val txId = editTransactionId ?: return
+        lifecycleScope.launch {
+            try {
+                // Load transaction data from database
+                val transaction = withContext(Dispatchers.IO) {
+                    DeclareDatabase.transactionsTable.select {
+                        filter { eq("id", txId) }
+                    }.decodeSingleOrNull<com.waray.spendhound.ui.multi_transaction.TransactionFull>()
+                }
+                
+                if (transaction != null) {
+                    // Set transaction title and pending group ID
+                    binding.etTransactionTitle.setText(transaction.description)
+                    pendingGroupId = transaction.groupId
+                    
+                    // Try to select group if groups are already loaded
+                    trySelectPendingGroup()
+                    
+                    // Load transaction items, payors, and splits
+                    val items = withContext(Dispatchers.IO) {
+                        DeclareDatabase.transactionItemsTable.select {
+                            filter { eq("transaction_id", txId) }
+                        }.decodeList<TransactionItemFull>()
+                    }
+                    
+                    val payors = withContext(Dispatchers.IO) {
+                        DeclareDatabase.transactionPayorsTable.select {
+                            filter { eq("transaction_id", txId) }
+                        }.decodeList<TransactionPayorTable>()
+                    }
+                    
+                    val splits = withContext(Dispatchers.IO) {
+                        DeclareDatabase.transactionSplitsTable.select {
+                            filter { eq("transaction_id", txId) }
+                        }.decodeList<TransactionSplitTable>()
+                    }
+                    
+                    // Wait for members to be loaded for the group before populating
+                    // This ensures usernames are resolved correctly
+                    launch {
+                        viewModel.members.first { it.isNotEmpty() }
+                        viewModel.loadExistingTransaction(transaction, items, payors, splits)
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("MultiTransactionActivity", "Error loading transaction for edit", e)
+                Toast.makeText(this@MultiTransactionActivity, "Error loading transaction", Toast.LENGTH_SHORT).show()
+                finish()
             }
         }
     }
