@@ -16,6 +16,7 @@ import com.waray.spendhound.databinding.ItemTransactionMultiBinding
 
 class MultiTransactionAdapter(
     private val onAmountChanged: (Int, Double) -> Unit,
+    private val onTitleChanged: (Int, String) -> Unit,
     private val onCategoryChanged: (Int, String) -> Unit,
     private val onValidationChanged: () -> Unit,
     private val onRemoveItem: (Int) -> Unit,
@@ -61,11 +62,15 @@ class MultiTransactionAdapter(
                 notifyItemChanged(0) // Last item should hide remove button
             }
         } else {
-            // Same size, only update payment-related changes without affecting EditTexts or categories
+            // Same size, check for changes to update UI
             for (i in transactions.indices) {
-                if (transactions[i].payers != newTransactions[i].payers || 
+                if (transactions[i].title != newTransactions[i].title ||
+                    transactions[i].amount != newTransactions[i].amount ||
+                    transactions[i].category != newTransactions[i].category ||
+                    transactions[i].payers != newTransactions[i].payers || 
                     transactions[i].includedMembers != newTransactions[i].includedMembers ||
                     transactions[i].isValid != newTransactions[i].isValid) {
+
                     transactions[i] = newTransactions[i]
                     notifyItemChanged(i)
                 }
@@ -265,6 +270,7 @@ class MultiTransactionAdapter(
                     currentTitles[adapterPosition] = titleText
                     
                     transactions[adapterPosition] = item.copy(title = titleText)
+                    onTitleChanged(adapterPosition, titleText)
                 }
             }
             binding.etTitle.addTextChangedListener(titleWatcher)

@@ -92,6 +92,9 @@ class MultiTransactionActivity : AppCompatActivity() {
             onAmountChanged = { position, amount -> 
                 viewModel.updateTransactionAmount(position, amount)
             },
+            onTitleChanged = { position, title ->
+                viewModel.updateItemTitle(position, title)
+            },
             onCategoryChanged = { position, category ->
                 viewModel.updateTransactionCategory(position, category)
                 validateSubmission()

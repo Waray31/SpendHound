@@ -265,6 +265,14 @@ class MultiTransactionViewModel(
         }
     }
 
+    fun updateItemTitle(position: Int, title: String) {
+        val currentList = _transactions.value.toMutableList()
+        if (position in currentList.indices) {
+            currentList[position] = currentList[position].copy(title = title)
+            _transactions.value = currentList
+        }
+    }
+
     sealed class UiState {
         object Idle : UiState()
         object Loading : UiState()
