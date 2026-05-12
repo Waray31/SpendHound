@@ -13,279 +13,290 @@
         android:layout_height="0dp"
         android:layout_weight="1">
 
-    <!-- Transaction Actions Popup -->
-    <include
-        android:id="@+id/transactionActionsPopup"
-        layout="@layout/popup_transaction_actions"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:visibility="gone" />
-
-    <LinearLayout
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="12dp"
-        android:layout_marginTop="20dp"
-        android:orientation="vertical">
-
-        <!-- Header Section -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingVertical="8dp">
+            android:layout_height="match_parent"
+            android:layout_marginHorizontal="12dp"
+            android:layout_marginTop="20dp"
+            android:orientation="vertical">
 
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_bold"
-                android:text="@string/transactionList"
-                android:textAlignment="center"
-                android:textColor="@color/darkBlue"
-                android:textSize="22sp" />
-
-        </LinearLayout>
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:elevation="4dp"
-            android:layout_margin="4dp"
-            android:paddingHorizontal="8dp"
-            android:gravity="center"
-            android:paddingVertical="8dp"
-            android:background="@drawable/rounded_white_background">
-
-            <!-- Filter Section -->
+            <!-- Header Section -->
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingVertical="8dp">
 
-                <Spinner
-                    android:id="@+id/groupSpinner"
-                    android:layout_width="0dp"
+                <TextView
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="4dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/transparent_background"
-                    android:textAlignment="center" />
-
-                <Spinner
-                    android:id="@+id/dateRangeSpinner"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="4dp"
-                    android:layout_weight="1"
-                    android:background="@drawable/transparent_background"
-                    android:textAlignment="center" />
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:text="@string/transactionList"
+                    android:textAlignment="center"
+                    android:textColor="@color/darkBlue"
+                    android:textSize="22sp" />
 
             </LinearLayout>
 
-
-            <View
-                android:id="@+id/bottom_border_tabs"
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginVertical="8dp"
-                android:background="@drawable/border_line_darkblue" />
-
-            <!-- Status Tabs -->
             <LinearLayout
-                android:id="@+id/statusTabs_layout"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:orientation="vertical"
+                android:elevation="4dp"
+                android:layout_margin="4dp"
+                android:paddingHorizontal="8dp"
+                android:gravity="center"
+                android:paddingVertical="8dp"
+                android:background="@drawable/rounded_white_background">
 
-                <TextView
-                    android:id="@+id/allTabTV"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="@drawable/spinner_border_grey"
-                    android:clickable="true"
-                    android:fontFamily="@font/montserratalternatess_bold"
-                    android:padding="8dp"
-                    android:text="All"
-                    android:textAlignment="center"
-                    android:textColor="@color/darkBlue"
-                    android:textSize="14sp" />
-
-                <TextView
-                    android:id="@+id/paidTabTV"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="@drawable/spinner_border_grey"
-                    android:clickable="true"
-                    android:fontFamily="@font/montserratalternatess_bold"
-                    android:padding="8dp"
-                    android:text="Settled"
-                    android:textAlignment="center"
-                    android:textColor="@color/darkBlue"
-                    android:textSize="14sp" />
-
-                <TextView
-                    android:id="@+id/unpaidTabTV"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:background="@drawable/spinner_border_grey"
-                    android:clickable="true"
-                    android:fontFamily="@font/montserratalternatess_bold"
-                    android:padding="8dp"
-                    android:text="Pending"
-                    android:textAlignment="center"
-                    android:textColor="@color/darkBlue"
-                    android:textSize="14sp" />
-            </LinearLayout>
-
-        </LinearLayout>
-
-        <!-- Scrollable Content -->
-        <FrameLayout
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1">
-
-            <androidx.core.widget.NestedScrollView
-                android:id="@+id/transactionsNestedScrollView"
-                android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:fillViewport="true">
-
+                <!-- Filter Section -->
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                    android:orientation="horizontal">
 
-                    <!-- Current Month Display -->
+                    <Spinner
+                        android:id="@+id/groupSpinner"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginEnd="4dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/transparent_background"
+                        android:textAlignment="center" />
+
+                    <Spinner
+                        android:id="@+id/dateRangeSpinner"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="4dp"
+                        android:layout_weight="1"
+                        android:background="@drawable/transparent_background"
+                        android:textAlignment="center" />
+
+                </LinearLayout>
+
+
+                <View
+                    android:id="@+id/bottom_border_tabs"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginVertical="8dp"
+                    android:background="@drawable/border_line_darkblue" />
+
+                <!-- Status Tabs -->
+                <LinearLayout
+                    android:id="@+id/statusTabs_layout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
                     <TextView
-                        android:id="@+id/currentMonthTextView"
-                        android:layout_width="match_parent"
+                        android:id="@+id/allTabTV"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:fontFamily="@font/montserratalternatess_bold"
-                        android:paddingTop="16dp"
-                        android:paddingBottom="8dp"
-                        android:text="February 2026"
-                        android:textColor="@color/darkBlue"
-                        android:textSize="18sp" />
-
-                    <!-- Transaction Count -->
-                    <TextView
-                        android:id="@+id/transactionCountTextView"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:fontFamily="@font/montserratalternatess_regular"
-                        android:paddingBottom="8dp"
-                        android:text="0 transactions"
-                        android:textColor="@color/grey"
-                        android:textSize="12sp" />
-
-                    <!-- Empty State -->
-                    <LinearLayout
-                        android:id="@+id/emptyStateLayout"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:gravity="center"
-                        android:orientation="vertical"
-                        android:padding="48dp"
-                        android:visibility="gone">
-
-                        <ImageView
-                            android:layout_width="64dp"
-                            android:layout_height="64dp"
-                            android:alpha="0.5"
-                            android:contentDescription="No transactions"
-                            android:src="@drawable/others" />
-
-                        <TextView
-                            android:layout_width="wrap_content"
-                            android:layout_height="wrap_content"
-                            android:layout_marginTop="16dp"
-                            android:fontFamily="@font/montserratalternatess_regular"
-                            android:text="No transactions found"
-                            android:textColor="@color/grey"
-                            android:textSize="16sp" />
-
-                    </LinearLayout>
-
-                    <!-- Pull to Refresh Indicator -->
-                    <LinearLayout
-                        android:id="@+id/pullRefreshIndicator_transactions"
-                        android:layout_width="match_parent"
-                        android:layout_height="match_parent"
+                        android:layout_weight="1"
+                        android:background="@drawable/spinner_border_grey"
                         android:clickable="true"
-                        android:focusable="true"
-                        android:gravity="center"
-                        android:orientation="vertical"
-                        android:visibility="gone">
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:padding="8dp"
+                        android:text="All"
+                        android:textAlignment="center"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="14sp" />
 
-                        <ProgressBar
-                            style="@style/CustomProgressBarStyle"
-                            android:layout_width="28dp"
-                            android:layout_height="28dp" />
-                    </LinearLayout>
-
-                    <!-- Skeleton for transaction list -->
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/rvSkeletonTransactions"
-                        android:layout_width="match_parent"
+                    <TextView
+                        android:id="@+id/paidTabTV"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:visibility="gone" />
+                        android:layout_weight="1"
+                        android:background="@drawable/spinner_border_grey"
+                        android:clickable="true"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:padding="8dp"
+                        android:text="Settled"
+                        android:textAlignment="center"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="14sp" />
 
-                    <!-- Transaction List -->
-                    <androidx.recyclerview.widget.RecyclerView
-                        android:id="@+id/allTransactionsRecyclerView"
-                        android:layout_width="match_parent"
+                    <TextView
+                        android:id="@+id/unpaidTabTV"
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
-                        android:nestedScrollingEnabled="false"
-                        tools:listitem="@layout/item_transaction" />
+                        android:layout_weight="1"
+                        android:background="@drawable/spinner_border_grey"
+                        android:clickable="true"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:padding="8dp"
+                        android:text="Pending"
+                        android:textAlignment="center"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="14sp" />
+                </LinearLayout>
 
-                    <!-- Show Archived Section -->
+            </LinearLayout>
+
+            <!-- Scrollable Content -->
+            <FrameLayout
+                android:layout_width="match_parent"
+                android:layout_height="0dp"
+                android:layout_weight="1">
+
+                <androidx.core.widget.NestedScrollView
+                    android:id="@+id/transactionsNestedScrollView"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:fillViewport="true">
+
                     <LinearLayout
-                        android:id="@+id/showArchivedSection"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:orientation="vertical"
-                        android:visibility="gone"
-                        android:layout_marginTop="16dp">
+                        android:orientation="vertical">
 
+                        <!-- Current Month Display -->
                         <TextView
-                            android:id="@+id/showArchivedToggle"
+                            android:id="@+id/currentMonthTextView"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="🗂 2 archived transactions — Show"
+                            android:fontFamily="@font/montserratalternatess_bold"
+                            android:paddingTop="16dp"
+                            android:paddingBottom="8dp"
+                            android:text="February 2026"
+                            android:textColor="@color/darkBlue"
+                            android:textSize="18sp" />
+
+                        <!-- Transaction Count -->
+                        <TextView
+                            android:id="@+id/transactionCountTextView"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
                             android:fontFamily="@font/montserratalternatess_regular"
+                            android:paddingBottom="8dp"
+                            android:text="0 transactions"
                             android:textColor="@color/grey"
-                            android:textSize="14sp"
-                            android:padding="12dp"
+                            android:textSize="12sp" />
+
+                        <!-- Empty State -->
+                        <LinearLayout
+                            android:id="@+id/emptyStateLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:gravity="center"
+                            android:orientation="vertical"
+                            android:padding="48dp"
+                            android:visibility="gone">
+
+                            <ImageView
+                                android:layout_width="64dp"
+                                android:layout_height="64dp"
+                                android:alpha="0.5"
+                                android:contentDescription="No transactions"
+                                android:src="@drawable/others" />
+
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:layout_marginTop="16dp"
+                                android:fontFamily="@font/montserratalternatess_regular"
+                                android:text="No transactions found"
+                                android:textColor="@color/grey"
+                                android:textSize="16sp" />
+
+                        </LinearLayout>
+
+                        <!-- Pull to Refresh Indicator -->
+                        <LinearLayout
+                            android:id="@+id/pullRefreshIndicator_transactions"
+                            android:layout_width="match_parent"
+                            android:layout_height="match_parent"
                             android:clickable="true"
                             android:focusable="true"
-                            android:background="?android:attr/selectableItemBackground" />
+                            android:gravity="center"
+                            android:orientation="vertical"
+                            android:visibility="gone">
 
+                            <ProgressBar
+                                style="@style/CustomProgressBarStyle"
+                                android:layout_width="28dp"
+                                android:layout_height="28dp" />
+                        </LinearLayout>
+
+                        <!-- Skeleton for transaction list -->
                         <androidx.recyclerview.widget.RecyclerView
-                            android:id="@+id/archivedTransactionsRecyclerView"
+                            android:id="@+id/rvSkeletonTransactions"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:visibility="gone" />
+
+                        <!-- Transaction List -->
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/allTransactionsRecyclerView"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:nestedScrollingEnabled="false"
-                            android:visibility="gone"
-                            android:alpha="0.6"
                             tools:listitem="@layout/item_transaction" />
 
+                        <!-- Show Archived Section -->
+                        <LinearLayout
+                            android:id="@+id/showArchivedSection"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:orientation="vertical"
+                            android:visibility="gone"
+                            android:layout_marginTop="16dp">
+
+                            <TextView
+                                android:id="@+id/showArchivedToggle"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="🗂 2 archived transactions — Show"
+                                android:fontFamily="@font/montserratalternatess_regular"
+                                android:textColor="@color/grey"
+                                android:textSize="14sp"
+                                android:padding="12dp"
+                                android:clickable="true"
+                                android:focusable="true"
+                                android:background="?android:attr/selectableItemBackground" />
+
+                            <androidx.recyclerview.widget.RecyclerView
+                                android:id="@+id/archivedTransactionsRecyclerView"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:nestedScrollingEnabled="false"
+                                android:visibility="gone"
+                                android:alpha="0.6"
+                                tools:listitem="@layout/item_transaction" />
+
+                        </LinearLayout>
+
+                        <View
+                            android:layout_width="match_parent"
+                            android:layout_height="120dp" />
                     </LinearLayout>
+                </androidx.core.widget.NestedScrollView>
 
-                    <View
-                        android:layout_width="match_parent"
-                        android:layout_height="120dp" />
-                </LinearLayout>
-            </androidx.core.widget.NestedScrollView>
+            </FrameLayout>
 
-        </FrameLayout>
+        </LinearLayout>
 
-    </LinearLayout>
+        <!-- Background Click Catcher -->
+        <View
+            android:id="@+id/popupOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone"
+            android:clickable="true"
+            android:focusable="true"
+            android:background="@android:color/transparent" />
+
+        <!-- Transaction Actions Popup -->
+        <include
+            android:id="@+id/transactionActionsPopup"
+            layout="@layout/popup_transaction_actions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
+
     </FrameLayout>
 
 </com.waray.spendhound.utils.PullInterceptLayout>

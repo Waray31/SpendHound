@@ -82,6 +82,7 @@ class TransactionsFragment : Fragment() {
     private var fullTransactions: List<RecentTransaction> = emptyList()
     private var archivedTransactions: List<RecentTransaction> = emptyList()
     private var transactionActionsPopup: View? = null
+    private var popupOverlay: View? = null
     private var showArchivedSection: LinearLayout? = null
     private var showArchivedToggle: TextView? = null
     private var archivedRecyclerView: RecyclerView? = null
@@ -168,6 +169,7 @@ class TransactionsFragment : Fragment() {
         emptyStateLayout = root.findViewById(R.id.emptyStateLayout)
         rvSkeletonTransactions = root.findViewById(R.id.rvSkeletonTransactions)
         transactionActionsPopup = root.findViewById(R.id.transactionActionsPopup)
+        popupOverlay = root.findViewById(R.id.popupOverlay)
         showArchivedSection = root.findViewById(R.id.showArchivedSection)
         showArchivedToggle = root.findViewById(R.id.showArchivedToggle)
         archivedRecyclerView = root.findViewById(R.id.archivedTransactionsRecyclerView)
@@ -215,6 +217,8 @@ class TransactionsFragment : Fragment() {
         archivedRecyclerView?.adapter = archivedAdapter
         
         setupArchivedSection()
+        
+        popupOverlay?.setOnClickListener { dismissPopup() }
         
         // Dismiss popup when clicking outside
         view?.setOnClickListener { dismissPopup() }
@@ -472,6 +476,7 @@ class TransactionsFragment : Fragment() {
                 dismissPopup()
             }
             
+            popupOverlay?.visibility = View.VISIBLE
             popup.visibility = View.VISIBLE
         }
     }
@@ -502,12 +507,14 @@ class TransactionsFragment : Fragment() {
                 dismissPopup()
             }
             
+            popupOverlay?.visibility = View.VISIBLE
             popup.visibility = View.VISIBLE
         }
     }
     
     private fun dismissPopup() {
         transactionActionsPopup?.visibility = View.GONE
+        popupOverlay?.visibility = View.GONE
         // Reset archive button text and visibility
         transactionActionsPopup?.findViewById<TextView>(R.id.tvEdit)?.visibility = View.VISIBLE
         transactionActionsPopup?.findViewById<TextView>(R.id.tvArchive)?.text = "Archive"
