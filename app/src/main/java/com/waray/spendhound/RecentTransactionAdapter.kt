@@ -70,6 +70,7 @@ class RecentTransactionAdapter(
             transaction.transactionItems[0].category ?: transaction.mostRecentTransactionType ?: "Transaction"
         else
             transaction.mostRecentTransactionType ?: "Transaction"
+
         holder.amountTextView.text = transaction.mostRecentPaymentAmountStr
         holder.iconImageView.setImageResource(getIconForItems(transaction.transactionItems))
 
@@ -106,6 +107,16 @@ class RecentTransactionAdapter(
         if (isExpanded) {
             holder.loadingOverlay.visibility = View.VISIBLE
             holder.createdByTextView.text = transaction.createdBy ?: "Unknown"
+
+            if (!transaction.groupName.isNullOrEmpty()) {
+                holder.onGroupLabel.visibility = View.VISIBLE
+                holder.expandedGroupName.visibility = View.VISIBLE
+                holder.expandedGroupName.text = transaction.groupName
+            } else {
+                holder.onGroupLabel.visibility = View.GONE
+                holder.expandedGroupName.visibility = View.GONE
+            }
+
             if (isSingle) {
                 val item = transaction.transactionItems[0]
                 holder.itemsTableHeader.visibility = View.GONE
@@ -344,5 +355,7 @@ class RecentTransactionAdapter(
         val settlementLL: View               = itemView.findViewById(R.id.settlement_LL)
         val unreadIndicator: View            = itemView.findViewById(R.id.unreadIndicator)
         val archivedBadge: TextView          = itemView.findViewById(R.id.archivedBadge)
+        val onGroupLabel: TextView           = itemView.findViewById(R.id.onGroupLabel)
+        val expandedGroupName: TextView      = itemView.findViewById(R.id.expandedGroupName)
     }
 }

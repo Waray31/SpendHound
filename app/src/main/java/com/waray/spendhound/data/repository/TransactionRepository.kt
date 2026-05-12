@@ -2,6 +2,7 @@ package com.waray.spendhound.data.repository
 
 import com.waray.spendhound.CurrencyUtils
 import com.waray.spendhound.DeclareDatabase
+import com.waray.spendhound.PayerGroup
 import com.waray.spendhound.R
 import com.waray.spendhound.RecentTransaction
 import com.waray.spendhound.TransactionRead
@@ -76,6 +77,13 @@ class TransactionRepository(private val db: AppDatabase) {
             }.decodeList<User>().associate { it.id!! to (it.username ?: "Unknown") }
         } else emptyMap()
 
+        val involvedGroupIds = txs.mapNotNull { it.groupId }.distinct()
+        val groupsById = if (involvedGroupIds.isNotEmpty()) {
+            DeclareDatabase.groupsTable.select {
+                filter { isIn("group_id", involvedGroupIds) }
+            }.decodeList<PayerGroup>().associate { it.groupId!! to (it.groupName ?: "Unknown") }
+        } else emptyMap()
+
         val payorsByTx = allPayors.groupBy { it.transactionId }
         val splitsByTx = allSplits.groupBy { it.transactionId }
         val itemsByTx = allItems.groupBy { it.transactionId }
@@ -125,6 +133,7 @@ class TransactionRepository(private val db: AppDatabase) {
                 it.rawSplitRows = splits
                 it.isUnread = tx.groupId != null && txId !in readTxIds && tx.createdBy != userId
                 it.groupId = tx.groupId
+                it.groupName = groupsById[tx.groupId]
                 it.isArchived = tx.isArchived ?: false
             }
         }.sortedByDescending { it.timestamp }
