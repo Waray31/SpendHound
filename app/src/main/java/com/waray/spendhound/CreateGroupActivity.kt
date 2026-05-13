@@ -9,7 +9,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.EditText
-import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -151,7 +150,7 @@ class CreateGroupActivity : AppCompatActivity() {
         val ivRemove = chip.findViewById<ImageView>(R.id.ivRemove)
 
         tvName.text = user.username ?: "?"
-        loadAvatar(ivAvatar, user.id)
+        loadAvatar(ivAvatar, user)
 
         if (removable) {
             ivRemove.visibility = View.VISIBLE
@@ -165,17 +164,23 @@ class CreateGroupActivity : AppCompatActivity() {
         selectedMembersContainer.addView(chip)
     }
 
-    private fun loadAvatar(iv: ImageView, userId: Long?) {
-        if (userId == null) return
+    private fun loadAvatar(iv: ImageView, user: User) {
+        val userId = user.id ?: return
         
         // Get CardView reference
         val cardView = (iv.parent as? androidx.cardview.widget.CardView)
         
         lifecycleScope.launch {
             try {
-                val url = withContext(Dispatchers.IO) {
-                    DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
+                // Try to use profileImageUrl from DB first, fallback to standard bucket path
+                val url = if (!user.profileImageUrl.isNullOrBlank() && user.profileImageUrl != "placeholder_profile_image") {
+                    user.profileImageUrl
+                } else {
+                    withContext(Dispatchers.IO) {
+                        DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
+                    }
                 }
+
                 iv.load(url) {
                     placeholder(R.drawable.ic_profile_silhouette)
                     error(R.drawable.ic_profile_silhouette)
@@ -184,6 +189,7 @@ class CreateGroupActivity : AppCompatActivity() {
                         onSuccess = { _, _ ->
                             // Remove tint and orange background for real images
                             iv.imageTintList = null
+                            iv.clearColorFilter()
                             cardView?.setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
                         },
                         onError = { _, _ ->
@@ -215,12 +221,12 @@ class CreateGroupActivity : AppCompatActivity() {
         selectedImageUri = null
         val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_group_name, null)
         val ivGroupImage = dialogView.findViewById<ImageView>(R.id.ivGroupImage)
-        val ivContainer = dialogView.findViewById<FrameLayout>(R.id.ivGroupImageContainer)
+        val btnChangeGroupPhoto = dialogView.findViewById<View>(R.id.btnChangeGroupPhoto)
         val etGroupName = dialogView.findViewById<TextInputEditText>(R.id.etGroupName)
 
         dialogImageView = ivGroupImage
 
-        ivContainer.setOnClickListener { imagePickerLauncher.launch("image/*") }
+        btnChangeGroupPhoto.setOnClickListener { imagePickerLauncher.launch("image/*") }
 
         MaterialAlertDialogBuilder(this, R.style.AppDialog)
             .setTitle("New Group")
@@ -291,7 +297,6 @@ class CreateGroupActivity : AppCompatActivity() {
     ) : RecyclerView.Adapter<UserSelectAdapter.VH>() {
 
         inner class VH(view: View) : RecyclerView.ViewHolder(view) {
-            val avatarCardView: androidx.cardview.widget.CardView = view.findViewById(R.id.avatarCardView)
             val ivAvatar: ImageView = view.findViewById(R.id.ivAvatar)
             val tvUsername: TextView = view.findViewById(R.id.tvUsername)
             val ivCheck: ImageView = view.findViewById(R.id.ivCheck)
@@ -312,40 +317,8 @@ class CreateGroupActivity : AppCompatActivity() {
             holder.ivCheck.alpha = if (isCurrentUser) 0.5f else 1f
             holder.itemView.alpha = if (isCurrentUser) 0.6f else 1f
 
-            // Load avatar with proper CardView handling
-            val profileUrl = user.profileImageUrl
-            if (!profileUrl.isNullOrBlank() && profileUrl != "placeholder_profile_image") {
-                holder.ivAvatar.load(profileUrl) {
-                    crossfade(true)
-                    transformations(CircleCropTransformation())
-                    listener(
-                        onSuccess = { _, _ ->
-                            // Remove tint and orange background for real images
-                            holder.ivAvatar.imageTintList = null
-                            holder.avatarCardView.setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
-                        },
-                        onError = { _, _ ->
-                            // Set placeholder with orange background and white tint
-                            holder.ivAvatar.setImageResource(R.drawable.ic_profile_silhouette)
-                            holder.ivAvatar.imageTintList = android.content.res.ColorStateList.valueOf(
-                                androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.white)
-                            )
-                            holder.avatarCardView.setCardBackgroundColor(
-                                androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.orange)
-                            )
-                        }
-                    )
-                }
-            } else {
-                // Set placeholder with orange background and white tint
-                holder.ivAvatar.setImageResource(R.drawable.ic_profile_silhouette)
-                holder.ivAvatar.imageTintList = android.content.res.ColorStateList.valueOf(
-                    androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.white)
-                )
-                holder.avatarCardView.setCardBackgroundColor(
-                    androidx.core.content.ContextCompat.getColor(holder.itemView.context, R.color.orange)
-                )
-            }
+            // Load avatar using the common activity helper
+            loadAvatar(holder.ivAvatar, user)
             
             holder.itemView.setOnClickListener { if (!isCurrentUser) onToggle(user) }
         }

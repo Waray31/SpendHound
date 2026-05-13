@@ -22,7 +22,7 @@
             android:layout_height="match_parent"
             android:scaleType="centerCrop"
             android:src="@drawable/ic_profile_silhouette"
-            android:tint="@color/white" />
+            app:tint="@color/white" />
 
     </androidx.cardview.widget.CardView>
 

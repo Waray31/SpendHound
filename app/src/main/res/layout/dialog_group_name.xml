@@ -6,89 +6,66 @@
     android:orientation="vertical"
     android:padding="24dp">
 
-    <!-- Group Image Picker -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Group Image"
-        android:fontFamily="@font/montserratalternatess_bold"
-        android:textColor="@color/darkBlue"
-        android:textSize="13sp"
-        android:layout_marginBottom="10dp" />
-
     <FrameLayout
         android:id="@+id/ivGroupImageContainer"
-        android:layout_width="88dp"
-        android:layout_height="88dp"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_gravity="center_horizontal"
-        android:layout_marginBottom="16dp"
-        android:background="@drawable/bg_group_icon"
+        android:layout_marginBottom="24dp"
         android:clickable="true"
         android:focusable="true">
 
-        <ImageView
-            android:id="@+id/ivGroupImage"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:scaleType="centerCrop"
-            android:src="@drawable/add_group"
-            app:tint="#7B2FBE" />
-
-        <FrameLayout
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_gravity="bottom|end"
-            android:background="@color/darkBlue"
-            android:padding="4dp">
+        <androidx.cardview.widget.CardView
+            android:layout_width="100dp"
+            android:layout_height="100dp"
+            app:cardBackgroundColor="@color/orange"
+            app:cardCornerRadius="50dp"
+            android:layout_margin="4dp">
 
             <ImageView
+                android:id="@+id/ivGroupImage"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:src="@drawable/ic_edit"
-                app:tint="@color/white" />
+                android:scaleType="centerCrop"
+                android:src="@drawable/add_group"
+                app:tint="@color/whitest" />
+        </androidx.cardview.widget.CardView>
 
-        </FrameLayout>
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/btnChangeGroupPhoto"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:src="@drawable/edit_photo"
+            app:backgroundTint="@color/yellow"
+            app:elevation="4dp"
+            app:fabCustomSize="28dp"
+            app:maxImageSize="14dp"
+            app:tint="@color/whitest" />
 
     </FrameLayout>
 
-    <View
-        android:layout_width="match_parent"
-        android:layout_height="1dp"
-        android:layout_marginBottom="16dp"
-        android:background="#EEEEEE" />
-
-    <!-- Group Name -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Group Name"
-        android:fontFamily="@font/montserratalternatess_bold"
-        android:textColor="@color/darkBlue"
-        android:textSize="13sp"
-        android:layout_marginBottom="6dp" />
-
     <com.google.android.material.textfield.TextInputLayout
+        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:hint="Enter group name"
-        app:boxBackgroundColor="@color/whitest"
-        app:boxCornerRadiusBottomEnd="8dp"
-        app:boxCornerRadiusBottomStart="8dp"
-        app:boxCornerRadiusTopEnd="8dp"
-        app:boxCornerRadiusTopStart="8dp"
-        app:boxStrokeColor="@color/darkBlue"
-        app:boxStrokeWidth="1dp"
-        app:boxStrokeWidthFocused="1dp"
-        app:hintTextColor="@color/grey"
-        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+        android:layout_marginBottom="16dp"
+        android:hint="Group Name"
+        app:boxCornerRadiusBottomEnd="24dp"
+        app:boxCornerRadiusBottomStart="24dp"
+        app:boxCornerRadiusTopEnd="24dp"
+        app:boxCornerRadiusTopStart="24dp"
+        app:boxStrokeColor="@color/yellow"
+        app:hintTextColor="@color/yellow">
 
         <com.google.android.material.textfield.TextInputEditText
             android:id="@+id/etGroupName"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@null"
             android:fontFamily="@font/montserratalternatess_regular"
-            android:inputType="textCapSentences" />
+            android:inputType="textCapSentences"
+            android:textColor="@color/darkBlue"
+            android:textSize="16sp" />
 
     </com.google.android.material.textfield.TextInputLayout>
 
