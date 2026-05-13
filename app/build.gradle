@@ -140,4 +140,8 @@ dependencies {
     // Add the dependencies for the Crashlytics and Analytics libraries
     implementation("com.google.firebase:firebase-crashlytics")
     implementation("com.google.firebase:firebase-analytics")
+
+    //Emoji dependencies
+    implementation "androidx.emoji2:emoji2:1.4.0"
+    implementation "androidx.emoji2:emoji2-views:1.4.0"
 }

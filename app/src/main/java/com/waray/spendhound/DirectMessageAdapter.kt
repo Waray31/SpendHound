@@ -130,11 +130,18 @@ class DirectMessageAdapter(
         if (!msgReactions.isNullOrEmpty()) {
             holder.reactionsRow.visibility = View.VISIBLE
             msgReactions.groupBy { it.emoji }.filter { it.key.isNotBlank() }.forEach { (emoji, list) ->
+                val isMyReaction = list.any { it.userId == currentUserId }
                 val tv = TextView(holder.itemView.context).apply {
                     text = "$emoji ${list.size}"
                     textSize = 12f
                     setPadding(12, 4, 12, 4)
-                    setBackgroundResource(R.drawable.bg_light_card_outline)
+                    if (isMyReaction) {
+                        setBackgroundResource(R.drawable.bg_emoji_selected)
+                        setTextColor(android.graphics.Color.BLACK)
+                    } else {
+                        setBackgroundResource(R.drawable.bg_light_card_outline)
+                        setTextColor(android.graphics.Color.DKGRAY)
+                    }
                 }
                 val lp = LinearLayout.LayoutParams(
                     LinearLayout.LayoutParams.WRAP_CONTENT,

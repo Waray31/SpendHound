@@ -1,6 +1,7 @@
 package com.waray.spendhound
 
 import android.os.Bundle
+import android.view.LayoutInflater
 import android.view.View
 import android.widget.EditText
 import android.widget.ImageButton
@@ -26,7 +27,6 @@ class DirectMessageActivity : AppCompatActivity() {
         const val EXTRA_RECIPIENT_ID = "recipient_id"
         const val EXTRA_RECIPIENT_NAME = "recipient_name"
         const val EXTRA_RECIPIENT_AVATAR = "recipient_avatar"
-        private val COMMON_EMOJIS = listOf("👍", "❤️", "😂", "😮", "😢", "🔥")
     }
 
     private val repo = CrewRepository()
@@ -39,6 +39,7 @@ class DirectMessageActivity : AppCompatActivity() {
     private lateinit var layoutInput: LinearLayout
     private lateinit var layoutBlocked: LinearLayout
     private lateinit var emojiPopup: LinearLayout
+    private lateinit var popupOverlay: View
     private lateinit var dmAdapter: DirectMessageAdapter
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -56,6 +57,9 @@ class DirectMessageActivity : AppCompatActivity() {
         layoutInput = findViewById(R.id.layoutDmInput)
         layoutBlocked = findViewById(R.id.layoutGuestBlocked)
         emojiPopup = findViewById(R.id.emojiPopup)
+        popupOverlay = findViewById(R.id.popupOverlay)
+
+        popupOverlay.setOnClickListener { dismissPopup() }
 
         findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
         findViewById<TextView>(R.id.tvDmRecipientName).text = recipientName
@@ -176,42 +180,70 @@ class DirectMessageActivity : AppCompatActivity() {
     private fun showEmojiPopup(msg: DirectMessage, bubbleView: View) {
         val uid = currentUserId
         emojiPopup.removeAllViews()
+        val inflater = LayoutInflater.from(this)
+        val emojiLayout = inflater.inflate(R.layout.item_emoji_reaction, emojiPopup, false)
+        emojiPopup.addView(emojiLayout)
 
         val userReacted = dmAdapter.getReactionsForUser(msg.id ?: -1L, uid)
-        COMMON_EMOJIS.forEach { emoji ->
-            val tv = TextView(this).apply {
-                text = emoji
-                textSize = 24f
-                setPadding(12, 8, 12, 8)
-                alpha = if (emoji in userReacted) 0.4f else 1f
+
+        val emojiMap = mapOf(
+            R.id.tvEmojiLike to "👍",
+            R.id.tvEmojiLove to "❤️",
+            R.id.tvEmojiHaha to "😂",
+            R.id.tvEmojiWow  to "😮",
+            R.id.tvEmojiSad  to "😢",
+            R.id.tvEmojiFire to "🔥"
+        )
+
+        emojiMap.forEach { (viewId, emoji) ->
+            emojiLayout.findViewById<TextView>(viewId)?.apply {
+                val isSelected = emoji in userReacted
+                if (isSelected) {
+                    setBackgroundResource(R.drawable.bg_emoji_selected)
+                    setTextColor(android.graphics.Color.BLACK)
+                } else {
+                    setBackgroundResource(R.drawable.bg_emoji_reaction)
+                    setTextColor(android.graphics.Color.GRAY)
+                }
+
                 setOnClickListener {
-                    dismissPopup()
                     val msgId = msg.id ?: return@setOnClickListener
                     if (emoji in userReacted) {
                         dmAdapter.removeReaction(msgId, uid, emoji)
                     } else {
                         dmAdapter.addReaction(msgId, uid, emoji)
                     }
+                    dismissPopup()
                 }
             }
-            emojiPopup.addView(tv)
         }
 
-        // Position above the bubble
-        val loc = IntArray(2)
-        bubbleView.getLocationOnScreen(loc)
-        val rootLoc = IntArray(2)
-        findViewById<View>(android.R.id.content).getLocationOnScreen(rootLoc)
-        val bubbleTop = loc[1] - rootLoc[1]
+        popupOverlay.visibility = View.VISIBLE
+        emojiPopup.visibility = View.VISIBLE
 
-        emojiPopup.visibility = View.INVISIBLE
         emojiPopup.post {
-            emojiPopup.y = (bubbleTop - emojiPopup.height - 8).coerceAtLeast(0).toFloat()
-            emojiPopup.visibility = View.VISIBLE
+            val location = IntArray(2)
+            bubbleView.getLocationOnScreen(location)
+            val bubbleY = location[1]
+
+            val rootLocation = IntArray(2)
+            findViewById<View>(R.id.dmRootLayout).getLocationOnScreen(rootLocation)
+            val rootY = rootLocation[1]
+
+            val margin = 8 // dp
+            val density = resources.displayMetrics.density
+            val marginPx = (margin * density).toInt()
+
+            // Position above bubble
+            emojiPopup.y = (bubbleY - rootY - emojiPopup.height - marginPx).toFloat()
+            // Center horizontally to screen
+            val rootWidth = findViewById<View>(R.id.dmRootLayout).width
+            emojiPopup.x = (rootWidth - emojiPopup.width) / 2f
         }
     }
 
     private fun dismissPopup() {
         emojiPopup.visibility = View.GONE
+        popupOverlay.visibility = View.GONE
     }
 }

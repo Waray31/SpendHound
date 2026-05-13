@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<HorizontalScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:scrollbars="none">
+
+    <LinearLayout
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_reaction_bar"
+        android:orientation="horizontal"
+        android:padding="4dp">
+
+        <!-- 👍 Like -->
+        <TextView
+            android:id="@+id/tvEmojiLike"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:background="@drawable/bg_emoji_reaction"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="👍"
+            android:textColor="#000000"
+            android:textSize="32sp" />
+
+        <!-- ❤️ Love -->
+        <TextView
+            android:id="@+id/tvEmojiLove"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/bg_emoji_reaction"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="❤️"
+            android:textColor="#000000"
+            android:textSize="32sp" />
+
+        <!-- 😂 Haha -->
+        <TextView
+            android:id="@+id/tvEmojiHaha"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/bg_emoji_reaction"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="😂"
+            android:textColor="#000000"
+            android:textSize="32sp" />
+
+        <!-- 😮 Wow -->
+        <TextView
+            android:id="@+id/tvEmojiWow"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/bg_emoji_reaction"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="😮"
+            android:textColor="#000000"
+            android:textSize="32sp" />
+
+        <!-- 😢 Sad -->
+        <TextView
+            android:id="@+id/tvEmojiSad"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/bg_emoji_reaction"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="😢"
+            android:textColor="#000000"
+            android:textSize="32sp" />
+
+        <!-- 🔥 Fire -->
+        <TextView
+            android:id="@+id/tvEmojiFire"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginStart="4dp"
+            android:background="@drawable/bg_emoji_reaction"
+            android:clickable="true"
+            android:focusable="true"
+            android:gravity="center"
+            android:text="🔥"
+            android:textColor="#000000"
+            android:textSize="32sp" />
+
+    </LinearLayout>
+
+</HorizontalScrollView>

@@ -34,36 +34,6 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintBottom_toTopOf="@id/inputMessageLayout" />
 
-    <!-- Emoji popup shown above long-pressed bubble — customize background, size, padding here -->
-    <LinearLayout
-        android:id="@+id/emojiPopup"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:background="@drawable/bg_light_card_outline"
-        android:paddingHorizontal="8dp"
-        android:paddingVertical="6dp"
-        android:elevation="8dp"
-        android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <!-- Actions popup (Edit / Delete) shown below long-pressed bubble -->
-    <LinearLayout
-        android:id="@+id/actionsPopup"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:background="@drawable/bg_light_card_outline"
-        android:paddingHorizontal="8dp"
-        android:paddingVertical="4dp"
-        android:elevation="8dp"
-        android:visibility="gone"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent" />
-
     <LinearLayout
         android:id="@+id/inputMessageLayout"
         android:layout_width="0dp"
@@ -105,5 +75,45 @@
             android:src="@drawable/ic_send"
             app:tint="@color/whitest" />
     </LinearLayout>
+
+    <!-- Background Click Catcher (Drawn before popups) -->
+    <View
+        android:id="@+id/popupOverlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true"
+        android:background="@android:color/transparent"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <!-- Emoji popup -->
+    <LinearLayout
+        android:id="@+id/emojiPopup"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:elevation="16dp"
+        android:visibility="gone"
+        tools:layout_editor_absoluteX="100dp"
+        tools:layout_editor_absoluteY="200dp" />
+
+    <!-- Actions popup (Edit / Delete) shown below long-pressed bubble -->
+    <LinearLayout
+        android:id="@+id/actionsPopup"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:background="@drawable/bg_light_card_outline"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="6dp"
+        android:elevation="14dp"
+        android:visibility="gone"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

@@ -55,7 +55,6 @@ class GroupChatFragment : Fragment() {
 
     companion object {
         private const val TAG = "GroupChatFragment"
-        private val COMMON_EMOJIS = listOf("👍", "❤️", "😂", "😮", "😢", "🔥")
         fun newInstance(groupId: Long) = GroupChatFragment().apply {
             arguments = Bundle().also { it.putLong("group_id", groupId) }
         }
@@ -74,6 +73,7 @@ class GroupChatFragment : Fragment() {
     private lateinit var rvSkeleton: RecyclerView
     private lateinit var emojiPopup: LinearLayout
     private lateinit var actionsPopup: LinearLayout
+    private lateinit var popupOverlay: View
     private var visibleTimeId: Long? = null
     private var messagesChannel: RealtimeChannel? = null
     private var reactionsChannel: RealtimeChannel? = null
@@ -91,6 +91,10 @@ class GroupChatFragment : Fragment() {
         rvSkeleton = view.findViewById(R.id.rvSkeleton)
         emojiPopup = view.findViewById(R.id.emojiPopup)
         actionsPopup = view.findViewById(R.id.actionsPopup)
+        popupOverlay = view.findViewById(R.id.popupOverlay)
+        
+        popupOverlay.setOnClickListener { dismissPopups() }
+        
         adapter = ChatAdapter()
         rvMessages.layoutManager = LinearLayoutManager(requireContext()).also { it.stackFromEnd = true }
         rvMessages.adapter = adapter
@@ -338,13 +342,17 @@ class GroupChatFragment : Fragment() {
         val uid = currentUserId ?: return
         lifecycleScope.launch {
             try {
+                val newReaction = GroupMessageReaction(messageId = messageId, userId = uid, emoji = emoji)
+                val list = reactions.getOrPut(messageId) { mutableListOf() }
+                if (list.none { it.userId == uid && it.emoji == emoji }) {
+                    list.add(newReaction)
+                    val idx = messages.indexOfFirst { it.id == messageId }
+                    if (idx >= 0) requireActivity().runOnUiThread { adapter.notifyItemChanged(idx) }
+                }
+
                 DeclareDatabase.groupMessageReactionsTable.insert(
                     ReactionInsert(messageId = messageId, userId = uid, emoji = emoji)
                 )
-                val newReaction = GroupMessageReaction(messageId = messageId, userId = uid, emoji = emoji)
-                reactions.getOrPut(messageId) { mutableListOf() }.add(newReaction)
-                val idx = messages.indexOfFirst { it.id == messageId }
-                if (idx >= 0) requireActivity().runOnUiThread { adapter.notifyItemChanged(idx) }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to add reaction", e)
             }
@@ -355,12 +363,13 @@ class GroupChatFragment : Fragment() {
         val uid = currentUserId ?: return
         lifecycleScope.launch {
             try {
-                DeclareDatabase.groupMessageReactionsTable.delete {
-                    filter { eq("message_id", messageId); eq("user_id", uid); eq("emoji", emoji) }
-                }
                 reactions[messageId]?.removeAll { it.userId == uid && it.emoji == emoji }
                 val idx = messages.indexOfFirst { it.id == messageId }
                 if (idx >= 0) requireActivity().runOnUiThread { adapter.notifyItemChanged(idx) }
+
+                DeclareDatabase.groupMessageReactionsTable.delete {
+                    filter { eq("message_id", messageId); eq("user_id", uid); eq("emoji", emoji) }
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to remove reaction", e)
             }
@@ -407,6 +416,7 @@ class GroupChatFragment : Fragment() {
     private fun dismissPopups() {
         emojiPopup.visibility = View.GONE
         actionsPopup.visibility = View.GONE
+        popupOverlay.visibility = View.GONE
     }
 
     private fun showInlinePopup(msg: GroupMessage, bubbleView: View) {
@@ -421,23 +431,41 @@ class GroupChatFragment : Fragment() {
         val bubbleTop = loc[1] - fragLoc[1]
         val bubbleBottom = bubbleTop + bubbleView.height
 
-        // Build emoji row
+        // Build emoji row from the predefined layout
         emojiPopup.removeAllViews()
+        val inflater = LayoutInflater.from(requireContext())
+        val emojiLayout = inflater.inflate(R.layout.item_emoji_reaction, emojiPopup, false)
+        emojiPopup.addView(emojiLayout)
+
         val userReacted = (reactions[msg.id ?: -1L] ?: emptyList())
             .filter { it.userId == uid }.mapNotNull { it.emoji }.toSet()
-        COMMON_EMOJIS.forEach { emoji ->
-            val tv = TextView(requireContext()).apply {
-                text = emoji
-                textSize = 24f
-                setPadding(12, 8, 12, 8)
-                alpha = if (emoji in userReacted) 0.4f else 1f
+
+        val emojiMap = mapOf(
+            R.id.tvEmojiLike to "👍",
+            R.id.tvEmojiLove to "❤️",
+            R.id.tvEmojiHaha to "😂",
+            R.id.tvEmojiWow  to "😮",
+            R.id.tvEmojiSad  to "😢",
+            R.id.tvEmojiFire to "🔥"
+        )
+
+        emojiMap.forEach { (viewId, emoji) ->
+            emojiLayout.findViewById<TextView>(viewId)?.apply {
+                val isSelected = emoji in userReacted
+                if (isSelected) {
+                    setBackgroundResource(R.drawable.bg_emoji_selected)
+                    setTextColor(android.graphics.Color.BLACK)
+                } else {
+                    setBackgroundResource(R.drawable.bg_emoji_reaction)
+                    setTextColor(android.graphics.Color.GRAY)
+                }
+
                 setOnClickListener {
-                    dismissPopups()
                     val msgId = msg.id ?: return@setOnClickListener
                     if (emoji in userReacted) removeReaction(msgId, emoji) else addReaction(msgId, emoji)
+                    dismissPopups()
                 }
             }
-            emojiPopup.addView(tv)
         }
 
         // Build actions row (Edit / Delete) — only for own non-deleted messages
@@ -462,19 +490,34 @@ class GroupChatFragment : Fragment() {
             actionsPopup.visibility = View.GONE
         }
 
-        // Position popups — measure first
-        emojiPopup.visibility = View.INVISIBLE
-        emojiPopup.post {
-            val popupH = emojiPopup.height
-            val margin = 8
-            val emojiY = (bubbleTop - popupH - margin).coerceAtLeast(0).toFloat()
-            emojiPopup.y = emojiY
-            emojiPopup.visibility = View.VISIBLE
+        // Position actions row (Edit / Delete) — measure first
+        popupOverlay.visibility = View.VISIBLE
+        emojiPopup.visibility = View.VISIBLE
 
-            if (actionsPopup.visibility == View.VISIBLE) {
-                actionsPopup.post {
-                    actionsPopup.y = (bubbleBottom + margin).toFloat()
-                }
+        emojiPopup.post {
+            val margin = 8 // dp
+            val density = resources.displayMetrics.density
+            val marginPx = (margin * density).toInt()
+
+            // Position above bubble
+            emojiPopup.y = (bubbleTop - emojiPopup.height - marginPx).toFloat()
+            // Center horizontally to screen
+            val screenW = requireView().width
+            emojiPopup.x = (screenW - emojiPopup.width) / 2f
+        }
+
+        if (actionsPopup.visibility == View.VISIBLE) {
+            actionsPopup.post {
+                val margin = 8
+                actionsPopup.y = (bubbleBottom + margin).toFloat()
+                
+                // Horizontal center relative to bubble
+                val bubbleCenterX = loc[0] - fragLoc[0] + (bubbleView.width / 2)
+                val actW = actionsPopup.width
+                val screenW = requireView().width
+                var actX = (bubbleCenterX - (actW / 2)).toFloat()
+                actX = actX.coerceIn(margin.toFloat(), (screenW - actW - margin).toFloat())
+                actionsPopup.x = actX
             }
         }
     }
@@ -757,11 +800,18 @@ class GroupChatFragment : Fragment() {
             if (!msgReactions.isNullOrEmpty()) {
                 holder.reactionsRow.visibility = View.VISIBLE
                 msgReactions.groupBy { it.emoji ?: "" }.filter { it.key.isNotBlank() }.forEach { (emoji, list) ->
+                    val isMyReaction = list.any { it.userId == currentUserId }
                     val tv = TextView(requireContext()).apply {
                         text = "$emoji ${list.size}"
                         textSize = 12f
                         setPadding(12, 4, 12, 4)
-                        setBackgroundResource(R.drawable.bg_light_card_outline)
+                        if (isMyReaction) {
+                            setBackgroundResource(R.drawable.bg_emoji_selected)
+                            setTextColor(android.graphics.Color.BLACK)
+                        } else {
+                            setBackgroundResource(R.drawable.bg_light_card_outline)
+                            setTextColor(android.graphics.Color.DKGRAY)
+                        }
                     }
                     val lp = LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.WRAP_CONTENT,
