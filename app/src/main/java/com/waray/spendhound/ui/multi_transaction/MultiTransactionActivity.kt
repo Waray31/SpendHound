@@ -72,7 +72,7 @@ class MultiTransactionActivity : AppCompatActivity() {
     private fun setupTransactionMode() {
         // Always show add row button and use "Add Transactions" title
         binding.btnAddRow.visibility = View.VISIBLE
-        binding.toolbar.title = if (isEditMode) "Edit Transaction" else "Add Transactions"
+        binding.tvActivityTitle.text = if (isEditMode) "Edit Transaction" else "Add Transactions"
     }
 
     private fun setPaymentMode(isMultiple: Boolean) {
@@ -83,8 +83,7 @@ class MultiTransactionActivity : AppCompatActivity() {
     }
 
     private fun setupToolbar() {
-        setSupportActionBar(binding.toolbar)
-        binding.toolbar.setNavigationOnClickListener { finish() }
+        binding.btnBack.setOnClickListener { finish() }
     }
 
     private fun setupRecyclerView() {
@@ -305,9 +304,9 @@ class MultiTransactionActivity : AppCompatActivity() {
                         }
                         adapter.setTransactions(multiItems)
                         val buttonText = if (isEditMode) {
-                            "Update Transaction"
+                            "Update Expense"
                         } else {
-                            if (transactions.size == 1) "Add Transaction" else "Add ${transactions.size} Transactions"
+                            if (transactions.size == 1) "Add Expense" else "Add ${transactions.size} Expenses"
                         }
                         binding.btnSubmit.text = buttonText
                         

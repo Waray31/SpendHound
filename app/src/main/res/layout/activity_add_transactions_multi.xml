@@ -1,166 +1,216 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/white"
+    android:orientation="vertical"
     tools:context=".ui.multi_transaction.MultiTransactionActivity">
 
-    <com.google.android.material.appbar.AppBarLayout
+    <!-- Header -->
+    <LinearLayout
         android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:background="@color/white">
-
-        <com.google.android.material.appbar.MaterialToolbar
-            android:id="@+id/toolbar"
-            android:layout_width="match_parent"
-            android:layout_height="?attr/actionBarSize"
-            app:title="Add Transaction"
-            app:titleTextColor="@color/darkBlue"
-            app:navigationIcon="?attr/homeAsUpIndicator" />
-
-    </com.google.android.material.appbar.AppBarLayout>
-
-    <androidx.core.widget.NestedScrollView
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:clipToPadding="false"
-        android:fillViewport="true"
-        android:paddingBottom="160dp"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        android:paddingVertical="12dp"
+        android:background="@drawable/bottom_round_border"
+        android:orientation="vertical">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical">
+            android:paddingHorizontal="20dp"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
-            <!-- Top Section -->
-            <com.google.android.material.card.MaterialCardView
-                android:id="@+id/titleCard"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_margin="16dp"
-                app:cardCornerRadius="12dp"
-                app:cardElevation="4dp">
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="16dp">
-
-                    <TextView
-                        android:id="@+id/titleLabel"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Title"
-                        android:textColor="@color/darkBlue"
-                        android:textStyle="bold" />
-
-                    <com.google.android.material.textfield.TextInputLayout
-                        android:id="@+id/titleInputLayout"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:layout_marginTop="4dp"
-                        android:hint="e.g. Bills"
-                        app:boxBackgroundColor="@color/whitest"
-                        app:boxCornerRadiusBottomEnd="8dp"
-                        app:boxCornerRadiusBottomStart="8dp"
-                        app:boxCornerRadiusTopEnd="8dp"
-                        app:boxCornerRadiusTopStart="8dp"
-                        app:boxStrokeColor="@color/darkBlue"
-                        app:boxStrokeWidth="1dp"
-                        app:boxStrokeWidthFocused="1dp"
-                        app:hintTextColor="@color/grey"
-                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                            android:id="@+id/etTransactionTitle"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:background="@null"
-                            android:inputType="textCapSentences" />
-
-                    </com.google.android.material.textfield.TextInputLayout>
-
-                    <View
-                        android:id="@+id/titleDivider"
-                        android:layout_width="match_parent"
-                        android:layout_height="1dp"
-                        android:layout_marginVertical="12dp"
-                        android:background="#EEEEEE" />
-
-                    <TextView
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Group"
-                        android:textColor="@color/darkBlue"
-                        android:textStyle="bold" />
-
-                    <Spinner
-                        android:id="@+id/spinnerGroup"
-                        android:layout_width="match_parent"
-                        android:layout_height="wrap_content"
-                        android:background="@drawable/bg_payment_chip"
-                        android:layout_marginTop="4dp"
-                        android:minHeight="44dp" />
-
-                </LinearLayout>
-            </com.google.android.material.card.MaterialCardView>
-
-            <!-- Transaction List -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvTransactions"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:clipToPadding="false"
-                android:nestedScrollingEnabled="false"
-                tools:listitem="@layout/item_transaction_multi" />
+            <ImageButton
+                android:id="@+id/btnBack"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/circular_button_background"
+                android:backgroundTint="@color/glassy_background"
+                android:src="@drawable/ic_back"
+                android:contentDescription="Back"
+                app:tint="@color/white" />
 
             <LinearLayout
-                android:id="@+id/btnAddRow"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="16dp"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tvActivityTitle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Add Expenses"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:textColor="@color/whitest"
+                    android:textSize="20sp" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <androidx.core.widget.NestedScrollView
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:fillViewport="true">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginHorizontal="16dp"
-                android:layout_marginTop="4dp"
-                android:layout_marginBottom="8dp"
-                android:background="@drawable/bg_add_expense_btn"
-                android:gravity="center"
-                android:orientation="horizontal"
-                android:padding="14dp"
-                android:clickable="true"
-                android:focusable="true">
+                android:orientation="vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                <!-- Top Section -->
+                <com.google.android.material.card.MaterialCardView
+                    android:id="@+id/titleCard"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="+"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:textColor="@color/darkBlue"
-                    android:textSize="18sp" />
+                    android:layout_margin="16dp"
+                    app:cardCornerRadius="12dp"
+                    app:cardElevation="4dp">
 
-                <TextView
-                    android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:padding="16dp">
+
+                        <TextView
+                            android:id="@+id/titleLabel"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Title"
+                            android:textColor="@color/darkBlue"
+                            android:textStyle="bold" />
+
+                        <com.google.android.material.textfield.TextInputLayout
+                            android:id="@+id/titleInputLayout"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="4dp"
+                            android:hint="e.g. Bills"
+                            app:boxBackgroundColor="@color/whitest"
+                            app:boxCornerRadiusBottomEnd="8dp"
+                            app:boxCornerRadiusBottomStart="8dp"
+                            app:boxCornerRadiusTopEnd="8dp"
+                            app:boxCornerRadiusTopStart="8dp"
+                            app:boxStrokeColor="@color/darkBlue"
+                            app:boxStrokeWidth="1dp"
+                            app:boxStrokeWidthFocused="1dp"
+                            app:hintTextColor="@color/grey"
+                            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+
+                            <com.google.android.material.textfield.TextInputEditText
+                                android:id="@+id/etTransactionTitle"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:background="@null"
+                                android:inputType="textCapSentences" />
+
+                        </com.google.android.material.textfield.TextInputLayout>
+
+                        <View
+                            android:id="@+id/titleDivider"
+                            android:layout_width="match_parent"
+                            android:layout_height="1dp"
+                            android:layout_marginVertical="12dp"
+                            android:background="#EEEEEE" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Group"
+                            android:textColor="@color/darkBlue"
+                            android:textStyle="bold" />
+
+                        <Spinner
+                            android:id="@+id/spinnerGroup"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@drawable/bg_payment_chip"
+                            android:layout_marginTop="4dp"
+                            android:minHeight="44dp" />
+
+                    </LinearLayout>
+                </com.google.android.material.card.MaterialCardView>
+
+                <!-- Transaction List -->
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvTransactions"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
-                    android:text="Add Another Item"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:textColor="@color/darkBlue"
-                    android:textSize="14sp" />
+                    android:clipToPadding="false"
+                    android:nestedScrollingEnabled="false"
+                    tools:listitem="@layout/item_transaction_multi" />
+
+                <LinearLayout
+                    android:id="@+id/btnAddRow"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="16dp"
+                    android:layout_marginTop="4dp"
+                    android:layout_marginBottom="8dp"
+                    android:background="@drawable/bg_add_expense_btn"
+                    android:gravity="center"
+                    android:orientation="horizontal"
+                    android:padding="14dp"
+                    android:clickable="true"
+                    android:focusable="true">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="+"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="18sp" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="8dp"
+                        android:text="Add Another Item"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="14sp" />
+
+                </LinearLayout>
 
             </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
 
-        </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
+        <!-- Progress Overlay -->
+        <FrameLayout
+            android:id="@+id/progressOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#80FFFFFF"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone">
+
+            <ProgressBar
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                style="@style/CustomProgressBarStyle"/>
+        </FrameLayout>
+    </FrameLayout>
 
     <!-- Summary Card (Fixed at Bottom) -->
     <com.google.android.material.card.MaterialCardView
         android:id="@+id/summaryCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_gravity="bottom"
         app:cardCornerRadius="0dp"
         app:cardElevation="16dp">
 
@@ -233,7 +283,7 @@
                 android:fontFamily="@font/montserratalternatess_bold"
                 android:enabled="false"
                 android:paddingVertical="12dp"
-                android:text="Add 0 Transactions"
+                android:text="Add 0 Expenses"
                 android:textAllCaps="false"
                 android:textColor="@color/whitest"
                 android:textSize="14sp"
@@ -243,21 +293,4 @@
         </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Progress Overlay -->
-    <FrameLayout
-        android:id="@+id/progressOverlay"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:background="#80FFFFFF"
-        android:clickable="true"
-        android:focusable="true"
-        android:visibility="gone">
-
-        <ProgressBar
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            style="@style/CustomProgressBarStyle"/>
-    </FrameLayout>
-
-</androidx.coordinatorlayout.widget.CoordinatorLayout>
+</LinearLayout>
