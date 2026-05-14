@@ -66,11 +66,13 @@ data class TransactionRead(
 )
 
 @Serializable
-data class GroupMessageReaction(
+data class MessageReaction(
     @SerialName("id")
     val id: Long? = null,
-    @SerialName("message_id")
-    val messageId: Long? = null,
+    @SerialName("direct_message_id")
+    val directMessageId: Long? = null,
+    @SerialName("group_message_id")
+    val groupMessageId: Long? = null,
     @SerialName("user_id")
     val userId: Long? = null,
     @SerialName("emoji")
@@ -79,6 +81,17 @@ data class GroupMessageReaction(
     val createdAt: String? = null,
     @SerialName("message_type")
     val messageType: Int? = null
+) {
+    val messageId: Long? get() = groupMessageId ?: directMessageId
+}
+
+@Serializable
+data class MessageReactionInsert(
+    @SerialName("direct_message_id") val directMessageId: Long? = null,
+    @SerialName("group_message_id") val groupMessageId: Long? = null,
+    @SerialName("user_id") val userId: Long,
+    @SerialName("emoji") val emoji: String,
+    @SerialName("message_type") val messageType: Int
 )
 
 @Serializable

@@ -1,6 +1,7 @@
 package com.waray.spendhound
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -18,6 +19,8 @@ import coil.load
 import coil.transform.CircleCropTransformation
 import com.waray.spendhound.data.repository.CrewRepository
 import io.github.jan.supabase.postgrest.query.Columns
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -145,13 +148,44 @@ class DirectMessageActivity : AppCompatActivity() {
             currentUserId = currentUserId,
             onLongPress = { msg, bubble -> showEmojiPopup(msg, bubble) },
             onReactionClick = { msg, reactions -> showReactionDetails(msg, reactions) },
+            onReactionAction = { msgId, emoji, isAdd ->
+                handleReaction(msgId, emoji, isAdd)
+            },
             recipientAvatarUrl = intent.getStringExtra(EXTRA_RECIPIENT_AVATAR)
         )
         rvMessages.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         rvMessages.adapter = dmAdapter
     }
 
-    private fun showReactionDetails(msg: DirectMessage, msgReactions: List<DmReaction>) {
+    private fun handleReaction(messageId: Long, emoji: String, isAdd: Boolean) {
+        lifecycleScope.launch {
+            try {
+                if (isAdd) {
+                    Log.d("DMActivity", "handleReaction: Adding reaction msgId=$messageId, emoji=$emoji")
+                    DeclareDatabase.messageReactionsTable.insert(buildJsonObject {
+                        put("direct_message_id", messageId)
+                        put("user_id", currentUserId)
+                        put("emoji", emoji)
+                        put("message_type", MessageType.DIRECT)
+                    })
+                    Log.d("DMActivity", "handleReaction: Insert successful")
+                } else {
+                    DeclareDatabase.messageReactionsTable.delete {
+                        filter {
+                            eq("direct_message_id", messageId)
+                            eq("user_id", currentUserId)
+                            eq("emoji", emoji)
+                            eq("message_type", MessageType.DIRECT)
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("DMActivity", "Failed to handle reaction: ${e.message}")
+            }
+        }
+    }
+
+    private fun showReactionDetails(msg: DirectMessage, msgReactions: List<MessageReaction>) {
         val dialog = com.google.android.material.bottomsheet.BottomSheetDialog(this)
         val view = layoutInflater.inflate(R.layout.bottom_sheet_reactions, null)
         dialog.setContentView(view)
@@ -167,10 +201,10 @@ class DirectMessageActivity : AppCompatActivity() {
         val allItems = msgReactions.map { r ->
             val isMine = r.userId == currentUserId
             ReactionItem(
-                userId = r.userId,
+                userId = r.userId ?: -1L,
                 username = if (isMine) "You" else recipientName,
                 avatarUrl = if (isMine) currentUser?.profileImageUrl else recipientAvatar,
-                emoji = r.emoji,
+                emoji = r.emoji ?: "",
                 isMine = isMine
             )
         }
@@ -232,6 +266,20 @@ class DirectMessageActivity : AppCompatActivity() {
                 repo.getDirectMessages(currentUserId, recipientId)
             }
             dmAdapter.updateItems(messages)
+
+            // Load reactions
+            val msgIds = messages.mapNotNull { it.id }
+            if (msgIds.isNotEmpty()) {
+                val rx = withContext(Dispatchers.IO) {
+                    DeclareDatabase.messageReactionsTable.select {
+                        filter { isIn("direct_message_id", msgIds); eq("message_type", MessageType.DIRECT) }
+                    }.decodeList<MessageReaction>()
+                }
+                val rxMap = rx.groupBy { it.directMessageId ?: -1L }
+                    .mapValues { it.value.toMutableList() }
+                dmAdapter.updateReactions(rxMap)
+            }
+
             if (messages.isNotEmpty()) rvMessages.scrollToPosition(messages.size - 1)
         } catch (e: Exception) {
             withContext(Dispatchers.Main) {

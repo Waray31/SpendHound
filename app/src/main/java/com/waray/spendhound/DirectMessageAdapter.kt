@@ -16,10 +16,11 @@ import java.util.TimeZone
 class DirectMessageAdapter(
     private val currentUserId: Long,
     private var items: List<DirectMessage> = emptyList(),
-    private val reactions: MutableMap<Long, MutableList<DmReaction>> = mutableMapOf(),
+    private val reactions: MutableMap<Long, MutableList<MessageReaction>> = mutableMapOf(),
     var pendingTempId: Long? = null,
     var onLongPress: ((msg: DirectMessage, bubble: View) -> Unit)? = null,
-    var onReactionClick: ((msg: DirectMessage, reactions: List<DmReaction>) -> Unit)? = null,
+    var onReactionClick: ((msg: DirectMessage, reactions: List<MessageReaction>) -> Unit)? = null,
+    var onReactionAction: ((msgId: Long, emoji: String, isAdd: Boolean) -> Unit)? = null,
     var recipientAvatarUrl: String? = null
 ) : RecyclerView.Adapter<DirectMessageAdapter.VH>() {
 
@@ -200,11 +201,21 @@ class DirectMessageAdapter(
         notifyDataSetChanged()
     }
 
+    fun updateReactions(newReactions: Map<Long, MutableList<MessageReaction>>) {
+        reactions.clear()
+        reactions.putAll(newReactions)
+        notifyDataSetChanged()
+    }
+
     fun addReaction(messageId: Long, userId: Long, emoji: String) {
         val list = reactions.getOrPut(messageId) { mutableListOf() }
         // Limit every user to 1 reaction per message
+        val removed = list.filter { it.userId == userId }
+        removed.forEach { onReactionAction?.invoke(messageId, it.emoji ?: "", false) }
         list.removeAll { it.userId == userId }
-        list.add(DmReaction(messageId = messageId, userId = userId, emoji = emoji))
+
+        list.add(MessageReaction(directMessageId = messageId, userId = userId, emoji = emoji, messageType = MessageType.DIRECT))
+        onReactionAction?.invoke(messageId, emoji, true)
 
         val idx = items.indexOfFirst { it.id == messageId }
         if (idx >= 0) notifyItemChanged(idx)
@@ -212,12 +223,13 @@ class DirectMessageAdapter(
 
     fun removeReaction(messageId: Long, userId: Long, emoji: String) {
         reactions[messageId]?.removeAll { it.userId == userId && it.emoji == emoji }
+        onReactionAction?.invoke(messageId, emoji, false)
         val idx = items.indexOfFirst { it.id == messageId }
         if (idx >= 0) notifyItemChanged(idx)
     }
 
     fun getReactionsForUser(messageId: Long, userId: Long): Set<String> =
-        (reactions[messageId] ?: emptyList()).filter { it.userId == userId }.map { it.emoji }.toSet()
+        (reactions[messageId] ?: emptyList()).filter { it.userId == userId }.mapNotNull { it.emoji }.toSet()
 
     private fun formatTime(iso: String?): String {
         if (iso.isNullOrBlank()) return ""
@@ -251,8 +263,4 @@ class DirectMessageAdapter(
         android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, sp, context.resources.displayMetrics)
 }
 
-data class DmReaction(
-    val messageId: Long,
-    val userId: Long,
-    val emoji: String
-)
+// Remove DmReaction data class as we use MessageReaction from GroupMessage.kt

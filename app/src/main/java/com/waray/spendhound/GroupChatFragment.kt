@@ -31,6 +31,8 @@ import io.github.jan.supabase.realtime.channel
 import io.github.jan.supabase.realtime.decodeOldRecord
 import io.github.jan.supabase.realtime.decodeRecord
 import io.github.jan.supabase.realtime.postgresChangeFlow
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -42,14 +44,6 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
-
-@Serializable
-data class ReactionInsert(
-    @SerialName("message_id") val messageId: Long,
-    @SerialName("user_id") val userId: Long,
-    @SerialName("emoji") val emoji: String,
-    @SerialName("message_type") val messageType: Int = MessageType.GROUP
-)
 
 class GroupChatFragment : Fragment() {
 
@@ -65,7 +59,7 @@ class GroupChatFragment : Fragment() {
     private var currentUserName: String? = null
     private var currentUserProfileImage: String? = null
     private val messages = mutableListOf<GroupMessage>()
-    private val reactions = mutableMapOf<Long, MutableList<GroupMessageReaction>>()
+    private val reactions = mutableMapOf<Long, MutableList<MessageReaction>>()
     private val readReceipts = mutableMapOf<Long, MutableSet<Long>>()
     private var usersList = listOf<User>()
     private var pendingTempId: Long? = null
@@ -187,10 +181,10 @@ class GroupChatFragment : Fragment() {
             if (msgIds.isNotEmpty()) {
                 withContext(Dispatchers.IO) {
                     try {
-                        DeclareDatabase.groupMessageReactionsTable.select {
-                            filter { isIn("message_id", msgIds) }
-                        }.decodeList<GroupMessageReaction>().forEach { r ->
-                            val mid = r.messageId ?: return@forEach
+                        DeclareDatabase.messageReactionsTable.select {
+                            filter { isIn("group_message_id", msgIds); eq("message_type", MessageType.GROUP) }
+                        }.decodeList<MessageReaction>().forEach { r ->
+                            val mid = r.groupMessageId ?: return@forEach
                             reactions.getOrPut(mid) { mutableListOf() }.add(r)
                         }
                     } catch (e: Exception) {
@@ -348,25 +342,39 @@ class GroupChatFragment : Fragment() {
                 val existing = reactions[messageId]?.filter { it.userId == uid } ?: emptyList()
                 existing.forEach { old ->
                     reactions[messageId]?.remove(old)
-                    // Delete from DB
-                    launch {
-                        DeclareDatabase.groupMessageReactionsTable.delete {
-                            filter { eq("message_id", messageId); eq("user_id", uid); eq("emoji", old.emoji ?: "") }
+                    // Delete from DB - WAIT for it
+                    DeclareDatabase.messageReactionsTable.delete {
+                        filter {
+                            eq("group_message_id", messageId)
+                            eq("user_id", uid)
+                            eq("emoji", old.emoji ?: "")
+                            eq("message_type", MessageType.GROUP)
                         }
                     }
                 }
 
-                val newReaction = GroupMessageReaction(messageId = messageId, userId = uid, emoji = emoji)
+                val newReaction = MessageReaction(
+                    groupMessageId = messageId,
+                    userId = uid,
+                    emoji = emoji,
+                    messageType = MessageType.GROUP
+                )
                 reactions.getOrPut(messageId) { mutableListOf() }.add(newReaction)
-                
+
                 val idx = messages.indexOfFirst { it.id == messageId }
                 if (idx >= 0) requireActivity().runOnUiThread { adapter.notifyItemChanged(idx) }
 
-                DeclareDatabase.groupMessageReactionsTable.insert(
-                    ReactionInsert(messageId = messageId, userId = uid, emoji = emoji)
-                )
+                // Insert to DB
+                Log.d(TAG, "addReaction: Inserting to DB: msgId=$messageId, uid=$uid, emoji=$emoji")
+                DeclareDatabase.messageReactionsTable.insert(buildJsonObject {
+                    put("group_message_id", messageId)
+                    put("user_id", uid)
+                    put("emoji", emoji)
+                    put("message_type", MessageType.GROUP)
+                })
+                Log.d(TAG, "addReaction: Insert successful")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to add reaction", e)
+                Log.e(TAG, "Failed to add reaction: ${e.message}", e)
             }
         }
     }
@@ -379,8 +387,8 @@ class GroupChatFragment : Fragment() {
                 val idx = messages.indexOfFirst { it.id == messageId }
                 if (idx >= 0) requireActivity().runOnUiThread { adapter.notifyItemChanged(idx) }
 
-                DeclareDatabase.groupMessageReactionsTable.delete {
-                    filter { eq("message_id", messageId); eq("user_id", uid); eq("emoji", emoji) }
+                DeclareDatabase.messageReactionsTable.delete {
+                    filter { eq("group_message_id", messageId); eq("user_id", uid); eq("emoji", emoji); eq("message_type", MessageType.GROUP) }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to remove reaction", e)
@@ -431,7 +439,7 @@ class GroupChatFragment : Fragment() {
         popupOverlay.visibility = View.GONE
     }
 
-    private fun showReactionDetails(msg: GroupMessage, msgReactions: List<GroupMessageReaction>) {
+    private fun showReactionDetails(msg: GroupMessage, msgReactions: List<MessageReaction>) {
         val dialog = com.google.android.material.bottomsheet.BottomSheetDialog(requireContext())
         val view = layoutInflater.inflate(R.layout.bottom_sheet_reactions, null)
         dialog.setContentView(view)
@@ -658,7 +666,10 @@ class GroupChatFragment : Fragment() {
                 try {
                     val msg = action.decodeRecord<GroupMessage>()
                     if (msg.isDeleted || messages.any { it.id == msg.id }) return@onEach
-                    val users = DeclareDatabase.usersTable.select().decodeList<User>()
+                    val users = withContext(Dispatchers.IO) {
+                        DeclareDatabase.usersTable.select().decodeList<User>()
+                    }
+                    usersList = users
                     val enriched = enrichMessages(listOf(msg), users).first()
                     messages.add(enriched)
                     requireActivity().runOnUiThread {
@@ -679,10 +690,11 @@ class GroupChatFragment : Fragment() {
             reactionsChannel = rxChannel
 
             rxChannel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
-                table = "group_message_reactions"
+                table = "message_reactions"
+                filter("message_type", FilterOperator.EQ, MessageType.GROUP)
             }.onEach { action ->
                 try {
-                    val r = action.decodeRecord<GroupMessageReaction>()
+                    val r = action.decodeRecord<MessageReaction>()
                     val mid = r.messageId ?: return@onEach
                     if (messages.none { it.id == mid }) return@onEach
                     val list = reactions.getOrPut(mid) { mutableListOf() }
@@ -695,10 +707,11 @@ class GroupChatFragment : Fragment() {
             }.launchIn(lifecycleScope)
 
             rxChannel.postgresChangeFlow<PostgresAction.Delete>(schema = "public") {
-                table = "group_message_reactions"
+                table = "message_reactions"
+                filter("message_type", FilterOperator.EQ, MessageType.GROUP)
             }.onEach { action ->
                 try {
-                    val r = action.decodeOldRecord<GroupMessageReaction>()
+                    val r = action.decodeOldRecord<MessageReaction>()
                     val mid = r.messageId ?: return@onEach
                     reactions[mid]?.removeAll { it.userId == r.userId && it.emoji == r.emoji }
                     val idx = messages.indexOfFirst { it.id == mid }
