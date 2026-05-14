@@ -200,10 +200,16 @@ class DirectMessageActivity : AppCompatActivity() {
 
         val allItems = msgReactions.map { r ->
             val isMine = r.userId == currentUserId
+            val avatarPath = if (isMine) currentUser?.profileImageUrl else recipientAvatar
+            val fullAvatarUrl = if (!avatarPath.isNullOrBlank() && avatarPath != "placeholder_profile_image") {
+                if (avatarPath.startsWith("http")) avatarPath 
+                else DeclareDatabase.profileImagesBucket.publicUrl(avatarPath)
+            } else null
+
             ReactionItem(
                 userId = r.userId ?: -1L,
-                username = if (isMine) "You" else recipientName,
-                avatarUrl = if (isMine) currentUser?.profileImageUrl else recipientAvatar,
+                username = if (isMine) currentUser?.username ?: "You" else recipientName,
+                avatarUrl = fullAvatarUrl,
                 emoji = r.emoji ?: "",
                 isMine = isMine
             )
@@ -462,8 +468,13 @@ class ReactionDetailAdapter(
             holder.tvRemove.visibility = View.GONE
             holder.itemView.setOnClickListener(null)
         }
-        if (!item.avatarUrl.isNullOrBlank()) {
-            holder.ivAvatar.load(item.avatarUrl) {
+        
+        val avatarUrl = item.avatarUrl
+        if (!avatarUrl.isNullOrBlank() && avatarUrl != "placeholder_profile_image") {
+            holder.ivAvatar.load(avatarUrl) {
+                crossfade(true)
+                placeholder(R.drawable.ic_profile_silhouette)
+                error(R.drawable.ic_profile_silhouette)
                 transformations(CircleCropTransformation())
             }
         } else {

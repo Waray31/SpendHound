@@ -457,12 +457,21 @@ class GroupChatFragment : Fragment() {
         val uid = currentUserId
         val reactionItems = msgReactions.mapNotNull { r ->
             val user = usersList.find { it.id == r.userId }
+            val isMine = r.userId == uid
+            
+            // Get proper avatar URL
+            val avatarPath = user?.profileImageUrl ?: (if (isMine) currentUserProfileImage else null)
+            val fullAvatarUrl = if (!avatarPath.isNullOrBlank() && avatarPath != "placeholder_profile_image") {
+                if (avatarPath.startsWith("http")) avatarPath 
+                else DeclareDatabase.profileImagesBucket.publicUrl(avatarPath)
+            } else null
+
             ReactionItem(
                 userId = r.userId ?: -1L,
-                username = if (r.userId == uid) "You" else user?.username,
-                avatarUrl = user?.profileImageUrl,
+                username = if (isMine) currentUserName ?: "You" else user?.username,
+                avatarUrl = fullAvatarUrl,
                 emoji = r.emoji ?: "",
-                isMine = r.userId == uid
+                isMine = isMine
             )
         }
 
