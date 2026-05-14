@@ -60,8 +60,11 @@
                 android:id="@+id/reactionsRow"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:padding="2dp"
+                android:background="@drawable/bg_profile_card"
                 android:layout_gravity="start"
-                android:layout_marginTop="-2dp"
+                android:layout_marginTop="-6dp"
+                android:layout_marginStart="4dp"
                 android:orientation="horizontal"
                 android:visibility="gone" />
         </LinearLayout>

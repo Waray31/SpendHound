@@ -59,13 +59,27 @@
         </LinearLayout>
 
         <!-- Messages list -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvDirectMessages"
+        <FrameLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
-            android:layout_weight="1"
-            android:clipToPadding="false"
-            android:paddingHorizontal="12dp"/>
+            android:layout_weight="1">
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvDirectMessages"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingHorizontal="12dp"
+                android:visibility="gone" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/rvDmSkeleton"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:clipToPadding="false"
+                android:paddingHorizontal="12dp"
+                android:visibility="visible" />
+        </FrameLayout>
 
         <!-- Guest blocked banner -->
         <LinearLayout

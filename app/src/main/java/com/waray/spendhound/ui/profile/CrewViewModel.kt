@@ -42,6 +42,7 @@ class CrewViewModel : ViewModel() {
                 repo.getCrewListFlow(userId).collect { list ->
                     _crewList.value = list
                     _isLoading.value = false
+                    prefetchDms(userId, list)
                 }
             } catch (e: Exception) {
                 Log.e("CrewDebug", "loadCrew EXCEPTION: ${e.message}", e)
@@ -150,4 +151,18 @@ class CrewViewModel : ViewModel() {
 
     fun clearError() { _actionError.value = null }
     fun clearSuccess() { _actionSuccess.value = null }
+
+    private fun prefetchDms(currentUserId: Long, crew: List<Pair<CrewMember, User>>) {
+        viewModelScope.launch {
+            crew.forEach { (_, user) ->
+                if (user.userType == 1 && user.id != null) {
+                    try {
+                        repo.getDirectMessages(currentUserId, user.id)
+                    } catch (e: Exception) {
+                        Log.e("CrewViewModel", "Prefetch failed for user ${user.id}: ${e.message}")
+                    }
+                }
+            }
+        }
+    }
 }

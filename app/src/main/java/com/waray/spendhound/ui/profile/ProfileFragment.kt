@@ -469,6 +469,7 @@ class ProfileFragment : Fragment() {
             putExtra(DirectMessageActivity.EXTRA_RECIPIENT_ID, user.id)
             putExtra(DirectMessageActivity.EXTRA_RECIPIENT_NAME, user.username)
             putExtra(DirectMessageActivity.EXTRA_RECIPIENT_AVATAR, user.profileImageUrl)
+            putExtra(DirectMessageActivity.EXTRA_CURRENT_USER_ID, currentUserId)
         })
     }
 

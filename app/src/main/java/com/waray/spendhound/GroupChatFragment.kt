@@ -67,6 +67,7 @@ class GroupChatFragment : Fragment() {
     private val messages = mutableListOf<GroupMessage>()
     private val reactions = mutableMapOf<Long, MutableList<GroupMessageReaction>>()
     private val readReceipts = mutableMapOf<Long, MutableSet<Long>>()
+    private var usersList = listOf<User>()
     private var pendingTempId: Long? = null
     private lateinit var adapter: ChatAdapter
     private lateinit var rvMessages: RecyclerView
@@ -178,6 +179,7 @@ class GroupChatFragment : Fragment() {
                     filter { isIn("user_id", userIds) }
                 }.decodeList<User>() else emptyList()
             }
+            usersList = allUsers
             val enriched = enrichMessages(raw, allUsers)
             Log.d(TAG, "loadMessages: enriched=${enriched.size}")
 
@@ -342,13 +344,23 @@ class GroupChatFragment : Fragment() {
         val uid = currentUserId ?: return
         lifecycleScope.launch {
             try {
-                val newReaction = GroupMessageReaction(messageId = messageId, userId = uid, emoji = emoji)
-                val list = reactions.getOrPut(messageId) { mutableListOf() }
-                if (list.none { it.userId == uid && it.emoji == emoji }) {
-                    list.add(newReaction)
-                    val idx = messages.indexOfFirst { it.id == messageId }
-                    if (idx >= 0) requireActivity().runOnUiThread { adapter.notifyItemChanged(idx) }
+                // Limit to 1 reaction: update local state first
+                val existing = reactions[messageId]?.filter { it.userId == uid } ?: emptyList()
+                existing.forEach { old ->
+                    reactions[messageId]?.remove(old)
+                    // Delete from DB
+                    launch {
+                        DeclareDatabase.groupMessageReactionsTable.delete {
+                            filter { eq("message_id", messageId); eq("user_id", uid); eq("emoji", old.emoji ?: "") }
+                        }
+                    }
                 }
+
+                val newReaction = GroupMessageReaction(messageId = messageId, userId = uid, emoji = emoji)
+                reactions.getOrPut(messageId) { mutableListOf() }.add(newReaction)
+                
+                val idx = messages.indexOfFirst { it.id == messageId }
+                if (idx >= 0) requireActivity().runOnUiThread { adapter.notifyItemChanged(idx) }
 
                 DeclareDatabase.groupMessageReactionsTable.insert(
                     ReactionInsert(messageId = messageId, userId = uid, emoji = emoji)
@@ -419,6 +431,76 @@ class GroupChatFragment : Fragment() {
         popupOverlay.visibility = View.GONE
     }
 
+    private fun showReactionDetails(msg: GroupMessage, msgReactions: List<GroupMessageReaction>) {
+        val dialog = com.google.android.material.bottomsheet.BottomSheetDialog(requireContext())
+        val view = layoutInflater.inflate(R.layout.bottom_sheet_reactions, null)
+        dialog.setContentView(view)
+
+        val rv = view.findViewById<RecyclerView>(R.id.rvReactionDetails)
+        val btnClose = view.findViewById<ImageButton>(R.id.btnDetailClose)
+
+        btnClose.setOnClickListener { dialog.dismiss() }
+
+        val uid = currentUserId
+        val reactionItems = msgReactions.mapNotNull { r ->
+            val user = usersList.find { it.id == r.userId }
+            ReactionItem(
+                userId = r.userId ?: -1L,
+                username = if (r.userId == uid) "You" else user?.username,
+                avatarUrl = user?.profileImageUrl,
+                emoji = r.emoji ?: "",
+                isMine = r.userId == uid
+            )
+        }
+
+        val detailAdapter = ReactionDetailAdapter(reactionItems) { emoji ->
+            removeReaction(msg.id ?: -1L, emoji)
+            dialog.dismiss()
+        }
+        rv.layoutManager = LinearLayoutManager(requireContext())
+        rv.adapter = detailAdapter
+
+        // Setup filters
+        val emojiTabs = mapOf(
+            "👍" to view.findViewById<TextView>(R.id.tabLike),
+            "❤️" to view.findViewById<TextView>(R.id.tabLove),
+            "😂" to view.findViewById<TextView>(R.id.tabHaha),
+            "😮" to view.findViewById<TextView>(R.id.tabWow),
+            "😢" to view.findViewById<TextView>(R.id.tabSad),
+            "🔥" to view.findViewById<TextView>(R.id.tabFire)
+        )
+        val tabAll = view.findViewById<TextView>(R.id.tabAll)
+
+        fun updateFilterUI(selectedView: View) {
+            tabAll.setBackgroundResource(if (selectedView == tabAll) R.drawable.bg_profile_card else android.R.color.transparent)
+            emojiTabs.values.forEach { tab ->
+                tab.setBackgroundResource(if (tab == selectedView) R.drawable.bg_profile_card else android.R.color.transparent)
+            }
+        }
+
+        tabAll.setOnClickListener {
+            updateFilterUI(it)
+            detailAdapter.updateItems(reactionItems)
+        }
+
+        val emojisCount = msgReactions.groupBy { it.emoji }.mapValues { it.value.size }
+        emojiTabs.forEach { (emoji, tab) ->
+            val count = emojisCount[emoji] ?: 0
+            if (count > 0) {
+                tab.visibility = View.VISIBLE
+                tab.text = "$emoji $count"
+                tab.setOnClickListener {
+                    updateFilterUI(it)
+                    detailAdapter.updateItems(reactionItems.filter { it.emoji == emoji })
+                }
+            } else {
+                tab.visibility = View.GONE
+            }
+        }
+
+        dialog.show()
+    }
+
     private fun showInlinePopup(msg: GroupMessage, bubbleView: View) {
         val uid = currentUserId ?: return
         val isOwn = msg.userId == uid
@@ -440,7 +522,7 @@ class GroupChatFragment : Fragment() {
         val userReacted = (reactions[msg.id ?: -1L] ?: emptyList())
             .filter { it.userId == uid }.mapNotNull { it.emoji }.toSet()
 
-        val emojiMap = mapOf(
+        val emojiMap = listOf(
             R.id.tvEmojiLike to "👍",
             R.id.tvEmojiLove to "❤️",
             R.id.tvEmojiHaha to "😂",
@@ -449,7 +531,7 @@ class GroupChatFragment : Fragment() {
             R.id.tvEmojiFire to "🔥"
         )
 
-        emojiMap.forEach { (viewId, emoji) ->
+        emojiMap.forEachIndexed { index, (viewId, emoji) ->
             emojiLayout.findViewById<TextView>(viewId)?.apply {
                 val isSelected = emoji in userReacted
                 if (isSelected) {
@@ -465,6 +547,19 @@ class GroupChatFragment : Fragment() {
                     if (emoji in userReacted) removeReaction(msgId, emoji) else addReaction(msgId, emoji)
                     dismissPopups()
                 }
+
+                // Individual emoji pop animation
+                scaleX = 0.2f
+                scaleY = 0.2f
+                alpha = 0f
+                animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .alpha(1f)
+                    .setStartDelay(index * 80L)
+                    .setDuration(350)
+                    .setInterpolator(android.view.animation.OvershootInterpolator())
+                    .start()
             }
         }
 
@@ -493,6 +588,18 @@ class GroupChatFragment : Fragment() {
         // Position actions row (Edit / Delete) — measure first
         popupOverlay.visibility = View.VISIBLE
         emojiPopup.visibility = View.VISIBLE
+        
+        // Pop up animation
+        emojiPopup.scaleX = 0.7f
+        emojiPopup.scaleY = 0.7f
+        emojiPopup.alpha = 0f
+        emojiPopup.animate()
+            .scaleX(1f)
+            .scaleY(1f)
+            .alpha(1f)
+            .setDuration(200)
+            .setInterpolator(android.view.animation.OvershootInterpolator())
+            .start()
 
         emojiPopup.post {
             val margin = 8 // dp
@@ -799,26 +906,53 @@ class GroupChatFragment : Fragment() {
             val msgReactions = reactions[msg.id ?: -1L]
             if (!msgReactions.isNullOrEmpty()) {
                 holder.reactionsRow.visibility = View.VISIBLE
-                msgReactions.groupBy { it.emoji ?: "" }.filter { it.key.isNotBlank() }.forEach { (emoji, list) ->
-                    val isMyReaction = list.any { it.userId == currentUserId }
-                    val tv = TextView(requireContext()).apply {
-                        text = "$emoji ${list.size}"
-                        textSize = 12f
-                        setPadding(12, 4, 12, 4)
+                holder.reactionsRow.setOnClickListener { showReactionDetails(msg, msgReactions) }
+                
+                val isMyReaction = msgReactions.any { it.userId == currentUserId }
+                val distinctEmojis = msgReactions.mapNotNull { it.emoji }.distinct()
+                
+                val container = LinearLayout(requireContext()).apply {
+                    orientation = LinearLayout.HORIZONTAL
+                    gravity = android.view.Gravity.CENTER_VERTICAL
+                    
+                    if (msgReactions.size == 1) {
+                        setPadding(dpToPx(4), 0, dpToPx(4), 0)
+                    } else {
+                        setPadding(dpToPx(8), dpToPx(4), dpToPx(8), dpToPx(4))
                         if (isMyReaction) {
-                            setBackgroundResource(R.drawable.bg_emoji_selected)
-                            setTextColor(android.graphics.Color.BLACK)
+                            setBackgroundResource(R.drawable.bg_profile_card)
                         } else {
                             setBackgroundResource(R.drawable.bg_light_card_outline)
-                            setTextColor(android.graphics.Color.DKGRAY)
                         }
                     }
-                    val lp = LinearLayout.LayoutParams(
-                        LinearLayout.LayoutParams.WRAP_CONTENT,
-                        LinearLayout.LayoutParams.WRAP_CONTENT
-                    ).also { it.marginEnd = 8 }
-                    holder.reactionsRow.addView(tv, lp)
                 }
+                
+                if (msgReactions.size == 1) {
+                    val tv = TextView(requireContext()).apply {
+                        text = msgReactions.first().emoji
+                        setTextColor(android.graphics.Color.BLACK)
+                        setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 16f)
+                    }
+                    container.addView(tv)
+                } else {
+                    distinctEmojis.forEach { emoji ->
+                        val tv = TextView(requireContext()).apply {
+                            text = emoji
+                            setTextColor(android.graphics.Color.BLACK)
+                            setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12f)
+                        }
+                        container.addView(tv)
+                    }
+                    val tvCount = TextView(requireContext()).apply {
+                        text = "${msgReactions.size}"
+                        setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11f)
+                        setPadding(dpToPx(4), 0, 0, 0)
+                        setTextColor(if (isMyReaction) android.graphics.Color.BLACK else android.graphics.Color.DKGRAY)
+                        typeface = android.graphics.Typeface.DEFAULT_BOLD
+                    }
+                    container.addView(tvCount)
+                }
+                holder.reactionsRow.addView(container)
             } else {
                 holder.reactionsRow.visibility = View.GONE
             }

@@ -19,6 +19,7 @@ class DirectMessageAdapter(
     private val reactions: MutableMap<Long, MutableList<DmReaction>> = mutableMapOf(),
     var pendingTempId: Long? = null,
     var onLongPress: ((msg: DirectMessage, bubble: View) -> Unit)? = null,
+    var onReactionClick: ((msg: DirectMessage, reactions: List<DmReaction>) -> Unit)? = null,
     var recipientAvatarUrl: String? = null
 ) : RecyclerView.Adapter<DirectMessageAdapter.VH>() {
 
@@ -129,26 +130,56 @@ class DirectMessageAdapter(
         val msgReactions = reactions[msgId]
         if (!msgReactions.isNullOrEmpty()) {
             holder.reactionsRow.visibility = View.VISIBLE
-            msgReactions.groupBy { it.emoji }.filter { it.key.isNotBlank() }.forEach { (emoji, list) ->
-                val isMyReaction = list.any { it.userId == currentUserId }
-                val tv = TextView(holder.itemView.context).apply {
-                    text = "$emoji ${list.size}"
-                    textSize = 12f
-                    setPadding(12, 4, 12, 4)
+            holder.reactionsRow.setOnClickListener { onReactionClick?.invoke(msg, msgReactions) }
+            
+            val isMyReaction = msgReactions.any { it.userId == currentUserId }
+            val distinctEmojis = msgReactions.map { it.emoji }.distinct()
+            
+            val container = LinearLayout(holder.itemView.context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = android.view.Gravity.CENTER_VERTICAL
+                
+                if (msgReactions.size == 1) {
+                    setPadding(dpToPx(holder.itemView, 4), 0, dpToPx(holder.itemView, 4), 0)
+                } else {
+                    setPadding(dpToPx(holder.itemView, 8), dpToPx(holder.itemView, 4), dpToPx(holder.itemView, 8), dpToPx(holder.itemView, 4))
                     if (isMyReaction) {
-                        setBackgroundResource(R.drawable.bg_emoji_selected)
-                        setTextColor(android.graphics.Color.BLACK)
+                        setBackgroundResource(R.drawable.bg_profile_card)
                     } else {
                         setBackgroundResource(R.drawable.bg_light_card_outline)
-                        setTextColor(android.graphics.Color.DKGRAY)
                     }
                 }
-                val lp = LinearLayout.LayoutParams(
-                    LinearLayout.LayoutParams.WRAP_CONTENT,
-                    LinearLayout.LayoutParams.WRAP_CONTENT
-                ).also { it.marginEnd = 8 }
-                holder.reactionsRow.addView(tv, lp)
             }
+            
+            if (msgReactions.size == 1) {
+                // Only one reaction: just display the emoji, no background
+                val tv = TextView(holder.itemView.context).apply {
+                    text = msgReactions.first().emoji
+                    setTextColor(android.graphics.Color.BLACK)
+                    setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 16f) // slightly larger if alone
+                }
+                container.addView(tv)
+            } else {
+                // Multiple reactions: display emojis + count sharing one background
+                distinctEmojis.forEach { emoji ->
+                    val tv = TextView(holder.itemView.context).apply {
+                        text = emoji
+                        setTextColor(android.graphics.Color.BLACK)
+                        setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 12f)
+                    }
+                    container.addView(tv)
+                }
+                val tvCount = TextView(holder.itemView.context).apply {
+                    text = "${msgReactions.size}"
+                    setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 11f)
+                    setPadding(dpToPx(holder.itemView, 4), 0, 0, 0)
+                    setTextColor(if (isMyReaction) android.graphics.Color.BLACK else android.graphics.Color.DKGRAY)
+                    typeface = android.graphics.Typeface.DEFAULT_BOLD
+                }
+                container.addView(tvCount)
+            }
+            
+            holder.reactionsRow.addView(container)
         } else {
             holder.reactionsRow.visibility = View.GONE
         }
@@ -171,9 +202,10 @@ class DirectMessageAdapter(
 
     fun addReaction(messageId: Long, userId: Long, emoji: String) {
         val list = reactions.getOrPut(messageId) { mutableListOf() }
-        if (list.none { it.userId == userId && it.emoji == emoji }) {
-            list.add(DmReaction(messageId = messageId, userId = userId, emoji = emoji))
-        }
+        // Limit every user to 1 reaction per message
+        list.removeAll { it.userId == userId }
+        list.add(DmReaction(messageId = messageId, userId = userId, emoji = emoji))
+
         val idx = items.indexOfFirst { it.id == messageId }
         if (idx >= 0) notifyItemChanged(idx)
     }
@@ -214,6 +246,9 @@ class DirectMessageAdapter(
 
     private fun dpToPx(view: View, dp: Int): Int =
         (dp * view.resources.displayMetrics.density).toInt()
+
+    private fun spToPx(context: android.content.Context, sp: Float): Float =
+        android.util.TypedValue.applyDimension(android.util.TypedValue.COMPLEX_UNIT_SP, sp, context.resources.displayMetrics)
 }
 
 data class DmReaction(

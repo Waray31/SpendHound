@@ -32,6 +32,20 @@ data class CrewWithUser(
 
 class CrewRepository(private val db: AppDatabase) {
 
+    companion object {
+        private val dmCache = java.util.concurrent.ConcurrentHashMap<String, List<DirectMessage>>()
+
+        private fun getCacheKey(id1: Long, id2: Long): String =
+            if (id1 < id2) "$id1-$id2" else "$id2-$id1"
+
+        fun getCachedMessages(id1: Long, id2: Long): List<DirectMessage>? =
+            dmCache[getCacheKey(id1, id2)]
+
+        fun setCachedMessages(id1: Long, id2: Long, messages: List<DirectMessage>) {
+            dmCache[getCacheKey(id1, id2)] = messages
+        }
+    }
+
     constructor() : this(AppDatabase.getInstance(SpendHoundApplication.instance))
 
     fun getCrewListFlow(userId: Long): Flow<List<Pair<CrewMember, User>>> {
@@ -235,13 +249,16 @@ class CrewRepository(private val db: AppDatabase) {
     }
 
     suspend fun getDirectMessages(userId: Long, otherUserId: Long): List<DirectMessage> {
-        return DeclareDatabase.directMessagesTable.select {
+        getCachedMessages(userId, otherUserId)?.let { return it }
+        val messages = DeclareDatabase.directMessagesTable.select {
             filter {
                 or {
                     and { eq("sender_id", userId); eq("recipient_id", otherUserId) }
                     and { eq("sender_id", otherUserId); eq("recipient_id", userId) }
                 }
             }
-        }.decodeList()
+        }.decodeList<DirectMessage>()
+        setCachedMessages(userId, otherUserId, messages)
+        return messages
     }
 }

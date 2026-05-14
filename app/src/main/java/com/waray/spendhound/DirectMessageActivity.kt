@@ -3,6 +3,7 @@ package com.waray.spendhound
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.ImageButton
 import android.widget.ImageView
@@ -27,13 +28,16 @@ class DirectMessageActivity : AppCompatActivity() {
         const val EXTRA_RECIPIENT_ID = "recipient_id"
         const val EXTRA_RECIPIENT_NAME = "recipient_name"
         const val EXTRA_RECIPIENT_AVATAR = "recipient_avatar"
+        const val EXTRA_CURRENT_USER_ID = "current_user_id"
     }
 
     private val repo = CrewRepository()
     private var currentUserId: Long = -1L
+    private var currentUser: User? = null
     private var recipientId: Long = -1L
 
     private lateinit var rvMessages: RecyclerView
+    private lateinit var rvSkeleton: RecyclerView
     private lateinit var etMessage: EditText
     private lateinit var btnSend: ImageButton
     private lateinit var layoutInput: LinearLayout
@@ -52,12 +56,18 @@ class DirectMessageActivity : AppCompatActivity() {
         val recipientAvatar = intent.getStringExtra(EXTRA_RECIPIENT_AVATAR)
 
         rvMessages = findViewById(R.id.rvDirectMessages)
+        rvSkeleton = findViewById(R.id.rvDmSkeleton)
         etMessage = findViewById(R.id.etDmMessage)
         btnSend = findViewById(R.id.btnSendDm)
         layoutInput = findViewById(R.id.layoutDmInput)
         layoutBlocked = findViewById(R.id.layoutGuestBlocked)
         emojiPopup = findViewById(R.id.emojiPopup)
         popupOverlay = findViewById(R.id.popupOverlay)
+
+        rvSkeleton.layoutManager = LinearLayoutManager(this)
+        rvSkeleton.adapter = SkeletonAdapter(R.layout.item_skeleton_chat, 8)
+        rvSkeleton.visibility = View.VISIBLE
+        rvMessages.visibility = View.GONE
 
         popupOverlay.setOnClickListener { dismissPopup() }
 
@@ -75,19 +85,35 @@ class DirectMessageActivity : AppCompatActivity() {
         // Dismiss emoji popup on outside tap
         findViewById<View>(android.R.id.content).setOnClickListener { dismissPopup() }
 
+        currentUserId = intent.getLongExtra(EXTRA_CURRENT_USER_ID, -1L)
+        if (currentUserId != -1L) {
+            val cached = CrewRepository.getCachedMessages(currentUserId, recipientId)
+            if (cached != null) {
+                setupMessageList()
+                dmAdapter.updateItems(cached)
+                setupSendButton()
+                rvSkeleton.visibility = View.GONE
+                rvMessages.visibility = View.VISIBLE
+                rvMessages.scrollToPosition(cached.size - 1)
+            }
+        }
+
         resolveUserAndInit()
     }
 
     private fun resolveUserAndInit() {
         lifecycleScope.launch {
             try {
-                val authId = DeclareDatabase.auth.currentUserOrNull()?.id ?: return@launch
-                val user = withContext(Dispatchers.IO) {
-                    DeclareDatabase.usersTable.select(Columns.list("user_id")) {
-                        filter { eq("auth_id", authId) }
-                    }.decodeSingleOrNull<User>()
+                if (currentUserId == -1L) {
+                    val authId = DeclareDatabase.auth.currentUserOrNull()?.id ?: return@launch
+                    val user = withContext(Dispatchers.IO) {
+                        DeclareDatabase.usersTable.select(Columns.list("user_id", "username", "profile_image_url")) {
+                            filter { eq("auth_id", authId) }
+                        }.decodeSingleOrNull<User>()
+                    }
+                    currentUserId = user?.id ?: return@launch
+                    currentUser = user
                 }
-                currentUserId = user?.id ?: return@launch
 
                 val canDm = withContext(Dispatchers.IO) { repo.canSendDm(currentUserId, recipientId) }
                 if (!canDm) {
@@ -98,9 +124,16 @@ class DirectMessageActivity : AppCompatActivity() {
                     layoutBlocked.visibility = View.GONE
                 }
 
-                setupMessageList()
-                loadMessages()
-                setupSendButton()
+                if (::dmAdapter.isInitialized) {
+                    loadMessages()
+                } else {
+                    setupMessageList()
+                    loadMessages()
+                    setupSendButton()
+                }
+
+                rvSkeleton.visibility = View.GONE
+                rvMessages.visibility = View.VISIBLE
             } catch (e: Exception) {
                 Toast.makeText(this@DirectMessageActivity, "Failed to load messages.", Toast.LENGTH_SHORT).show()
             }
@@ -111,21 +144,97 @@ class DirectMessageActivity : AppCompatActivity() {
         dmAdapter = DirectMessageAdapter(
             currentUserId = currentUserId,
             onLongPress = { msg, bubble -> showEmojiPopup(msg, bubble) },
+            onReactionClick = { msg, reactions -> showReactionDetails(msg, reactions) },
             recipientAvatarUrl = intent.getStringExtra(EXTRA_RECIPIENT_AVATAR)
         )
         rvMessages.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }
         rvMessages.adapter = dmAdapter
     }
 
-    private fun loadMessages() {
-        lifecycleScope.launch {
-            try {
-                val messages = withContext(Dispatchers.IO) {
-                    repo.getDirectMessages(currentUserId, recipientId)
+    private fun showReactionDetails(msg: DirectMessage, msgReactions: List<DmReaction>) {
+        val dialog = com.google.android.material.bottomsheet.BottomSheetDialog(this)
+        val view = layoutInflater.inflate(R.layout.bottom_sheet_reactions, null)
+        dialog.setContentView(view)
+
+        val rv = view.findViewById<RecyclerView>(R.id.rvReactionDetails)
+        val btnClose = view.findViewById<ImageButton>(R.id.btnDetailClose)
+
+        btnClose.setOnClickListener { dialog.dismiss() }
+
+        val recipientName = intent.getStringExtra(EXTRA_RECIPIENT_NAME)
+        val recipientAvatar = intent.getStringExtra(EXTRA_RECIPIENT_AVATAR)
+
+        val allItems = msgReactions.map { r ->
+            val isMine = r.userId == currentUserId
+            ReactionItem(
+                userId = r.userId,
+                username = if (isMine) "You" else recipientName,
+                avatarUrl = if (isMine) currentUser?.profileImageUrl else recipientAvatar,
+                emoji = r.emoji,
+                isMine = isMine
+            )
+        }
+
+        val detailAdapter = ReactionDetailAdapter(allItems) { emoji ->
+            dmAdapter.removeReaction(msg.id ?: -1L, currentUserId, emoji)
+            dialog.dismiss()
+        }
+        rv.layoutManager = LinearLayoutManager(this)
+        rv.adapter = detailAdapter
+
+        // Filters
+        val emojiTabs = mapOf(
+            "👍" to view.findViewById<TextView>(R.id.tabLike),
+            "❤️" to view.findViewById<TextView>(R.id.tabLove),
+            "😂" to view.findViewById<TextView>(R.id.tabHaha),
+            "😮" to view.findViewById<TextView>(R.id.tabWow),
+            "😢" to view.findViewById<TextView>(R.id.tabSad),
+            "🔥" to view.findViewById<TextView>(R.id.tabFire)
+        )
+        val tabAll = view.findViewById<TextView>(R.id.tabAll)
+
+        fun updateFilterUI(selectedView: View) {
+            tabAll.setBackgroundResource(if (selectedView == tabAll) R.drawable.bg_profile_card else android.R.color.transparent)
+            emojiTabs.values.forEach { tab ->
+                tab.setBackgroundResource(if (tab == selectedView) R.drawable.bg_profile_card else android.R.color.transparent)
+            }
+        }
+
+        tabAll.setOnClickListener {
+            updateFilterUI(it)
+            detailAdapter.updateItems(allItems)
+        }
+
+        val emojisCount = msgReactions.groupBy { it.emoji }.mapValues { it.value.size }
+        emojiTabs.forEach { (emoji, tab) ->
+            val count = emojisCount[emoji] ?: 0
+            if (count > 0) {
+                tab.visibility = View.VISIBLE
+                tab.text = "$emoji $count"
+                tab.setOnClickListener {
+                    updateFilterUI(it)
+                    detailAdapter.updateItems(allItems.filter { it.emoji == emoji })
                 }
-                dmAdapter.updateItems(messages)
-                if (messages.isNotEmpty()) rvMessages.scrollToPosition(messages.size - 1)
-            } catch (e: Exception) {
+            } else {
+                tab.visibility = View.GONE
+            }
+        }
+
+        dialog.show()
+    }
+
+    private fun dpToPx(dp: Int): Int =
+        (dp * resources.displayMetrics.density).toInt()
+
+    private suspend fun loadMessages() {
+        try {
+            val messages = withContext(Dispatchers.IO) {
+                repo.getDirectMessages(currentUserId, recipientId)
+            }
+            dmAdapter.updateItems(messages)
+            if (messages.isNotEmpty()) rvMessages.scrollToPosition(messages.size - 1)
+        } catch (e: Exception) {
+            withContext(Dispatchers.Main) {
                 Toast.makeText(this@DirectMessageActivity, "Failed to load messages.", Toast.LENGTH_SHORT).show()
             }
         }
@@ -186,7 +295,7 @@ class DirectMessageActivity : AppCompatActivity() {
 
         val userReacted = dmAdapter.getReactionsForUser(msg.id ?: -1L, uid)
 
-        val emojiMap = mapOf(
+        val emojiMap = listOf(
             R.id.tvEmojiLike to "👍",
             R.id.tvEmojiLove to "❤️",
             R.id.tvEmojiHaha to "😂",
@@ -195,7 +304,7 @@ class DirectMessageActivity : AppCompatActivity() {
             R.id.tvEmojiFire to "🔥"
         )
 
-        emojiMap.forEach { (viewId, emoji) ->
+        emojiMap.forEachIndexed { index, (viewId, emoji) ->
             emojiLayout.findViewById<TextView>(viewId)?.apply {
                 val isSelected = emoji in userReacted
                 if (isSelected) {
@@ -215,11 +324,36 @@ class DirectMessageActivity : AppCompatActivity() {
                     }
                     dismissPopup()
                 }
+
+                // Individual emoji pop animation
+                scaleX = 0.2f
+                scaleY = 0.2f
+                alpha = 0f
+                animate()
+                    .scaleX(1f)
+                    .scaleY(1f)
+                    .alpha(1f)
+                    .setStartDelay(index * 80L)
+                    .setDuration(350)
+                    .setInterpolator(android.view.animation.OvershootInterpolator())
+                    .start()
             }
         }
 
         popupOverlay.visibility = View.VISIBLE
         emojiPopup.visibility = View.VISIBLE
+
+        // Pop up animation
+        emojiPopup.scaleX = 0.7f
+        emojiPopup.scaleY = 0.7f
+        emojiPopup.alpha = 0f
+        emojiPopup.animate()
+            .scaleX(1f)
+            .scaleY(1f)
+            .alpha(1f)
+            .setDuration(200)
+            .setInterpolator(android.view.animation.OvershootInterpolator())
+            .start()
 
         emojiPopup.post {
             val location = IntArray(2)
@@ -245,5 +379,52 @@ class DirectMessageActivity : AppCompatActivity() {
     private fun dismissPopup() {
         emojiPopup.visibility = View.GONE
         popupOverlay.visibility = View.GONE
+    }
+}
+
+data class ReactionItem(
+    val userId: Long,
+    val username: String?,
+    val avatarUrl: String?,
+    val emoji: String,
+    val isMine: Boolean
+)
+
+class ReactionDetailAdapter(
+    private var items: List<ReactionItem>,
+    private val onRemove: (String) -> Unit
+) : RecyclerView.Adapter<ReactionDetailAdapter.VH>() {
+    inner class VH(view: View) : RecyclerView.ViewHolder(view) {
+        val ivAvatar: ImageView = view.findViewById(R.id.ivReactorAvatar)
+        val tvName: TextView = view.findViewById(R.id.tvReactorName)
+        val tvRemove: TextView = view.findViewById(R.id.tvRemoveAction)
+        val tvEmoji: TextView = view.findViewById(R.id.tvReactedEmoji)
+    }
+    override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) =
+        VH(LayoutInflater.from(parent.context).inflate(R.layout.item_reaction_detail, parent, false))
+    override fun onBindViewHolder(holder: VH, position: Int) {
+        val item = items[position]
+        holder.tvName.text = item.username ?: "Unknown"
+        holder.tvEmoji.text = item.emoji
+        if (item.isMine) {
+            holder.tvRemove.visibility = View.VISIBLE
+            holder.itemView.setOnClickListener { onRemove(item.emoji) }
+        } else {
+            holder.tvRemove.visibility = View.GONE
+            holder.itemView.setOnClickListener(null)
+        }
+        if (!item.avatarUrl.isNullOrBlank()) {
+            holder.ivAvatar.load(item.avatarUrl) {
+                transformations(CircleCropTransformation())
+            }
+        } else {
+            holder.ivAvatar.setImageResource(R.drawable.ic_profile_silhouette)
+        }
+    }
+    override fun getItemCount() = items.size
+    @android.annotation.SuppressLint("NotifyDataSetChanged")
+    fun updateItems(newItems: List<ReactionItem>) {
+        items = newItems
+        notifyDataSetChanged()
     }
 }
