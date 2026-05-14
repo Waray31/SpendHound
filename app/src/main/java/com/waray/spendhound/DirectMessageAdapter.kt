@@ -16,7 +16,6 @@ import java.util.TimeZone
 class DirectMessageAdapter(
     private val currentUserId: Long,
     private var items: List<DirectMessage> = emptyList(),
-    private val reactions: MutableMap<Long, MutableList<MessageReaction>> = mutableMapOf(),
     var pendingTempId: Long? = null,
     var onLongPress: ((msg: DirectMessage, bubble: View) -> Unit)? = null,
     var onReactionClick: ((msg: DirectMessage, reactions: List<MessageReaction>) -> Unit)? = null,
@@ -128,7 +127,7 @@ class DirectMessageAdapter(
 
         // Reactions
         holder.reactionsRow.removeAllViews()
-        val msgReactions = reactions[msgId]
+        val msgReactions = msg.reactions
         if (!msgReactions.isNullOrEmpty()) {
             holder.reactionsRow.visibility = View.VISIBLE
             holder.reactionsRow.setOnClickListener { onReactionClick?.invoke(msg, msgReactions) }
@@ -202,34 +201,41 @@ class DirectMessageAdapter(
     }
 
     fun updateReactions(newReactions: Map<Long, MutableList<MessageReaction>>) {
-        reactions.clear()
-        reactions.putAll(newReactions)
+        items.forEach { msg ->
+            msg.reactions = newReactions[msg.id ?: -1L]?.toMutableList() ?: mutableListOf()
+        }
         notifyDataSetChanged()
     }
 
     fun addReaction(messageId: Long, userId: Long, emoji: String) {
-        val list = reactions.getOrPut(messageId) { mutableListOf() }
-        // Limit every user to 1 reaction per message
-        val removed = list.filter { it.userId == userId }
-        removed.forEach { onReactionAction?.invoke(messageId, it.emoji ?: "", false) }
-        list.removeAll { it.userId == userId }
-
-        list.add(MessageReaction(directMessageId = messageId, userId = userId, emoji = emoji, messageType = MessageType.DIRECT))
-        onReactionAction?.invoke(messageId, emoji, true)
-
         val idx = items.indexOfFirst { it.id == messageId }
-        if (idx >= 0) notifyItemChanged(idx)
+        if (idx >= 0) {
+            val msg = items[idx]
+            val list = msg.reactions
+            // Limit every user to 1 reaction per message
+            val removed = list.filter { it.userId == userId }
+            removed.forEach { onReactionAction?.invoke(messageId, it.emoji ?: "", false) }
+            list.removeAll { it.userId == userId }
+
+            list.add(MessageReaction(directMessageId = messageId, userId = userId, emoji = emoji, messageType = MessageType.DIRECT))
+            onReactionAction?.invoke(messageId, emoji, true)
+            notifyItemChanged(idx)
+        }
     }
 
     fun removeReaction(messageId: Long, userId: Long, emoji: String) {
-        reactions[messageId]?.removeAll { it.userId == userId && it.emoji == emoji }
-        onReactionAction?.invoke(messageId, emoji, false)
         val idx = items.indexOfFirst { it.id == messageId }
-        if (idx >= 0) notifyItemChanged(idx)
+        if (idx >= 0) {
+            items[idx].reactions.removeAll { it.userId == userId && it.emoji == emoji }
+            onReactionAction?.invoke(messageId, emoji, false)
+            notifyItemChanged(idx)
+        }
     }
 
-    fun getReactionsForUser(messageId: Long, userId: Long): Set<String> =
-        (reactions[messageId] ?: emptyList()).filter { it.userId == userId }.mapNotNull { it.emoji }.toSet()
+    fun getReactionsForUser(messageId: Long, userId: Long): Set<String> {
+        val msg = items.find { it.id == messageId }
+        return (msg?.reactions ?: emptyList()).filter { it.userId == userId }.mapNotNull { it.emoji }.toSet()
+    }
 
     private fun formatTime(iso: String?): String {
         if (iso.isNullOrBlank()) return ""

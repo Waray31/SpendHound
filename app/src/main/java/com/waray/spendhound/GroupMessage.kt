@@ -32,7 +32,8 @@ data class GroupMessage(
     @kotlinx.serialization.Transient var senderProfileImage: String? = null,
     @kotlinx.serialization.Transient var transactionTitle: String? = null,
     @kotlinx.serialization.Transient var transactionAmount: Double = 0.0,
-    @kotlinx.serialization.Transient var transactionStatus: String? = null
+    @kotlinx.serialization.Transient var transactionStatus: String? = null,
+    @kotlinx.serialization.Transient var reactions: MutableList<MessageReaction> = mutableListOf()
 )
 
 @Serializable

@@ -263,23 +263,24 @@ class DirectMessageActivity : AppCompatActivity() {
     private suspend fun loadMessages() {
         try {
             val messages = withContext(Dispatchers.IO) {
-                repo.getDirectMessages(currentUserId, recipientId)
+                val msgs = repo.getDirectMessages(currentUserId, recipientId)
+                val msgIds = msgs.mapNotNull { it.id }
+                if (msgIds.isNotEmpty()) {
+                    try {
+                        val rx = DeclareDatabase.messageReactionsTable.select {
+                            filter { isIn("direct_message_id", msgIds); eq("message_type", MessageType.DIRECT) }
+                        }.decodeList<MessageReaction>()
+                        val rxMap = rx.groupBy { it.directMessageId ?: -1L }
+                        msgs.forEach { m ->
+                            m.reactions = rxMap[m.id ?: -1L]?.toMutableList() ?: mutableListOf()
+                        }
+                    } catch (e: Exception) {
+                        Log.e("DMActivity", "Failed to load reactions", e)
+                    }
+                }
+                msgs
             }
             dmAdapter.updateItems(messages)
-
-            // Load reactions
-            val msgIds = messages.mapNotNull { it.id }
-            if (msgIds.isNotEmpty()) {
-                val rx = withContext(Dispatchers.IO) {
-                    DeclareDatabase.messageReactionsTable.select {
-                        filter { isIn("direct_message_id", msgIds); eq("message_type", MessageType.DIRECT) }
-                    }.decodeList<MessageReaction>()
-                }
-                val rxMap = rx.groupBy { it.directMessageId ?: -1L }
-                    .mapValues { it.value.toMutableList() }
-                dmAdapter.updateReactions(rxMap)
-            }
-
             if (messages.isNotEmpty()) rvMessages.scrollToPosition(messages.size - 1)
         } catch (e: Exception) {
             withContext(Dispatchers.Main) {

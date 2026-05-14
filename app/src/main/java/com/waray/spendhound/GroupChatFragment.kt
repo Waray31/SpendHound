@@ -59,7 +59,6 @@ class GroupChatFragment : Fragment() {
     private var currentUserName: String? = null
     private var currentUserProfileImage: String? = null
     private val messages = mutableListOf<GroupMessage>()
-    private val reactions = mutableMapOf<Long, MutableList<MessageReaction>>()
     private val readReceipts = mutableMapOf<Long, MutableSet<Long>>()
     private var usersList = listOf<User>()
     private var pendingTempId: Long? = null
@@ -181,11 +180,12 @@ class GroupChatFragment : Fragment() {
             if (msgIds.isNotEmpty()) {
                 withContext(Dispatchers.IO) {
                     try {
-                        DeclareDatabase.messageReactionsTable.select {
+                        val rx = DeclareDatabase.messageReactionsTable.select {
                             filter { isIn("group_message_id", msgIds); eq("message_type", MessageType.GROUP) }
-                        }.decodeList<MessageReaction>().forEach { r ->
-                            val mid = r.groupMessageId ?: return@forEach
-                            reactions.getOrPut(mid) { mutableListOf() }.add(r)
+                        }.decodeList<MessageReaction>()
+                        val rxMap = rx.groupBy { it.groupMessageId ?: -1L }
+                        enriched.forEach { m ->
+                            m.reactions = rxMap[m.id ?: -1L]?.toMutableList() ?: mutableListOf()
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "loadMessages: reactions fetch failed: ${e.message}", e)
@@ -338,10 +338,14 @@ class GroupChatFragment : Fragment() {
         val uid = currentUserId ?: return
         lifecycleScope.launch {
             try {
+                val idx = messages.indexOfFirst { it.id == messageId }
+                if (idx < 0) return@launch
+                val msg = messages[idx]
+
                 // Limit to 1 reaction: update local state first
-                val existing = reactions[messageId]?.filter { it.userId == uid } ?: emptyList()
+                val existing = msg.reactions.filter { it.userId == uid }
                 existing.forEach { old ->
-                    reactions[messageId]?.remove(old)
+                    msg.reactions.remove(old)
                     // Delete from DB - WAIT for it
                     DeclareDatabase.messageReactionsTable.delete {
                         filter {
@@ -359,10 +363,9 @@ class GroupChatFragment : Fragment() {
                     emoji = emoji,
                     messageType = MessageType.GROUP
                 )
-                reactions.getOrPut(messageId) { mutableListOf() }.add(newReaction)
+                msg.reactions.add(newReaction)
 
-                val idx = messages.indexOfFirst { it.id == messageId }
-                if (idx >= 0) requireActivity().runOnUiThread { adapter.notifyItemChanged(idx) }
+                requireActivity().runOnUiThread { adapter.notifyItemChanged(idx) }
 
                 // Insert to DB
                 Log.d(TAG, "addReaction: Inserting to DB: msgId=$messageId, uid=$uid, emoji=$emoji")
@@ -383,9 +386,11 @@ class GroupChatFragment : Fragment() {
         val uid = currentUserId ?: return
         lifecycleScope.launch {
             try {
-                reactions[messageId]?.removeAll { it.userId == uid && it.emoji == emoji }
                 val idx = messages.indexOfFirst { it.id == messageId }
-                if (idx >= 0) requireActivity().runOnUiThread { adapter.notifyItemChanged(idx) }
+                if (idx >= 0) {
+                    messages[idx].reactions.removeAll { it.userId == uid && it.emoji == emoji }
+                    requireActivity().runOnUiThread { adapter.notifyItemChanged(idx) }
+                }
 
                 DeclareDatabase.messageReactionsTable.delete {
                     filter { eq("group_message_id", messageId); eq("user_id", uid); eq("emoji", emoji); eq("message_type", MessageType.GROUP) }
@@ -527,8 +532,7 @@ class GroupChatFragment : Fragment() {
         val emojiLayout = inflater.inflate(R.layout.item_emoji_reaction, emojiPopup, false)
         emojiPopup.addView(emojiLayout)
 
-        val userReacted = (reactions[msg.id ?: -1L] ?: emptyList())
-            .filter { it.userId == uid }.mapNotNull { it.emoji }.toSet()
+        val userReacted = msg.reactions.filter { it.userId == uid }.mapNotNull { it.emoji }.toSet()
 
         val emojiMap = listOf(
             R.id.tvEmojiLike to "👍",
@@ -696,11 +700,12 @@ class GroupChatFragment : Fragment() {
                 try {
                     val r = action.decodeRecord<MessageReaction>()
                     val mid = r.messageId ?: return@onEach
-                    if (messages.none { it.id == mid }) return@onEach
-                    val list = reactions.getOrPut(mid) { mutableListOf() }
-                    if (list.none { it.userId == r.userId && it.emoji == r.emoji }) list.add(r)
                     val idx = messages.indexOfFirst { it.id == mid }
-                    if (idx >= 0) requireActivity().runOnUiThread { adapter.notifyItemChanged(idx) }
+                    if (idx >= 0) {
+                        val list = messages[idx].reactions
+                        if (list.none { it.userId == r.userId && it.emoji == r.emoji }) list.add(r)
+                        requireActivity().runOnUiThread { adapter.notifyItemChanged(idx) }
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "Realtime reaction insert error", e)
                 }
@@ -713,9 +718,11 @@ class GroupChatFragment : Fragment() {
                 try {
                     val r = action.decodeOldRecord<MessageReaction>()
                     val mid = r.messageId ?: return@onEach
-                    reactions[mid]?.removeAll { it.userId == r.userId && it.emoji == r.emoji }
                     val idx = messages.indexOfFirst { it.id == mid }
-                    if (idx >= 0) requireActivity().runOnUiThread { adapter.notifyItemChanged(idx) }
+                    if (idx >= 0) {
+                        messages[idx].reactions.removeAll { it.userId == r.userId && it.emoji == r.emoji }
+                        requireActivity().runOnUiThread { adapter.notifyItemChanged(idx) }
+                    }
                 } catch (e: Exception) {
                     Log.e(TAG, "Realtime reaction delete error", e)
                 }
@@ -916,8 +923,8 @@ class GroupChatFragment : Fragment() {
 
             // Reactions
             holder.reactionsRow.removeAllViews()
-            val msgReactions = reactions[msg.id ?: -1L]
-            if (!msgReactions.isNullOrEmpty()) {
+            val msgReactions = msg.reactions
+            if (msgReactions.isNotEmpty()) {
                 holder.reactionsRow.visibility = View.VISIBLE
                 holder.reactionsRow.setOnClickListener { showReactionDetails(msg, msgReactions) }
                 

@@ -10,5 +10,6 @@ data class DirectMessage(
     @SerialName("recipient_id") val recipientId: Long? = null,
     val content: String? = null,
     @SerialName("sent_at") val sentAt: String? = null,
-    @SerialName("read_at") val readAt: String? = null
+    @SerialName("read_at") val readAt: String? = null,
+    @kotlinx.serialization.Transient var reactions: MutableList<MessageReaction> = mutableListOf()
 )
