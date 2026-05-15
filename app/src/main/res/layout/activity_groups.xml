@@ -181,7 +181,7 @@
             android:layout_margin="16dp"
             android:contentDescription="Create Group"
             android:src="@drawable/baseline_add_24"
-            android:visibility="gone"
+            android:visibility="visible"
             app:backgroundTint="@color/primary_accent"
             app:tint="@color/white" />
 

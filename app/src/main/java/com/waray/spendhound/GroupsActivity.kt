@@ -39,7 +39,7 @@ class GroupsActivity : AppCompatActivity() {
     private var pullToRefreshHelper: PullToRefreshHelper? = null
 
     private var currentUserId: Long? = null
-    private var allUsers: List<User> = emptyList()
+    private var lastSeenGroupsUpdate: Long = 0L
     private val groups = mutableListOf<Pair<PayerGroup, List<User>>>()
 
     data class GroupCardData(
@@ -60,7 +60,10 @@ class GroupsActivity : AppCompatActivity() {
         rvSkeleton = findViewById(R.id.rvSkeleton)
         emptyState = findViewById(R.id.emptyState)
         fabCreateGroup = findViewById(R.id.fabCreateGroup)
-        fabCreateGroup.visibility = View.GONE
+        fabCreateGroup.visibility = View.VISIBLE
+        fabCreateGroup.setOnClickListener {
+            startActivity(android.content.Intent(this, CreateGroupActivity::class.java))
+        }
 
         rvSkeleton.layoutManager = LinearLayoutManager(this)
         rvSkeleton.adapter = SkeletonAdapter(R.layout.item_skeleton_group)
@@ -75,18 +78,22 @@ class GroupsActivity : AppCompatActivity() {
         val scrollView = findViewById<androidx.core.widget.NestedScrollView>(R.id.groupsNestedScrollView)
         pullToRefreshHelper = PullToRefreshHelper(scrollView, indicator, {
             val uid = currentUserId ?: return@PullToRefreshHelper
-            groupsListViewModel.forceRefresh(uid, allUsers)
+            groupsListViewModel.forceRefresh(uid)
         }, rootLayout)
         rootLayout.onInterceptCallback = { event -> pullToRefreshHelper!!.onInterceptTouch(event) }
 
         observeViewModel()
+        lastSeenGroupsUpdate = GroupsState.lastUpdateTimestamp
         fetchCurrentUser()
     }
 
     private fun observeViewModel() {
         lifecycleScope.launch {
             groupsListViewModel.groups.collectLatest { items ->
-                if (items == null) return@collectLatest
+                if (items == null) {
+                    showLoading()
+                    return@collectLatest
+                }
                 
                 val cardDataMap = items.associate { it.group.groupId!! to it.cardData }
                 groups.clear()
@@ -97,7 +104,9 @@ class GroupsActivity : AppCompatActivity() {
                     emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
                     rvGroups.visibility = if (isEmpty) View.GONE else View.VISIBLE
                     tvGroupCount.text = "${groups.size} group${if (groups.size != 1) "s" else ""}"
-                    if (!isEmpty) rvGroups.adapter = GroupAdapter(groups, cardDataMap)
+                    if (!isEmpty) {
+                        rvGroups.adapter = GroupAdapter(groups, cardDataMap)
+                    }
                     hideLoading()
                     pullToRefreshHelper?.stopRefreshing()
                 }
@@ -107,7 +116,12 @@ class GroupsActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        currentUserId?.let { groupsListViewModel.load(it, allUsers) }
+        if (GroupsState.lastUpdateTimestamp > lastSeenGroupsUpdate) {
+            lastSeenGroupsUpdate = GroupsState.lastUpdateTimestamp
+            currentUserId?.let { groupsListViewModel.invalidate(it) }
+        } else {
+            currentUserId?.let { groupsListViewModel.load(it) }
+        }
     }
 
     private fun fetchCurrentUser() {
@@ -119,9 +133,9 @@ class GroupsActivity : AppCompatActivity() {
                     filter { eq("auth_id", authId) }
                 }.decodeSingleOrNull<User>()
                 currentUserId = user?.id
-                allUsers = DeclareDatabase.usersTable.select().decodeList<User>()
+                android.util.Log.d("GroupsActivity", "Resolved currentUserId: $currentUserId")
                 val uid = currentUserId ?: return@launch
-                runOnUiThread { groupsListViewModel.load(uid, allUsers) }
+                runOnUiThread { groupsListViewModel.load(uid) }
             } catch (e: Exception) {
                 runOnUiThread { hideLoading(); toast("Failed to load user: ${e.message}") }
             }
@@ -130,105 +144,7 @@ class GroupsActivity : AppCompatActivity() {
 
     fun invalidateAndReload() {
         val uid = currentUserId ?: return
-        groupsListViewModel.invalidate(uid, allUsers)
-    }
-
-    @SuppressLint("NotifyDataSetChanged")
-    private fun loadGroups_UNUSED() {
-        val userId = currentUserId ?: return
-        showLoading()
-        lifecycleScope.launch(Dispatchers.IO) {
-            try {
-                val myGroupIds = DeclareDatabase.groupMembersTable.select {
-                    filter { eq("user_id", userId) }
-                }.decodeList<GroupMember>().mapNotNull { it.groupId }.toSet()
-
-                val allGroups = DeclareDatabase.groupsTable.select().decodeList<PayerGroup>()
-                    .filter { it.groupId in myGroupIds }
-
-                val allMembers = DeclareDatabase.groupMembersTable.select {
-                    filter { isIn("group_id", myGroupIds.toList()) }
-                }.decodeList<GroupMember>()
-                val membersByGroup = allMembers.groupBy { it.groupId }
-
-                val groupIds = allGroups.mapNotNull { it.groupId }
-                val allTransactions = if (groupIds.isNotEmpty()) DeclareDatabase.transactionsTable.select {
-                    filter { isIn("group_id", groupIds) }
-                    order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
-                }.decodeList<com.waray.spendhound.ui.multi_transaction.TransactionFull>() else emptyList()
-                val allTxIds = allTransactions.mapNotNull { it.id }
-                val allPayors = if (allTxIds.isNotEmpty()) DeclareDatabase.transactionPayorsTable.select {
-                    filter { isIn("transaction_id", allTxIds) }
-                }.decodeList<com.waray.spendhound.ui.multi_transaction.TransactionPayorTable>() else emptyList()
-
-                val uid = currentUserId
-                val allMessages = if (uid != null && groupIds.isNotEmpty()) DeclareDatabase.groupMessagesTable.select {
-                    filter { isIn("group_id", groupIds); eq("is_deleted", false) }
-                    order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
-                    limit(1000)
-                }.decodeList<GroupMessage>() else emptyList()
-
-                val readReceipts = if (uid != null) DeclareDatabase.messageReadsTable.select {
-                    filter { eq("user_id", uid) }
-                }.decodeList<MessageRead>() else emptyList()
-                val maxReadByGroup = readReceipts.groupBy { it.groupId }
-                    .mapValues { entry -> entry.value.maxOfOrNull { it.messageId ?: 0L } ?: 0L }
-
-                val txReadReceipts = if (uid != null) DeclareDatabase.transactionReadsTable.select {
-                    filter { eq("user_id", uid) }
-                }.decodeList<com.waray.spendhound.TransactionRead>() else emptyList()
-                val maxTxReadByGroup = txReadReceipts.groupBy { it.groupId }
-                    .mapValues { entry -> entry.value.maxOfOrNull { it.transactionId ?: 0L } ?: 0L }
-
-                val cardDataMap = mutableMapOf<Long, GroupCardData>()
-                val lastActivityMap = mutableMapOf<Long, Long>()
-
-                for (group in allGroups) {
-                    val gid = group.groupId ?: continue
-                    val txs = allTransactions.filter { it.groupId == gid }
-                    val groupMsgs = allMessages.filter { it.groupId == gid }
-
-                    val txIds = txs.mapNotNull { it.id }
-                    val totalExpenses = txs.sumOf { it.totalAmount }
-                    val activeCount = txs.count { (it.status ?: 0) == 2 }
-                    val settledAmount = allPayors.filter { it.transactionId in txIds && it.status == 1 }.sumOf { it.currentAmountPaid }
-
-                    val maxReadId = maxReadByGroup[gid] ?: 0L
-                    val unreadCount = groupMsgs.count { it.userId != uid && it.id != null && it.id!! > maxReadId }
-
-                    val maxTxReadId = maxTxReadByGroup[gid] ?: 0L
-                    val unreadTxCount = txs.count { it.createdBy != uid && it.id != null && it.id!! > maxTxReadId }
-
-                    cardDataMap[gid] = GroupCardData(totalExpenses, activeCount, settledAmount, unreadCount + unreadTxCount)
-
-                    val lastTxTime = txs.firstOrNull()?.createdAt?.let { parseIsoTime(it) } ?: 0L
-                    val lastMsgTime = groupMsgs.firstOrNull()?.createdAt?.let { parseIsoTime(it) } ?: 0L
-                    lastActivityMap[gid] = maxOf(lastTxTime, lastMsgTime)
-                }
-
-                groups.clear()
-                val sortedGroups = allGroups.sortedByDescending { lastActivityMap[it.groupId] ?: 0L }
-                for (group in sortedGroups) {
-                    val memberIds = membersByGroup[group.groupId]?.mapNotNull { it.userId } ?: emptyList()
-                    val members = allUsers.filter { it.id in memberIds }
-                    groups.add(Pair(group, members))
-                }
-
-                runOnUiThread {
-                    val isEmpty = groups.isEmpty()
-                    emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE
-                    rvGroups.visibility = if (isEmpty) View.GONE else View.VISIBLE
-                    tvGroupCount.text = "${groups.size} group${if (groups.size != 1) "s" else ""}"
-                    if (!isEmpty) rvGroups.adapter = GroupAdapter(groups, cardDataMap)
-                    hideLoading()
-                }
-            } catch (e: Exception) {
-                runOnUiThread {
-                    toast("Failed to load groups: ${e.message}")
-                    hideLoading()
-                }
-            }
-        }
+        groupsListViewModel.invalidate(uid)
     }
 
     private fun launchEditGroup(position: Int) {
@@ -252,14 +168,6 @@ class GroupsActivity : AppCompatActivity() {
     }
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-
-    private fun parseIsoTime(iso: String): Long {
-        return try {
-            val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault())
-            sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
-            sdf.parse(iso.take(19))?.time ?: 0L
-        } catch (e: Exception) { 0L }
-    }
 
     private inner class GroupAdapter(
         private val items: List<Pair<PayerGroup, List<User>>>,

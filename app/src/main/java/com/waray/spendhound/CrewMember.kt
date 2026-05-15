@@ -13,6 +13,7 @@ data class CrewMember(
     @SerialName("responded_at") val respondedAt: String? = null,
     @kotlinx.serialization.Transient val lastMessage: String? = null,
     @kotlinx.serialization.Transient val lastMessageSenderId: Long? = null,
+    @kotlinx.serialization.Transient val lastMessageAt: String? = null,
     @kotlinx.serialization.Transient val unreadCount: Int = 0
 )
 

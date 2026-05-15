@@ -27,7 +27,9 @@ data class CrewWithUser(
     val userType: Int?,
     val lastMessage: String? = null,
     val lastMessageSenderId: Long? = null,
-    val unreadCount: Int = 0
+    val lastMessageAt: String? = null,
+    val unreadCount: Int = 0,
+    val respondedAt: String? = null
 )
 
 class CrewRepository(private val db: AppDatabase) {
@@ -60,7 +62,9 @@ class CrewRepository(private val db: AppDatabase) {
                     status = crew.status, userId = user.id, username = user.username,
                     profileImageUrl = user.profileImageUrl, userType = user.userType,
                     lastMessage = crew.lastMessage, lastMessageSenderId = crew.lastMessageSenderId,
-                    unreadCount = crew.unreadCount
+                    lastMessageAt = crew.lastMessageAt,
+                    unreadCount = crew.unreadCount,
+                    respondedAt = crew.respondedAt
                 )
             }
         }
@@ -70,11 +74,16 @@ class CrewRepository(private val db: AppDatabase) {
                     id = c.crewId, ownerUserId = c.ownerUserId,
                     memberUserId = c.memberUserId, status = c.status,
                     lastMessage = c.lastMessage, lastMessageSenderId = c.lastMessageSenderId,
-                    unreadCount = c.unreadCount
+                    lastMessageAt = c.lastMessageAt,
+                    unreadCount = c.unreadCount,
+                    respondedAt = c.respondedAt
                 ) to User(
                     id = c.userId, username = c.username,
                     profileImageUrl = c.profileImageUrl, userType = c.userType
                 )
+            }.sortedByDescending { (crew, _) ->
+                // Sort by latest activity: either the last DM or when they joined the crew
+                maxOf(crew.lastMessageAt ?: "", crew.respondedAt ?: crew.createdAt ?: "")
             }
         }
     }
@@ -135,15 +144,18 @@ class CrewRepository(private val db: AppDatabase) {
                     crew.copy(
                         lastMessage = lastDm?.content,
                         lastMessageSenderId = lastDm?.senderId,
+                        lastMessageAt = lastDm?.sentAt,
                         unreadCount = unread
                     ) to user
                 } catch (e: Exception) {
                     Log.e("CrewDebug", "fetchCrewList DM preview EXCEPTION: ${e.message}")
-                    crew.copy(lastMessage = null, lastMessageSenderId = null, unreadCount = 0) to user
+                    crew.copy(lastMessage = null, lastMessageSenderId = null, lastMessageAt = null, unreadCount = 0) to user
                 }
             } else {
-                crew.copy(lastMessage = null, lastMessageSenderId = null, unreadCount = 0) to user
+                crew.copy(lastMessage = null, lastMessageSenderId = null, lastMessageAt = null, unreadCount = 0) to user
             }
+        }.sortedByDescending { (crew, _) ->
+            maxOf(crew.lastMessageAt ?: "", crew.respondedAt ?: crew.createdAt ?: "")
         }
     }
 
@@ -246,6 +258,10 @@ class CrewRepository(private val db: AppDatabase) {
             put("recipient_id", recipientId)
             put("content", content)
         })
+        // Invalidate crew list cache for both users to update "last message" and sorting
+        invalidateCrew(senderId)
+        invalidateCrew(recipientId)
+        com.waray.spendhound.CrewState.notifyChange()
     }
 
     suspend fun getDirectMessages(userId: Long, otherUserId: Long): List<DirectMessage> {

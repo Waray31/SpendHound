@@ -278,6 +278,7 @@ class CreateGroupActivity : AppCompatActivity() {
                 val memberIds = (listOf(creatorId) + selectedUsers.toList()).distinct()
                 DeclareDatabase.groupMembersTable.insert(memberIds.map { GroupMemberInsert(groupId, it) })
 
+                GroupsState.notifyChange()
                 toast("Group \"$name\" created!")
                 finish()
             } catch (e: Exception) {

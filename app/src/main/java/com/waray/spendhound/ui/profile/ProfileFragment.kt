@@ -36,6 +36,7 @@ import com.waray.spendhound.EditProfileActivity
 import com.waray.spendhound.LoginActivity
 import com.waray.spendhound.MainActivity
 import com.waray.spendhound.GroupMember
+import com.waray.spendhound.GroupsState
 import com.waray.spendhound.ui.multi_transaction.TransactionFull
 import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
@@ -113,6 +114,8 @@ class ProfileFragment : Fragment() {
     private var tvCrewPendingBadge: TextView? = null
     private var crewAdapter: CrewMembersAdapter? = null
     private var currentUserId: Long = -1L
+    private var lastSeenCrewUpdate: Long = 0L
+    private var lastSeenGroupsUpdate: Long = 0L
     private var hasLoadedOnce = false
     private var isTabClickEnabled = true
 
@@ -185,6 +188,9 @@ class ProfileFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        // Initialize update timestamps to current global values to avoid redundant refresh on first load
+        lastSeenCrewUpdate = com.waray.spendhound.CrewState.lastUpdateTimestamp
+        lastSeenGroupsUpdate = GroupsState.lastUpdateTimestamp
         // Apply cached StateFlow values synchronously — same frame, no coroutine gap
         // This is exactly why groups has no flash: its observer fires synchronously here
         applyCachedState()
@@ -350,7 +356,19 @@ class ProfileFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        loadNicknameAndData()
+        if (com.waray.spendhound.CrewState.lastUpdateTimestamp > lastSeenCrewUpdate) {
+            lastSeenCrewUpdate = com.waray.spendhound.CrewState.lastUpdateTimestamp
+            if (currentUserId != -1L) {
+                crewViewModel.reloadCrew(currentUserId)
+            }
+        }
+        
+        val groupsNeedRefresh = GroupsState.lastUpdateTimestamp > lastSeenGroupsUpdate
+        if (groupsNeedRefresh) {
+            lastSeenGroupsUpdate = GroupsState.lastUpdateTimestamp
+        }
+        
+        loadNicknameAndData(forceGroupsRefresh = groupsNeedRefresh)
     }
 
     private fun setupRecyclerView(view: View) {
@@ -369,7 +387,7 @@ class ProfileFragment : Fragment() {
         }
     }
 
-    internal fun loadNicknameAndData() {
+    internal fun loadNicknameAndData(forceGroupsRefresh: Boolean = false) {
         val authId = mAuth?.currentUserOrNull()?.id ?: return
         if (!hasLoadedOnce) {
             nicknameSkeleton?.visibility = View.VISIBLE
@@ -393,7 +411,11 @@ class ProfileFragment : Fragment() {
                 }
                 user?.id?.let { userId ->
                     currentUserId = userId
-                    viewModel.load(userId, authId)
+                    if (forceGroupsRefresh) {
+                        viewModel.invalidate(userId, authId)
+                    } else {
+                        viewModel.load(userId, authId)
+                    }
                     crewViewModel.loadCrew(userId)
                     if (crewAdapter == null) {
                         crewAdapter = CrewMembersAdapter(

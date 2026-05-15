@@ -68,12 +68,22 @@ class CrewViewModel : ViewModel() {
                 repo.invalidateCrew(userId)
                 Log.d("CrewDebug", "reloadCrew cache invalidated")
                 _isLoading.value = true
+                
+                // Reload both crew list and pending invites
+                launch {
+                    try {
+                        val pending = repo.getPendingInvites(userId)
+                        _pendingInvites.value = pending
+                    } catch (e: Exception) {
+                        Log.e("CrewDebug", "getPendingInvites EXCEPTION: ${e.message}")
+                    }
+                }
+
                 repo.getCrewListFlow(userId).collect { list ->
                     Log.d("CrewDebug", "reloadCrew crewList emit size=${list.size}")
                     _crewList.value = list
                     _isLoading.value = false
                 }
-                Log.d("CrewDebug", "reloadCrew flow COMPLETED")
             } catch (e: Exception) {
                 Log.e("CrewDebug", "reloadCrew EXCEPTION: ${e.message}", e)
                 _actionError.value = "Failed to reload crew."
@@ -106,8 +116,14 @@ class CrewViewModel : ViewModel() {
 
     fun sendInvite(ownerUserId: Long, memberUserId: Long, onDone: (String?) -> Unit) {
         viewModelScope.launch {
-            val error = try { repo.sendInvite(ownerUserId, memberUserId) }
-            catch (e: Exception) { e.message }
+            val error = try { 
+                val err = repo.sendInvite(ownerUserId, memberUserId)
+                if (err == null) {
+                    repo.invalidateCrew(ownerUserId)
+                    com.waray.spendhound.CrewState.notifyChange()
+                }
+                err
+            } catch (e: Exception) { e.message }
             onDone(error)
         }
     }
@@ -118,6 +134,10 @@ class CrewViewModel : ViewModel() {
                 val guest = repo.createGuestUser(name, email, invitedByUserId)
                     ?: return@launch onDone("Failed to create guest user.")
                 val error = repo.sendInvite(invitedByUserId, guest.id!!)
+                if (error == null) {
+                    repo.invalidateCrew(invitedByUserId)
+                    com.waray.spendhound.CrewState.notifyChange()
+                }
                 onDone(error)
             } catch (e: Exception) {
                 onDone(e.message)
@@ -130,6 +150,7 @@ class CrewViewModel : ViewModel() {
             try {
                 repo.respondToInvite(crewId, accept)
                 repo.invalidateCrew(userId)
+                com.waray.spendhound.CrewState.notifyChange()
                 reloadCrew(userId)
             } catch (e: Exception) {
                 _actionError.value = "Failed to respond to invite."
@@ -142,6 +163,7 @@ class CrewViewModel : ViewModel() {
             try {
                 repo.removeCrew(crewId)
                 repo.invalidateCrew(userId)
+                com.waray.spendhound.CrewState.notifyChange()
                 reloadCrew(userId)
             } catch (e: Exception) {
                 _actionError.value = "Failed to remove crew member."

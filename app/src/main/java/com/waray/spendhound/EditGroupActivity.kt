@@ -309,6 +309,7 @@ class EditGroupActivity : AppCompatActivity() {
                 val memberIds = (listOf(creatorId) + selectedUsers.toList()).distinct()
                 DeclareDatabase.groupMembersTable.insert(memberIds.map { GroupMemberInsert(groupId, it) })
 
+                GroupsState.notifyChange()
                 toast("Group updated!")
                 finish()
             } catch (e: Exception) {

@@ -19,6 +19,13 @@ import coil.load
 import coil.transform.CircleCropTransformation
 import com.waray.spendhound.data.repository.CrewRepository
 import io.github.jan.supabase.postgrest.query.Columns
+import io.github.jan.supabase.realtime.PostgresAction
+import io.github.jan.supabase.realtime.RealtimeChannel
+import io.github.jan.supabase.realtime.channel
+import io.github.jan.supabase.realtime.decodeRecord
+import io.github.jan.supabase.realtime.postgresChangeFlow
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.coroutines.Dispatchers
@@ -48,6 +55,7 @@ class DirectMessageActivity : AppCompatActivity() {
     private lateinit var emojiPopup: LinearLayout
     private lateinit var popupOverlay: View
     private lateinit var dmAdapter: DirectMessageAdapter
+    private var messagesChannel: io.github.jan.supabase.realtime.RealtimeChannel? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -134,12 +142,68 @@ class DirectMessageActivity : AppCompatActivity() {
                     loadMessages()
                     setupSendButton()
                 }
+                subscribeRealtime()
 
                 rvSkeleton.visibility = View.GONE
                 rvMessages.visibility = View.VISIBLE
             } catch (e: Exception) {
                 Toast.makeText(this@DirectMessageActivity, "Failed to load messages.", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        val channel = messagesChannel
+        if (channel != null) {
+            lifecycleScope.launch {
+                try {
+                    DeclareDatabase.realtime.removeChannel(channel)
+                } catch (e: Exception) {
+                    Log.e("DMActivity", "Error removing channel", e)
+                }
+            }
+        }
+    }
+
+    private fun subscribeRealtime() {
+        val uid = currentUserId
+        if (uid == -1L) return
+        
+        try {
+            val channelId = if (uid < recipientId) "dm_${uid}_$recipientId" else "dm_${recipientId}_$uid"
+            val channel = DeclareDatabase.realtime.channel(channelId)
+            messagesChannel = channel
+
+            channel.postgresChangeFlow<PostgresAction.Insert>(schema = "public") {
+                this.table = "direct_messages"
+            }.onEach { action ->
+                val msg = action.decodeRecord<DirectMessage>()
+                // Only handle messages between these two users
+                val isRelevant = (msg.senderId == uid && msg.recipientId == recipientId) ||
+                                 (msg.senderId == recipientId && msg.recipientId == uid)
+                
+                if (isRelevant) {
+                    // Update local list
+                    loadMessages()
+                    // Invalidate crew list cache and notify global state
+                    withContext(Dispatchers.IO) {
+                        repo.invalidateCrew(uid)
+                        repo.invalidateCrew(recipientId)
+                    }
+                    CrewState.notifyChange()
+                }
+            }.launchIn(lifecycleScope)
+
+            lifecycleScope.launch {
+                try {
+                    channel.subscribe(blockUntilSubscribed = true)
+                } catch (e: Exception) {
+                    Log.e("DMActivity", "Subscription error", e)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("DMActivity", "Failed to subscribe realtime", e)
         }
     }
 

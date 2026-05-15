@@ -34,6 +34,7 @@ class CrewMembersActivity : AppCompatActivity() {
     private lateinit var crewProgressBar: ProgressBar
     private lateinit var tvCrewCount: TextView
     private lateinit var crewAdapter: CrewMembersAdapter
+    private var lastSeenCrewUpdate: Long = 0L
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,13 +64,18 @@ class CrewMembersActivity : AppCompatActivity() {
         }
 
         resolveUserAndLoad()
+        lastSeenCrewUpdate = com.waray.spendhound.CrewState.lastUpdateTimestamp
         observeViewModel()
     }
 
     override fun onResume() {
         super.onResume()
         Log.d("CrewDebug", "CrewMembersActivity onResume currentUserId=$currentUserId")
-        if (currentUserId != -1L) viewModel.loadCrew(currentUserId)
+        if (currentUserId != -1L) {
+            // Always perform a refresh when visiting this page
+            viewModel.reloadCrew(currentUserId)
+            lastSeenCrewUpdate = com.waray.spendhound.CrewState.lastUpdateTimestamp
+        }
     }
 
     private fun resolveUserAndLoad() {
@@ -95,8 +101,8 @@ class CrewMembersActivity : AppCompatActivity() {
                 }
                 currentUserId = user.id
                 crewAdapter.updateCurrentUserId(currentUserId)
-                Log.i("CrewDebug", "CrewMembersActivity: calling loadCrew userId=$currentUserId")
-                viewModel.loadCrew(currentUserId)
+                Log.i("CrewDebug", "CrewMembersActivity: calling reloadCrew userId=$currentUserId")
+                viewModel.reloadCrew(currentUserId)
             } catch (e: Exception) {
                 Log.e("CrewDebug", "CrewMembersActivity EXCEPTION: ${e.message}", e)
                 if (!isFinishing) {
@@ -108,38 +114,37 @@ class CrewMembersActivity : AppCompatActivity() {
 
     private fun observeViewModel() {
         Log.i("CrewDebug", "CrewMembersActivity: observeViewModel START")
+        
         lifecycleScope.launch {
-            viewModel.isLoading.collectLatest { loading ->
-                Log.i("CrewDebug", "CrewMembersActivity: isLoading observer fired loading=$loading")
+            // Use combine or zip to handle both states together and avoid race conditions
+            kotlinx.coroutines.flow.combine(
+                viewModel.isLoading,
+                viewModel.crewList
+            ) { loading, list ->
+                loading to list
+            }.collectLatest { (loading, list) ->
+                Log.d("CrewDebug", "Observer: loading=$loading, size=${list.size}")
+                
                 if (loading) {
                     crewSkeletonContainer.visibility = View.VISIBLE
                     rvCrewMembers.visibility = View.GONE
                     emptyCrewState.visibility = View.GONE
                 } else {
                     crewSkeletonContainer.visibility = View.GONE
+                    
+                    if (list.isEmpty()) {
+                        emptyCrewState.visibility = View.VISIBLE
+                        rvCrewMembers.visibility = View.GONE
+                    } else {
+                        emptyCrewState.visibility = View.GONE
+                        rvCrewMembers.visibility = View.VISIBLE
+                        crewAdapter.updateItems(list)
+                    }
+                    tvCrewCount.text = "${list.size} member${if (list.size != 1) "s" else ""}"
                 }
             }
         }
-        lifecycleScope.launch {
-            viewModel.crewList.collectLatest { list ->
-                Log.i("CrewDebug", "CrewMembersActivity: crewList observer fired size=${list.size} isLoading=${viewModel.isLoading.value}")
-                
-                // FORCE HIDE SKELETON ON EMISSION
-                crewSkeletonContainer.visibility = View.GONE
-                
-                tvCrewCount.text = "${list.size} members"
-                if (list.isEmpty()) {
-                    Log.i("CrewDebug", "CrewMembersActivity: showing emptyCrewState")
-                    emptyCrewState.visibility = View.VISIBLE
-                    rvCrewMembers.visibility = View.GONE
-                } else {
-                    Log.i("CrewDebug", "CrewMembersActivity: showing rvCrewMembers size=${list.size}")
-                    emptyCrewState.visibility = View.GONE
-                    rvCrewMembers.visibility = View.VISIBLE
-                    crewAdapter.updateItems(list)
-                }
-            }
-        }
+
         lifecycleScope.launch {
             viewModel.actionError.collectLatest { err ->
                 err ?: return@collectLatest
