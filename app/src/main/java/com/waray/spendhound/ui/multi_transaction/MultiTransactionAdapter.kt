@@ -25,6 +25,7 @@ class MultiTransactionAdapter(
 
     private val transactions = mutableListOf<MultiTransactionItem>()
     private var groupMembers = listOf<User>()
+    private var isGroupSelected = false
     
     // Track current EditText values, selected categories, and included members to preserve them across updates
     private val currentTitles = mutableMapOf<Int, String>()
@@ -129,6 +130,13 @@ class MultiTransactionAdapter(
         notifyDataSetChanged()
     }
 
+    fun setGroupSelected(isSelected: Boolean) {
+        if (this.isGroupSelected != isSelected) {
+            this.isGroupSelected = isSelected
+            notifyDataSetChanged()
+        }
+    }
+
     fun setMode(isMultiple: Boolean) {
         // Mode is now handled per-item via bottom sheets
         notifyDataSetChanged()
@@ -204,6 +212,11 @@ class MultiTransactionAdapter(
             val isPaymentComplete = item.isPaymentComplete()
             
             when {
+                !isGroupSelected -> {
+                    binding.ivValidationError.isVisible = true
+                    binding.tvValidationMessage.isVisible = true
+                    binding.tvValidationMessage.text = "Please input payer group first"
+                }
                 !hasAmountInput -> {
                     binding.ivValidationError.isVisible = true
                     binding.tvValidationMessage.isVisible = true
@@ -258,11 +271,12 @@ class MultiTransactionAdapter(
                     
                     transactions[adapterPosition] = item.copy(amount = newAmount)
                     
-                    // Enable/disable payment section based on amount
+                    // Enable/disable payment section based on amount and group selection
                     val hasAmount = newAmount > 0
-                    binding.layoutPaymentChip.isClickable = hasAmount
-                    binding.layoutPaymentChip.isFocusable = hasAmount
-                    binding.layoutPaymentChip.alpha = if (hasAmount) 1.0f else 0.5f
+                    val canConfigurePayment = hasAmount && isGroupSelected
+                    binding.layoutPaymentChip.isClickable = canConfigurePayment
+                    binding.layoutPaymentChip.isFocusable = canConfigurePayment
+                    binding.layoutPaymentChip.alpha = if (canConfigurePayment) 1.0f else 0.5f
                     
                     updateValidation(adapterPosition)
                     onAmountChanged(adapterPosition, newAmount)
@@ -271,11 +285,12 @@ class MultiTransactionAdapter(
             }
             binding.etAmount.addTextChangedListener(amountWatcher)
             
-            // Initial payment section state based on current amount
+            // Initial payment section state based on current amount and group selection
             val hasAmount = (currentAmounts[position]?.toDoubleOrNull() ?: item.amount) > 0
-            binding.layoutPaymentChip.isClickable = hasAmount
-            binding.layoutPaymentChip.isFocusable = hasAmount
-            binding.layoutPaymentChip.alpha = if (hasAmount) 1.0f else 0.5f
+            val canConfigurePayment = hasAmount && isGroupSelected
+            binding.layoutPaymentChip.isClickable = canConfigurePayment
+            binding.layoutPaymentChip.isFocusable = canConfigurePayment
+            binding.layoutPaymentChip.alpha = if (canConfigurePayment) 1.0f else 0.5f
 
             // Title listener
             binding.etTitle.removeTextChangedListener(titleWatcher)
@@ -384,12 +399,17 @@ class MultiTransactionAdapter(
             val hasAmountInput = currentAmount > 0
             val isPayorsConfigured = item.payers.isNotEmpty()
             val isPaymentComplete = item.isPaymentComplete()
-            val isValid = hasAmountInput && item.category.isNotEmpty() && isPayorsConfigured && isPaymentComplete
+            val isValid = isGroupSelected && hasAmountInput && item.category.isNotEmpty() && isPayorsConfigured && isPaymentComplete
             
             transactions[position] = item.copy(isValid = isValid)
             
             // Update validation display
             when {
+                !isGroupSelected -> {
+                    binding.ivValidationError.isVisible = true
+                    binding.tvValidationMessage.isVisible = true
+                    binding.tvValidationMessage.text = "Please input payer group first"
+                }
                 !hasAmountInput -> {
                     binding.ivValidationError.isVisible = true
                     binding.tvValidationMessage.isVisible = true

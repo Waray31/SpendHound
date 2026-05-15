@@ -141,7 +141,10 @@ class MultiTransactionActivity : AppCompatActivity() {
         binding.spinnerGroup.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(p0: AdapterView<*>?, p1: View?, pos: Int, p3: Long) {
                 // Adjust for "Select a payer group" placeholder at index 0
-                if (pos == 0) {
+                val isGroupSelected = pos > 0
+                adapter.setGroupSelected(isGroupSelected)
+                
+                if (!isGroupSelected) {
                     validateSubmission()
                     return
                 }
