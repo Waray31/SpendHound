@@ -122,20 +122,31 @@ class MultiTransactionActivity : AppCompatActivity() {
         })
 
         binding.btnSubmit.setOnClickListener {
-            val selectedGroup = currentGroups.getOrNull(binding.spinnerGroup.selectedItemPosition)
-            if (selectedGroup?.groupId != null) {
-                val requireTitle = adapter.getTransactions().size > 1
-                if (isEditMode) {
-                    viewModel.updateTransaction(editTransactionId!!, selectedGroup.groupId!!, requireTitle)
-                } else {
-                    viewModel.submit(selectedGroup.groupId!!, requireTitle)
+            val pos = binding.spinnerGroup.selectedItemPosition
+            if (pos > 0) {
+                val selectedGroup = currentGroups.getOrNull(pos - 1)
+                if (selectedGroup?.groupId != null) {
+                    val requireTitle = adapter.getTransactions().size > 1
+                    if (isEditMode) {
+                        viewModel.updateTransaction(editTransactionId!!, selectedGroup.groupId!!, requireTitle)
+                    } else {
+                        viewModel.submit(selectedGroup.groupId!!, requireTitle)
+                    }
                 }
+            } else {
+                Toast.makeText(this, "Please select a group", Toast.LENGTH_SHORT).show()
             }
         }
 
         binding.spinnerGroup.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(p0: AdapterView<*>?, p1: View?, pos: Int, p3: Long) {
-                currentGroups.getOrNull(pos)?.groupId?.let { groupId ->
+                // Adjust for "Select a payer group" placeholder at index 0
+                if (pos == 0) {
+                    validateSubmission()
+                    return
+                }
+                
+                currentGroups.getOrNull(pos - 1)?.groupId?.let { groupId ->
                     if (isEditMode && groupId == pendingGroupId) {
                         // Initial load for edit mode - don't reset transactions
                         viewModel.onGroupSelected(groupId, resetTransactions = false)
@@ -146,6 +157,7 @@ class MultiTransactionActivity : AppCompatActivity() {
                         viewModel.onGroupSelected(groupId)
                     }
                 }
+                validateSubmission()
             }
             override fun onNothingSelected(p0: AdapterView<*>?) {}
         }
@@ -156,7 +168,8 @@ class MultiTransactionActivity : AppCompatActivity() {
         if (currentGroups.isNotEmpty()) {
             val index = currentGroups.indexOfFirst { it.groupId == groupId }
             if (index != -1) {
-                binding.spinnerGroup.setSelection(index)
+                // Adjust for placeholder at index 0
+                binding.spinnerGroup.setSelection(index + 1)
             }
         }
     }
@@ -178,7 +191,8 @@ class MultiTransactionActivity : AppCompatActivity() {
         val transactions = adapter.getTransactions()
         val titleRequired = transactions.size > 1
         val titleFilled = !titleRequired || binding.etTransactionTitle.text?.isNotBlank() == true
-        var allValid = transactions.isNotEmpty() && titleFilled
+        val groupSelected = binding.spinnerGroup.selectedItemPosition > 0
+        var allValid = transactions.isNotEmpty() && titleFilled && groupSelected
 
         for (tx in transactions) {
             if (tx.amount <= 0) { allValid = false; break }
@@ -273,7 +287,9 @@ class MultiTransactionActivity : AppCompatActivity() {
                 launch {
                     viewModel.groups.collect { groups ->
                         currentGroups = groups
-                        val names = groups.map { it.groupName ?: "Unnamed Group" }
+                        val names = mutableListOf("Select a payer group")
+                        names.addAll(groups.map { it.groupName ?: "Unnamed Group" })
+
                         val groupAdapter = ArrayAdapter(this@MultiTransactionActivity, android.R.layout.simple_spinner_item, names)
                         groupAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
                         binding.spinnerGroup.adapter = groupAdapter
