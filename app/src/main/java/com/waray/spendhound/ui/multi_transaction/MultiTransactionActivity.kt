@@ -350,7 +350,8 @@ class MultiTransactionActivity : AppCompatActivity() {
                         }
                         when (state) {
                             is MultiTransactionViewModel.UiState.Success -> {
-                                Toast.makeText(this@MultiTransactionActivity, "Transactions added!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(this@MultiTransactionActivity, if (isEditMode) "Transaction updated!" else "Transactions added!", Toast.LENGTH_SHORT).show()
+                                com.waray.spendhound.TransactionState.notifyChange()
                                 finish()
                             }
                             is MultiTransactionViewModel.UiState.Error -> {

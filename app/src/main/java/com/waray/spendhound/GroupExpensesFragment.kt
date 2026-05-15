@@ -54,6 +54,7 @@ class GroupExpensesFragment : Fragment() {
     private var archivedRecyclerView: RecyclerView? = null
     private var archivedAdapter: RecentTransactionAdapter? = null
     private var isArchivedExpanded = false
+    private var lastSeenUpdate: Long = 0L
     private lateinit var repo: GroupRepository
     private var groupName: String? = null
 
@@ -83,6 +84,8 @@ class GroupExpensesFragment : Fragment() {
         showArchivedSection = view.findViewById(R.id.showArchivedSection)
         showArchivedToggle = view.findViewById(R.id.showArchivedToggle)
         archivedRecyclerView = view.findViewById(R.id.archivedTransactionsRecyclerView)
+
+        lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
 
         popupOverlay?.setOnClickListener { dismissPopup() }
         
@@ -146,7 +149,17 @@ class GroupExpensesFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        if (::adapter.isInitialized) loadExpenses()
+        if (::adapter.isInitialized) {
+            if (com.waray.spendhound.TransactionState.lastUpdateTimestamp > lastSeenUpdate) {
+                lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
+                lifecycleScope.launch {
+                    repo.invalidateTransactions(groupId)
+                    loadExpenses()
+                }
+            } else {
+                loadExpenses()
+            }
+        }
     }
 
     @SuppressLint("NotifyDataSetChanged")
@@ -562,6 +575,8 @@ class GroupExpensesFragment : Fragment() {
                 withContext(Dispatchers.Main) {
                     transaction.isArchived = true
                     moveToArchived(transaction)
+                    com.waray.spendhound.TransactionState.notifyChange()
+                    lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
                     loadExpenses()
                 }
             } catch (e: Exception) {
@@ -580,6 +595,8 @@ class GroupExpensesFragment : Fragment() {
                 withContext(Dispatchers.Main) {
                     transaction.isArchived = false
                     moveFromArchived(transaction)
+                    com.waray.spendhound.TransactionState.notifyChange()
+                    lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
                     loadExpenses()
                 }
             } catch (e: Exception) {

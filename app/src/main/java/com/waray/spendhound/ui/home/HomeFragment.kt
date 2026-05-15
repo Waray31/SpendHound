@@ -84,6 +84,7 @@ class HomeFragment : Fragment() {
     private var cachedMonthlyEntries: List<Entry>? = null
     private var cachedMonthlyLabels: List<String>? = null
     private var hasLoadedOnce = false
+    private var lastSeenUpdate: Long = 0L
 
     private val viewModel: HomeViewModel by viewModels()
 
@@ -142,6 +143,7 @@ class HomeFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
         applyCachedState()
         observeViewModel()
     }
@@ -201,10 +203,17 @@ class HomeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        
+        val needsRefresh = com.waray.spendhound.TransactionState.lastUpdateTimestamp > lastSeenUpdate
+        if (needsRefresh) {
+            lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
+        }
+
         val authId = mAuth?.currentUserOrNull()?.id ?: return
         // Resolve userId then load — only fetches network if stale
         if (currentUserNumericId != null) {
-            viewModel.load(currentUserNumericId!!)
+            if (needsRefresh) viewModel.invalidate(currentUserNumericId!!)
+            else viewModel.load(currentUserNumericId!!)
             refreshAnalytics()
         } else {
             viewLifecycleOwner.lifecycleScope.launch {
@@ -218,7 +227,8 @@ class HomeFragment : Fragment() {
                     (activity as? MainActivity)?.currentNickname = user.username
                     (activity as? MainActivity)?.currentUserNumericId = user.id
                     user.id?.let {
-                        viewModel.load(it)
+                        if (needsRefresh) viewModel.invalidate(it)
+                        else viewModel.load(it)
                         refreshAnalytics()
                     }
                 }

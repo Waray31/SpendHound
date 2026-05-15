@@ -88,6 +88,7 @@ class TransactionsFragment : Fragment() {
     private var archivedRecyclerView: RecyclerView? = null
     private var archivedAdapter: RecentTransactionAdapter? = null
     private var isArchivedExpanded = false
+    private var lastSeenUpdate: Long = 0L
 
     private val viewModel: TransactionsViewModel by viewModels()
 
@@ -115,8 +116,17 @@ class TransactionsFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
         resolveUserThenLoad()
         observeViewModel()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (com.waray.spendhound.TransactionState.lastUpdateTimestamp > lastSeenUpdate) {
+            lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
+            refreshTransactions()
+        }
     }
 
     private fun observeViewModel() {
@@ -537,6 +547,8 @@ class TransactionsFragment : Fragment() {
                 withContext(Dispatchers.Main) {
                     transaction.isArchived = true
                     moveToArchived(transaction)
+                    com.waray.spendhound.TransactionState.notifyChange()
+                    lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
                     refreshTransactions()
                 }
             } catch (e: Exception) {
@@ -555,6 +567,8 @@ class TransactionsFragment : Fragment() {
                 withContext(Dispatchers.Main) {
                     transaction.isArchived = false
                     moveFromArchived(transaction)
+                    com.waray.spendhound.TransactionState.notifyChange()
+                    lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
                     refreshTransactions()
                 }
             } catch (e: Exception) {
