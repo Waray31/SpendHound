@@ -43,6 +43,7 @@ class SignUpActivity : AppCompatActivity() {
     private var btnNextStep: Button? = null
     private var profileImageView: ImageView? = null
     private var progressBar: ProgressBar? = null
+    private var loadingOverlay: View? = null
     private var ivBack: ImageView? = null
     private var layoutFooter: LinearLayout? = null
     private var mAuth: Auth? = null
@@ -78,6 +79,7 @@ class SignUpActivity : AppCompatActivity() {
         signUpButton = findViewById(R.id.signUpButton)
         profileImageView = findViewById(R.id.profileImageView)
         progressBar = findViewById(R.id.progressBar)
+        loadingOverlay = findViewById(R.id.loadingOverlay)
 
         mAuth = DeclareDatabase.auth
 
@@ -141,8 +143,12 @@ class SignUpActivity : AppCompatActivity() {
     private fun signUpStep1() {
         val email = emailEditText?.text.toString().trim()
         val password = passwordEditText?.text.toString().trim()
+        
+        pendingEmail = email
+        pendingPassword = password
 
         progressBar?.visibility = View.VISIBLE
+        loadingOverlay?.visibility = View.VISIBLE
         btnNextStep?.isEnabled = false
 
         lifecycleScope.launch {
@@ -160,6 +166,7 @@ class SignUpActivity : AppCompatActivity() {
                 if (userId != null) {
                     if (session == null) {
                         progressBar?.visibility = View.GONE
+                        loadingOverlay?.visibility = View.GONE
                         btnNextStep?.isEnabled = true
                         Toast.makeText(this@SignUpActivity, "Success! Check your email to confirm your account.", Toast.LENGTH_LONG).show()
                         finish()
@@ -174,6 +181,7 @@ class SignUpActivity : AppCompatActivity() {
             } catch (e: Exception) {
                 Log.e(tag, "Step 1 Sign Up Error: ${e.message}")
                 progressBar?.visibility = View.GONE
+                loadingOverlay?.visibility = View.GONE
                 btnNextStep?.isEnabled = true
                 Toast.makeText(this@SignUpActivity, "Sign up failed: ${e.message}", Toast.LENGTH_LONG).show()
             }
@@ -217,12 +225,14 @@ class SignUpActivity : AppCompatActivity() {
             
             withContext(Dispatchers.Main) {
                 progressBar?.visibility = View.GONE
+                loadingOverlay?.visibility = View.GONE
                 showStep2(username)
             }
         } catch (e: Exception) {
             Log.e(tag, "Database Error in Step 1: ${e.message}", e)
             withContext(Dispatchers.Main) {
                 progressBar?.visibility = View.GONE
+                loadingOverlay?.visibility = View.GONE
                 btnNextStep?.isEnabled = true
                 Toast.makeText(this@SignUpActivity, "Initial database save failed: ${e.message}", Toast.LENGTH_LONG).show()
             }
@@ -230,6 +240,9 @@ class SignUpActivity : AppCompatActivity() {
     }
 
     private fun showStep2(tempUsername: String) {
+        // Scroll to top
+        findViewById<android.widget.ScrollView>(R.id.signUpScrollView)?.smoothScrollTo(0, 0)
+
         layoutStep1?.visibility = View.GONE
         layoutStep2?.visibility = View.VISIBLE
         ivBack?.visibility = View.GONE // Remove back button on Step 2
@@ -256,6 +269,7 @@ class SignUpActivity : AppCompatActivity() {
         }
 
         progressBar?.visibility = View.VISIBLE
+        loadingOverlay?.visibility = View.VISIBLE
         signUpButton?.isEnabled = false
 
         lifecycleScope.launch {
@@ -272,6 +286,7 @@ class SignUpActivity : AppCompatActivity() {
                 
                 if (existingUser != null) {
                     progressBar?.visibility = View.GONE
+                    loadingOverlay?.visibility = View.GONE
                     signUpButton?.isEnabled = true
                     Toast.makeText(this@SignUpActivity, "Username already taken", Toast.LENGTH_SHORT).show()
                     return@launch
@@ -297,11 +312,13 @@ class SignUpActivity : AppCompatActivity() {
 
                 withContext(Dispatchers.Main) {
                     progressBar?.visibility = View.GONE
+                    loadingOverlay?.visibility = View.GONE
                     signUpSuccess()
                 }
             } catch (e: Exception) {
                 Log.e(tag, "Update Error (Step 2): ${e.message}", e)
                 progressBar?.visibility = View.GONE
+                loadingOverlay?.visibility = View.GONE
                 signUpButton?.isEnabled = true
                 Toast.makeText(this@SignUpActivity, "Update failed: ${e.message}", Toast.LENGTH_LONG).show()
             }
@@ -498,16 +515,19 @@ class SignUpActivity : AppCompatActivity() {
     }
 
     private fun showStep3() {
+        // Scroll to top when showing new step
+        findViewById<android.widget.ScrollView>(R.id.signUpScrollView)?.smoothScrollTo(0, 0)
+        
         layoutStep2?.visibility = View.GONE
         layoutStep3?.visibility = View.VISIBLE
         tvSignUpTitle?.text = "One Last Step"
 
-        if (!BiometricHelper.isAvailable(this)) {
-            goToMain()
-            return
-        }
-
         findViewById<View>(R.id.btnEnableBiometric).setOnClickListener {
+            if (!BiometricHelper.isAvailable(this)) {
+                Toast.makeText(this, "Fingerprint sensor not available or setup on this device.", Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+
             BiometricHelper.promptToSaveCredentials(
                 activity = this,
                 email = pendingEmail,
@@ -517,7 +537,10 @@ class SignUpActivity : AppCompatActivity() {
                     Toast.makeText(this, "Fingerprint login enabled!", Toast.LENGTH_SHORT).show()
                     goToMain()
                 },
-                onCancelled = { goToMain() }
+                onCancelled = { 
+                    // If they cancelled the biometric prompt, don't force them out, 
+                    // let them try again or skip.
+                }
             )
         }
 

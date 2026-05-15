@@ -167,7 +167,6 @@ class GroupExpensesFragment : Fragment() {
         showLoading()
         lifecycleScope.launch {
             repo.getTransactions(groupId).collect { cached ->
-                if (cached.isEmpty() && transactionList.isEmpty()) return@collect
                 val result = buildTransactions(cached)
                 withContext(Dispatchers.Main) {
                     fullTransactions = result

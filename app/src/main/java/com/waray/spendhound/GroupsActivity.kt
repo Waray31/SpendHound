@@ -86,10 +86,12 @@ class GroupsActivity : AppCompatActivity() {
     private fun observeViewModel() {
         lifecycleScope.launch {
             groupsListViewModel.groups.collectLatest { items ->
-                if (items.isEmpty() && groups.isEmpty()) return@collectLatest
+                if (items == null) return@collectLatest
+                
                 val cardDataMap = items.associate { it.group.groupId!! to it.cardData }
                 groups.clear()
                 items.forEach { groups.add(Pair(it.group, it.members)) }
+
                 runOnUiThread {
                     val isEmpty = groups.isEmpty()
                     emptyState.visibility = if (isEmpty) View.VISIBLE else View.GONE

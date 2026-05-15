@@ -16,8 +16,8 @@ class TransactionsViewModel(app: Application) : AndroidViewModel(app) {
     private val db = (app as SpendHoundApplication).database
     private val repo = TransactionRepository(db)
 
-    private val _transactions = MutableStateFlow<List<RecentTransaction>>(emptyList())
-    val transactions: StateFlow<List<RecentTransaction>> = _transactions
+    private val _transactions = MutableStateFlow<List<RecentTransaction>?>(null)
+    val transactions: StateFlow<List<RecentTransaction>?> = _transactions
 
     fun load(userId: Long) {
         viewModelScope.launch {

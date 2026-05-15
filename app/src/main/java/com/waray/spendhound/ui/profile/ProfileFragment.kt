@@ -334,7 +334,7 @@ class ProfileFragment : Fragment() {
         }
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.groups.collectLatest { items ->
-                if (items.isEmpty() && groupsSkeletonLayout?.visibility == View.VISIBLE) return@collectLatest
+                if (items == null) return@collectLatest
                 groupsSkeletonLayout?.visibility = View.GONE
                 if (items.isEmpty()) {
                     emptyGroupsLayout?.visibility = View.VISIBLE

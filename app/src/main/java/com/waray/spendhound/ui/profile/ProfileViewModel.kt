@@ -19,8 +19,8 @@ class ProfileViewModel(app: Application) : AndroidViewModel(app) {
     private val _profile = MutableStateFlow<ProfileData?>(null)
     val profile: StateFlow<ProfileData?> = _profile
 
-    private val _groups = MutableStateFlow<List<ProfileGroupItem>>(emptyList())
-    val groups: StateFlow<List<ProfileGroupItem>> = _groups
+    private val _groups = MutableStateFlow<List<ProfileGroupItem>?>(null)
+    val groups: StateFlow<List<ProfileGroupItem>?> = _groups
 
     fun load(userId: Long, authId: String) {
         viewModelScope.launch {

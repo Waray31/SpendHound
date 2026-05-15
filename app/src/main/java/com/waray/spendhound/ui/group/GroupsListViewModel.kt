@@ -17,8 +17,8 @@ class GroupsListViewModel(app: Application) : AndroidViewModel(app) {
     private val db = (app as SpendHoundApplication).database
     private val repo = GroupsListRepository(db)
 
-    private val _groups = MutableStateFlow<List<GroupListItem>>(emptyList())
-    val groups: StateFlow<List<GroupListItem>> = _groups
+    private val _groups = MutableStateFlow<List<GroupListItem>?>(null)
+    val groups: StateFlow<List<GroupListItem>?> = _groups
 
     fun load(userId: Long, allUsers: List<User>) {
         viewModelScope.launch {

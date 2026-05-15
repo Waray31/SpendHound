@@ -132,7 +132,7 @@ class TransactionsFragment : Fragment() {
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
             viewModel.transactions.collectLatest { list ->
-                if (list.isEmpty() && fullTransactions.isEmpty()) return@collectLatest
+                if (list == null) return@collectLatest
                 fullTransactions = list
                 applyStatusFilter()
                 hideLoading()
