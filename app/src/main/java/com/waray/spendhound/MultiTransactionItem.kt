@@ -11,7 +11,7 @@ data class MultiTransactionItem(
 ) {
     fun getTotalPaid(): Double = payers.sumOf { it.amount }
     
-    fun isPaymentComplete(): Boolean = getTotalPaid() == amount
+    fun isPaymentComplete(): Boolean = Math.abs(getTotalPaid() - amount) < 0.01
     
     fun getPaymentSummary(): String {
         return when {

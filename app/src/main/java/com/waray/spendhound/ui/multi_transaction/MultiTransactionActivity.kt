@@ -166,7 +166,12 @@ class MultiTransactionActivity : AppCompatActivity() {
         binding.spinnerGroup.isEnabled = enabled
         binding.btnAddRow.isClickable = enabled
         binding.rvTransactions.isEnabled = enabled
-        binding.btnSubmit.isEnabled = enabled && binding.btnSubmit.isVisible
+        // Re-validate to ensure submit button state is correct after loading
+        if (enabled) {
+            validateSubmission()
+        } else {
+            binding.btnSubmit.isEnabled = false
+        }
     }
 
     private fun validateSubmission() {
@@ -179,20 +184,22 @@ class MultiTransactionActivity : AppCompatActivity() {
             if (tx.amount <= 0) { allValid = false; break }
             if (tx.category.isBlank()) { allValid = false; break }
             
-            // Check if there are any payment amounts configured
-            val hasPaymentAmounts = tx.payors.any { it.amount > 0 }
-            if (!hasPaymentAmounts) { allValid = false; break }
+            // Check if total payment equals the transaction amount
+            val totalPaid = tx.payors.sumOf { it.amount }
+            if (Math.abs(totalPaid - tx.amount) >= 0.01) { allValid = false; break }
         }
 
-        binding.btnSubmit.isVisible = allValid
+        binding.btnSubmit.isVisible = true
         binding.btnSubmit.isEnabled = allValid
+        
+        if (allValid) {
+            binding.btnSubmit.setBackgroundResource(R.drawable.rounded_button)
+        } else {
+            binding.btnSubmit.setBackgroundResource(R.drawable.greyed_out_rounded_button)
+        }
         
         // Debug logging
         android.util.Log.d("MultiTransaction", "Validation - allValid: $allValid, transactions: ${transactions.size}")
-        transactions.forEachIndexed { index, tx ->
-            val hasPayments = tx.payors.any { it.amount > 0 }
-            android.util.Log.d("MultiTransaction", "Transaction $index: amount=${tx.amount}, category='${tx.category}', payors=${tx.payors.size}, hasPayments=$hasPayments")
-        }
     }
 
     private fun updatePayorsChips(members: List<User>) {
@@ -286,6 +293,8 @@ class MultiTransactionActivity : AppCompatActivity() {
                     viewModel.transactions.collect { transactions ->
                         // Convert TransactionEntry to MultiTransactionItem for adapter
                         val multiItems = transactions.map { entry ->
+                            val totalPaid = entry.payors.sumOf { it.amount }
+                            val isPaymentComplete = Math.abs(totalPaid - entry.amount) < 0.01
                             MultiTransactionItem(
                                 id = "",
                                 title = entry.title,
@@ -299,7 +308,7 @@ class MultiTransactionActivity : AppCompatActivity() {
                                     )
                                 },
                                 includedMembers = entry.includedMemberIds.map { it.toString() },
-                                isValid = entry.amount > 0 && entry.category.isNotEmpty() && entry.payors.isNotEmpty()
+                                isValid = entry.amount > 0 && entry.category.isNotEmpty() && entry.payors.isNotEmpty() && isPaymentComplete
                             )
                         }
                         adapter.setTransactions(multiItems)

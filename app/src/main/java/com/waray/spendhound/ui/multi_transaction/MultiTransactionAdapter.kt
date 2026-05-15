@@ -64,15 +64,31 @@ class MultiTransactionAdapter(
         } else {
             // Same size, check for changes to update UI
             for (i in transactions.indices) {
-                if (transactions[i].title != newTransactions[i].title ||
-                    transactions[i].amount != newTransactions[i].amount ||
-                    transactions[i].category != newTransactions[i].category ||
-                    transactions[i].payers != newTransactions[i].payers || 
-                    transactions[i].includedMembers != newTransactions[i].includedMembers ||
-                    transactions[i].isValid != newTransactions[i].isValid) {
+                val oldItem = transactions[i]
+                val newItem = newTransactions[i]
+                
+                val titleChanged = oldItem.title != newItem.title
+                val amountChanged = oldItem.amount != newItem.amount
+                val categoryChanged = oldItem.category != newItem.category
+                val payersChanged = oldItem.payers != newItem.payers
+                val participantsChanged = oldItem.includedMembers != newItem.includedMembers
+                val validationChanged = oldItem.isValid != newItem.isValid
 
-                    transactions[i] = newTransactions[i]
-                    notifyItemChanged(i)
+                if (titleChanged || amountChanged || categoryChanged || payersChanged || participantsChanged || validationChanged) {
+                    transactions[i] = newItem
+                    
+                    // Prevent focus loss: skip notifyItemChanged if the change matches what the user is typing
+                    val typedAmount = currentAmounts[i]?.toDoubleOrNull() ?: 0.0
+                    val isTypingAmount = Math.abs(typedAmount - newItem.amount) < 0.001
+                    val isTypingTitle = currentTitles[i] == newItem.title
+
+                    // Only skip if the only changes are the ones being typed
+                    val onlyAmountTyping = amountChanged && isTypingAmount && !titleChanged && !categoryChanged && !payersChanged && !participantsChanged && !validationChanged
+                    val onlyTitleTyping = titleChanged && isTypingTitle && !amountChanged && !categoryChanged && !payersChanged && !participantsChanged && !validationChanged
+                    
+                    if (!onlyAmountTyping && !onlyTitleTyping) {
+                        notifyItemChanged(i)
+                    }
                 }
             }
         }
@@ -184,23 +200,26 @@ class MultiTransactionAdapter(
             // Validation indicator and message
             val currentAmount = currentAmounts[position]?.toDoubleOrNull() ?: item.amount
             val hasAmountInput = currentAmount > 0
-            val hasPaymentConfig = item.payers.isNotEmpty() && item.isPaymentComplete()
+            val isPayorsConfigured = item.payers.isNotEmpty()
+            val isPaymentComplete = item.isPaymentComplete()
             
             when {
                 !hasAmountInput -> {
-                    // No amount inputted
                     binding.ivValidationError.isVisible = true
                     binding.tvValidationMessage.isVisible = true
                     binding.tvValidationMessage.text = "Please input amount first"
                 }
-                hasAmountInput && !hasPaymentConfig -> {
-                    // Amount inputted but no payment config
+                !isPayorsConfigured -> {
                     binding.ivValidationError.isVisible = true
                     binding.tvValidationMessage.isVisible = true
-                    binding.tvValidationMessage.text = "Select a payor and input payment"
+                    binding.tvValidationMessage.text = "Select who paid for this item"
+                }
+                !isPaymentComplete -> {
+                    binding.ivValidationError.isVisible = true
+                    binding.tvValidationMessage.isVisible = true
+                    binding.tvValidationMessage.text = "Payment total must equal item amount"
                 }
                 else -> {
-                    // Amount and payment config complete
                     binding.ivValidationError.isVisible = false
                     binding.tvValidationMessage.isVisible = false
                 }
@@ -363,8 +382,9 @@ class MultiTransactionAdapter(
             val item = transactions[position]
             val currentAmount = currentAmounts[position]?.toDoubleOrNull() ?: item.amount
             val hasAmountInput = currentAmount > 0
-            val hasPaymentConfig = item.payers.isNotEmpty() && item.isPaymentComplete()
-            val isValid = hasAmountInput && item.category.isNotEmpty() && hasPaymentConfig
+            val isPayorsConfigured = item.payers.isNotEmpty()
+            val isPaymentComplete = item.isPaymentComplete()
+            val isValid = hasAmountInput && item.category.isNotEmpty() && isPayorsConfigured && isPaymentComplete
             
             transactions[position] = item.copy(isValid = isValid)
             
@@ -375,10 +395,15 @@ class MultiTransactionAdapter(
                     binding.tvValidationMessage.isVisible = true
                     binding.tvValidationMessage.text = "Please input amount first"
                 }
-                hasAmountInput && !hasPaymentConfig -> {
+                !isPayorsConfigured -> {
                     binding.ivValidationError.isVisible = true
                     binding.tvValidationMessage.isVisible = true
-                    binding.tvValidationMessage.text = "Select a payor and input payment"
+                    binding.tvValidationMessage.text = "Select who paid for this item"
+                }
+                !isPaymentComplete -> {
+                    binding.ivValidationError.isVisible = true
+                    binding.tvValidationMessage.isVisible = true
+                    binding.tvValidationMessage.text = "Payment total must equal item amount"
                 }
                 else -> {
                     binding.ivValidationError.isVisible = false

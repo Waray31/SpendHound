@@ -141,9 +141,16 @@ class PaymentConfigBottomSheet : BottomSheetDialogFragment() {
         }
         tvRemainingAmount.setTextColor(color)
         
-        // Enable confirm when amounts are valid (don't require exact balance)
-        // Allow confirmation if at least one person has paid something
-        btnConfirm.isEnabled = memberStates.any { it.amountPaid > 0 }
+        // Enable confirm only when total paid equals the item amount
+        val isBalanced = Math.abs(remaining) < 0.01 && memberStates.any { it.amountPaid > 0 }
+        btnConfirm.isEnabled = isBalanced
+        
+        // Update background based on enabled state
+        if (isBalanced) {
+            btnConfirm.setBackgroundResource(R.drawable.rounded_button)
+        } else {
+            btnConfirm.setBackgroundResource(R.drawable.greyed_out_rounded_button)
+        }
         
         // Don't call notifyDataSetChanged() here - let individual items update themselves
     }

@@ -1,0 +1,13 @@
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+
+    <!-- Greyed-out gradient -->
+    <gradient
+        android:angle="270"
+        android:startColor="#D6D6D6"
+        android:endColor="#A8A8A8" />
+
+    <!-- Rounded corners -->
+    <corners android:radius="24dp" />
+
+</shape>
