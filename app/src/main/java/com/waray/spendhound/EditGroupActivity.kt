@@ -42,6 +42,7 @@ class EditGroupActivity : AppCompatActivity() {
     private lateinit var btnNext: TextView
     private lateinit var loadingOverlay: View
 
+    private val repo = com.waray.spendhound.data.repository.CrewRepository()
     private var groupId: Long = -1
     private var groupName: String = ""
     private var existingGroupImage: String? = null
@@ -111,10 +112,23 @@ class EditGroupActivity : AppCompatActivity() {
                 currentUser = DeclareDatabase.usersTable.select {
                     filter { eq("auth_id", authId) }
                 }.decodeSingleOrNull<User>()
-                currentUserId = currentUser?.id
+                currentUserId = currentUser?.id ?: return@launch
 
-                allUsers = DeclareDatabase.usersTable.select().decodeList<User>()
-                    .filter { it.id != currentUserId }
+                // 1. Get Crew Members
+                val crewPairs = repo.getCrewList(currentUserId!!)
+                val crewUsers = crewPairs.map { it.second }.sortedBy { it.username?.lowercase() }
+                val crewUserIds = crewUsers.mapNotNull { it.id }.toSet()
+
+                // 2. Get All Registered Users (Type 1)
+                val allFetched = DeclareDatabase.usersTable.select().decodeList<User>()
+                    .filter { it.id != currentUserId && it.userType == 1 }
+
+                // 3. Filter out crew from all users to get suggested/other users
+                val otherUsers = allFetched.filter { it.id !in crewUserIds }
+                    .sortedBy { it.username?.lowercase() }
+
+                // 4. Combine: Crew first, then suggested
+                allUsers = crewUsers + otherUsers
 
                 val existingMemberIds = DeclareDatabase.groupMembersTable.select {
                     filter { eq("group_id", groupId) }
