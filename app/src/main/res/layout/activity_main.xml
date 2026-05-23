@@ -35,6 +35,8 @@
         android:layout_gravity="bottom"
         android:backgroundTint="@color/white2"
         android:elevation="6dp"
+        app:itemIconTint="@color/nav_icon_colors"
+        app:itemTextColor="@color/nav_icon_colors"
         app:itemTextAppearanceActive="@style/BottomNavTextStyle"
         app:itemTextAppearanceInactive="@style/BottomNavTextStyle"
         app:labelVisibilityMode="selected"
