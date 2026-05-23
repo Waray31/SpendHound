@@ -215,7 +215,13 @@ class CrewRepository(private val db: AppDatabase) {
         return DeclareDatabase.usersTable.select(
             Columns.list("user_id", "username", "profile_image_url", "user_type")
         ) {
-            filter { neq("user_id", currentUserId); eq("user_type", 1) }
+            filter { 
+                neq("user_id", currentUserId)
+                or {
+                    eq("user_type", 1)
+                    filter("user_type", FilterOperator.IS, "null")
+                }
+            }
         }.decodeList<User>().sortedBy { it.username?.lowercase() }
     }
 

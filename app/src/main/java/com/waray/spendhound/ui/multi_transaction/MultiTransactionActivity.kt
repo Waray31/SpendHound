@@ -70,8 +70,7 @@ class MultiTransactionActivity : AppCompatActivity() {
     }
 
     private fun setupTransactionMode() {
-        // Always show add row button and use "Add Transactions" title
-        binding.btnAddRow.visibility = View.VISIBLE
+        // Use "Add Transactions" title
         binding.tvActivityTitle.text = if (isEditMode) "Edit Transaction" else "Add Transactions"
     }
 
@@ -109,7 +108,6 @@ class MultiTransactionActivity : AppCompatActivity() {
     private fun setupListeners() {
         binding.btnAddRow.setOnClickListener {
             viewModel.addTransaction()
-            binding.rvTransactions.smoothScrollToPosition(adapter.itemCount - 1)
         }
 
         binding.etTransactionTitle.addTextChangedListener(object : TextWatcher {
@@ -143,6 +141,15 @@ class MultiTransactionActivity : AppCompatActivity() {
                 // Adjust for "Select a payer group" placeholder at index 0
                 val isGroupSelected = pos > 0
                 adapter.setGroupSelected(isGroupSelected)
+                
+                binding.rvTransactions.isVisible = isGroupSelected
+                binding.btnAddRow.isVisible = isGroupSelected
+                binding.summaryCard.isVisible = isGroupSelected
+                
+                // Hide title section if no group is selected
+                binding.titleLabel.isVisible = isGroupSelected
+                binding.titleInputLayout.isVisible = isGroupSelected
+                binding.titleDivider.isVisible = isGroupSelected
                 
                 if (!isGroupSelected) {
                     validateSubmission()
@@ -330,7 +337,21 @@ class MultiTransactionActivity : AppCompatActivity() {
                                 isValid = entry.amount > 0 && entry.category.isNotEmpty() && entry.payors.isNotEmpty() && isPaymentComplete
                             )
                         }
-                        adapter.setTransactions(multiItems)
+                        
+                        // Use post to avoid "Cannot call this method while RecyclerView is computing a layout or scrolling"
+                        binding.rvTransactions.post {
+                            val oldSize = adapter.itemCount
+                            adapter.setTransactions(multiItems)
+                            
+                            // Scroll to bottom if items were added
+                            if (multiItems.size > oldSize && oldSize > 0) {
+                                binding.rvTransactions.smoothScrollToPosition(multiItems.size - 1)
+                            }
+                            
+                            // Re-validate after adapter update
+                            validateSubmission()
+                        }
+                        
                         val buttonText = if (isEditMode) {
                             "Update Expense"
                         } else {
@@ -342,7 +363,6 @@ class MultiTransactionActivity : AppCompatActivity() {
                         updateTitleSectionVisibility(transactions.size)
                         
                         viewModel.calculateTotals()
-                        validateSubmission()
                     }
                 }
                 launch {

@@ -188,7 +188,7 @@ class MembersAdapter(
         val tvMemberName: TextView = view.findViewById(R.id.tvMemberName)
         val etMemberAmount: TextInputEditText = view.findViewById(R.id.etMemberAmount)
         val ivWarningIcon: ImageView = view.findViewById(R.id.ivWarningIcon)
-        val layoutSplitToggle: FrameLayout = view.findViewById(R.id.layoutSplitToggle)
+        val layoutSplitToggle: View? = view.findViewById(R.id.layoutSplitToggle)
         val toggleThumb: View = view.findViewById(R.id.toggleThumb)
         val tvToggleLabel: TextView = view.findViewById(R.id.tvToggleLabel)
     }
@@ -253,21 +253,21 @@ class MembersAdapter(
         }
         
         // Toggle click listener
-        holder.layoutSplitToggle.setOnClickListener {
+        holder.layoutSplitToggle?.setOnClickListener {
             val currentPos = holder.bindingAdapterPosition
             if (currentPos != RecyclerView.NO_POSITION) {
                 try {
                     val currentState = memberStates[currentPos]
                     val newState = !currentState.isIncludedInSplit
                     memberStates[currentPos] = currentState.copy(isIncludedInSplit = newState)
-                    
+
                     // Update only this item's appearance
                     updateToggleAppearance(holder, newState)
-                    
+
                     // Update warning icon for this item only
                     val showWarning = memberStates[currentPos].amountPaid > 0 && !newState
                     holder.ivWarningIcon.visibility = if (showWarning) View.VISIBLE else View.GONE
-                    
+
                     // Notify parent about state change (for totals calculation)
                     onStateChanged()
                 } catch (e: Exception) {
@@ -322,24 +322,25 @@ class MembersAdapter(
         
         if (isIncluded) {
             // "In" state - orange background, thumb on right, center "IN" text in left space
-            holder.layoutSplitToggle.setBackgroundResource(R.drawable.bg_toggle_track_on)
+            holder.layoutSplitToggle?.setBackgroundResource(R.drawable.bg_toggle_track_on)
             holder.tvToggleLabel.text = "IN"
             holder.tvToggleLabel.setTextColor(context.getColor(R.color.whitest))
             
             // Position text in the left half, centered
             labelParams.gravity = android.view.Gravity.CENTER_VERTICAL
-            labelParams.leftMargin = (14 * density).toInt() // More margin to center in left space
+            labelParams.leftMargin = (8 * density).toInt() // More margin to center in left space
             labelParams.rightMargin = 0
             holder.tvToggleLabel.layoutParams = labelParams
 
-            // Move thumb to right
+            // Move thumb to right - to the "most end"
+            val maxTravel = toggleWidth - thumbWidth - (2 * density) // Account for 2dp padding to reach edge
             holder.toggleThumb.animate()
-                .translationX(thumbWidth.toFloat())
+                .translationX(maxTravel)
                 .setDuration(200)
                 .start()
         } else {
             // "Out" state - grey background, thumb on left, center "OUT" text in right space
-            holder.layoutSplitToggle.setBackgroundResource(R.drawable.bg_toggle_track)
+            holder.layoutSplitToggle?.setBackgroundResource(R.drawable.bg_toggle_track)
             holder.tvToggleLabel.text = "OUT"
             holder.tvToggleLabel.setTextColor(context.getColor(R.color.grey))
             

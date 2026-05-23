@@ -198,6 +198,7 @@ class SignUpActivity : AppCompatActivity() {
                 put("email", email)
                 put("password", hashedPass)
                 put("profile_image_url", profileImageUrl)
+                put("user_type", 1) // 1 = registered user
             }
 
             withContext(Dispatchers.IO) {

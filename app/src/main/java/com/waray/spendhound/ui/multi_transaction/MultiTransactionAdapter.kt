@@ -33,6 +33,27 @@ class MultiTransactionAdapter(
     private val currentCategories = mutableMapOf<Int, String>()
     private val currentIncludedMembers = mutableMapOf<Int, List<String>>()
 
+    private var recyclerView: RecyclerView? = null
+
+    override fun onAttachedToRecyclerView(recyclerView: RecyclerView) {
+        super.onAttachedToRecyclerView(recyclerView)
+        this.recyclerView = recyclerView
+    }
+
+    override fun onDetachedFromRecyclerView(recyclerView: RecyclerView) {
+        super.onDetachedFromRecyclerView(recyclerView)
+        this.recyclerView = null
+    }
+
+    private fun safeNotify(action: () -> Unit) {
+        val rv = recyclerView
+        if (rv != null && (rv.isComputingLayout || rv.scrollState != RecyclerView.SCROLL_STATE_IDLE)) {
+            rv.post { action() }
+        } else {
+            action()
+        }
+    }
+
     fun setTransactions(newTransactions: List<MultiTransactionItem>) {
         val oldSize = transactions.size
         val newSize = newTransactions.size
@@ -42,10 +63,12 @@ class MultiTransactionAdapter(
             transactions.clear()
             transactions.addAll(newTransactions)
             
-            notifyItemRangeInserted(oldSize, newSize - oldSize)
-            // Update remove button visibility for all existing items
-            if (oldSize == 1) {
-                notifyItemChanged(0) // First item now needs remove button
+            safeNotify {
+                notifyItemRangeInserted(oldSize, newSize - oldSize)
+                // Update remove button visibility for all existing items
+                if (oldSize == 1) {
+                    notifyItemChanged(0) // First item now needs remove button
+                }
             }
         } else if (newSize < oldSize) {
             // Items were removed - clean up tracked values for removed positions
@@ -57,10 +80,12 @@ class MultiTransactionAdapter(
             }
             transactions.clear()
             transactions.addAll(newTransactions)
-            notifyItemRangeRemoved(newSize, oldSize - newSize)
-            // Update remove button visibility if we're down to 1 item
-            if (newSize == 1) {
-                notifyItemChanged(0) // Last item should hide remove button
+            safeNotify {
+                notifyItemRangeRemoved(newSize, oldSize - newSize)
+                // Update remove button visibility if we're down to 1 item
+                if (newSize == 1) {
+                    notifyItemChanged(0) // Last item should hide remove button
+                }
             }
         } else {
             // Same size, check for changes to update UI
@@ -88,7 +113,7 @@ class MultiTransactionAdapter(
                     val onlyTitleTyping = titleChanged && isTypingTitle && !amountChanged && !categoryChanged && !payersChanged && !participantsChanged && !validationChanged
                     
                     if (!onlyAmountTyping && !onlyTitleTyping) {
-                        notifyItemChanged(i)
+                        safeNotify { notifyItemChanged(i) }
                     }
                 }
             }
@@ -98,7 +123,7 @@ class MultiTransactionAdapter(
     fun updateTransactionPayment(position: Int, updatedItem: MultiTransactionItem) {
         if (position in transactions.indices) {
             transactions[position] = updatedItem
-            notifyItemChanged(position)
+            safeNotify { notifyItemChanged(position) }
         }
     }
 
@@ -117,7 +142,7 @@ class MultiTransactionAdapter(
         transactions.clear()
         transactions.add(MultiTransactionItem())
         
-        notifyDataSetChanged()
+        safeNotify { notifyDataSetChanged() }
     }
 
     fun clearCategorySelections() {
@@ -127,19 +152,19 @@ class MultiTransactionAdapter(
 
     fun setMembers(members: List<User>) {
         this.groupMembers = members
-        notifyDataSetChanged()
+        safeNotify { notifyDataSetChanged() }
     }
 
     fun setGroupSelected(isSelected: Boolean) {
         if (this.isGroupSelected != isSelected) {
             this.isGroupSelected = isSelected
-            notifyDataSetChanged()
+            safeNotify { notifyDataSetChanged() }
         }
     }
 
     fun setMode(isMultiple: Boolean) {
         // Mode is now handled per-item via bottom sheets
-        notifyDataSetChanged()
+        safeNotify { notifyDataSetChanged() }
     }
 
     fun getTransactions(): List<TransactionEntry> {

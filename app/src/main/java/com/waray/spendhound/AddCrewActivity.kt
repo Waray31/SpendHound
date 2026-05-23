@@ -66,6 +66,14 @@ class AddCrewActivity : AppCompatActivity() {
         }
     }
 
+    override fun onResume() {
+        super.onResume()
+        if (currentUserId != -1L) {
+            viewModel.loadAllUsers(currentUserId)
+            viewModel.loadCrew(currentUserId)
+        }
+    }
+
     private fun init() {
         viewModel.loadAllUsers(currentUserId)
         viewModel.loadCrew(currentUserId)
