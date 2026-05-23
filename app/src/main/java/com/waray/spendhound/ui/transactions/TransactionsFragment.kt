@@ -288,7 +288,12 @@ class TransactionsFragment : Fragment() {
         allTabTV?.setBackgroundResource(0)
         paidTabTV?.setBackgroundResource(0)
         unpaidTabTV?.setBackgroundResource(0)
+        allTabTV?.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.tab_unselected_text))
+        paidTabTV?.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.tab_unselected_text))
+        unpaidTabTV?.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.tab_unselected_text))
+        
         selectedTab.setBackgroundResource(R.drawable.spinner_border_grey)
+        selectedTab.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.tab_selected_text))
     }
 
     internal fun refreshTransactions(forceSkeleton: Boolean = false) {

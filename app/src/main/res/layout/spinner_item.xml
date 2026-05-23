@@ -12,7 +12,7 @@
         android:textSize="14sp"
         android:text="Blackwater"
         android:fontFamily="@font/montserratalternatess_regular"
-        android:textColor="@color/darkBlue"
+        android:textColor="@color/tab_selected_text"
         android:paddingEnd="16dp"
         android:layout_marginHorizontal="8dp"
         android:paddingTop="12dp"

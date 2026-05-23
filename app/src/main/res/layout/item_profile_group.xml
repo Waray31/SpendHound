@@ -19,7 +19,7 @@
             android:layout_height="40dp"
             android:layout_margin="4dp"
             android:elevation="4dp"
-            app:cardBackgroundColor="@color/white"
+            app:cardBackgroundColor="@color/white2"
             app:cardCornerRadius="50dp">
 
             <ImageView

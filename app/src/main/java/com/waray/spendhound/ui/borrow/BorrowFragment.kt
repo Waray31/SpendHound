@@ -276,8 +276,12 @@ class BorrowFragment : Fragment() {
     }
 
     private fun setStatusTabSelected(selectedTab: TextView) {
-        listOf(allTabTV, paidTabTV, unpaidTabTV, pendingTabTV).forEach { it?.setBackgroundResource(0) }
+        listOf(allTabTV, paidTabTV, unpaidTabTV, pendingTabTV).forEach { 
+            it?.setBackgroundResource(0)
+            it?.setTextColor(ContextCompat.getColor(requireContext(), R.color.tab_unselected_text))
+        }
         selectedTab.setBackgroundResource(R.drawable.spinner_border_grey)
+        selectedTab.setTextColor(ContextCompat.getColor(requireContext(), R.color.tab_selected_text))
     }
 
     private fun setupClickListeners() {
@@ -304,8 +308,8 @@ class BorrowFragment : Fragment() {
     private fun setTabColors(activeTab: TextView, inactiveTab: TextView) {
         activeTab.setBackgroundResource(R.drawable.top_round_border)
         inactiveTab.setBackgroundResource(R.drawable.button_background_invisible)
-        activeTab.setTextColor(ContextCompat.getColor(requireContext(), R.color.darkBlue))
-        inactiveTab.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
+        activeTab.setTextColor(ContextCompat.getColor(requireContext(), R.color.tab_selected_text))
+        inactiveTab.setTextColor(ContextCompat.getColor(requireContext(), R.color.tab_unselected_text))
     }
 
     private val lenderActionListener: OwedTransactionAdapter.OnLenderActionListener = object : OwedTransactionAdapter.OnLenderActionListener {

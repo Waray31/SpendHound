@@ -48,7 +48,8 @@
                 android:paddingHorizontal="8dp"
                 android:gravity="center"
                 android:paddingVertical="8dp"
-                android:background="@drawable/rounded_white_background">
+                android:background="@drawable/rounded_white_background"
+                android:backgroundTint="@color/white2">
 
                 <!-- Filter Section -->
                 <LinearLayout
@@ -102,7 +103,7 @@
                         android:padding="8dp"
                         android:text="All"
                         android:textAlignment="center"
-                        android:textColor="@color/darkBlue"
+                        android:textColor="@color/tab_selected_text"
                         android:textSize="14sp" />
 
                     <TextView
@@ -116,7 +117,7 @@
                         android:padding="8dp"
                         android:text="Settled"
                         android:textAlignment="center"
-                        android:textColor="@color/darkBlue"
+                        android:textColor="@color/tab_selected_text"
                         android:textSize="14sp" />
 
                     <TextView
@@ -130,7 +131,7 @@
                         android:padding="8dp"
                         android:text="Pending"
                         android:textAlignment="center"
-                        android:textColor="@color/darkBlue"
+                        android:textColor="@color/tab_selected_text"
                         android:textSize="14sp" />
                 </LinearLayout>
 
@@ -162,7 +163,7 @@
                             android:paddingTop="16dp"
                             android:paddingBottom="8dp"
                             android:text="February 2026"
-                            android:textColor="@color/darkBlue"
+                            android:textColor="@color/whitest"
                             android:textSize="18sp" />
 
                         <!-- Transaction Count -->
@@ -173,7 +174,7 @@
                             android:fontFamily="@font/montserratalternatess_regular"
                             android:paddingBottom="8dp"
                             android:text="0 transactions"
-                            android:textColor="@color/grey"
+                            android:textColor="@color/transaction_secondary_text"
                             android:textSize="12sp" />
 
                         <!-- Empty State -->

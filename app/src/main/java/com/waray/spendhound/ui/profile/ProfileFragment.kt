@@ -66,6 +66,7 @@ import com.waray.spendhound.ui.profile.CrewMembersAdapter
 import com.waray.spendhound.ui.profile.CrewViewModel
 import com.waray.spendhound.ui.profile.PendingInvitesAdapter
 import com.waray.spendhound.ui.profile.UserSearchAdapter
+import com.waray.spendhound.ui.settings.SettingsActivity
 
 class ProfileFragment : Fragment() {
     private val viewModel: ProfileViewModel by viewModels()
@@ -159,6 +160,11 @@ class ProfileFragment : Fragment() {
         btnSeeAllCrew = view.findViewById(R.id.btnSeeAllCrew)
         btnCrewNotification = view.findViewById(R.id.btnCrewNotification)
         tvCrewPendingBadge = view.findViewById(R.id.tvCrewPendingBadge)
+
+        val settingsBtn = view.findViewById<android.widget.ImageButton>(R.id.settings_btn)
+        settingsBtn.setOnClickListener {
+            startActivity(Intent(requireContext(), SettingsActivity::class.java))
+        }
 
         balanceUnpaidDrawable = ContextCompat.getDrawable(requireContext(), R.drawable.round_border_glassy)
         balanceUnpaidDrawableTransparent = ContextCompat.getDrawable(requireContext(), R.drawable.transparent_background)

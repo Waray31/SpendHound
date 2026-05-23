@@ -460,8 +460,12 @@ class GroupExpensesFragment : Fragment() {
     }
 
     private fun setStatusTabSelected(selected: TextView, vararg all: TextView) {
-        all.forEach { it.setBackgroundResource(0) }
+        all.forEach { 
+            it.setBackgroundResource(0)
+            it.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.tab_unselected_text))
+        }
         selected.setBackgroundResource(R.drawable.spinner_border_grey)
+        selected.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), R.color.tab_selected_text))
     }
     
     private fun setupArchivedSection() {

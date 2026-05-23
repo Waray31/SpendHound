@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Facebook-style Dark Mode Colors -->
+    <color name="white">#18191A</color> <!-- Main Background -->
+    <color name="white2">#242526</color> <!-- Surface / Card Background -->
+    <color name="whitest">#FFFFFF</color> <!-- Pure White -->
+
+    <color name="black">#E4E6EB</color> <!-- Primary Text -->
+    <color name="darkBlue">#E4E6EB</color> <!-- Primary Text -->
+    <color name="grey">#B0B3B8</color> <!-- Secondary Text -->
+    <color name="lightgrey">#3A3B3C</color> <!-- Dividers / Borders -->
+
+    <!-- Backgrounds for specific components -->
+    <color name="glassy_background">#1AFFFFFF</color>
+    <color name="pending_payment_bg">#2D2A1E</color>
+    <color name="pending_approval_bg">#1E2A2D</color>
+    <color name="unpaid_bg">#2D1E1E</color>
+    <color name="paid_bg">#1E2D1E</color>
+
+    <!-- Card Backgrounds -->
+    <color name="color_card_start">#242526</color>
+    <color name="color_card_end">#242526</color>
+    <color name="color_card_stroke">#3A3B3C</color>
+    <color name="color_text_label">#B0B3B8</color>
+
+    <color name="yellow">#FFBA08</color>
+    <color name="orange">#F57C00</color>
+
+    <!-- Semantic colors for Transaction List and Filters in Dark Mode -->
+    <color name="transaction_item_bg_tint">#242526</color> <!-- Dark Surface -->
+    <color name="transaction_secondary_text">@color/whitest</color>
+    <color name="filter_section_bg_tint">#242526</color>
+    <color name="tab_selected_text">@color/whitest</color>
+    <color name="tab_unselected_text">#B0B3B8</color>
+    <color name="color_input_text">@color/whitest</color>
+    <color name="selected_color">@color/whitest</color>
+    <color name="default_color">#B0B3B8</color>
+</resources>

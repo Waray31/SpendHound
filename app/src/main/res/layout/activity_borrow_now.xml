@@ -89,11 +89,12 @@
                         android:layout_height="52dp"
                         android:layout_marginTop="8dp"
                         android:background="@drawable/bg_light_input"
+                        android:backgroundTint="@color/white2"
                         android:fontFamily="@font/montserratalternatess_bold"
                         android:gravity="center_vertical"
                         android:paddingHorizontal="16dp"
                         android:text="Mona"
-                        android:textColor="@color/black" />
+                        android:textColor="@color/color_input_text" />
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/rvBorrowers"
@@ -155,11 +156,12 @@
                         android:layout_height="52dp"
                         android:layout_marginTop="8dp"
                         android:background="@drawable/bg_light_input"
+                        android:backgroundTint="@color/white2"
                         android:fontFamily="@font/montserratalternatess_bold"
                         android:hint="₱ 500"
                         android:inputType="numberDecimal"
                         android:paddingHorizontal="16dp"
-                        android:textColor="@color/black"
+                        android:textColor="@color/color_input_text"
                         android:textColorHint="@color/grey" />
 
                     <!-- Date Row -->
@@ -190,11 +192,12 @@
                                 android:layout_height="52dp"
                                 android:layout_marginTop="8dp"
                                 android:background="@drawable/bg_light_input"
+                                android:backgroundTint="@color/white2"
                                 android:fontFamily="@font/montserratalternatess_bold"
                                 android:gravity="center_vertical"
                                 android:paddingHorizontal="16dp"
                                 android:text="Apr 18"
-                                android:textColor="@color/black" />
+                                android:textColor="@color/color_input_text" />
                         </LinearLayout>
 
                         <LinearLayout
@@ -217,6 +220,7 @@
                                 android:layout_height="52dp"
                                 android:layout_marginTop="8dp"
                                 android:background="@drawable/bg_light_input"
+                                android:backgroundTint="@color/white2"
                                 android:fontFamily="@font/montserratalternatess_bold"
                                 android:gravity="center_vertical"
                                 android:paddingHorizontal="16dp"
@@ -241,11 +245,12 @@
                         android:layout_height="80dp"
                         android:layout_marginTop="8dp"
                         android:background="@drawable/bg_light_input"
+                        android:backgroundTint="@color/white2"
                         android:fontFamily="@font/montserratalternatess_bold"
                         android:gravity="top"
                         android:hint="e.g. for groceries, emergency, etc."
                         android:padding="12dp"
-                        android:textColor="@color/black"
+                        android:textColor="@color/color_input_text"
                         android:textColorHint="@color/grey"
                         android:textSize="14sp" />
 

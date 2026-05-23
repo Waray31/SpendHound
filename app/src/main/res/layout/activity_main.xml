@@ -33,7 +33,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="bottom"
-        android:backgroundTint="@color/whitest"
+        android:backgroundTint="@color/white2"
         android:elevation="6dp"
         app:itemTextAppearanceActive="@style/BottomNavTextStyle"
         app:itemTextAppearanceInactive="@style/BottomNavTextStyle"
@@ -73,7 +73,7 @@
         app:strokeColor="@color/whitest"
         app:layout_anchor="@id/navView"
         app:layout_anchorGravity="top|center_horizontal"
-        app:tint="@color/white" />
+        app:tint="@color/whitest" />
 
     <!-- Mini FAB Containers: Placed after fab_main and with higher elevation -->
     <LinearLayout
@@ -97,7 +97,7 @@
             android:contentDescription="@string/label_borrow_money"
             android:src="@drawable/borrow_money"
             app:fabSize="mini"
-            app:tint="@null" />
+            app:tint="@color/whitest" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -105,7 +105,7 @@
             android:layout_marginTop="4dp"
             android:fontFamily="@font/montserratalternatess_bold"
             android:text="Borrow Money"
-            android:textColor="@color/white"
+            android:textColor="@color/whitest"
             android:textSize="10sp"
             android:clickable="false"
             android:focusable="false" />
@@ -133,7 +133,7 @@
             android:contentDescription="Borrow"
             android:src="@drawable/borrow_money"
             app:fabSize="mini"
-            app:tint="@color/white" />
+            app:tint="@color/whitest" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -141,7 +141,7 @@
             android:layout_marginTop="4dp"
             android:fontFamily="@font/montserratalternatess_bold"
             android:text="Borrow"
-            android:textColor="@color/white"
+            android:textColor="@color/whitest"
             android:textSize="10sp"
             android:clickable="false"
             android:focusable="false" />
@@ -168,7 +168,7 @@
             android:contentDescription="Lend"
             android:src="@drawable/borrow_money"
             app:fabSize="mini"
-            app:tint="@color/white" />
+            app:tint="@color/whitest" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -176,7 +176,7 @@
             android:layout_marginTop="4dp"
             android:fontFamily="@font/montserratalternatess_bold"
             android:text="Lend"
-            android:textColor="@color/white"
+            android:textColor="@color/whitest"
             android:textSize="10sp"
             android:clickable="false"
             android:focusable="false" />
@@ -203,7 +203,7 @@
             android:contentDescription="@string/label_add_transaction"
             android:src="@drawable/add_transaction"
             app:fabSize="mini"
-            app:tint="@null" />
+            app:tint="@color/whitest" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -211,7 +211,7 @@
             android:layout_marginTop="4dp"
             android:fontFamily="@font/montserratalternatess_bold"
             android:text="@string/label_add_transaction"
-            android:textColor="@color/white"
+            android:textColor="@color/whitest"
             android:textSize="10sp"
             android:clickable="false"
             android:focusable="false" />
@@ -239,7 +239,7 @@
             android:contentDescription="Single Transaction"
             android:src="@drawable/single_transaction_item"
             app:fabSize="mini"
-            app:tint="@color/white" />
+            app:tint="@color/whitest" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -247,7 +247,7 @@
             android:layout_marginTop="4dp"
             android:fontFamily="@font/montserratalternatess_bold"
             android:text="Single Expense"
-            android:textColor="@color/white"
+            android:textColor="@color/whitest"
             android:textSize="10sp"
             android:clickable="false"
             android:focusable="false" />
@@ -274,7 +274,7 @@
             android:contentDescription="Multiple Transaction"
             android:src="@drawable/multiple_transaction_item"
             app:fabSize="mini"
-            app:tint="@color/white" />
+            app:tint="@color/whitest" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -282,7 +282,7 @@
             android:layout_marginTop="4dp"
             android:fontFamily="@font/montserratalternatess_bold"
             android:text="Multiple Expenses"
-            android:textColor="@color/white"
+            android:textColor="@color/whitest"
             android:textSize="10sp"
             android:clickable="false"
             android:focusable="false" />
@@ -309,7 +309,7 @@
             android:contentDescription="@string/label_add_group"
             android:src="@drawable/add_group"
             app:fabSize="mini"
-            app:tint="@null" />
+            app:tint="@color/whitest" />
 
         <TextView
             android:layout_width="wrap_content"
@@ -317,7 +317,7 @@
             android:layout_marginTop="4dp"
             android:fontFamily="@font/montserratalternatess_bold"
             android:text="@string/label_add_group"
-            android:textColor="@color/white"
+            android:textColor="@color/whitest"
             android:textSize="10sp"
             android:clickable="false"
             android:focusable="false" />

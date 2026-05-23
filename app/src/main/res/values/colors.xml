@@ -18,7 +18,7 @@
     <color name="yellow_orange">#faa307</color>
     <color name="yellow">#ffba08</color>
     <color name="white">#F5F5F3</color>
-    <color name="white2">#F2EEE9</color>
+    <color name="white2">#F5F5F5</color>
     <color name="whitest">#FFFFFF</color>
     <color name="white_70">#B2FFFFFF</color>
     <color name="selected_color">#03071e</color>
@@ -43,6 +43,20 @@
     <color name="unpaid_bg">#FFE6E6</color>
     <color name="paid_bg">#E6FFE6</color>
     <color name="light_blue_tint">#E3F2FD</color>
+
+    <!-- Card Backgrounds -->
+    <color name="color_card_start">#F2FFFFFF</color>
+    <color name="color_card_end">#E6F1F1F1</color>
+    <color name="color_card_stroke">#1A000000</color>
+    <color name="color_text_label">#888888</color>
+
+    <!-- Semantic colors for Transaction List and Filters -->
+    <color name="transaction_item_bg_tint">#FFFFFF</color> <!-- Transparent in light mode -->
+    <color name="transaction_secondary_text">@color/grey</color>
+    <color name="filter_section_bg_tint">#00000000</color>
+    <color name="tab_selected_text">@color/darkBlue</color>
+    <color name="tab_unselected_text">@color/darkBlue</color>
+    <color name="color_input_text">@color/black</color>
 </resources>
 
 

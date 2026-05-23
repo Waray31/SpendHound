@@ -4,10 +4,7 @@
     <!-- Bottom layer -->
     <item>
         <shape android:shape="rectangle">
-            <gradient
-                android:angle="270"
-                android:startColor="#FFFFFF"
-                android:endColor="#F7F7F5" />
+            <solid android:color="@color/white2" />
             <corners
                 android:topLeftRadius="24dp"
                 android:topRightRadius="24dp"
@@ -19,10 +16,7 @@
     <!-- Top layer -->
     <item android:top="24dp">
         <shape android:shape="rectangle">
-            <gradient
-                android:angle="270"
-                android:startColor="#FFFFFF"
-                android:endColor="#F7F7F5" />
+            <solid android:color="@color/white2" />
             <corners
                 android:topLeftRadius="24dp"
                 android:topRightRadius="24dp"

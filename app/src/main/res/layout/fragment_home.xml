@@ -143,6 +143,7 @@
                         android:layout_marginRight="12dp"
                         android:layout_weight="1"
                         android:background="@drawable/rounded_white_background"
+                        android:backgroundTint="@color/white2"
                         android:elevation="3dp"
                         android:orientation="vertical"
                         android:padding="16dp">
@@ -187,6 +188,7 @@
                         android:layout_marginRight="8dp"
                         android:layout_weight="1"
                         android:background="@drawable/rounded_white_background"
+                        android:backgroundTint="@color/white2"
                         android:elevation="3dp"
                         android:orientation="vertical"
                         android:padding="16dp">
@@ -273,7 +275,7 @@
                                     android:layout_weight="1"
                                     android:fontFamily="@font/montserratalternatess_regular"
                                     android:text="Analytics"
-                                    android:textColor="@color/white"
+                                    android:textColor="@color/whitest"
                                     android:textSize="18sp"
                                     android:textStyle="bold" />
 

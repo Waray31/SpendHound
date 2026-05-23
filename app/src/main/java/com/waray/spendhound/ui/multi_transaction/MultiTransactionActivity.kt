@@ -146,12 +146,10 @@ class MultiTransactionActivity : AppCompatActivity() {
                 binding.btnAddRow.isVisible = isGroupSelected
                 binding.summaryCard.isVisible = isGroupSelected
                 
-                // Hide title section if no group is selected
-                binding.titleLabel.isVisible = isGroupSelected
-                binding.titleInputLayout.isVisible = isGroupSelected
-                binding.titleDivider.isVisible = isGroupSelected
-                
                 if (!isGroupSelected) {
+                    binding.titleLabel.isVisible = false
+                    binding.titleInputLayout.isVisible = false
+                    binding.titleDivider.isVisible = false
                     validateSubmission()
                     return
                 }
@@ -280,15 +278,10 @@ class MultiTransactionActivity : AppCompatActivity() {
     }
 
     private fun updateTitleSectionVisibility(itemCount: Int) {
-        // Find the title input section only (not the entire card)
-        val titleLabel = findViewById<TextView>(R.id.titleLabel)
-        val titleInputLayout = findViewById<com.google.android.material.textfield.TextInputLayout>(R.id.titleInputLayout)
-        val titleDivider = findViewById<View>(R.id.titleDivider)
-        
-        val visibility = if (itemCount > 1) View.VISIBLE else View.GONE
-        titleLabel?.visibility = visibility
-        titleInputLayout?.visibility = visibility
-        titleDivider?.visibility = visibility
+        val visibility = itemCount > 1
+        binding.titleLabel.isVisible = visibility
+        binding.titleInputLayout.isVisible = visibility
+        binding.titleDivider.isVisible = visibility
     }
 
     private fun observeState() {
