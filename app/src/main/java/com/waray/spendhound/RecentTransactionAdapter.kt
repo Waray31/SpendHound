@@ -67,9 +67,9 @@ class RecentTransactionAdapter(
         holder.dateTextView.text = transaction.mostRecentDate
         val isSingle = transaction.transactionItems.size == 1
         holder.typeTextView.text = if (isSingle)
-            transaction.transactionItems[0].category ?: transaction.mostRecentTransactionType ?: "Transaction"
+            transaction.transactionItems[0].category ?: transaction.mostRecentTransactionType ?: holder.itemView.context.getString(R.string.label_transaction_placeholder)
         else
-            transaction.mostRecentTransactionType ?: "Transaction"
+            transaction.mostRecentTransactionType ?: holder.itemView.context.getString(R.string.label_transaction_placeholder)
 
         holder.amountTextView.text = transaction.mostRecentPaymentAmountStr
         holder.iconImageView.setImageResource(getIconForItems(transaction.transactionItems))
@@ -86,7 +86,11 @@ class RecentTransactionAdapter(
 
         // Status: Settled = green, Pending = yellow
         val status = transaction.transactionStatus
-        holder.detailsTextView.text = status
+        holder.detailsTextView.text = when(status) {
+            "Settled" -> holder.itemView.context.getString(R.string.status_settled)
+            "Pending" -> holder.itemView.context.getString(R.string.status_pending)
+            else -> status
+        }
         holder.detailsTextView.setTextColor(
             ContextCompat.getColor(holder.itemView.context,
                 if (status == "Settled") R.color.green else R.color.yellow)
@@ -106,7 +110,7 @@ class RecentTransactionAdapter(
 
         if (isExpanded) {
             holder.loadingOverlay.visibility = View.VISIBLE
-            holder.createdByTextView.text = transaction.createdBy ?: "Unknown"
+            holder.createdByTextView.text = transaction.createdBy ?: holder.itemView.context.getString(R.string.label_unknown)
 
             if (!transaction.groupName.isNullOrEmpty()) {
                 holder.onGroupLabel.visibility = View.VISIBLE
@@ -196,7 +200,7 @@ class RecentTransactionAdapter(
         // Resolve creator check asynchronously using numeric ID
         resolveIsCreator(transaction) { isCreator ->
             if (isCreator) {
-                holder.createdByTextView.text = "you"
+                holder.createdByTextView.text = holder.itemView.context.getString(R.string.label_you)
                 holder.settlementLL.visibility = View.VISIBLE
                 holder.editTransactionBtn.setOnClickListener {
                     val sheet = SettleBottomSheet().apply {
@@ -207,14 +211,14 @@ class RecentTransactionAdapter(
                     sheet.show(fm, "SettleBottomSheet")
                 }
             } else {
-                holder.createdByTextView.text = transaction.createdBy ?: "Unknown"
+                holder.createdByTextView.text = transaction.createdBy ?: holder.itemView.context.getString(R.string.label_unknown)
                 // Check if current user is a payor
                 val currentUserId = cachedCurrentNumericId
                 val userRow = transaction.rawPayorRows.firstOrNull { it.userId == currentUserId }
                 if (userRow != null) {
                     val hasExcess = userRow.excessAmount > 0.0
                     holder.settlementLL.visibility = View.VISIBLE
-                    holder.editTransactionBtn.text = if (hasExcess) "Settle" else "Details"
+                    holder.editTransactionBtn.text = if (hasExcess) holder.itemView.context.getString(R.string.btn_settle) else holder.itemView.context.getString(R.string.btn_details)
                     holder.editTransactionBtn.setOnClickListener {
                         val sheet = SettleBottomSheet().apply {
                             this.transaction = transaction

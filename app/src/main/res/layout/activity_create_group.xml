@@ -25,7 +25,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:fontFamily="@font/montserratalternatess_bold"
-                android:text="New Group"
+                android:text="@string/title_new_group"
                 android:textColor="@color/darkBlue"
                 android:textSize="18sp" />
 
@@ -36,7 +36,7 @@
                 android:layout_gravity="end"
                 android:layout_marginEnd="16dp"
                 android:fontFamily="@font/montserratalternatess_bold"
-                android:text="Next"
+                android:text="@string/btn_next"
                 android:textColor="@color/yellow"
                 android:textSize="15sp"
                 android:visibility="gone" />
@@ -75,7 +75,7 @@
                 android:layout_height="wrap_content"
                 android:background="@null"
                 android:fontFamily="@font/montserratalternatess_regular"
-                android:hint="Search"
+                android:hint="@string/hint_search"
                 android:inputType="text"
                 android:textSize="14sp" />
 
@@ -107,7 +107,7 @@
             android:layout_marginTop="8dp"
             android:layout_marginBottom="4dp"
             android:fontFamily="@font/montserratalternatess_bold"
-            android:text="Suggested"
+            android:text="@string/label_suggested"
             android:textColor="@color/grey"
             android:textSize="13sp" />
 

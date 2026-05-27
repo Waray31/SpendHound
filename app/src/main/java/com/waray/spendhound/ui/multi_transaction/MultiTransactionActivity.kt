@@ -71,7 +71,7 @@ class MultiTransactionActivity : AppCompatActivity() {
 
     private fun setupTransactionMode() {
         // Use "Add Transactions" title
-        binding.tvActivityTitle.text = if (isEditMode) "Edit Transaction" else "Add Transactions"
+        binding.tvActivityTitle.text = if (isEditMode) getString(R.string.title_edit_transaction) else getString(R.string.title_add_transactions)
     }
 
     private fun setPaymentMode(isMultiple: Boolean) {
@@ -132,7 +132,7 @@ class MultiTransactionActivity : AppCompatActivity() {
                     }
                 }
             } else {
-                Toast.makeText(this, "Please select a group", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this, getString(R.string.error_select_group), Toast.LENGTH_SHORT).show()
             }
         }
 
@@ -232,7 +232,7 @@ class MultiTransactionActivity : AppCompatActivity() {
 
     private fun showPaymentConfigBottomSheet(position: Int, item: MultiTransactionItem) {
         val bottomSheet = PaymentConfigBottomSheet.newInstance(
-            itemTitle = if (item.title.isNotEmpty()) item.title else "Item ${position + 1}",
+            itemTitle = if (item.title.isNotEmpty()) item.title else getString(R.string.label_item_format, position + 1),
             itemAmount = item.amount,
             groupMembers = currentMembers,
             currentPayers = item.payers,
@@ -290,8 +290,8 @@ class MultiTransactionActivity : AppCompatActivity() {
                 launch {
                     viewModel.groups.collect { groups ->
                         currentGroups = groups
-                        val names = mutableListOf("Select a payer group")
-                        names.addAll(groups.map { it.groupName ?: "Unnamed Group" })
+                        val names = mutableListOf(getString(R.string.placeholder_select_group))
+                        names.addAll(groups.map { it.groupName ?: getString(R.string.placeholder_unnamed_group) })
 
                         val groupAdapter = ArrayAdapter(this@MultiTransactionActivity, android.R.layout.simple_spinner_item, names)
                         groupAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
@@ -346,9 +346,9 @@ class MultiTransactionActivity : AppCompatActivity() {
                         }
                         
                         val buttonText = if (isEditMode) {
-                            "Update Expense"
+                            getString(R.string.btn_update_expense)
                         } else {
-                            if (transactions.size == 1) "Add Expense" else "Add ${transactions.size} Expenses"
+                            if (transactions.size == 1) getString(R.string.btn_add_expense) else getString(R.string.btn_add_multiple_expenses_format, transactions.size)
                         }
                         binding.btnSubmit.text = buttonText
                         
@@ -391,7 +391,7 @@ class MultiTransactionActivity : AppCompatActivity() {
                         }
                         when (state) {
                             is MultiTransactionViewModel.UiState.Success -> {
-                                Toast.makeText(this@MultiTransactionActivity, if (isEditMode) "Transaction updated!" else "Transactions added!", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(this@MultiTransactionActivity, if (isEditMode) getString(R.string.toast_transaction_updated) else getString(R.string.toast_transactions_added), Toast.LENGTH_SHORT).show()
                                 com.waray.spendhound.TransactionState.notifyChange()
                                 finish()
                             }
@@ -453,7 +453,7 @@ class MultiTransactionActivity : AppCompatActivity() {
                 }
             } catch (e: Exception) {
                 android.util.Log.e("MultiTransactionActivity", "Error loading transaction for edit", e)
-                Toast.makeText(this@MultiTransactionActivity, "Error loading transaction", Toast.LENGTH_SHORT).show()
+                Toast.makeText(this@MultiTransactionActivity, getString(R.string.error_loading_transaction), Toast.LENGTH_SHORT).show()
                 finish()
             }
         }

@@ -71,7 +71,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginTop="4dp"
                         android:fontFamily="@font/montserratalternatess_regular"
-                        android:text="Members"
+                        android:text="@string/label_members"
                         android:textColor="@color/grey"
                         android:textSize="12sp" />
 
@@ -111,7 +111,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/montserratalternatess_bold"
-                    android:text="Total expenses"
+                    android:text="@string/label_total_expenses"
                     android:textColor="#1B5E20"
                     android:textSize="12sp" />
 
@@ -139,7 +139,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/montserratalternatess_bold"
-                    android:text="Active transactions"
+                    android:text="@string/label_active_transactions"
                     android:textColor="#0D47A1"
                     android:textSize="12sp" />
 
@@ -167,7 +167,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/montserratalternatess_bold"
-                android:text="Settled"
+                android:text="@string/status_settled"
                 android:textColor="@color/grey"
                 android:textSize="11sp" />
 

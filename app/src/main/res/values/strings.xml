@@ -228,4 +228,53 @@
     <string name="label_house_expenses">House expenses</string>
     <string name="label_food_group">Food group</string>
     <string name="label_php">PHP ₱</string>
+
+    <!-- MultiTransactionActivity -->
+    <string name="title_edit_transaction">Edit Transaction</string>
+    <string name="title_add_transactions">Add Transactions</string>
+    <string name="error_select_group">Please select a group</string>
+    <string name="placeholder_select_group">Select a payer group</string>
+    <string name="placeholder_unnamed_group">Unnamed Group</string>
+    <string name="label_item_format">Item %1$d</string>
+    <string name="btn_update_expense">Update Expense</string>
+    <string name="btn_add_expense">Add Expense</string>
+    <string name="btn_add_multiple_expenses_format">Add %1$d Expenses</string>
+    <string name="toast_transaction_updated">Transaction updated!</string>
+    <string name="toast_transactions_added">Transactions added!</string>
+    <string name="error_loading_transaction">Error loading transaction</string>
+
+    <!-- GroupExpensesFragment -->
+    <string name="status_settled">Settled</string>
+    <string name="label_unknown">Unknown</string>
+    <string name="label_transaction">transaction</string>
+    <string name="label_transactions_lowercase">transactions</string>
+    <string name="format_archived_transactions">🗂 %1$d archived transactions — %2$s</string>
+    <string name="action_hide">Hide</string>
+    <string name="action_show">Show</string>
+    <string name="action_unarchive">Unarchive</string>
+    <string name="action_archive">Archive</string>
+
+    <!-- Create Group Activity -->
+    <string name="title_new_group">New Group</string>
+    <string name="btn_next">Next</string>
+    <string name="hint_search">Search</string>
+    <string name="label_suggested">Suggested</string>
+    <string name="hint_group_name">Group Name</string>
+
+    <!-- Group Item -->
+    <string name="label_members">Members</string>
+    <string name="label_total_expenses">Total expenses</string>
+    <string name="label_active_transactions">Active transactions</string>
+
+    <!-- Transaction Item -->
+    <string name="label_transaction_placeholder">Transaction</string>
+    <string name="status_archived">Archived</string>
+    <string name="label_paid_by">Paid by</string>
+    <string name="label_payors">Payors</string>
+    <string name="label_added_by">Added by </string>
+    <string name="label_on"> on </string>
+    <string name="btn_settle">Settle</string>
+    <string name="label_loading_details">Loading details…</string>
+    <string name="label_you">you</string>
+    <string name="btn_details">Details</string>
 </resources>

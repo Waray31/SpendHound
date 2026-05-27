@@ -224,7 +224,7 @@ class GroupExpensesFragment : Fragment() {
         val usersById: Map<Long, String> = if (allUserIds.isNotEmpty()) {
             DeclareDatabase.usersTable.select {
                 filter { isIn("user_id", allUserIds) }
-            }.decodeList<User>().associate { it.id!! to (it.username ?: "Unknown") }
+            }.decodeList<User>().associate { it.id!! to (it.username ?: getString(R.string.label_unknown)) }
         } else emptyMap()
 
         val payorsByTx = allPayors.groupBy { it.transactionId }
@@ -245,7 +245,7 @@ class GroupExpensesFragment : Fragment() {
             val timeKey = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(cal.time)
 
             val contributorIds = (payors.map { it.userId } + splits.map { it.userId }).distinct()
-            val payorNames = contributorIds.map { usersById[it] ?: "Unknown" }.toMutableList<String?>()
+            val payorNames = contributorIds.map { usersById[it] ?: getString(R.string.label_unknown) }.toMutableList<String?>()
             val payorUserIds = contributorIds.map { it.toString() }.toMutableList<String?>()
             val amountsPaid = contributorIds.map { uid ->
                 payors.filter { it.userId == uid }.sumOf { it.currentAmountPaid } as Double?
@@ -259,12 +259,12 @@ class GroupExpensesFragment : Fragment() {
             val itemPayorMap = items.associate { item ->
                 val itemId = item.id ?: 0L
                 val names = allPayors.filter { it.transactionItemsId == itemId }
-                    .map { usersById[it.userId] ?: "Unknown" }
+                    .map { usersById[it.userId] ?: getString(R.string.label_unknown) }
                     .joinToString(", ").ifEmpty { "-" }
                 itemId to names
             }
 
-            val createdByName = tx.createdBy?.let { usersById[it] } ?: "Unknown"
+            val createdByName = tx.createdBy?.let { usersById[it] } ?: getString(R.string.label_unknown)
 
             val rt = RecentTransaction(
                 txId,
@@ -356,7 +356,7 @@ class GroupExpensesFragment : Fragment() {
         updateArchivedSection()
 
         val count = transactionList.size
-        transactionCountTextView?.text = String.format(Locale.getDefault(), "%d %s", count, if (count == 1) "transaction" else "transactions")
+        transactionCountTextView?.text = String.format(Locale.getDefault(), "%d %s", count, if (count == 1) getString(R.string.label_transaction) else getString(R.string.label_transactions_lowercase))
         
         // Update date text - for now just current month or similar to TransactionsFragment
         val cal = Calendar.getInstance()
@@ -478,8 +478,8 @@ class GroupExpensesFragment : Fragment() {
     
     private fun updateArchivedToggleText() {
         val count = archivedTransactions.size
-        val action = if (isArchivedExpanded) "Hide" else "Show"
-        showArchivedToggle?.text = "🗂 $count archived transactions — $action"
+        val action = if (isArchivedExpanded) getString(R.string.action_hide) else getString(R.string.action_show)
+        showArchivedToggle?.text = getString(R.string.format_archived_transactions, count, action)
     }
     
     private fun updateArchivedSection() {
@@ -537,7 +537,7 @@ class GroupExpensesFragment : Fragment() {
             
             popup.findViewById<TextView>(R.id.tvEdit)?.visibility = View.GONE
             popup.findViewById<TextView>(R.id.tvArchive)?.apply {
-                text = "Unarchive"
+                text = getString(R.string.action_unarchive)
                 visibility = View.VISIBLE
                 setOnClickListener {
                     unarchiveTransaction(transaction)
@@ -558,7 +558,7 @@ class GroupExpensesFragment : Fragment() {
         transactionActionsPopup?.visibility = View.GONE
         popupOverlay?.visibility = View.GONE
         transactionActionsPopup?.findViewById<TextView>(R.id.tvEdit)?.visibility = View.VISIBLE
-        transactionActionsPopup?.findViewById<TextView>(R.id.tvArchive)?.text = "Archive"
+        transactionActionsPopup?.findViewById<TextView>(R.id.tvArchive)?.text = getString(R.string.action_archive)
     }
     
     private fun editTransaction(transaction: RecentTransaction) {
