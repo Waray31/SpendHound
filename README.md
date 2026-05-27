@@ -1,15 +1,14 @@
 # SpendHound 🐾
 
-SpendHound is a comprehensive personal and group finance management application for Android. It helps users track their expenses, manage group budgets, and keep a clear record of borrowed and owed amounts.
+SpendHound is a financial tracking and expense management app designed to help users monitor, organize, and settle shared or personal expenses efficiently. It likely focuses on: * Tracking daily spending * Managing shared transactions (e.g., with friends, groups, or teams) * Handling settlements between users (who owes what) * Providing a clean, intuitive interface for financial clarity
 
 ## 🚀 Features
 
-- **Transaction Management**: Easily record and categorize your daily expenses and income.
 - **Group Expenses**: Create groups with friends or family to track shared costs and settle up easily.
 - **Borrow & Owe Tracking**: Keep a dedicated log of money you've borrowed or lent to others.
 - **Data Visualization**: Gain insights into your spending habits with interactive charts and graphs.
 - **Secure Access**: Protect your financial data with biometric authentication (Fingerprint/Face Unlock).
-- **Real-time Sync**: Stay updated across devices using Supabase and Firebase integration.
+- **Real-time Sync**: Stay updated across devices using Supabase integration.
 - **Archived Transactions**: Keep your main list clean by archiving old transactions while maintaining access to historical data.
 - **Skeleton Loading**: Smooth user experience with shimmer effects during data fetching.
 
@@ -28,7 +27,7 @@ SpendHound is a comprehensive personal and group finance management application 
 - **Architecture**: MVVM (Model-View-ViewModel) with Coroutines and Flow.
 - **Database**: 
     - **Local**: Room Persistence Library for offline capability.
-    - **Remote**: Supabase (PostgreSQL) and Firebase (Realtime Database).
+    - **Remote**: Supabase (PostgreSQL).
 - **Networking**: Retrofit & Ktor.
 - **Image Loading**: Coil & Glide.
 - **Charts**: MPAndroidChart.
@@ -67,7 +66,7 @@ SpendHound/
    ```
 2. Open the project in Android Studio.
 3. Sync Project with Gradle Files.
-4. Ensure you have the necessary `google-services.json` (for Firebase) and Supabase configuration in your environment or `local.properties`.
+4. Ensure you have the necessary Supabase configuration in your environment or `local.properties`.
 5. Build and run the app on an emulator or physical device (Min SDK 24).
 
 ## 📄 License
