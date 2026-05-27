@@ -184,8 +184,26 @@ class DirectMessageActivity : AppCompatActivity() {
                                  (msg.senderId == recipientId && msg.recipientId == uid)
                 
                 if (isRelevant) {
-                    // Update local list
-                    loadMessages()
+                    withContext(Dispatchers.Main) {
+                        val current = dmAdapter.getItems().toMutableList()
+                        // Check for optimistic message to replace
+                        val optimisticIdx = current.indexOfFirst {
+                            val mid = it.id
+                            mid != null && mid < 0 && it.senderId == msg.senderId && it.content == msg.content
+                        }
+
+                        if (optimisticIdx >= 0) {
+                            current[optimisticIdx] = msg
+                            dmAdapter.updateItems(current)
+                        } else {
+                            if (current.none { it.id == msg.id }) {
+                                current.add(msg)
+                                dmAdapter.updateItems(current)
+                                rvMessages.scrollToPosition(current.size - 1)
+                            }
+                        }
+                    }
+                    
                     // Invalidate crew list cache and notify global state
                     withContext(Dispatchers.IO) {
                         repo.invalidateCrew(uid)
@@ -388,16 +406,17 @@ class DirectMessageActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 repo.sendDirectMessage(currentUserId, recipientId, content)
-                val messages = repo.getDirectMessages(currentUserId, recipientId)
+                // We no longer re-fetch everything here.
+                // subscribeRealtime will handle the Insert event and update the optimistic message.
                 withContext(Dispatchers.Main) {
                     dmAdapter.pendingTempId = null
-                    dmAdapter.updateItems(messages)
-                    if (messages.isNotEmpty()) rvMessages.scrollToPosition(messages.size - 1)
+                    val count = dmAdapter.itemCount
+                    if (count > 0) dmAdapter.notifyItemChanged(count - 1)
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
                     dmAdapter.pendingTempId = null
-                    val withoutTemp = currentItems.filter { it.id != tempId }
+                    val withoutTemp = dmAdapter.getItems().filter { it.id != tempId }
                     dmAdapter.updateItems(withoutTemp)
                     Toast.makeText(this@DirectMessageActivity, "Failed to send message.", Toast.LENGTH_SHORT).show()
                 }

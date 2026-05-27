@@ -114,10 +114,10 @@ class DirectMessageAdapter(
             notifyItemChanged(position)
         }
 
-        // Send status — only on latest own message
+        // Send status — only on absolute latest message if it's mine
         holder.tvSendStatus?.let {
-            val isLatestOwn = msg.id == items.lastOrNull { m -> m.senderId == currentUserId }?.id
-            if (isLatestOwn) {
+            val isLatest = position == items.size - 1
+            if (isLatest && holder.isMine) {
                 it.visibility = View.VISIBLE
                 it.text = if (pendingTempId != null && msg.id == pendingTempId) "sending..." else "sent"
             } else {

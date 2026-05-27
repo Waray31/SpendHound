@@ -288,6 +288,7 @@
                             android:id="@+id/createdByTextView"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:layout_marginStart="4dp"
                             android:fontFamily="@font/montserratalternatess_bold"
                             android:textColor="@color/black"
                             android:textSize="12sp" />
@@ -296,6 +297,7 @@
                             android:id="@+id/onGroupLabel"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:layout_marginStart="4dp"
                             android:fontFamily="@font/montserratalternatess_regular"
                             android:text="@string/label_on"
                             android:textColor="@color/transaction_secondary_text"
@@ -306,6 +308,7 @@
                             android:id="@+id/expandedGroupName"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
+                            android:layout_marginStart="4dp"
                             android:fontFamily="@font/montserratalternatess_bold"
                             android:textColor="@color/black"
                             android:textSize="12sp"

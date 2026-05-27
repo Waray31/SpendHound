@@ -259,8 +259,10 @@ class GroupChatFragment : Fragment() {
         pendingTempId = tempId
         messages.add(optimistic)
         requireActivity().runOnUiThread {
-            adapter.notifyItemInserted(messages.size - 1)
-            rvMessages.scrollToPosition(messages.size - 1)
+            val newIdx = messages.size - 1
+            adapter.notifyItemInserted(newIdx)
+            if (newIdx > 0) adapter.notifyItemChanged(newIdx - 1)
+            rvMessages.scrollToPosition(newIdx)
         }
 
         lifecycleScope.launch(Dispatchers.IO) {
@@ -268,23 +270,11 @@ class GroupChatFragment : Fragment() {
                 DeclareDatabase.groupMessagesTable.insert(
                     GroupMessageInsert(groupId = groupId, userId = uid, message = text)
                 )
-                val raw = DeclareDatabase.groupMessagesTable.select {
-                    filter { eq("group_id", groupId) }
-                    order("created_at", Order.ASCENDING)
-                    limit(200)
-                }.decodeList<GroupMessage>().filter { !it.isDeleted }
-                val userIds = raw.mapNotNull { it.userId }.distinct()
-                val users = if (userIds.isNotEmpty()) DeclareDatabase.usersTable.select {
-                    filter { isIn("user_id", userIds) }
-                }.decodeList<User>() else emptyList()
-                val enriched = enrichMessages(raw, users)
-                messages.clear()
-                messages.addAll(enriched)
+                // We no longer re-fetch everything here. 
+                // subscribeRealtime will receive the Insert event and update the optimistic message.
                 pendingTempId = null
                 requireActivity().runOnUiThread {
-                    @Suppress("NotifyDataSetChanged")
-                    adapter.notifyDataSetChanged()
-                    rvMessages.scrollToPosition(messages.size - 1)
+                    if (messages.isNotEmpty()) adapter.notifyItemChanged(messages.size - 1)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to send message", e)
@@ -678,16 +668,30 @@ class GroupChatFragment : Fragment() {
             }.onEach { action ->
                 try {
                     val msg = action.decodeRecord<GroupMessage>()
-                    if (msg.isDeleted || messages.any { it.id == msg.id }) return@onEach
-                    val users = withContext(Dispatchers.IO) {
-                        DeclareDatabase.usersTable.select().decodeList<User>()
+                    if (msg.isDeleted) return@onEach
+
+                    // Check for optimistic message to replace
+                    val optimisticIdx = messages.indexOfFirst {
+                        val mid = it.id
+                        mid != null && mid < 0 && it.userId == msg.userId && it.message == msg.message
                     }
-                    usersList = users
-                    val enriched = enrichMessages(listOf(msg), users).first()
-                    messages.add(enriched)
-                    requireActivity().runOnUiThread {
-                        adapter.notifyItemInserted(messages.size - 1)
-                        rvMessages.scrollToPosition(messages.size - 1)
+
+                    val enriched = enrichMessages(listOf(msg), usersList).first()
+
+                    if (optimisticIdx >= 0) {
+                        messages[optimisticIdx] = enriched
+                        requireActivity().runOnUiThread {
+                            adapter.notifyItemChanged(optimisticIdx)
+                        }
+                    } else {
+                        if (messages.any { it.id == msg.id }) return@onEach
+                        messages.add(enriched)
+                        requireActivity().runOnUiThread {
+                            val newIdx = messages.size - 1
+                            adapter.notifyItemInserted(newIdx)
+                            if (newIdx > 0) adapter.notifyItemChanged(newIdx - 1)
+                            rvMessages.scrollToPosition(newIdx)
+                        }
                     }
                     markMessagesRead()
                 } catch (e: Exception) {
@@ -902,10 +906,10 @@ class GroupChatFragment : Fragment() {
 
             holder.tvMessage.text = msg.message ?: ""
 
-            // Send status (latest mine only)
+            // Send status (absolute latest only)
             holder.tvSendStatus?.let {
-                val isLatestOwn = msg.id == messages.lastOrNull { m -> m.userId == currentUserId }?.id
-                if (isLatestOwn && (pendingTempId != null || (msg.id != null && msg.id > 0))) {
+                val isLatest = position == messages.size - 1
+                if (isLatest && holder.isMine && (pendingTempId != null || (msg.id != null && msg.id > 0))) {
                     it.visibility = View.VISIBLE
                     it.text = if (pendingTempId != null) "sending..." else "sent"
                 } else {
