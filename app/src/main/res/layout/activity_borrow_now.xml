@@ -83,18 +83,32 @@
                         android:textColor="@color/grey"
                         android:textSize="12sp" />
 
-                    <TextView
-                        android:id="@+id/dialogBorrower"
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/layoutBorrower"
                         android:layout_width="match_parent"
-                        android:layout_height="52dp"
+                        android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:background="@drawable/bg_light_input"
-                        android:backgroundTint="@color/white2"
-                        android:fontFamily="@font/montserratalternatess_bold"
-                        android:gravity="center_vertical"
-                        android:paddingHorizontal="16dp"
-                        android:text="Mona"
-                        android:textColor="@color/color_input_text" />
+                        app:boxBackgroundColor="@color/white2"
+                        app:boxCornerRadiusBottomEnd="8dp"
+                        app:boxCornerRadiusBottomStart="8dp"
+                        app:boxCornerRadiusTopEnd="8dp"
+                        app:boxCornerRadiusTopStart="8dp"
+                        app:boxStrokeColor="@color/darkBlue"
+                        app:boxStrokeWidth="1dp"
+                        app:boxStrokeWidthFocused="1dp"
+                        app:hintEnabled="false"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/dialogBorrower"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@null"
+                            android:focusable="false"
+                            android:fontFamily="@font/montserratalternatess_bold"
+                            android:text="Mona"
+                            android:textColor="@color/color_input_text" />
+                    </com.google.android.material.textfield.TextInputLayout>
 
                     <androidx.recyclerview.widget.RecyclerView
                         android:id="@+id/rvBorrowers"
@@ -128,17 +142,32 @@
                         app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
                         tools:listitem="@layout/item_payor_chip_dark" />
 
-                    <TextView
-                        android:id="@+id/dialogLender"
+                    <com.google.android.material.textfield.TextInputLayout
+                        android:id="@+id/layoutLender"
                         android:layout_width="match_parent"
-                        android:layout_height="52dp"
+                        android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:background="@drawable/bg_light_input"
-                        android:fontFamily="@font/montserratalternatess_bold"
-                        android:gravity="center_vertical"
-                        android:paddingHorizontal="16dp"
-                        android:textColor="@color/black"
-                        android:visibility="gone" />
+                        android:visibility="gone"
+                        app:boxBackgroundColor="@color/white2"
+                        app:boxCornerRadiusBottomEnd="8dp"
+                        app:boxCornerRadiusBottomStart="8dp"
+                        app:boxCornerRadiusTopEnd="8dp"
+                        app:boxCornerRadiusTopStart="8dp"
+                        app:boxStrokeColor="@color/darkBlue"
+                        app:boxStrokeWidth="1dp"
+                        app:boxStrokeWidthFocused="1dp"
+                        app:hintEnabled="false"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/dialogLender"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@null"
+                            android:focusable="false"
+                            android:fontFamily="@font/montserratalternatess_bold"
+                            android:textColor="@color/color_input_text" />
+                    </com.google.android.material.textfield.TextInputLayout>
 
                     <!-- Amount Section -->
                     <TextView
@@ -150,19 +179,32 @@
                         android:textColor="@color/grey"
                         android:textSize="12sp" />
 
-                    <EditText
-                        android:id="@+id/dialogBorrowEditText"
+                    <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="match_parent"
-                        android:layout_height="52dp"
+                        android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:background="@drawable/bg_light_input"
-                        android:backgroundTint="@color/white2"
-                        android:fontFamily="@font/montserratalternatess_bold"
-                        android:hint="₱ 500"
-                        android:inputType="numberDecimal"
-                        android:paddingHorizontal="16dp"
-                        android:textColor="@color/color_input_text"
-                        android:textColorHint="@color/grey" />
+                        app:boxBackgroundColor="@color/white2"
+                        app:boxCornerRadiusBottomEnd="8dp"
+                        app:boxCornerRadiusBottomStart="8dp"
+                        app:boxCornerRadiusTopEnd="8dp"
+                        app:boxCornerRadiusTopStart="8dp"
+                        app:boxStrokeColor="@color/darkBlue"
+                        app:boxStrokeWidth="1dp"
+                        app:boxStrokeWidthFocused="1dp"
+                        app:hintEnabled="false"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/dialogBorrowEditText"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="@null"
+                            android:fontFamily="@font/montserratalternatess_bold"
+                            android:hint="₱"
+                            android:inputType="numberDecimal"
+                            android:textColor="@color/color_input_text"
+                            android:textColorHint="@color/grey" />
+                    </com.google.android.material.textfield.TextInputLayout>
 
                     <!-- Date Row -->
                     <LinearLayout
@@ -186,18 +228,31 @@
                                 android:textColor="@color/grey"
                                 android:textSize="12sp" />
 
-                            <TextView
-                                android:id="@+id/dialogBorrowDate"
+                            <com.google.android.material.textfield.TextInputLayout
                                 android:layout_width="match_parent"
-                                android:layout_height="52dp"
+                                android:layout_height="wrap_content"
                                 android:layout_marginTop="8dp"
-                                android:background="@drawable/bg_light_input"
-                                android:backgroundTint="@color/white2"
-                                android:fontFamily="@font/montserratalternatess_bold"
-                                android:gravity="center_vertical"
-                                android:paddingHorizontal="16dp"
-                                android:text="Apr 18"
-                                android:textColor="@color/color_input_text" />
+                                app:boxBackgroundColor="@color/white2"
+                                app:boxCornerRadiusBottomEnd="8dp"
+                                app:boxCornerRadiusBottomStart="8dp"
+                                app:boxCornerRadiusTopEnd="8dp"
+                                app:boxCornerRadiusTopStart="8dp"
+                                app:boxStrokeColor="@color/darkBlue"
+                                app:boxStrokeWidth="1dp"
+                                app:boxStrokeWidthFocused="1dp"
+                                app:hintEnabled="false"
+                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/dialogBorrowDate"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:background="@null"
+                                    android:focusable="false"
+                                    android:fontFamily="@font/montserratalternatess_bold"
+                                    android:text="Apr 18"
+                                    android:textColor="@color/color_input_text" />
+                            </com.google.android.material.textfield.TextInputLayout>
                         </LinearLayout>
 
                         <LinearLayout
@@ -212,20 +267,33 @@
                                 android:fontFamily="@font/montserratalternatess_bold"
                                 android:text="Pay back by"
                                 android:textColor="@color/grey"
-                                android:textSize="14sp" />
+                                android:textSize="12sp" />
 
-                            <TextView
-                                android:id="@+id/dialogPaybackDate"
+                            <com.google.android.material.textfield.TextInputLayout
                                 android:layout_width="match_parent"
-                                android:layout_height="52dp"
+                                android:layout_height="wrap_content"
                                 android:layout_marginTop="8dp"
-                                android:background="@drawable/bg_light_input"
-                                android:backgroundTint="@color/white2"
-                                android:fontFamily="@font/montserratalternatess_bold"
-                                android:gravity="center_vertical"
-                                android:paddingHorizontal="16dp"
-                                android:text="Set date"
-                                android:textColor="@color/grey" />
+                                app:boxBackgroundColor="@color/white2"
+                                app:boxCornerRadiusBottomEnd="8dp"
+                                app:boxCornerRadiusBottomStart="8dp"
+                                app:boxCornerRadiusTopEnd="8dp"
+                                app:boxCornerRadiusTopStart="8dp"
+                                app:boxStrokeColor="@color/darkBlue"
+                                app:boxStrokeWidth="1dp"
+                                app:boxStrokeWidthFocused="1dp"
+                                app:hintEnabled="false"
+                                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+
+                                <com.google.android.material.textfield.TextInputEditText
+                                    android:id="@+id/dialogPaybackDate"
+                                    android:layout_width="match_parent"
+                                    android:layout_height="wrap_content"
+                                    android:background="@null"
+                                    android:focusable="false"
+                                    android:fontFamily="@font/montserratalternatess_bold"
+                                    android:text="Set date"
+                                    android:textColor="@color/grey" />
+                            </com.google.android.material.textfield.TextInputLayout>
                         </LinearLayout>
                     </LinearLayout>
 
@@ -239,20 +307,34 @@
                         android:textColor="@color/grey"
                         android:textSize="12sp" />
 
-                    <EditText
-                        android:id="@+id/dialogNoteEditText"
+                    <com.google.android.material.textfield.TextInputLayout
                         android:layout_width="match_parent"
-                        android:layout_height="80dp"
+                        android:layout_height="wrap_content"
                         android:layout_marginTop="8dp"
-                        android:background="@drawable/bg_light_input"
-                        android:backgroundTint="@color/white2"
-                        android:fontFamily="@font/montserratalternatess_bold"
-                        android:gravity="top"
-                        android:hint="e.g. for groceries, emergency, etc."
-                        android:padding="12dp"
-                        android:textColor="@color/color_input_text"
-                        android:textColorHint="@color/grey"
-                        android:textSize="14sp" />
+                        app:boxBackgroundColor="@color/white2"
+                        app:boxCornerRadiusBottomEnd="8dp"
+                        app:boxCornerRadiusBottomStart="8dp"
+                        app:boxCornerRadiusTopEnd="8dp"
+                        app:boxCornerRadiusTopStart="8dp"
+                        app:boxStrokeColor="@color/darkBlue"
+                        app:boxStrokeWidth="1dp"
+                        app:boxStrokeWidthFocused="1dp"
+                        app:hintEnabled="false"
+                        style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox.Dense">
+
+                        <com.google.android.material.textfield.TextInputEditText
+                            android:id="@+id/dialogNoteEditText"
+                            android:layout_width="match_parent"
+                            android:layout_height="100dp"
+                            android:background="@null"
+                            android:fontFamily="@font/montserratalternatess_bold"
+                            android:gravity="top"
+                            android:hint="e.g. for groceries, emergency, etc."
+                            android:inputType="textMultiLine|textCapSentences"
+                            android:textColor="@color/color_input_text"
+                            android:textColorHint="@color/grey"
+                            android:textSize="14sp" />
+                    </com.google.android.material.textfield.TextInputLayout>
 
                     <!-- Status Selection -->
                     <TextView

@@ -309,7 +309,7 @@ class BorrowFragment : Fragment() {
         activeTab.setBackgroundResource(R.drawable.top_round_border)
         inactiveTab.setBackgroundResource(R.drawable.button_background_invisible)
         activeTab.setTextColor(ContextCompat.getColor(requireContext(), R.color.tab_selected_text))
-        inactiveTab.setTextColor(ContextCompat.getColor(requireContext(), R.color.tab_unselected_text))
+        inactiveTab.setTextColor(ContextCompat.getColor(requireContext(), R.color.whitest))
     }
 
     private val lenderActionListener: OwedTransactionAdapter.OnLenderActionListener = object : OwedTransactionAdapter.OnLenderActionListener {

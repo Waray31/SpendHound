@@ -48,6 +48,7 @@ class MultiTransactionActivity : AppCompatActivity() {
     private var editTransactionId: Long? = null
     private var isEditMode = false
     private var pendingGroupId: Long? = null
+    private var latestMultiItems: List<MultiTransactionItem>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -70,7 +71,7 @@ class MultiTransactionActivity : AppCompatActivity() {
     }
 
     private fun setupTransactionMode() {
-        // Use "Add Transactions" title
+        // Use "Add Expenses" title
         binding.tvActivityTitle.text = if (isEditMode) getString(R.string.title_edit_transaction) else getString(R.string.title_add_transactions)
     }
 
@@ -332,17 +333,21 @@ class MultiTransactionActivity : AppCompatActivity() {
                         }
                         
                         // Use post to avoid "Cannot call this method while RecyclerView is computing a layout or scrolling"
+                        // We track the latest update to avoid race conditions with multiple posted tasks
+                        latestMultiItems = multiItems
                         binding.rvTransactions.post {
-                            val oldSize = adapter.itemCount
-                            adapter.setTransactions(multiItems)
-                            
-                            // Scroll to bottom if items were added
-                            if (multiItems.size > oldSize && oldSize > 0) {
-                                binding.rvTransactions.smoothScrollToPosition(multiItems.size - 1)
+                            if (latestMultiItems == multiItems) {
+                                val oldSize = adapter.itemCount
+                                adapter.setTransactions(multiItems)
+                                
+                                // Scroll to bottom if items were added
+                                if (multiItems.size > oldSize && oldSize > 0) {
+                                    binding.rvTransactions.smoothScrollToPosition(multiItems.size - 1)
+                                }
+                                
+                                // Re-validate after adapter update
+                                validateSubmission()
                             }
-                            
-                            // Re-validate after adapter update
-                            validateSubmission()
                         }
                         
                         val buttonText = if (isEditMode) {

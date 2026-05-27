@@ -30,7 +30,7 @@
     <string name="recent_notifications_label">Recent Notifications</string>
     <string name="logout_button_text">Log out</string>
     <string name="add_new_transaction_description">Add a new transaction</string>
-    <string name="borrow_money_title">Borrow Money</string>
+    <string name="borrow_money_title">Borrow List</string>
     <string name="month_year_label">Month &amp; Year</string>
     <string name="status_label">Status</string>
     <string name="select_all_label">Select All</string>
@@ -231,7 +231,7 @@
 
     <!-- MultiTransactionActivity -->
     <string name="title_edit_transaction">Edit Transaction</string>
-    <string name="title_add_transactions">Add Transactions</string>
+    <string name="title_add_transactions">Add Expenses</string>
     <string name="error_select_group">Please select a group</string>
     <string name="placeholder_select_group">Select a payer group</string>
     <string name="placeholder_unnamed_group">Unnamed Group</string>

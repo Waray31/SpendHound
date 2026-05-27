@@ -34,9 +34,8 @@ private data class BorrowInsert(
     @SerialName("borrower_id")     val borrowerId: Long,
     @SerialName("lender_id")       val lenderId: Long,
     @SerialName("status")          val status: Int,
-    @SerialName("created_at")      val createdAt: String,
-    @SerialName("payback_date")    val paybackDate: String? = null,
-    @SerialName("note")            val note: String? = null
+    @SerialName("created_at")      val createdAt: String
+    // payback_date and note columns are missing from the current borrows table schema
 )
 
 class BorrowNowActivity : AppCompatActivity() {
@@ -52,6 +51,8 @@ class BorrowNowActivity : AppCompatActivity() {
     private var tvActivityTitle: TextView? = null
     private var etAmount: EditText? = null
     private var etNote: EditText? = null
+    private var layoutBorrower: View? = null
+    private var layoutLender: View? = null
     private var borrowBtn: Button? = null
     private var cancelBtn: Button? = null
     private var closeBtn: View? = null
@@ -88,6 +89,8 @@ class BorrowNowActivity : AppCompatActivity() {
         tvActivityTitle = findViewById(R.id.tvActivityTitle)
         etAmount = findViewById(R.id.dialogBorrowEditText)
         etNote = findViewById(R.id.dialogNoteEditText)
+        layoutBorrower = findViewById(R.id.layoutBorrower)
+        layoutLender = findViewById(R.id.layoutLender)
         borrowBtn = findViewById(R.id.dialogBorrowBtn)
         cancelBtn = findViewById(R.id.dialogCancelBtn)
         closeBtn = findViewById(R.id.dialogCloseBtn)
@@ -114,11 +117,11 @@ class BorrowNowActivity : AppCompatActivity() {
             tvBorrowFromLabel?.text = "Lender"
             
             // In Lend mode, current user is lender. Select borrower from rvBorrowers.
-            tvBorrower?.visibility = View.GONE
+            layoutBorrower?.visibility = View.GONE
             rvBorrowers?.visibility = View.VISIBLE
             
             rvLenders?.visibility = View.GONE
-            tvLender?.visibility = View.VISIBLE
+            layoutLender?.visibility = View.VISIBLE
         } else {
             tvActivityTitle?.text = "Borrow money"
             borrowBtn?.text = "Borrow"
@@ -126,11 +129,11 @@ class BorrowNowActivity : AppCompatActivity() {
             tvBorrowFromLabel?.text = "Borrow from"
             
             // In Borrow mode, current user is borrower. Select lender from rvLenders.
-            tvBorrower?.visibility = View.VISIBLE
+            layoutBorrower?.visibility = View.VISIBLE
             rvBorrowers?.visibility = View.GONE
             
             rvLenders?.visibility = View.VISIBLE
-            tvLender?.visibility = View.GONE
+            layoutLender?.visibility = View.GONE
         }
     }
 
@@ -196,7 +199,7 @@ class BorrowNowActivity : AppCompatActivity() {
             datePicker.addOnPositiveButtonClickListener { selection ->
                 selectedPaybackDate = selection
                 tvPaybackDate?.text = SimpleDateFormat("MMM dd", Locale.getDefault()).format(selection)
-                tvPaybackDate?.setTextColor(getColor(R.color.black))
+                tvPaybackDate?.setTextColor(getColor(R.color.color_input_text))
             }
         }
     }
@@ -205,7 +208,6 @@ class BorrowNowActivity : AppCompatActivity() {
         borrowBtn?.setOnClickListener {
             val amountStr = etAmount?.text.toString().trim()
             val amount = amountStr.toDoubleOrNull()
-            val note = etNote?.text.toString().trim()
 
             when {
                 amount == null || amount <= 0 -> toast("Please enter a valid amount")
@@ -213,12 +215,12 @@ class BorrowNowActivity : AppCompatActivity() {
                     val msg = if (borrowMode == "LEND") "Please select a borrower" else "Please select a lender"
                     toast(msg)
                 }
-                else -> addBorrowTransaction(amount, note)
+                else -> addBorrowTransaction(amount)
             }
         }
     }
 
-    private fun addBorrowTransaction(amount: Double, note: String) {
+    private fun addBorrowTransaction(amount: Double) {
         val currentId = currentUserNumericId
         val otherId = selectedOtherUser?.id ?: return
 
@@ -243,7 +245,6 @@ class BorrowNowActivity : AppCompatActivity() {
 
         val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault())
         val createdAt = sdf.format(Date())
-        val paybackStr = selectedPaybackDate?.let { sdf.format(Date(it)) }
 
         loadingOverlay_borrowNow?.visibility = View.VISIBLE
         lifecycleScope.launch {
@@ -254,9 +255,7 @@ class BorrowNowActivity : AppCompatActivity() {
                         borrowerId = borrowerId,
                         lenderId = lenderId,
                         status = status,
-                        createdAt = createdAt,
-                        paybackDate = paybackStr,
-                        note = note.ifBlank { null }
+                        createdAt = createdAt
                     )
                 )
                 toast(if (borrowMode == "LEND") "Lend transaction added!" else "Borrow request sent!")

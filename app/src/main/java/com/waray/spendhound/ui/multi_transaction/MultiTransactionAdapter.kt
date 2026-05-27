@@ -59,60 +59,65 @@ class MultiTransactionAdapter(
         val newSize = newTransactions.size
         
         if (newSize > oldSize) {
-            // Items were added - preserve existing tracked values and initialize new items
+            // Items were added
             transactions.clear()
             transactions.addAll(newTransactions)
             
             safeNotify {
                 notifyItemRangeInserted(oldSize, newSize - oldSize)
-                // Update remove button visibility for all existing items
-                if (oldSize == 1) {
-                    notifyItemChanged(0) // First item now needs remove button
-                }
+                if (oldSize == 1) notifyItemChanged(0)
             }
         } else if (newSize < oldSize) {
-            // Items were removed - clean up tracked values for removed positions
-            for (i in newSize until oldSize) {
-                currentTitles.remove(i)
-                currentAmounts.remove(i)
-                currentCategories.remove(i)
-                currentIncludedMembers.remove(i)
-            }
+            // Items were removed - Clear tracking maps completely to be safe
+            // and avoid jumbling when items shift positions.
+            currentTitles.clear()
+            currentAmounts.clear()
+            currentCategories.clear()
+            currentIncludedMembers.clear()
+
             transactions.clear()
             transactions.addAll(newTransactions)
             safeNotify {
-                notifyItemRangeRemoved(newSize, oldSize - newSize)
-                // Update remove button visibility if we're down to 1 item
-                if (newSize == 1) {
-                    notifyItemChanged(0) // Last item should hide remove button
-                }
+                notifyDataSetChanged()
             }
         } else {
-            // Same size, check for changes to update UI
+            // Same size, check for changes
             for (i in transactions.indices) {
                 val oldItem = transactions[i]
                 val newItem = newTransactions[i]
                 
-                val titleChanged = oldItem.title != newItem.title
-                val amountChanged = oldItem.amount != newItem.amount
-                val categoryChanged = oldItem.category != newItem.category
-                val payersChanged = oldItem.payers != newItem.payers
-                val participantsChanged = oldItem.includedMembers != newItem.includedMembers
-                val validationChanged = oldItem.isValid != newItem.isValid
+                if (oldItem != newItem) {
+                    val titleChanged = oldItem.title != newItem.title
+                    val amountChanged = oldItem.amount != newItem.amount
+                    val categoryChanged = oldItem.category != newItem.category
+                    val payersChanged = oldItem.payers != newItem.payers
+                    val participantsChanged = oldItem.includedMembers != newItem.includedMembers
+                    val validationChanged = oldItem.isValid != newItem.isValid
 
-                if (titleChanged || amountChanged || categoryChanged || payersChanged || participantsChanged || validationChanged) {
                     transactions[i] = newItem
                     
-                    // Prevent focus loss: skip notifyItemChanged if the change matches what the user is typing
                     val typedAmount = currentAmounts[i]?.toDoubleOrNull() ?: 0.0
                     val isTypingAmount = Math.abs(typedAmount - newItem.amount) < 0.001
                     val isTypingTitle = currentTitles[i] == newItem.title
-
-                    // Only skip if the only changes are the ones being typed
-                    val onlyAmountTyping = amountChanged && isTypingAmount && !titleChanged && !categoryChanged && !payersChanged && !participantsChanged && !validationChanged
-                    val onlyTitleTyping = titleChanged && isTypingTitle && !amountChanged && !categoryChanged && !payersChanged && !participantsChanged && !validationChanged
                     
-                    if (!onlyAmountTyping && !onlyTitleTyping) {
+                    // A change is "covered" if it's either not changed or matches what the user is currently typing.
+                    // If covered, we don't want to re-bind the whole item because it causes focus loss/jumbling.
+                    val titleCovered = !titleChanged || isTypingTitle
+                    val amountCovered = !amountChanged || isTypingAmount
+                    
+                    if (titleCovered && amountCovered) {
+                        // Title and Amount are safe. Check if we need to update other parts via payloads.
+                        val payloads = mutableListOf<String>()
+                        if (categoryChanged) payloads.add("CATEGORY")
+                        if (payersChanged || participantsChanged) payloads.add("PAYMENT")
+                        if (validationChanged) payloads.add("VALIDATION")
+                        
+                        if (payloads.isNotEmpty()) {
+                            safeNotify { notifyItemChanged(i, payloads) }
+                        }
+                    } else {
+                        // Changes are NOT covered by typing (e.g. external update or focus loss)
+                        // Perform a full re-bind.
                         safeNotify { notifyItemChanged(i) }
                     }
                 }
@@ -195,6 +200,14 @@ class MultiTransactionAdapter(
         holder.bind(transactions[position], position)
     }
 
+    override fun onBindViewHolder(holder: TransactionViewHolder, position: Int, payloads: MutableList<Any>) {
+        if (payloads.isEmpty()) {
+            super.onBindViewHolder(holder, position, payloads)
+        } else {
+            holder.applyPayloads(transactions[position], position, payloads)
+        }
+    }
+
     override fun getItemCount() = transactions.size
 
     inner class TransactionViewHolder(private val binding: ItemTransactionMultiBinding) : RecyclerView.ViewHolder(binding.root) {
@@ -222,65 +235,40 @@ class MultiTransactionAdapter(
             // Show remove button when there are multiple items
             binding.btnRemoveItem.isVisible = transactions.size > 1
             binding.btnRemoveItem.setOnClickListener {
-                // Clear tracked values for this position
-                currentTitles.remove(adapterPosition)
-                currentAmounts.remove(adapterPosition)
-                currentCategories.remove(adapterPosition)
-                currentIncludedMembers.remove(adapterPosition)
-                onRemoveItem(adapterPosition)
+                val currentPos = adapterPosition
+                if (currentPos != RecyclerView.NO_POSITION) {
+                    currentTitles.remove(currentPos)
+                    currentAmounts.remove(currentPos)
+                    currentCategories.remove(currentPos)
+                    currentIncludedMembers.remove(currentPos)
+                    onRemoveItem(currentPos)
+                }
             }
 
             // Validation indicator and message
-            val currentAmount = currentAmounts[position]?.toDoubleOrNull() ?: item.amount
-            val hasAmountInput = currentAmount > 0
-            val isPayorsConfigured = item.payers.isNotEmpty()
-            val isPaymentComplete = item.isPaymentComplete()
-            
-            when {
-                !isGroupSelected -> {
-                    binding.ivValidationError.isVisible = true
-                    binding.tvValidationMessage.isVisible = true
-                    binding.tvValidationMessage.text = "Please input payer group first"
-                }
-                !hasAmountInput -> {
-                    binding.ivValidationError.isVisible = true
-                    binding.tvValidationMessage.isVisible = true
-                    binding.tvValidationMessage.text = "Please input amount first"
-                }
-                !isPayorsConfigured -> {
-                    binding.ivValidationError.isVisible = true
-                    binding.tvValidationMessage.isVisible = true
-                    binding.tvValidationMessage.text = "Select who paid for this item"
-                }
-                !isPaymentComplete -> {
-                    binding.ivValidationError.isVisible = true
-                    binding.tvValidationMessage.isVisible = true
-                    binding.tvValidationMessage.text = "Payment total must equal item amount"
-                }
-                else -> {
-                    binding.ivValidationError.isVisible = false
-                    binding.tvValidationMessage.isVisible = false
-                }
-            }
+            updateValidation(item, position)
 
             // Payment summary
-            updatePaymentSummary(item)
+            updatePaymentSummary(item, position)
 
             // Payment chip click listener
             binding.layoutPaymentChip.setOnClickListener {
+                val currentPos = adapterPosition
+                if (currentPos == RecyclerView.NO_POSITION) return@setOnClickListener
+                
                 // Get current amount from EditText instead of stored item amount
                 val currentAmount = binding.etAmount.text.toString().toDoubleOrNull() ?: 0.0
                 // Use tracked included members if available, otherwise use item's included members
-                val includedMembers = currentIncludedMembers[adapterPosition] ?: item.includedMembers
+                val includedMembers = currentIncludedMembers[currentPos] ?: item.includedMembers
                 val updatedItem = item.copy(
                     amount = currentAmount,
                     includedMembers = includedMembers
                 )
-                onPaymentConfigClick(adapterPosition, updatedItem)
+                onPaymentConfigClick(currentPos, updatedItem)
             }
             
             // Category chips
-            setupCategoryChips(item, position, categoryToShow)
+            setupCategoryChips(item, categoryToShow)
 
             // Amount listener
             binding.etAmount.removeTextChangedListener(amountWatcher)
@@ -288,13 +276,16 @@ class MultiTransactionAdapter(
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
                 override fun afterTextChanged(s: Editable?) {
-                    val newAmount = s.toString().toDoubleOrNull() ?: 0.0
+                    val currentPos = adapterPosition
+                    if (currentPos == RecyclerView.NO_POSITION) return
+
                     val amountText = s.toString()
+                    val newAmount = amountText.toDoubleOrNull() ?: 0.0
                     
                     // Track the current amount text
-                    currentAmounts[adapterPosition] = amountText
+                    currentAmounts[currentPos] = amountText
                     
-                    transactions[adapterPosition] = item.copy(amount = newAmount)
+                    transactions[currentPos] = item.copy(amount = newAmount)
                     
                     // Enable/disable payment section based on amount and group selection
                     val hasAmount = newAmount > 0
@@ -303,8 +294,8 @@ class MultiTransactionAdapter(
                     binding.layoutPaymentChip.isFocusable = canConfigurePayment
                     binding.layoutPaymentChip.alpha = if (canConfigurePayment) 1.0f else 0.5f
                     
-                    updateValidation(adapterPosition)
-                    onAmountChanged(adapterPosition, newAmount)
+                    updateValidation(transactions[currentPos], currentPos)
+                    onAmountChanged(currentPos, newAmount)
                     onValidationChanged()
                 }
             }
@@ -323,23 +314,44 @@ class MultiTransactionAdapter(
                 override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
                 override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
                 override fun afterTextChanged(s: Editable?) {
+                    val currentPos = adapterPosition
+                    if (currentPos == RecyclerView.NO_POSITION) return
+
                     val titleText = s.toString()
                     
                     // Track the current title text
-                    currentTitles[adapterPosition] = titleText
+                    currentTitles[currentPos] = titleText
                     
-                    transactions[adapterPosition] = item.copy(title = titleText)
-                    onTitleChanged(adapterPosition, titleText)
+                    transactions[currentPos] = item.copy(title = titleText)
+                    onTitleChanged(currentPos, titleText)
                 }
             }
             binding.etTitle.addTextChangedListener(titleWatcher)
         }
 
-        private fun updatePaymentSummary(item: MultiTransactionItem) {
+        fun applyPayloads(item: MultiTransactionItem, position: Int, payloads: List<Any>) {
+            val flattenedPayloads = payloads.flatMap { if (it is List<*>) it else listOf(it) }
+            
+            if (flattenedPayloads.contains("CATEGORY")) {
+                val categoryToShow = currentCategories[position] ?: item.category
+                binding.tvItemNumber.text = "Item ${position + 1}${if (categoryToShow.isNotEmpty()) " — ${categoryToShow.lowercase()}" else ""}"
+                setupCategoryChips(item, categoryToShow)
+            }
+            
+            if (flattenedPayloads.contains("PAYMENT")) {
+                updatePaymentSummary(item, position)
+            }
+            
+            if (flattenedPayloads.contains("VALIDATION")) {
+                updateValidation(item, position)
+            }
+        }
+
+        private fun updatePaymentSummary(item: MultiTransactionItem, position: Int) {
             binding.tvPaymentSummary.text = item.getPaymentSummary()
             
             // Use tracked included members if available, otherwise use item's included members
-            val includedMembers = currentIncludedMembers[adapterPosition] ?: item.includedMembers
+            val includedMembers = currentIncludedMembers[position] ?: item.includedMembers
             
             binding.tvParticipantSummary.text = when {
                 includedMembers.isEmpty() -> "All members"
@@ -356,7 +368,7 @@ class MultiTransactionAdapter(
             binding.tvPaymentSummary.setTextColor(textColor)
         }
 
-        private fun setupCategoryChips(item: MultiTransactionItem, position: Int, currentCategory: String) {
+        private fun setupCategoryChips(item: MultiTransactionItem, currentCategory: String) {
             val chipMap = mapOf(
                 binding.catFood to "Foods",
                 binding.catTransport to "Transportation",
@@ -372,6 +384,9 @@ class MultiTransactionAdapter(
             )
             
             fun updateChipSelection(selected: View, category: String) {
+                val currentPos = adapterPosition
+                if (currentPos == RecyclerView.NO_POSITION) return
+
                 chipMap.forEach { (view, cat) ->
                     view.setBackgroundResource(
                         if (view == selected) R.drawable.bg_dark_chip_selected
@@ -380,22 +395,22 @@ class MultiTransactionAdapter(
                 }
                 
                 // Track the selected category
-                currentCategories[adapterPosition] = category
+                currentCategories[currentPos] = category
                 
                 // Update item number display
-                binding.tvItemNumber.text = "Item ${position + 1} — ${category.lowercase()}"
+                binding.tvItemNumber.text = "Item ${currentPos + 1} — ${category.lowercase()}"
                 
                 // Update transaction data
-                transactions[adapterPosition] = item.copy(category = category)
+                transactions[currentPos] = item.copy(category = category)
                 
                 // Notify ViewModel of category change
-                onCategoryChanged(adapterPosition, category)
+                onCategoryChanged(currentPos, category)
+                updateValidation(transactions[currentPos], currentPos)
             }
             
             chipMap.forEach { (view, category) ->
                 view.setOnClickListener {
                     updateChipSelection(view, category)
-                    updateValidation(adapterPosition)
                 }
             }
             
@@ -418,15 +433,11 @@ class MultiTransactionAdapter(
             }
         }
 
-        private fun updateValidation(position: Int) {
-            val item = transactions[position]
+        private fun updateValidation(item: MultiTransactionItem, position: Int) {
             val currentAmount = currentAmounts[position]?.toDoubleOrNull() ?: item.amount
             val hasAmountInput = currentAmount > 0
             val isPayorsConfigured = item.payers.isNotEmpty()
             val isPaymentComplete = item.isPaymentComplete()
-            val isValid = isGroupSelected && hasAmountInput && item.category.isNotEmpty() && isPayorsConfigured && isPaymentComplete
-            
-            transactions[position] = item.copy(isValid = isValid)
             
             // Update validation display
             when {
