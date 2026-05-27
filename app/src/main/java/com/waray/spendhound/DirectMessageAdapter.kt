@@ -89,15 +89,31 @@ class DirectMessageAdapter(
             if (isLast) {
                 iv.visibility = View.VISIBLE
                 val url = recipientAvatarUrl
-                if (!url.isNullOrBlank()) {
-                    iv.load(url) {
+                if (!url.isNullOrBlank() && url != "placeholder_profile_image") {
+                    val fullUrl = if (url.startsWith("http")) url else DeclareDatabase.profileImagesBucket.publicUrl(url)
+                    iv.load(fullUrl) {
                         crossfade(true)
                         placeholder(R.drawable.ic_profile_silhouette)
                         error(R.drawable.ic_profile_silhouette)
                         transformations(coil.transform.CircleCropTransformation())
+                        listener(
+                            onStart = {
+                                iv.imageTintList = androidx.core.content.ContextCompat.getColorStateList(iv.context, R.color.white)
+                                iv.setPadding(dpToPx(iv, 4), dpToPx(iv, 4), dpToPx(iv, 4), dpToPx(iv, 4))
+                            },
+                            onSuccess = { _, _ ->
+                                iv.imageTintList = null
+                                iv.background = null
+                                iv.setPadding(0, 0, 0, 0)
+                            }
+                        )
                     }
                 } else {
                     iv.setImageResource(R.drawable.ic_profile_silhouette)
+                    iv.imageTintList = androidx.core.content.ContextCompat.getColorStateList(iv.context, R.color.white)
+                    iv.setBackgroundResource(R.drawable.circular_button_background)
+                    iv.backgroundTintList = androidx.core.content.ContextCompat.getColorStateList(iv.context, R.color.orange)
+                    iv.setPadding(dpToPx(iv, 4), dpToPx(iv, 4), dpToPx(iv, 4), dpToPx(iv, 4))
                 }
             } else {
                 iv.visibility = View.INVISIBLE

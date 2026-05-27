@@ -896,7 +896,24 @@ class GroupChatFragment : Fragment() {
                                 placeholder(R.drawable.ic_profile_silhouette)
                                 error(R.drawable.ic_profile_silhouette)
                                 transformations(CircleCropTransformation())
+                                listener(
+                                    onStart = {
+                                        iv.imageTintList = androidx.core.content.ContextCompat.getColorStateList(requireContext(), R.color.white)
+                                        iv.setPadding(dpToPx(4), dpToPx(4), dpToPx(4), dpToPx(4))
+                                    },
+                                    onSuccess = { _, _ ->
+                                        iv.imageTintList = null
+                                        iv.background = null
+                                        iv.setPadding(0, 0, 0, 0)
+                                    }
+                                )
                             }
+                        } else {
+                            iv.setImageResource(R.drawable.ic_profile_silhouette)
+                            iv.imageTintList = androidx.core.content.ContextCompat.getColorStateList(requireContext(), R.color.white)
+                            iv.setBackgroundResource(R.drawable.circular_button_background)
+                            iv.backgroundTintList = androidx.core.content.ContextCompat.getColorStateList(requireContext(), R.color.orange)
+                            iv.setPadding(dpToPx(4), dpToPx(4), dpToPx(4), dpToPx(4))
                         }
                     } else {
                         iv.visibility = View.INVISIBLE

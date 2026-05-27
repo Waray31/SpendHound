@@ -86,11 +86,34 @@ class DirectMessageActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.tvDmRecipientName).text = recipientName
 
         val avatarView = findViewById<ImageView>(R.id.dmRecipientAvatar)
-        if (!recipientAvatar.isNullOrBlank() && recipientAvatar != "placeholder_profile_image") {
-            avatarView.load(recipientAvatar) {
+        val avatarCard = avatarView.parent as? androidx.cardview.widget.CardView
+
+        fun setPlaceholder() {
+            avatarView.setImageResource(R.drawable.ic_profile_silhouette)
+            avatarView.imageTintList = android.content.res.ColorStateList.valueOf(
+                androidx.core.content.ContextCompat.getColor(this, R.color.whitest)
+            )
+            val p = (4 * resources.displayMetrics.density).toInt()
+            avatarView.setPadding(p, p, p, p)
+            avatarCard?.setCardBackgroundColor(androidx.core.content.ContextCompat.getColor(this, R.color.orange))
+        }
+
+        if (!recipientAvatar.isNullOrBlank() && recipientAvatar != "null" && recipientAvatar != "placeholder_profile_image") {
+            val fullUrl = if (recipientAvatar.startsWith("http")) recipientAvatar else DeclareDatabase.profileImagesBucket.publicUrl(recipientAvatar)
+            avatarView.load(fullUrl) {
                 crossfade(true)
                 transformations(CircleCropTransformation())
+                listener(
+                    onSuccess = { _, _ ->
+                        avatarView.imageTintList = null
+                        avatarView.setPadding(0, 0, 0, 0)
+                        avatarCard?.setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
+                    },
+                    onError = { _, _ -> setPlaceholder() }
+                )
             }
+        } else {
+            setPlaceholder()
         }
 
         // Dismiss emoji popup on outside tap
