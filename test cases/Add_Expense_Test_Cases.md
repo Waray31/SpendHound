@@ -1,4 +1,6 @@
-# Test Cases: Add Multi-Transactions Feature
+# Test Cases: Add Expense Feature
+
+![Add Expense Screen](../media/screenshots/Add_Expense_Screen.jpg)
 
 ## 1. Initial State & Group Selection
 | Test Case ID | Description | Steps | Expected Result |

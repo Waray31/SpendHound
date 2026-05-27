@@ -4,7 +4,8 @@ SpendHound is a financial tracking and expense management app designed to help u
 
 ## 🚀 Features
 
-- **Group Expenses**: Create groups with friends or family to track shared costs and settle up easily.
+- **Group & Crew Management**: Create groups and add "crew" members to track shared costs and settle up easily.
+- **Chat & Messaging**: Stay connected with integrated group chats and direct messaging features.
 - **Borrow & Owe Tracking**: Keep a dedicated log of money you've borrowed or lent to others.
 - **Data Visualization**: Gain insights into your spending habits with interactive charts and graphs.
 - **Secure Access**: Protect your financial data with biometric authentication (Fingerprint/Face Unlock).
@@ -74,4 +75,4 @@ SpendHound/
 This project is licensed under the MIT License.
 
 ---
-*Developed with ❤️ by the SpendHound Team.*
+*Developed with ❤️ by Richmond Gonzales.*
