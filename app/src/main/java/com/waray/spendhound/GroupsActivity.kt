@@ -18,7 +18,7 @@ import com.waray.spendhound.utils.PullInterceptLayout
 import com.waray.spendhound.utils.PullToRefreshHelper
 import coil.load
 import coil.transform.CircleCropTransformation
-import com.google.android.material.floatingactionbutton.FloatingActionButton
+
 import com.waray.spendhound.data.repository.GroupListItem
 import com.waray.spendhound.ui.group.GroupDetailViewModel
 import com.waray.spendhound.ui.group.GroupsListViewModel
@@ -34,7 +34,7 @@ class GroupsActivity : AppCompatActivity() {
     private lateinit var rvGroups: RecyclerView
     private lateinit var rvSkeleton: RecyclerView
     private lateinit var emptyState: LinearLayout
-    private lateinit var fabCreateGroup: FloatingActionButton
+
     private lateinit var tvGroupCount: TextView
     private var pullToRefreshHelper: PullToRefreshHelper? = null
 
@@ -59,11 +59,7 @@ class GroupsActivity : AppCompatActivity() {
         rvGroups = findViewById(R.id.rvGroups)
         rvSkeleton = findViewById(R.id.rvSkeleton)
         emptyState = findViewById(R.id.emptyState)
-        fabCreateGroup = findViewById(R.id.fabCreateGroup)
-        fabCreateGroup.visibility = View.VISIBLE
-        fabCreateGroup.setOnClickListener {
-            startActivity(android.content.Intent(this, CreateGroupActivity::class.java))
-        }
+
 
         rvSkeleton.layoutManager = LinearLayoutManager(this)
         rvSkeleton.adapter = SkeletonAdapter(R.layout.item_skeleton_group)
