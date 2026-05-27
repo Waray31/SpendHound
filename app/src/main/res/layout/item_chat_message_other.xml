@@ -35,20 +35,21 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:gravity="start">
+        android:gravity="start"
+        android:layout_marginEnd="16dp">
 
         <!-- Avatar — customize size, margin here -->
         <ImageView
             android:id="@+id/ivAvatar"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
             android:layout_marginEnd="8dp"
             android:layout_gravity="bottom"
             android:background="@drawable/circular_button_background"
             android:backgroundTint="@color/orange"
             android:padding="4dp"
             android:src="@drawable/ic_profile_silhouette"
-            android:visibility="invisible" />
+            android:visibility="gone" />
 
         <LinearLayout
             android:id="@+id/bubbleContainer"
@@ -110,9 +111,7 @@
                 android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:background="@drawable/bg_bubble_others"
-                android:stateListAnimator="@null"
-                android:paddingHorizontal="12dp"
-                android:paddingVertical="8dp">
+                android:stateListAnimator="@null">
 
                 <!-- Customize text color, size, font here -->
                 <TextView
@@ -121,7 +120,9 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/montserratalternatess_regular"
                     android:textColor="@color/black"
-                    android:textSize="14sp" />
+                    android:textSize="14sp"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp"/>
             </LinearLayout>
 
             <!-- Reactions row -->

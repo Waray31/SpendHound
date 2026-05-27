@@ -1,5 +1,7 @@
 # Test Cases: Home Screen
 
+![Home_Screen_Screenshot.jpg](../media/screenshots/Home_Screen_Screenshot.jpg)
+
 ## 1. Visual Elements & Initialization
 | Test Case ID | Description | Steps | Expected Result |
 | :--- | :--- | :--- | :--- |

@@ -1,5 +1,8 @@
 # Test Cases: Create Group Screen
 
+![Add_Group_Screenshot.jpg](../media/screenshots/Add_Group_Screenshot.jpg)
+![Group_Details_Screenshot.jpg](../media/screenshots/Group_Details_Screenshot.jpg)
+
 ## 1. Member Selection
 | Test Case ID | Description | Steps | Expected Result |
 | :--- | :--- | :--- | :--- |

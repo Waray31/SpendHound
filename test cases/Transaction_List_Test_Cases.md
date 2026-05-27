@@ -1,5 +1,7 @@
 # Test Cases: Transaction List Screen
 
+![Transaction_List_Screenshot.jpg](../media/screenshots/Transaction_List_Screenshot.jpg)
+
 ## 1. Filtering & Sorting
 | Test Case ID | Description | Steps | Expected Result |
 | :--- | :--- | :--- | :--- |

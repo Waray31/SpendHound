@@ -4,7 +4,8 @@
     android:layout_height="wrap_content"
     android:gravity="start"
     android:orientation="vertical"
-    android:padding="1dp">
+    android:padding="1dp"
+    android:layout_marginBottom="8dp">
 
     <TextView
         android:id="@+id/tvDmTime"
@@ -25,8 +26,8 @@
 
         <ImageView
             android:id="@+id/ivAvatar"
-            android:layout_width="38dp"
-            android:layout_height="38dp"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
             android:layout_marginEnd="8dp"
             android:layout_gravity="bottom"
             android:background="@drawable/circular_button_background"

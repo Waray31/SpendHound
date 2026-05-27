@@ -1,6 +1,7 @@
 # Test Cases: Add Expense Feature
 
-![Add Expense Screen](../media/screenshots/Add_Expense_Screen.jpg)
+![Add_Expense_Screenshot.jpg](../media/screenshots/Add_Expense_Screenshot.jpg)
+![Payment_Config_Screenshot.jpg](../media/screenshots/Payment_Config_Screenshot.jpg)
 
 ## 1. Initial State & Group Selection
 | Test Case ID | Description | Steps | Expected Result |

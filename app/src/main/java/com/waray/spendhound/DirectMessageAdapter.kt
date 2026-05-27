@@ -100,11 +100,12 @@ class DirectMessageAdapter(
                             onStart = {
                                 iv.imageTintList = androidx.core.content.ContextCompat.getColorStateList(iv.context, R.color.white)
                                 iv.setPadding(dpToPx(iv, 4), dpToPx(iv, 4), dpToPx(iv, 4), dpToPx(iv, 4))
+                                iv.setBackgroundResource(R.drawable.circular_button_background)
+                                iv.backgroundTintList = androidx.core.content.ContextCompat.getColorStateList(iv.context, R.color.orange)
                             },
                             onSuccess = { _, _ ->
                                 iv.imageTintList = null
-                                iv.background = null
-                                iv.setPadding(0, 0, 0, 0)
+                                // Keep background and padding for consistency
                             }
                         )
                     }

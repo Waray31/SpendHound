@@ -1,5 +1,7 @@
 # Test Cases: Profile Screen
 
+![Profile_Screenshot.jpg](../media/screenshots/Profile_Screenshot.jpg)
+
 ## 1. User Information & Stats
 | Test Case ID | Description | Steps | Expected Result |
 | :--- | :--- | :--- | :--- |

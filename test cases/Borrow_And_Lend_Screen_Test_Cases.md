@@ -1,5 +1,8 @@
 # Test Cases: Borrow & Lend Creation Screen
 
+![Borrow_Now_Screenshot.jpg](../media/screenshots/Borrow_Now_Screenshot.jpg)
+![Lend_Now_Screenshot.jpg](../media/screenshots/Lend_Now_Screenshot.jpg)
+
 ## 1. Mode Selection & UI Initialization
 | Test Case ID | Description | Steps | Expected Result |
 | :--- | :--- | :--- | :--- |

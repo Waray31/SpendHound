@@ -53,7 +53,7 @@ class GroupRepository(private val db: AppDatabase) {
                     updatedAt = msg.updatedAt,
                     isDeleted = msg.isDeleted,
                     senderName = sender?.username,
-                    senderProfileImage = sender?.id?.let { "$it/$it.jpg" }
+                    senderProfileImage = sender?.profileImageUrl
                 )
             }
         }

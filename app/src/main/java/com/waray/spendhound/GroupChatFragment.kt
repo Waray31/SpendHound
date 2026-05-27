@@ -147,7 +147,7 @@ class GroupChatFragment : Fragment() {
             }.decodeSingleOrNull<User>() ?: return
             currentUserId = user.id
             currentUserName = user.username
-            currentUserProfileImage = user.id?.let { "$it/$it.jpg" }
+            currentUserProfileImage = user.profileImageUrl
         } catch (e: Exception) {
             Log.e(TAG, "Failed to resolve user", e)
         }
@@ -230,7 +230,7 @@ class GroupChatFragment : Fragment() {
         return raw.map { msg ->
             val sender = users.firstOrNull { it.id == msg.userId }
             msg.senderName = sender?.username
-            msg.senderProfileImage = sender?.id?.let { "$it/$it.jpg" }
+            msg.senderProfileImage = sender?.profileImageUrl
             if (msg.transactionId != null) {
                 try {
                     val tx = DeclareDatabase.transactionsTable.select {
@@ -792,6 +792,7 @@ class GroupChatFragment : Fragment() {
         private val VIEW_TYPE_OTHER = 2
 
         inner class VH(view: View, val isMine: Boolean) : RecyclerView.ViewHolder(view) {
+            val messageRoot: LinearLayout = view.findViewById(R.id.messageRoot)
             val tvSenderName: TextView? = view.findViewById(R.id.tvSenderName)
             val ivAvatar: ImageView? = view.findViewById(R.id.ivAvatar)
             val tvMessageTime: TextView = view.findViewById(R.id.tvMessageTime)
@@ -839,11 +840,17 @@ class GroupChatFragment : Fragment() {
             // Set bubble background and margin based on position in group
             val bubbleLp = holder.bubble.layoutParams as? LinearLayout.LayoutParams
                 ?: LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
+            
+            // Handle spacing: no gap between consecutive messages from same user, 8dp gap between different users
+            val rootLp = holder.messageRoot.layoutParams as? ViewGroup.MarginLayoutParams
+            rootLp?.bottomMargin = if (isLastInGroup) dpToPx(8) else 0
+            holder.messageRoot.layoutParams = rootLp
+
             if (holder.isMine) {
                 when {
                     isFirstInGroup && isLastInGroup -> {
                         holder.bubble.setBackgroundResource(R.drawable.bg_bubble_mine)
-                        bubbleLp.topMargin = dpToPx(2); bubbleLp.bottomMargin = dpToPx(2)
+                        bubbleLp.topMargin = dpToPx(2); bubbleLp.bottomMargin = 0
                     }
                     isFirstInGroup -> {
                         holder.bubble.setBackgroundResource(R.drawable.bg_bubble_mine)
@@ -855,14 +862,14 @@ class GroupChatFragment : Fragment() {
                     }
                     else -> {
                         holder.bubble.setBackgroundResource(R.drawable.bg_bubble_mine_bottom)
-                        bubbleLp.topMargin = 0; bubbleLp.bottomMargin = dpToPx(2)
+                        bubbleLp.topMargin = 0; bubbleLp.bottomMargin = 0
                     }
                 }
             } else {
                 when {
                     isFirstInGroup && isLastInGroup -> {
                         holder.bubble.setBackgroundResource(R.drawable.bg_bubble_others)
-                        bubbleLp.topMargin = dpToPx(2); bubbleLp.bottomMargin = dpToPx(2)
+                        bubbleLp.topMargin = dpToPx(2); bubbleLp.bottomMargin = 0
                     }
                     isFirstInGroup -> {
                         holder.bubble.setBackgroundResource(R.drawable.bg_bubble_others)
@@ -874,7 +881,7 @@ class GroupChatFragment : Fragment() {
                     }
                     else -> {
                         holder.bubble.setBackgroundResource(R.drawable.bg_bubble_theirs_bottom)
-                        bubbleLp.topMargin = 0; bubbleLp.bottomMargin = dpToPx(2)
+                        bubbleLp.topMargin = 0; bubbleLp.bottomMargin = 0
                     }
                 }
             }
@@ -890,8 +897,10 @@ class GroupChatFragment : Fragment() {
                     val avatarPath = msg.senderProfileImage
                     if (isLastInGroup) {
                         iv.visibility = View.VISIBLE
-                        if (!avatarPath.isNullOrBlank()) {
-                            iv.load(DeclareDatabase.profileImagesBucket.publicUrl(avatarPath)) {
+                        if (!avatarPath.isNullOrBlank() && avatarPath != "placeholder_profile_image") {
+                            val fullUrl = if (avatarPath.startsWith("http")) avatarPath 
+                                           else DeclareDatabase.profileImagesBucket.publicUrl(avatarPath)
+                            iv.load(fullUrl) {
                                 crossfade(true)
                                 placeholder(R.drawable.ic_profile_silhouette)
                                 error(R.drawable.ic_profile_silhouette)
@@ -900,11 +909,12 @@ class GroupChatFragment : Fragment() {
                                     onStart = {
                                         iv.imageTintList = androidx.core.content.ContextCompat.getColorStateList(requireContext(), R.color.white)
                                         iv.setPadding(dpToPx(4), dpToPx(4), dpToPx(4), dpToPx(4))
+                                        iv.setBackgroundResource(R.drawable.circular_button_background)
+                                        iv.backgroundTintList = androidx.core.content.ContextCompat.getColorStateList(requireContext(), R.color.orange)
                                     },
                                     onSuccess = { _, _ ->
                                         iv.imageTintList = null
-                                        iv.background = null
-                                        iv.setPadding(0, 0, 0, 0)
+                                        // Keep background and padding for consistency
                                     }
                                 )
                             }

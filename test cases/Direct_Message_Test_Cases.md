@@ -1,5 +1,7 @@
 # Test Cases: Direct Message Screen
 
+![Direct_Message_Screenshot.jpg](../media/screenshots/Direct_Message_Screenshot.jpg)
+
 ## 1. Interaction & Identity
 | Test Case ID | Description | Steps | Expected Result |
 | :--- | :--- | :--- | :--- |

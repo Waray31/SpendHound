@@ -1,5 +1,7 @@
 # Test Cases: Borrow & Lend List Screen
 
+![Borrower_List_Screenshot.jpg](../media/screenshots/Borrower_List_Screenshot.jpg)
+
 ## 1. Owed vs Debt Navigation
 | Test Case ID | Description | Steps | Expected Result |
 | :--- | :--- | :--- | :--- |

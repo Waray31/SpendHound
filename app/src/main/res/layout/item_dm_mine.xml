@@ -4,7 +4,8 @@
     android:layout_height="wrap_content"
     android:gravity="end"
     android:orientation="vertical"
-    android:padding="1dp">
+    android:padding="1dp"
+    android:layout_marginBottom="8dp">
 
     <TextView
         android:id="@+id/tvDmTime"

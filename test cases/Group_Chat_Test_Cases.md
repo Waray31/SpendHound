@@ -1,5 +1,7 @@
 # Test Cases: Group Chat Screen
 
+![Group_Chat_Screenshot.jpg](../media/screenshots/Group_Chat_Screenshot.jpg)
+
 ## 1. Message Sending & Receiving
 | Test Case ID | Description | Steps | Expected Result |
 | :--- | :--- | :--- | :--- |
