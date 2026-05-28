@@ -1,0 +1,179 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <!-- Header -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="20dp">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Batch Settlement"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:textColor="@color/darkBlue"
+            android:textSize="18sp" />
+
+        <ImageButton
+            android:id="@+id/btnClose"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:src="@drawable/ic_close_24dp"
+            app:tint="@color/grey" />
+
+    </LinearLayout>
+
+    <!-- Member Selection -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Select Member"
+        android:fontFamily="@font/montserratalternatess_bold"
+        android:textColor="@color/darkBlue"
+        android:textSize="14sp"
+        android:layout_marginBottom="12dp" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvMembers"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+        tools:listitem="@layout/item_member_selection"
+        android:layout_marginBottom="20dp" />
+
+    <!-- Summary Section -->
+    <LinearLayout
+        android:id="@+id/summaryContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:background="@drawable/bg_add_expense_btn"
+        android:padding="12dp"
+        android:layout_marginBottom="16dp"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <TextView
+            android:id="@+id/tvSummary"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:textColor="@color/darkBlue"
+            android:textSize="14sp"
+            android:textAlignment="center"
+            tools:text="User owes you ₱500.00" />
+
+    </LinearLayout>
+
+    <!-- Transaction List Section -->
+    <TextView
+        android:id="@+id/tvTransactionsHeader"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Select Transactions to Settle"
+        android:fontFamily="@font/montserratalternatess_bold"
+        android:textColor="@color/darkBlue"
+        android:textSize="14sp"
+        android:layout_marginBottom="12dp"
+        android:visibility="gone"
+        tools:visibility="visible" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/rvTransactions"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxHeight="300dp"
+        android:layout_marginBottom="16dp"
+        android:visibility="gone"
+        tools:visibility="visible"
+        tools:listitem="@layout/item_multi_settle_transaction" />
+
+    <!-- Amount Input -->
+    <LinearLayout
+        android:id="@+id/amountInputContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="20dp"
+        android:visibility="gone"
+        tools:visibility="visible">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Amount to Settle"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:textColor="@color/darkBlue"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp" />
+
+        <com.google.android.material.textfield.TextInputLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/etSettleAmount"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:inputType="numberDecimal"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:hint="0.00" />
+
+        </com.google.android.material.textfield.TextInputLayout>
+
+        <TextView
+            android:id="@+id/tvTotalSelected"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="@font/montserratalternatess_regular"
+            android:textColor="@color/grey"
+            android:textSize="12sp"
+            tools:text="Total selected: ₱500.00" />
+
+    </LinearLayout>
+
+    <!-- Action Buttons -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/btnSettle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Settle Now"
+        android:textAllCaps="false"
+        android:fontFamily="@font/montserratalternatess_bold"
+        android:textColor="@color/whitest"
+        android:paddingVertical="12dp"
+        android:background="@drawable/rounded_button"
+        app:backgroundTint="@null"
+        android:enabled="false" />
+
+    <!-- Loading Overlay -->
+    <FrameLayout
+        android:id="@+id/loadingLayout"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:background="@color/glassy_background"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true">
+        <ProgressBar
+            style="@style/CustomProgressBarStyle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center" />
+    </FrameLayout>
+
+</LinearLayout>

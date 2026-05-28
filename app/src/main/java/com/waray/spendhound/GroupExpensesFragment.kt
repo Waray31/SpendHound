@@ -65,6 +65,7 @@ class GroupExpensesFragment : Fragment() {
     private var currentMonthTextView: TextView? = null
     private var transactionCountTextView: TextView? = null
     private var btnCalculateShare: View? = null
+    private var btnMultiSettle: View? = null
     private var popupOverlay: View? = null
 
     private var selectedStatusTab = "All"
@@ -93,11 +94,12 @@ class GroupExpensesFragment : Fragment() {
         currentMonthTextView = view.findViewById(R.id.currentMonthTextView)
         transactionCountTextView = view.findViewById(R.id.transactionCountTextView)
         btnCalculateShare = view.findViewById(R.id.btnCalculateShare)
+        btnMultiSettle = view.findViewById(R.id.btnMultiSettle)
         showArchivedSection = view.findViewById(R.id.showArchivedSection)
         showArchivedToggle = view.findViewById(R.id.showArchivedToggle)
         archivedRecyclerView = view.findViewById(R.id.archivedTransactionsRecyclerView)
 
-        lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
+        lastSeenUpdate = TransactionState.lastUpdateTimestamp
 
         popupOverlay?.setOnClickListener { dismissPopup() }
         
@@ -162,6 +164,13 @@ class GroupExpensesFragment : Fragment() {
             }
         }
 
+        btnMultiSettle?.setOnClickListener {
+            val members = (requireActivity() as? GroupDetailActivity)?.groupMembers ?: emptyList()
+            if (members.isNotEmpty()) {
+                MultiSettleBottomSheet(members, fullTransactions).show(childFragmentManager, "MULTI_SETTLE")
+            }
+        }
+
         loadExpenses(true)
         
         // Dismiss popup when clicking outside
@@ -171,8 +180,8 @@ class GroupExpensesFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         if (::adapter.isInitialized) {
-            if (com.waray.spendhound.TransactionState.lastUpdateTimestamp > lastSeenUpdate) {
-                lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
+            if (TransactionState.lastUpdateTimestamp > lastSeenUpdate) {
+                lastSeenUpdate = TransactionState.lastUpdateTimestamp
                 lifecycleScope.launch {
                     repo.invalidateTransactions(groupId)
                     loadExpenses(false)
@@ -192,6 +201,7 @@ class GroupExpensesFragment : Fragment() {
                 withContext(Dispatchers.Main) {
                     fullTransactions = result
                     applyStatusFilter()
+                    checkSettlementVisibility()
                     hideLoading()
                     pullToRefreshHelper?.stopRefreshing()
                 }
@@ -356,6 +366,38 @@ class GroupExpensesFragment : Fragment() {
                         val index = transactionList.indexOf(tx)
                         if (index != -1) adapter.notifyItemChanged(index)
                     }
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    private fun checkSettlementVisibility() {
+        val authId = DeclareDatabase.auth.currentUserOrNull()?.id ?: return
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val user = DeclareDatabase.usersTable.select {
+                    filter { eq("auth_id", authId) }
+                }.decodeSingleOrNull<User>()
+                val myId = user?.id ?: return@launch
+                
+                var hasBalance = false
+                val pendingTransactions = fullTransactions.filter { it.transactionStatus != "Settled" }
+                
+                for (tx in pendingTransactions) {
+                    val payors = tx.rawPayorRows
+                    val splits = tx.rawSplitRows
+                    
+                    val myPaid = payors.filter { it.userId == myId }.sumOf { it.currentAmountPaid }
+                    val myShare = splits.filter { it.userId == myId }.sumOf { it.amount }
+                    
+                    if (kotlin.math.abs(myPaid - myShare) > 0.01) {
+                        hasBalance = true
+                        break
+                    }
+                }
+                
+                withContext(Dispatchers.Main) {
+                    btnMultiSettle?.visibility = if (hasBalance) View.VISIBLE else View.GONE
                 }
             } catch (_: Exception) {}
         }
@@ -673,8 +715,8 @@ class GroupExpensesFragment : Fragment() {
                 withContext(Dispatchers.Main) {
                     transaction.isArchived = true
                     moveToArchived(transaction)
-                    com.waray.spendhound.TransactionState.notifyChange()
-                    lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
+                    TransactionState.notifyChange()
+                    lastSeenUpdate = TransactionState.lastUpdateTimestamp
                     loadExpenses(false)
                 }
             } catch (e: Exception) {
@@ -693,8 +735,8 @@ class GroupExpensesFragment : Fragment() {
                 withContext(Dispatchers.Main) {
                     transaction.isArchived = false
                     moveFromArchived(transaction)
-                    com.waray.spendhound.TransactionState.notifyChange()
-                    lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
+                    TransactionState.notifyChange()
+                    lastSeenUpdate = TransactionState.lastUpdateTimestamp
                     loadExpenses(false)
                 }
             } catch (e: Exception) {
