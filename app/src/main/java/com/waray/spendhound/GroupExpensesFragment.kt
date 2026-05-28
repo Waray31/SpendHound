@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.TextView
+import com.google.android.material.datepicker.MaterialDatePicker
 import androidx.core.widget.NestedScrollView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
@@ -58,12 +59,16 @@ class GroupExpensesFragment : Fragment() {
     private lateinit var repo: GroupRepository
     private var groupName: String? = null
 
+    private var dateRangeSpinner: android.widget.Spinner? = null
     private var currentMonthTextView: TextView? = null
     private var transactionCountTextView: TextView? = null
     private var popupOverlay: View? = null
 
     private var selectedStatusTab = "All"
     private var isTabClickEnabled = true
+    private var startDate: Long = 0L
+    private var endDate: Long = Long.MAX_VALUE
+    private var customDateActive = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -77,6 +82,7 @@ class GroupExpensesFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         val rv = view.findViewById<RecyclerView>(R.id.rvExpenses)
         rvSkeleton = view.findViewById(R.id.rvSkeleton)
+        dateRangeSpinner = view.findViewById(R.id.dateRangeSpinner)
         transactionActionsPopup = view.findViewById(R.id.transactionActionsPopup)
         popupOverlay = view.findViewById(R.id.popupOverlay)
         currentMonthTextView = view.findViewById(R.id.currentMonthTextView)
@@ -141,6 +147,7 @@ class GroupExpensesFragment : Fragment() {
         rootLayout.onInterceptCallback = { event -> pullToRefreshHelper?.onInterceptTouch(event) ?: false }
 
         setupStatusTabs(view)
+        setupDateRangeSpinner()
         loadExpenses()
         
         // Dismiss popup when clicking outside
@@ -343,11 +350,16 @@ class GroupExpensesFragment : Fragment() {
     private fun applyStatusFilter() {
         val (active, archived) = fullTransactions.partition { !it.isArchived }
         
-        val filtered = if (selectedStatusTab == "All") active
-        else active.filter { it.transactionStatus.equals(selectedStatusTab, ignoreCase = true) }
+        val filtered = active.filter { tx ->
+            val statusOk = selectedStatusTab == "All" || tx.transactionStatus.equals(selectedStatusTab, ignoreCase = true)
+            val dateOk = tx.timestamp in startDate..endDate
+            statusOk && dateOk
+        }
         
-        archivedTransactions = archived
-
+        archivedTransactions = archived.filter { tx ->
+            tx.timestamp in startDate..endDate
+        }
+        
         transactionList.clear()
         transactionList.addAll(filtered)
         adapter.notifyDataSetChanged()
@@ -358,12 +370,80 @@ class GroupExpensesFragment : Fragment() {
         val count = transactionList.size
         transactionCountTextView?.text = String.format(Locale.getDefault(), "%d %s", count, if (count == 1) getString(R.string.label_transaction) else getString(R.string.label_transactions_lowercase))
         
-        // Update date text - for now just current month or similar to TransactionsFragment
-        val cal = Calendar.getInstance()
-        val sdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
-        currentMonthTextView?.text = sdf.format(cal.time)
+        updateCurrentMonthText()
 
         if (transactionList.isEmpty()) showEmpty() else showList()
+    }
+
+    private fun setupDateRangeSpinner() {
+        val options = mutableListOf<String?>("This Month", "Last Month", "All", "Custom Date")
+        val spinnerAdapter = SpinnerItemMonths(requireContext(), options)
+        dateRangeSpinner?.adapter = spinnerAdapter
+        setThisMonth(); updateCurrentMonthText()
+        currentMonthTextView?.setOnClickListener { if (customDateActive) showDateRangePickerDialog() }
+        dateRangeSpinner?.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
+                when (position) {
+                    0 -> { customDateActive = false; setThisMonth(); updateCurrentMonthText(); applyStatusFilter() }
+                    1 -> { customDateActive = false; setLastMonth(); updateCurrentMonthText(); applyStatusFilter() }
+                    2 -> { customDateActive = false; setAllTime(); updateCurrentMonthText(); applyStatusFilter() }
+                    3 -> showDateRangePickerDialog()
+                }
+            }
+            override fun onNothingSelected(parent: android.widget.AdapterView<*>?) {}
+        }
+    }
+
+    private fun setThisMonth() {
+        val cal = Calendar.getInstance()
+        cal.set(Calendar.DAY_OF_MONTH, 1); cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0); cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+        startDate = cal.timeInMillis
+        cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH)); cal.set(Calendar.HOUR_OF_DAY, 23); cal.set(Calendar.MINUTE, 59); cal.set(Calendar.SECOND, 59)
+        endDate = cal.timeInMillis
+    }
+
+    private fun setLastMonth() {
+        val cal = Calendar.getInstance(); cal.add(Calendar.MONTH, -1)
+        cal.set(Calendar.DAY_OF_MONTH, 1); cal.set(Calendar.HOUR_OF_DAY, 0); cal.set(Calendar.MINUTE, 0); cal.set(Calendar.SECOND, 0); cal.set(Calendar.MILLISECOND, 0)
+        startDate = cal.timeInMillis
+        cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH)); cal.set(Calendar.HOUR_OF_DAY, 23); cal.set(Calendar.MINUTE, 59); cal.set(Calendar.SECOND, 59)
+        endDate = cal.timeInMillis
+    }
+
+    private fun setAllTime() { startDate = 0L; endDate = Long.MAX_VALUE }
+
+    private fun showDateRangePickerDialog() {
+        val safeStart = if (startDate <= 0L || startDate == Long.MAX_VALUE) Calendar.getInstance().also { it.set(Calendar.DAY_OF_MONTH, 1) }.timeInMillis else startDate
+        val safeEnd = if (endDate == Long.MAX_VALUE) Calendar.getInstance().timeInMillis else endDate
+        val picker = MaterialDatePicker.Builder.dateRangePicker()
+            .setTitleText("Select Date Range")
+            .setSelection(androidx.core.util.Pair(safeStart, safeEnd))
+            .build()
+        picker.show(childFragmentManager, "DATE_RANGE_PICKER")
+        picker.addOnPositiveButtonClickListener { selection ->
+            if (selection != null) {
+                startDate = selection.first ?: safeStart
+                val selectedEnd = selection.second ?: selection.first ?: safeEnd
+                endDate = selectedEnd + 86400000 - 1
+                val sdf = SimpleDateFormat("MMM dd", Locale.getDefault())
+                customDateActive = true
+                updateCurrentMonthText(customLabel = "${sdf.format(startDate)} - ${sdf.format(selectedEnd)}")
+                applyStatusFilter()
+            }
+        }
+        picker.addOnCancelListener { if (!customDateActive) dateRangeSpinner?.setSelection(0) }
+    }
+
+    private fun updateCurrentMonthText(customLabel: String? = null) {
+        val text = customLabel ?: when {
+            startDate <= 0L && endDate == Long.MAX_VALUE -> "All Time"
+            else -> {
+                val sdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
+                val start = sdf.format(startDate); val end = sdf.format(endDate)
+                if (start == end) start else "$start - $end"
+            }
+        }
+        currentMonthTextView?.text = text
     }
 
     private fun formatSmartDate(createdAt: String?): String {

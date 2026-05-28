@@ -31,6 +31,28 @@
                 android:background="@drawable/rounded_white_background"
                 android:backgroundTint="@color/white2">
 
+                <!-- Filter Section -->
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal">
+
+                    <Spinner
+                        android:id="@+id/dateRangeSpinner"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:background="@drawable/transparent_background"
+                        android:textAlignment="center" />
+
+                </LinearLayout>
+
+                <View
+                    android:id="@+id/bottom_border_tabs"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginVertical="8dp"
+                    android:background="@drawable/border_line_darkblue" />
+
                 <!-- Status Tabs -->
                 <LinearLayout
                     android:id="@+id/statusTabs_layout"
@@ -118,6 +140,8 @@
                         android:text="0 transactions"
                         android:textColor="@color/transaction_secondary_text"
                         android:textSize="12sp" />
+
+
 
                     <!-- Pull to Refresh Indicator -->
                     <LinearLayout

@@ -308,7 +308,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             app:backgroundTint="@color/mid_orange"
-            android:contentDescription="@string/label_add_group"
+            android:contentDescription="@string/label_fab_groups"
             android:src="@drawable/add_group"
             app:fabSize="mini"
             app:tint="@color/whitest" />
@@ -318,7 +318,7 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
             android:fontFamily="@font/montserratalternatess_bold"
-            android:text="@string/label_add_group"
+            android:text="@string/label_fab_groups"
             android:textColor="@color/whitest"
             android:textSize="10sp"
             android:clickable="false"

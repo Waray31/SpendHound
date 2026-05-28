@@ -11,7 +11,7 @@ import com.waray.spendhound.User
 import com.waray.spendhound.data.local.AppDatabase
 import com.waray.spendhound.data.local.CacheKeys
 import com.waray.spendhound.ui.multi_transaction.TransactionFull
-import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
+
 import kotlinx.coroutines.flow.Flow
 
 data class GroupListItem(
@@ -51,10 +51,7 @@ class GroupsListRepository(private val db: AppDatabase) {
             order("created_at", io.github.jan.supabase.postgrest.query.Order.DESCENDING)
         }.decodeList<TransactionFull>() else emptyList()
 
-        val allTxIds = allTransactions.mapNotNull { it.id }
-        val allPayors = if (allTxIds.isNotEmpty()) DeclareDatabase.transactionPayorsTable.select {
-            filter { isIn("transaction_id", allTxIds) }
-        }.decodeList<TransactionPayorTable>() else emptyList()
+
 
         val allMessages = if (groupIds.isNotEmpty()) DeclareDatabase.groupMessagesTable.select {
             filter { isIn("group_id", groupIds); eq("is_deleted", false) }
@@ -79,10 +76,10 @@ class GroupsListRepository(private val db: AppDatabase) {
             val gid = group.groupId ?: 0L
             val txs = allTransactions.filter { it.groupId == gid }
             val groupMsgs = allMessages.filter { it.groupId == gid }
-            val txIds = txs.mapNotNull { it.id }
+
             val totalExpenses = txs.sumOf { it.totalAmount }
             val activeCount = txs.count { (it.status ?: 0) == 2 }
-            val settledAmount = allPayors.filter { it.transactionId in txIds && it.status == 1 }.sumOf { it.currentAmountPaid }
+            val settledAmount = txs.filter { it.status == 3 }.sumOf { it.totalAmount }
             val maxReadId = maxReadByGroup[gid] ?: 0L
             val unreadMsgs = groupMsgs.count { it.userId != userId && it.id != null && it.id!! > maxReadId }
             val maxTxReadId = maxTxReadByGroup[gid] ?: 0L
