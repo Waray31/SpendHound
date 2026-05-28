@@ -64,6 +64,7 @@ class GroupExpensesFragment : Fragment() {
     private var dateRangeSpinner: android.widget.Spinner? = null
     private var currentMonthTextView: TextView? = null
     private var transactionCountTextView: TextView? = null
+    private var btnCalculateShare: View? = null
     private var popupOverlay: View? = null
 
     private var selectedStatusTab = "All"
@@ -91,6 +92,7 @@ class GroupExpensesFragment : Fragment() {
         popupOverlay = view.findViewById(R.id.popupOverlay)
         currentMonthTextView = view.findViewById(R.id.currentMonthTextView)
         transactionCountTextView = view.findViewById(R.id.transactionCountTextView)
+        btnCalculateShare = view.findViewById(R.id.btnCalculateShare)
         showArchivedSection = view.findViewById(R.id.showArchivedSection)
         showArchivedToggle = view.findViewById(R.id.showArchivedToggle)
         archivedRecyclerView = view.findViewById(R.id.archivedTransactionsRecyclerView)
@@ -152,6 +154,14 @@ class GroupExpensesFragment : Fragment() {
 
         setupStatusTabs(view)
         setupDateRangeSpinner()
+        
+        btnCalculateShare?.setOnClickListener {
+            val members = (requireActivity() as? GroupDetailActivity)?.groupMembers ?: emptyList()
+            if (members.isNotEmpty()) {
+                CalculateShareBottomSheet(members, fullTransactions).show(childFragmentManager, "CALCULATE_SHARE")
+            }
+        }
+
         loadExpenses(true)
         
         // Dismiss popup when clicking outside
