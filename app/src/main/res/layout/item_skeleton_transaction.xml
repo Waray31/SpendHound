@@ -4,7 +4,7 @@
     android:layout_height="wrap_content"
     android:layout_marginHorizontal="4dp"
     android:layout_marginVertical="8dp"
-    android:background="@drawable/rounded_white_background"
+    android:background="@drawable/bg_profile_card"
     android:orientation="vertical">
 
     <LinearLayout

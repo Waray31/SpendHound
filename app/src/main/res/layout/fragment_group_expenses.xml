@@ -167,6 +167,8 @@
                         android:nestedScrollingEnabled="false"
                         android:paddingHorizontal="16dp"
                         android:paddingBottom="32dp"
+                        tools:listitem="@layout/item_skeleton_transaction"
+                        tools:itemCount="5"
                         android:visibility="gone" />
 
                     <androidx.recyclerview.widget.RecyclerView

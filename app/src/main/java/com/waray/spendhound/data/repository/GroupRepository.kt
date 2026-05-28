@@ -19,7 +19,8 @@ import kotlinx.coroutines.withContext
 class GroupRepository(private val db: AppDatabase) {
 
     fun getMessages(groupId: Long): Flow<List<CachedMessage>> = flow {
-        emit(db.messageDao().getMessages(groupId))
+        val cached = db.messageDao().getMessages(groupId)
+        if (cached.isNotEmpty()) emit(cached)
 
         val cacheKey = CacheKeys.messageReads(groupId)
         val ts = db.jsonBlobDao().get(cacheKey)
@@ -65,7 +66,8 @@ class GroupRepository(private val db: AppDatabase) {
     }.flowOn(Dispatchers.IO)
 
     fun getTransactions(groupId: Long): Flow<List<CachedTransaction>> = flow {
-        emit(db.transactionDao().getTransactions(groupId))
+        val cached = db.transactionDao().getTransactions(groupId)
+        if (cached.isNotEmpty()) emit(cached)
 
         val cacheKey = CacheKeys.groupExpenses(groupId)
         val ts = db.jsonBlobDao().get(cacheKey)

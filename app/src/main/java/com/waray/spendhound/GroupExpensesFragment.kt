@@ -45,7 +45,9 @@ class GroupExpensesFragment : Fragment() {
     private var groupId: Long = -1
     private val transactionList = ArrayList<RecentTransaction>()
     private lateinit var adapter: RecentTransactionAdapter
+    private lateinit var rvExpenses: RecyclerView
     private lateinit var rvSkeleton: RecyclerView
+    private lateinit var emptyExpenses: View
     private var pullToRefreshHelper: PullToRefreshHelper? = null
     private var fullTransactions: List<RecentTransaction> = emptyList()
     private var archivedTransactions: List<RecentTransaction> = emptyList()
@@ -66,6 +68,7 @@ class GroupExpensesFragment : Fragment() {
 
     private var selectedStatusTab = "All"
     private var isTabClickEnabled = true
+    private var isLoading = false
     private var startDate: Long = 0L
     private var endDate: Long = Long.MAX_VALUE
     private var customDateActive = false
@@ -80,8 +83,9 @@ class GroupExpensesFragment : Fragment() {
         inflater.inflate(R.layout.fragment_group_expenses, container, false)
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        val rv = view.findViewById<RecyclerView>(R.id.rvExpenses)
+        rvExpenses = view.findViewById(R.id.rvExpenses)
         rvSkeleton = view.findViewById(R.id.rvSkeleton)
+        emptyExpenses = view.findViewById(R.id.emptyExpenses)
         dateRangeSpinner = view.findViewById(R.id.dateRangeSpinner)
         transactionActionsPopup = view.findViewById(R.id.transactionActionsPopup)
         popupOverlay = view.findViewById(R.id.popupOverlay)
@@ -95,7 +99,7 @@ class GroupExpensesFragment : Fragment() {
 
         popupOverlay?.setOnClickListener { dismissPopup() }
         
-        adapter = RecentTransactionAdapter(transactionList, { loadExpenses() }, { tx ->
+        adapter = RecentTransactionAdapter(transactionList, { loadExpenses(false) }, { tx ->
             if (tx == null) return@RecentTransactionAdapter
             tx.isExpanded = !tx.isExpanded
             val pos = transactionList.indexOf(tx)
@@ -117,7 +121,7 @@ class GroupExpensesFragment : Fragment() {
             showTransactionPopup(transaction, anchorView)
         }
         
-        archivedAdapter = RecentTransactionAdapter(arrayListOf(), { loadExpenses() }, { tx ->
+        archivedAdapter = RecentTransactionAdapter(arrayListOf(), { loadExpenses(false) }, { tx ->
             if (tx == null) return@RecentTransactionAdapter
             tx.isExpanded = !tx.isExpanded
             val pos = archivedTransactions.indexOf(tx)
@@ -125,8 +129,8 @@ class GroupExpensesFragment : Fragment() {
         }) { transaction, anchorView ->
             showArchivedTransactionPopup(transaction, anchorView)
         }
-        rv.layoutManager = LinearLayoutManager(requireContext())
-        rv.adapter = adapter
+        rvExpenses.layoutManager = LinearLayoutManager(requireContext())
+        rvExpenses.adapter = adapter
         rvSkeleton.layoutManager = LinearLayoutManager(requireContext())
         rvSkeleton.adapter = SkeletonAdapter(R.layout.item_skeleton_transaction)
         
@@ -141,14 +145,14 @@ class GroupExpensesFragment : Fragment() {
         pullToRefreshHelper = PullToRefreshHelper(scrollView, indicator, {
             lifecycleScope.launch {
                 repo.invalidateTransactions(groupId)
-                loadExpenses()
+                loadExpenses(false)
             }
         }, rootLayout)
         rootLayout.onInterceptCallback = { event -> pullToRefreshHelper?.onInterceptTouch(event) ?: false }
 
         setupStatusTabs(view)
         setupDateRangeSpinner()
-        loadExpenses()
+        loadExpenses(true)
         
         // Dismiss popup when clicking outside
         view.setOnClickListener { dismissPopup() }
@@ -161,17 +165,17 @@ class GroupExpensesFragment : Fragment() {
                 lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
                 lifecycleScope.launch {
                     repo.invalidateTransactions(groupId)
-                    loadExpenses()
+                    loadExpenses(false)
                 }
             } else {
-                loadExpenses()
+                loadExpenses(false)
             }
         }
     }
 
     @SuppressLint("NotifyDataSetChanged")
-    private fun loadExpenses() {
-        showLoading()
+    private fun loadExpenses(forceSkeleton: Boolean = false) {
+        showLoading(forceSkeleton)
         lifecycleScope.launch {
             repo.getTransactions(groupId).collect { cached ->
                 val result = buildTransactions(cached)
@@ -372,7 +376,7 @@ class GroupExpensesFragment : Fragment() {
         
         updateCurrentMonthText()
 
-        if (transactionList.isEmpty()) showEmpty() else showList()
+        if (transactionList.isEmpty() && !isLoading) showEmpty() else if (transactionList.isNotEmpty()) showList()
     }
 
     private fun setupDateRangeSpinner() {
@@ -487,29 +491,30 @@ class GroupExpensesFragment : Fragment() {
     }
 
     private fun showEmpty() {
-        view?.findViewById<RecyclerView>(R.id.rvExpenses)?.visibility = View.GONE
-        view?.findViewById<View>(R.id.emptyExpenses)?.visibility = View.VISIBLE
-        hideLoading()
+        rvExpenses.visibility = View.GONE
+        emptyExpenses.visibility = View.VISIBLE
     }
 
     private fun showList() {
-        view?.findViewById<RecyclerView>(R.id.rvExpenses)?.visibility = View.VISIBLE
-        view?.findViewById<View>(R.id.emptyExpenses)?.visibility = View.GONE
+        rvExpenses.visibility = View.VISIBLE
+        emptyExpenses.visibility = View.GONE
     }
 
-    private fun showLoading() {
-        if (transactionList.isEmpty()) {
+    private fun showLoading(force: Boolean = false) {
+        if (force || transactionList.isEmpty()) {
             rvSkeleton.visibility = View.VISIBLE
-            view?.findViewById<RecyclerView>(R.id.rvExpenses)?.visibility = View.GONE
-            view?.findViewById<View>(R.id.emptyExpenses)?.visibility = View.GONE
+            rvExpenses.visibility = View.GONE
+            emptyExpenses.visibility = View.GONE
         }
+        isLoading = true
         isTabClickEnabled = false
     }
 
     private fun hideLoading() {
+        isLoading = false
         rvSkeleton.visibility = View.GONE
         isTabClickEnabled = true
-        if (transactionList.isNotEmpty()) showList()
+        if (transactionList.isNotEmpty()) showList() else showEmpty()
     }
 
     private fun setupStatusTabs(view: View) {
@@ -660,7 +665,7 @@ class GroupExpensesFragment : Fragment() {
                     moveToArchived(transaction)
                     com.waray.spendhound.TransactionState.notifyChange()
                     lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
-                    loadExpenses()
+                    loadExpenses(false)
                 }
             } catch (e: Exception) {
                 android.util.Log.e("GroupExpensesFragment", "Error archiving transaction", e)
@@ -680,7 +685,7 @@ class GroupExpensesFragment : Fragment() {
                     moveFromArchived(transaction)
                     com.waray.spendhound.TransactionState.notifyChange()
                     lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
-                    loadExpenses()
+                    loadExpenses(false)
                 }
             } catch (e: Exception) {
                 android.util.Log.e("GroupExpensesFragment", "Error unarchiving transaction", e)
