@@ -93,7 +93,7 @@
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:fillViewport="true"
-        app:layout_constraintBottom_toTopOf="@id/amountInputContainer"
+        app:layout_constraintBottom_toTopOf="@id/bottomActionContainer"
         app:layout_constraintTop_toBottomOf="@id/memberSelectionContainer">
 
         <LinearLayout
@@ -122,12 +122,13 @@
                     android:textColor="@color/darkBlue"
                     android:textSize="12sp"
                     android:textAllCaps="true"
-                    tools:text="BALANCE WITH Jenessa" />
+                    tools:text="BALANCE WITH JENESSA" />
 
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:orientation="horizontal"
+                    android:baselineAligned="false"
                     android:layout_marginTop="12dp">
 
                     <LinearLayout
@@ -137,9 +138,10 @@
                         android:orientation="vertical">
 
                         <TextView
+                            android:id="@+id/tvReceivableLabel"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="She owes you"
+                            android:text="@string/label_member_owes_you"
                             android:textAlignment="center"
                             android:fontFamily="@font/montserratalternatess_regular"
                             android:textColor="@color/grey"
@@ -163,9 +165,10 @@
                         android:orientation="vertical">
 
                         <TextView
+                            android:id="@+id/tvDebtLabel"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
-                            android:text="You owe her"
+                            android:text="@string/label_you_owe_member"
                             android:textAlignment="center"
                             android:fontFamily="@font/montserratalternatess_regular"
                             android:textColor="@color/grey"
@@ -225,76 +228,102 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:nestedScrollingEnabled="false"
-                android:layout_marginBottom="16dp"
                 tools:listitem="@layout/item_multi_settle_transaction" />
 
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- Amount Input Display -->
-    <LinearLayout
-        android:id="@+id/amountInputContainer"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingHorizontal="16dp"
-        android:paddingTop="8dp"
-        android:paddingBottom="12dp"
-        android:background="@color/white"
-        app:layout_constraintBottom_toTopOf="@id/bottomActionContainer">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Total to settle"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:textColor="@color/darkBlue"
-                android:textSize="14sp" />
-
-            <TextView
-                android:id="@+id/tvComputedTotal"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:fontFamily="@font/montserratalternatess_bold"
-                android:textColor="@color/darkBlue"
-                android:textSize="24sp"
-                tools:text="₱1,033.76" />
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/tvTotalSummaryNote"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:fontFamily="@font/montserratalternatess_regular"
-            android:textColor="@color/grey"
-            android:textSize="12sp"
-            tools:text="4 transactions selected · net of ₱305 receivable" />
-
-    </LinearLayout>
-
-    <!-- Bottom Actions -->
+    <!-- Bottom Actions Container -->
     <LinearLayout
         android:id="@+id/bottomActionContainer"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:orientation="vertical"
         android:padding="16dp"
         android:background="@color/white"
         android:elevation="8dp"
         app:layout_constraintBottom_toBottomOf="parent">
 
+        <!-- consolidated footer layout -->
+        <LinearLayout
+            android:id="@+id/amountInputContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:paddingBottom="12dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvReceivableFooterAmount"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:textColor="@color/green"
+                        android:textSize="18sp"
+                        tools:text="₱305" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Total Receivable"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:textColor="@color/grey"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/tvComputedTotal"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="18sp"
+                        tools:text="₱1,033.76" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Total to settle"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/tvTotalSummaryNote"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:textColor="@color/grey"
+                android:textSize="12sp"
+                tools:text="4 transactions selected" />
+
+        </LinearLayout>
+
         <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSettle"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="Settle Now"
+            android:text="@string/btn_settle_now"
             android:textAllCaps="false"
             android:fontFamily="@font/montserratalternatess_bold"
             android:textColor="@color/whitest"

@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:paddingVertical="12dp"
+    android:paddingHorizontal="12dp">
+
+    <TextView
+        android:id="@+id/tvTotalLabel"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="@string/label_total"
+        android:fontFamily="@font/montserratalternatess_bold"
+        android:textColor="@color/darkBlue"
+        android:textSize="14sp" />
+
+    <TextView
+        android:id="@+id/tvTotalAmount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/montserratalternatess_bold"
+        android:textColor="@color/darkBlue"
+        android:textSize="14sp"
+        android:text="₱0.00" />
+
+</LinearLayout>

@@ -43,6 +43,7 @@ class SettlementActivity : AppCompatActivity() {
     private lateinit var amountInputContainer: View
     private lateinit var tvComputedTotal: TextView
     private lateinit var tvTotalSummaryNote: TextView
+    private lateinit var tvReceivableFooterAmount: TextView
     private lateinit var btnSettle: View
     private lateinit var loadingLayout: View
     private lateinit var btnBack: View
@@ -114,6 +115,7 @@ class SettlementActivity : AppCompatActivity() {
         tvTransactionsHeader = findViewById(R.id.tvTransactionsHeader)
         btnSelectAll = findViewById(R.id.btnSelectAll)
         amountInputContainer = findViewById(R.id.amountInputContainer)
+        tvReceivableFooterAmount = findViewById(R.id.tvReceivableFooterAmount)
         tvComputedTotal = findViewById(R.id.tvComputedTotal)
         tvTotalSummaryNote = findViewById(R.id.tvTotalSummaryNote)
         btnSettle = findViewById(R.id.btnSettle)
@@ -158,7 +160,7 @@ class SettlementActivity : AppCompatActivity() {
                 
                 members = memberResult.mapNotNull { m ->
                     users[m.userId]?.let { u -> MemberWithUser(m, u) }
-                }
+                }.filter { it.user.id != currentUserId }
 
                 val repo = GroupRepository((application as SpendHoundApplication).database)
                 repo.getTransactions(groupId).collect { cached ->
@@ -320,12 +322,13 @@ class SettlementActivity : AppCompatActivity() {
     private fun prepareDisplayList() {
         displayList.clear()
         val (receivables, debts) = transactionListForMember.partition { it.isCurrentUserOwed }
+        
         if (receivables.isNotEmpty()) {
-            displayList.add(getString(R.string.label_she_owes_you))
+            displayList.add(getString(R.string.label_member_owes_you))
             displayList.addAll(receivables)
         }
         if (debts.isNotEmpty()) {
-            displayList.add(getString(R.string.label_you_owe_her))
+            displayList.add(getString(R.string.label_you_owe_member))
             displayList.addAll(debts)
         }
         (rvTransactions.adapter as? TransactionAdapter)?.updateItems(displayList)
@@ -346,9 +349,10 @@ class SettlementActivity : AppCompatActivity() {
             .sumOf { it.balanceWithMember }
         val totalDebt = transactionListForMember.filter { !it.isCurrentUserOwed && selectedTransactions.contains(it.transaction) }
             .sumOf { kotlin.math.abs(it.balanceWithMember) }
-        val net = totalReceivable - totalDebt
-        val absoluteNet = kotlin.math.abs(net)
-        tvComputedTotal.text = CurrencyUtils.formatAmountWithCurrency(totalDebt + totalReceivable)
+        
+        tvReceivableFooterAmount.text = CurrencyUtils.formatAmountWithCurrency(totalReceivable)
+        tvComputedTotal.text = CurrencyUtils.formatAmountWithCurrency(totalDebt)
+        
         val count = selectedTransactions.size
         
         // Update "Select all" text based on selection state
@@ -358,10 +362,13 @@ class SettlementActivity : AppCompatActivity() {
             btnSelectAll.text = getString(R.string.action_select_all)
         }
 
-        val typeStr = if (net >= 0) getString(R.string.label_receivable) else getString(R.string.label_debt_lowercase)
-        tvTotalSummaryNote.text = getString(R.string.transactions_selected_net_format, count, CurrencyUtils.formatAmountWithCurrency(absoluteNet), typeStr)
-        btnSettle.isEnabled = (absoluteNet > epsilon && selectedTransactions.isNotEmpty())
+        tvTotalSummaryNote.text = getString(R.string.transactions_selected_format, count)
+        
+        btnSettle.isEnabled = (totalDebt > epsilon && selectedTransactions.isNotEmpty())
         btnSettle.alpha = if (btnSettle.isEnabled) 1.0f else 0.5f
+        
+        // Ensure backgrounds update by notifying adapter
+        (rvTransactions.adapter as? TransactionAdapter)?.notifyDataSetChanged()
     }
 
     private fun performBatchSettlement() {
@@ -444,7 +451,23 @@ class SettlementActivity : AppCompatActivity() {
             val items = itemsByTx[txId] ?: emptyList()
             val timestamp = try { SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).apply { timeZone = TimeZone.getTimeZone("UTC") }.parse(tx.createdAt?.take(19) ?: "")?.time ?: 0L } catch (_: Exception) { 0L }
             RecentTransaction().apply {
-                this.transactionId = txId; this.timestamp = timestamp; this.transactionItems = items; this.rawPayorRows = payors; this.rawSplitRows = splits; this.mostRecentDetails = tx.description; this.transactionStatus = if (splits.isNotEmpty() && splits.all { s -> payors.filter { it.userId == s.userId }.sumOf { it.currentAmountPaid } >= s.amount - epsilon }) "Settled" else "Pending"; this.mostRecentDate = tx.createdAt?.let { try { val d = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).apply { timeZone = TimeZone.getTimeZone("UTC") }.parse(it.take(19))!!; SimpleDateFormat("MMM - d", Locale.getDefault()).format(d) } catch (_: Exception) { "" } } ?: ""
+                this.transactionId = txId
+                this.timestamp = timestamp
+                this.transactionItems = items
+                this.rawPayorRows = payors
+                this.rawSplitRows = splits
+                this.mostRecentDetails = if (tx.description.isNullOrBlank() || items.size == 1) {
+                    items.firstOrNull()?.category ?: tx.description
+                } else {
+                    tx.description
+                }
+                this.transactionStatus = if (splits.isNotEmpty() && splits.all { s -> payors.filter { it.userId == s.userId }.sumOf { it.currentAmountPaid } >= s.amount - epsilon }) "Settled" else "Pending"
+                this.mostRecentDate = tx.createdAt?.let { 
+                    try { 
+                        val d = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).apply { timeZone = TimeZone.getTimeZone("UTC") }.parse(it.take(19))!!
+                        SimpleDateFormat("MMM - d", Locale.getDefault()).format(d) 
+                    } catch (_: Exception) { "" } 
+                } ?: ""
             }
         }.sortedByDescending { it.timestamp }
     }
@@ -455,6 +478,7 @@ class SettlementActivity : AppCompatActivity() {
         fun setSelected(member: MemberWithUser) { selectedId = member.user.id; notifyDataSetChanged() }
         inner class VH(view: View) : RecyclerView.ViewHolder(view) {
             val icon: ImageView = view.findViewById(R.id.ivMemberIcon); val name: TextView = view.findViewById(R.id.tvMemberName)
+            val card: androidx.cardview.widget.CardView = view.findViewById(R.id.profileCardView)
         }
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = VH(LayoutInflater.from(parent.context).inflate(R.layout.item_member_selection, parent, false))
         override fun onBindViewHolder(holder: VH, position: Int) {
@@ -462,13 +486,11 @@ class SettlementActivity : AppCompatActivity() {
             holder.name.text = item.user.username
             
             if (item.user.profileImageUrl.isNullOrEmpty()) {
-                holder.icon.setImageResource(R.drawable.ic_profile_silhouette)
-                holder.icon.setBackgroundResource(R.drawable.circular_button_background)
-                holder.icon.backgroundTintList = ContextCompat.getColorStateList(this@SettlementActivity, R.color.orange)
-                holder.icon.setPadding(8, 8, 8, 8)
+                holder.icon.setImageDrawable(null)
+                holder.card.setCardBackgroundColor(ContextCompat.getColor(this@SettlementActivity, R.color.orange))
             } else {
-                holder.icon.background = null
                 holder.icon.setPadding(0, 0, 0, 0)
+                holder.card.setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
                 holder.icon.load(item.user.profileImageUrl) {
                     crossfade(true)
                     placeholder(R.drawable.ic_profile_silhouette)
@@ -488,13 +510,21 @@ class SettlementActivity : AppCompatActivity() {
     private inner class TransactionAdapter(private var items: List<Any>, private val onToggled: (RecentTransaction, Boolean) -> Unit) : RecyclerView.Adapter<RecyclerView.ViewHolder>() {
         private val TYPE_HEADER = 0; private val TYPE_ITEM = 1
         fun updateItems(newItems: List<Any>) { this.items = newItems; notifyDataSetChanged() }
-        override fun getItemViewType(position: Int) = if (items[position] is String) TYPE_HEADER else TYPE_ITEM
-        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = if (viewType == TYPE_HEADER) HeaderVH(LayoutInflater.from(parent.context).inflate(R.layout.item_settlement_header, parent, false)) else ItemVH(LayoutInflater.from(parent.context).inflate(R.layout.item_multi_settle_transaction, parent, false))
+        override fun getItemViewType(position: Int): Int {
+            return if (items[position] is String) TYPE_HEADER else TYPE_ITEM
+        }
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): RecyclerView.ViewHolder {
+            return if (viewType == TYPE_HEADER) {
+                HeaderVH(LayoutInflater.from(parent.context).inflate(R.layout.item_settlement_header, parent, false))
+            } else {
+                ItemVH(LayoutInflater.from(parent.context).inflate(R.layout.item_multi_settle_transaction, parent, false))
+            }
+        }
         override fun onBindViewHolder(holder: RecyclerView.ViewHolder, position: Int) {
             val data = items[position]
             if (holder is HeaderVH && data is String) {
                 holder.label.text = data
-                val isReceivable = data.contains(getString(R.string.label_she_owes_you), ignoreCase = true)
+                val isReceivable = data.contains(getString(R.string.label_member_owes_you), ignoreCase = true)
                 holder.label.setTextColor(ContextCompat.getColor(this@SettlementActivity, if (isReceivable) R.color.green else R.color.red))
                 holder.label.backgroundTintList = ContextCompat.getColorStateList(this@SettlementActivity, if (isReceivable) R.color.paid_bg else R.color.unpaid_bg)
             } else if (holder is ItemVH && data is TransactionWithBalance) {
@@ -508,14 +538,12 @@ class SettlementActivity : AppCompatActivity() {
                 holder.cbSelected.buttonTintList = ContextCompat.getColorStateList(this@SettlementActivity, R.color.orange)
                 holder.cbSelected.setOnCheckedChangeListener(null); val isSelected = selectedTransactions.contains(tx); holder.cbSelected.isChecked = isSelected
                 
-                // Update background based on selection
-                if (isSelected) {
-                    holder.itemView.setBackgroundResource(R.drawable.orange_rounded_background)
-                } else {
-                    holder.itemView.setBackgroundResource(R.drawable.transaction_rounded_background)
+                holder.itemView.setBackgroundResource(if (isSelected) R.drawable.orange_rounded_background else R.drawable.transaction_rounded_background)
+                
+                holder.cbSelected.setOnCheckedChangeListener { _, isChecked -> 
+                    onToggled(tx, isChecked)
+                    updateTotalSelected() // Trigger footer update
                 }
-
-                holder.cbSelected.setOnCheckedChangeListener { _, isChecked -> onToggled(tx, isChecked) }
                 holder.itemView.setOnClickListener { holder.cbSelected.isChecked = !holder.cbSelected.isChecked }
             }
         }
