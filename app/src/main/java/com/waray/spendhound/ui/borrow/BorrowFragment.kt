@@ -374,7 +374,7 @@ class BorrowFragment : Fragment() {
                     currentBorrow.getLenderID()?.let { BalanceHelper.updateTotalreceivable(it, -amount, null) }
                 }
                 withContext(Dispatchers.IO) {
-                    DeclareDatabase.borrowsTable.update({ set("status", statusInt) }) { filter { eq("id", borrowId.toLongOrNull() ?: 0L) } }
+                    DeclareDatabase.borrowsTable.update({ set<Int>("status", statusInt) }) { filter { eq("id", borrowId.toLongOrNull() ?: 0L) } }
                 }
                 onSuccess?.run()
                 showToast(getString(R.string.toast_status_updated))
@@ -405,7 +405,7 @@ class BorrowFragment : Fragment() {
                     currentBorrow.getLenderID()?.let { BalanceHelper.updateTotalreceivable(it, -amount, null) }
                 }
                 withContext(Dispatchers.IO) {
-                    DeclareDatabase.borrowsTable.update({ set("status", statusInt); set("payment_sent_date", dateStr) }) { filter { eq("id", borrowId.toLongOrNull() ?: 0L) } }
+                    DeclareDatabase.borrowsTable.update({ set<Int>("status", statusInt); set("payment_sent_date", dateStr) }) { filter { eq("id", borrowId.toLongOrNull() ?: 0L) } }
                 }
                 onSuccess?.run()
                 showToast(getString(R.string.toast_status_updated))

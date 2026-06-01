@@ -125,6 +125,13 @@
             android:theme="@style/Theme.SpendHound.NoActionBar"
             android:windowSoftInputMode="adjustResize" />
 
+        <activity android:name=".SettlementActivity"
+            android:exported="false"
+            android:label="Settle Up"
+            android:theme="@style/Theme.SpendHound.NoActionBar"
+            android:windowSoftInputMode="adjustResize"
+            android:parentActivityName=".GroupDetailActivity" />
+
         <activity android:name=".ui.settings.SettingsActivity"
             android:exported="false"
             android:theme="@style/Theme.SpendHound.NoActionBar" />

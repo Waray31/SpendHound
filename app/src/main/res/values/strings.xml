@@ -277,4 +277,15 @@
     <string name="label_loading_details">Loading details…</string>
     <string name="label_you">you</string>
     <string name="btn_details">Details</string>
+    <string name="balance_with_format">BALANCE WITH %1$s</string>
+    <string name="transactions_selected_net_format">%1$d transactions selected · net of %2$s %3$s</string>
+    <string name="label_receivable">receivable</string>
+    <string name="label_debt_lowercase">debt</string>
+    <string name="label_she_owes_you">she owes you</string>
+    <string name="label_you_owe_her">you owe her</string>
+    <string name="action_select_all">Select all</string>
+    <string name="action_unselect_all">Unselect all</string>
+    <string name="dialog_confirm_settlement_title">Confirm Settlement</string>
+    <string name="dialog_confirm_settlement_message">Are you sure you want to settle %1$d selected transactions with %2$s?</string>
+    <string name="btn_settle_now">Settle Now</string>
 </resources>

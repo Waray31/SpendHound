@@ -143,7 +143,7 @@ class PayerListTransactionAdapter(
 
                 withContext(Dispatchers.IO) {
                     DeclareDatabase.borrowsTable.update({
-                        set("status", statusInt)
+                        set<Int>("status", statusInt)
                     }) {
                         filter { eq("id", borrowId.toLong()) }
                     }
@@ -224,7 +224,7 @@ class PayerListTransactionAdapter(
                         }
 
                         DeclareDatabase.borrowsTable.update({
-                            set("status", statusInt)
+                            set<Int>("status", statusInt)
                         }) {
                             filter { eq("id", borrowId.toLong()) }
                         }

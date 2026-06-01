@@ -64,7 +64,6 @@ class GroupExpensesFragment : Fragment() {
     private var dateRangeSpinner: android.widget.Spinner? = null
     private var currentMonthTextView: TextView? = null
     private var transactionCountTextView: TextView? = null
-    private var btnCalculateShare: View? = null
     private var btnMultiSettle: View? = null
     private var popupOverlay: View? = null
 
@@ -93,7 +92,6 @@ class GroupExpensesFragment : Fragment() {
         popupOverlay = view.findViewById(R.id.popupOverlay)
         currentMonthTextView = view.findViewById(R.id.currentMonthTextView)
         transactionCountTextView = view.findViewById(R.id.transactionCountTextView)
-        btnCalculateShare = view.findViewById(R.id.btnCalculateShare)
         btnMultiSettle = view.findViewById(R.id.btnMultiSettle)
         showArchivedSection = view.findViewById(R.id.showArchivedSection)
         showArchivedToggle = view.findViewById(R.id.showArchivedToggle)
@@ -157,18 +155,10 @@ class GroupExpensesFragment : Fragment() {
         setupStatusTabs(view)
         setupDateRangeSpinner()
         
-        btnCalculateShare?.setOnClickListener {
-            val members = (requireActivity() as? GroupDetailActivity)?.groupMembers ?: emptyList()
-            if (members.isNotEmpty()) {
-                CalculateShareBottomSheet(members, fullTransactions).show(childFragmentManager, "CALCULATE_SHARE")
-            }
-        }
-
         btnMultiSettle?.setOnClickListener {
-            val members = (requireActivity() as? GroupDetailActivity)?.groupMembers ?: emptyList()
-            if (members.isNotEmpty()) {
-                MultiSettleBottomSheet(members, fullTransactions).show(childFragmentManager, "MULTI_SETTLE")
-            }
+            val intent = Intent(requireContext(), SettlementActivity::class.java)
+            intent.putExtra("group_id", groupId)
+            startActivity(intent)
         }
 
         loadExpenses(true)

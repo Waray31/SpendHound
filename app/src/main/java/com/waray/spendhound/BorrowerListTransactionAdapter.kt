@@ -109,7 +109,7 @@ class BorrowerListTransactionAdapter(
             try {
                 withContext(Dispatchers.IO) {
                     DeclareDatabase.borrowsTable.update({
-                        set("status", statusInt)
+                        set<Int>("status", statusInt)
                     }) {
                         filter { eq("id", borrowId.toLong()) }
                     }
@@ -166,7 +166,7 @@ class BorrowerListTransactionAdapter(
                     transactionList.indices.forEach { i ->
                         val borrowId = pathList[i]?.get(2) ?: return@forEach
                         DeclareDatabase.borrowsTable.update({
-                            set("status", statusInt)
+                            set<Int>("status", statusInt)
                         }) {
                             filter { eq("id", borrowId.toLong()) }
                         }
