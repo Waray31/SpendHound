@@ -62,8 +62,6 @@ class GroupExpensesFragment : Fragment() {
     private var groupName: String? = null
 
     private var dateRangeSpinner: android.widget.Spinner? = null
-    private var currentMonthTextView: TextView? = null
-    private var transactionCountTextView: TextView? = null
     private var btnMultiSettle: View? = null
     private var popupOverlay: View? = null
 
@@ -90,8 +88,6 @@ class GroupExpensesFragment : Fragment() {
         dateRangeSpinner = view.findViewById(R.id.dateRangeSpinner)
         transactionActionsPopup = view.findViewById(R.id.transactionActionsPopup)
         popupOverlay = view.findViewById(R.id.popupOverlay)
-        currentMonthTextView = view.findViewById(R.id.currentMonthTextView)
-        transactionCountTextView = view.findViewById(R.id.transactionCountTextView)
         btnMultiSettle = view.findViewById(R.id.btnMultiSettle)
         showArchivedSection = view.findViewById(R.id.showArchivedSection)
         showArchivedToggle = view.findViewById(R.id.showArchivedToggle)
@@ -396,10 +392,22 @@ class GroupExpensesFragment : Fragment() {
     private fun applyStatusFilter() {
         val (active, archived) = fullTransactions.partition { !it.isArchived }
         
-        val filtered = active.filter { tx ->
-            val statusOk = selectedStatusTab == "All" || tx.transactionStatus.equals(selectedStatusTab, ignoreCase = true)
-            val dateOk = tx.timestamp in startDate..endDate
-            statusOk && dateOk
+        val commonFiltered = active.filter { tx ->
+            tx.timestamp in startDate..endDate
+        }
+
+        val allCount = commonFiltered.size
+        val settledCount = commonFiltered.count { it.transactionStatus.equals("Settled", ignoreCase = true) }
+        val pendingCount = commonFiltered.count { it.transactionStatus.equals("Pending", ignoreCase = true) }
+
+        view?.let { root ->
+            root.findViewById<TextView>(R.id.allTabTV)?.text = "All ($allCount)"
+            root.findViewById<TextView>(R.id.paidTabTV)?.text = "Settled ($settledCount)"
+            root.findViewById<TextView>(R.id.unpaidTabTV)?.text = "Pending ($pendingCount)"
+        }
+
+        val filtered = commonFiltered.filter { tx ->
+            selectedStatusTab == "All" || tx.transactionStatus.equals(selectedStatusTab, ignoreCase = true)
         }
         
         archivedTransactions = archived.filter { tx ->
@@ -413,11 +421,6 @@ class GroupExpensesFragment : Fragment() {
         
         updateArchivedSection()
 
-        val count = transactionList.size
-        transactionCountTextView?.text = String.format(Locale.getDefault(), "%d %s", count, if (count == 1) getString(R.string.label_transaction) else getString(R.string.label_transactions_lowercase))
-        
-        updateCurrentMonthText()
-
         if (transactionList.isEmpty() && !isLoading) showEmpty() else if (transactionList.isNotEmpty()) showList()
     }
 
@@ -425,8 +428,7 @@ class GroupExpensesFragment : Fragment() {
         val options = mutableListOf<String?>("This Month", "Last Month", "All", "Custom Date")
         val spinnerAdapter = SpinnerItemMonths(requireContext(), options)
         dateRangeSpinner?.adapter = spinnerAdapter
-        setThisMonth(); updateCurrentMonthText()
-        currentMonthTextView?.setOnClickListener { if (customDateActive) showDateRangePickerDialog() }
+        setThisMonth()
         dateRangeSpinner?.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
                 when (position) {
@@ -473,7 +475,6 @@ class GroupExpensesFragment : Fragment() {
                 endDate = selectedEnd + 86400000 - 1
                 val sdf = SimpleDateFormat("MMM dd", Locale.getDefault())
                 customDateActive = true
-                updateCurrentMonthText(customLabel = "${sdf.format(startDate)} - ${sdf.format(selectedEnd)}")
                 applyStatusFilter()
             }
         }
@@ -481,15 +482,7 @@ class GroupExpensesFragment : Fragment() {
     }
 
     private fun updateCurrentMonthText(customLabel: String? = null) {
-        val text = customLabel ?: when {
-            startDate <= 0L && endDate == Long.MAX_VALUE -> "All Time"
-            else -> {
-                val sdf = SimpleDateFormat("MMMM yyyy", Locale.getDefault())
-                val start = sdf.format(startDate); val end = sdf.format(endDate)
-                if (start == end) start else "$start - $end"
-            }
-        }
-        currentMonthTextView?.text = text
+        // No-op
     }
 
     private fun formatSmartDate(createdAt: String?): String {

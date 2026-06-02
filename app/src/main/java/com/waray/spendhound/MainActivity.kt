@@ -42,6 +42,7 @@ class MainActivity : AppCompatActivity() {
     private var containerLendSub: LinearLayout? = null
     private var containerAddTransaction: LinearLayout? = null
     private var containerAddGroup: LinearLayout? = null
+    private var containerSettlement: LinearLayout? = null
     private var isFabMenuOpen = false
 
     private var isBorrowSubMenuOpen = false
@@ -120,6 +121,7 @@ class MainActivity : AppCompatActivity() {
         containerLendSub = findViewById(R.id.container_lend_sub)
         containerAddTransaction = findViewById(R.id.container_add_transaction)
         containerAddGroup = findViewById(R.id.container_add_group)
+        containerSettlement = findViewById(R.id.container_settlement)
 
         fabMain?.setOnClickListener { toggleFabMenu() }
         fabMenuOverlay?.setOnClickListener { if (isFabMenuOpen) toggleFabMenu() }
@@ -129,6 +131,7 @@ class MainActivity : AppCompatActivity() {
         val fabLendSub = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_lend_sub)
         val fabAddTransaction = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_add_transaction)
         val fabAddGroup = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_add_group)
+        val fabSettlement = findViewById<com.google.android.material.floatingactionbutton.FloatingActionButton>(R.id.fab_settlement)
 
         fabBorrow?.setOnClickListener {
             if (isBorrowSubMenuOpen) closeBorrowSubMenu()
@@ -159,6 +162,11 @@ class MainActivity : AppCompatActivity() {
             startActivity(Intent(this, GroupsActivity::class.java))
         }
 
+        fabSettlement?.setOnClickListener {
+            toggleFabMenu()
+            startActivity(Intent(this, SettlementActivity::class.java))
+        }
+
 
     }
 
@@ -173,8 +181,9 @@ class MainActivity : AppCompatActivity() {
         fabMenuOverlay?.animate()?.alpha(1f)?.setDuration(300)?.start()
         fabMain?.animate()?.rotation(45f)?.setDuration(300)?.start()
         showFabOption(containerBorrow, 150)
-        showFabOption(containerAddTransaction, 90)
-        showFabOption(containerAddGroup, 30)
+        showFabOption(containerAddTransaction, 105)
+        showFabOption(containerSettlement, 65)
+        showFabOption(containerAddGroup, 25)
     }
 
     private fun closeFabMenu() {
@@ -187,6 +196,7 @@ class MainActivity : AppCompatActivity() {
         fabMain?.animate()?.rotation(0f)?.setDuration(300)?.start()
         hideFabOption(containerBorrow)
         hideFabOption(containerAddTransaction)
+        hideFabOption(containerSettlement)
         hideFabOption(containerAddGroup)
         hideFabOption(containerBorrowSub)
         hideFabOption(containerLendSub)

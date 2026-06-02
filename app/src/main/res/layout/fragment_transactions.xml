@@ -154,29 +154,6 @@
                         android:layout_height="wrap_content"
                         android:orientation="vertical">
 
-                        <!-- Current Month Display -->
-                        <TextView
-                            android:id="@+id/currentMonthTextView"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="@font/montserratalternatess_bold"
-                            android:paddingTop="16dp"
-                            android:paddingBottom="8dp"
-                            android:text="February 2026"
-                            android:textColor="@color/darkBlue"
-                            android:textSize="18sp" />
-
-                        <!-- Transaction Count -->
-                        <TextView
-                            android:id="@+id/transactionCountTextView"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="@font/montserratalternatess_regular"
-                            android:paddingBottom="8dp"
-                            android:text="0 transactions"
-                            android:textColor="@color/transaction_secondary_text"
-                            android:textSize="12sp" />
-
                         <!-- Empty State -->
                         <LinearLayout
                             android:id="@+id/emptyStateLayout"

@@ -1,5 +1,6 @@
 package com.waray.spendhound
 
+import android.util.Log
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -26,6 +27,7 @@ import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import io.github.jan.supabase.postgrest.query.Order
 import java.text.SimpleDateFormat
 import java.util.Locale
 import java.util.TimeZone
@@ -47,6 +49,10 @@ class SettlementActivity : AppCompatActivity() {
     private lateinit var btnSettle: View
     private lateinit var loadingLayout: View
     private lateinit var btnBack: View
+    private lateinit var settleTabLayout: com.google.android.material.tabs.TabLayout
+    private lateinit var transactionsTabContainer: View
+    private lateinit var personTabContainer: View
+    private lateinit var rvAllSettlableTransactions: RecyclerView
 
     private var groupId: Long = -1
     private var fullTransactions: List<RecentTransaction> = emptyList()
@@ -75,16 +81,14 @@ class SettlementActivity : AppCompatActivity() {
         setContentView(R.layout.activity_settlement)
 
         groupId = intent.getLongExtra("group_id", -1)
-        if (groupId == -1L) {
-            finish()
-            return
-        }
 
         initViews()
         setupToolbar()
         setupRecyclerViews()
+        setupTabs()
         
         loadData()
+        loadAllSettlableTransactions()
 
         btnSettle.setOnClickListener { showSettlementConfirmation() }
         btnSelectAll.setOnClickListener { toggleSelectAll() }
@@ -114,12 +118,17 @@ class SettlementActivity : AppCompatActivity() {
         tvDebtAmount = findViewById(R.id.tvDebtAmount)
         tvTransactionsHeader = findViewById(R.id.tvTransactionsHeader)
         btnSelectAll = findViewById(R.id.btnSelectAll)
+        findViewById<View>(R.id.settleHandle)?.visibility = View.GONE
         amountInputContainer = findViewById(R.id.amountInputContainer)
         tvReceivableFooterAmount = findViewById(R.id.tvReceivableFooterAmount)
         tvComputedTotal = findViewById(R.id.tvComputedTotal)
         tvTotalSummaryNote = findViewById(R.id.tvTotalSummaryNote)
         btnSettle = findViewById(R.id.btnSettle)
         loadingLayout = findViewById(R.id.loadingLayout)
+        settleTabLayout = findViewById(R.id.settleTabLayout)
+        transactionsTabContainer = findViewById(R.id.transactionsTabContainer)
+        personTabContainer = findViewById(R.id.personTabContainer)
+        rvAllSettlableTransactions = findViewById(R.id.rvAllSettlableTransactions)
     }
 
     private fun setupToolbar() {
@@ -135,6 +144,147 @@ class SettlementActivity : AppCompatActivity() {
             if (isSelected) selectedTransactions.add(tx) else selectedTransactions.remove(tx)
             updateTotalSelected()
         }
+
+        rvAllSettlableTransactions.layoutManager = LinearLayoutManager(this)
+        rvAllSettlableTransactions.adapter = RecentTransactionAdapter(ArrayList(), {
+            loadAllSettlableTransactions()
+        }, { tx ->
+            if (tx == null) return@RecentTransactionAdapter
+            tx.isExpanded = !tx.isExpanded
+            val pos = (rvAllSettlableTransactions.adapter as RecentTransactionAdapter).recentTransactionList?.indexOf(tx) ?: -1
+            if (pos != -1) (rvAllSettlableTransactions.adapter as RecentTransactionAdapter).notifyItemChanged(pos)
+        })
+    }
+
+    private fun setupTabs() {
+        settleTabLayout.addOnTabSelectedListener(object : com.google.android.material.tabs.TabLayout.OnTabSelectedListener {
+            override fun onTabSelected(tab: com.google.android.material.tabs.TabLayout.Tab?) {
+                when (tab?.position) {
+                    0 -> {
+                        transactionsTabContainer.visibility = View.VISIBLE
+                        personTabContainer.visibility = View.GONE
+                        amountInputContainer.visibility = View.GONE
+                        btnSettle.visibility = View.GONE
+                    }
+                    1 -> {
+                        transactionsTabContainer.visibility = View.GONE
+                        personTabContainer.visibility = View.VISIBLE
+                        if (transactionListForMember.isNotEmpty()) {
+                            amountInputContainer.visibility = View.VISIBLE
+                            btnSettle.visibility = View.VISIBLE
+                        }
+                    }
+                }
+            }
+            override fun onTabUnselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
+            override fun onTabReselected(tab: com.google.android.material.tabs.TabLayout.Tab?) {}
+        })
+        
+        // Default to Person if groupId is provided, else Transactions
+        if (groupId == -1L) {
+            settleTabLayout.getTabAt(0)?.select()
+        } else {
+            settleTabLayout.getTabAt(1)?.select()
+        }
+    }
+
+    private fun loadAllSettlableTransactions() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val authId = DeclareDatabase.auth.currentUserOrNull()?.id
+                val user = DeclareDatabase.usersTable.select { filter { eq("auth_id", authId ?: "") } }.decodeSingleOrNull<User>()
+                val myId = user?.id ?: return@launch
+
+                val groupIdsToSearch = if (groupId != -1L) {
+                    listOf(groupId)
+                } else {
+                    DeclareDatabase.groupMembersTable.select { filter { eq("user_id", myId) } }
+                        .decodeList<GroupMember>().mapNotNull { it.groupId }
+                }
+
+                if (groupIdsToSearch.isEmpty()) return@launch
+
+                val cached = DeclareDatabase.transactionsTable.select {
+                    filter { 
+                        isIn("group_id", groupIdsToSearch)
+                        neq("status", 3) // Not Settled
+                    }
+                    order("created_at", Order.DESCENDING)
+                }.decodeList<CachedTransaction>()
+
+                val built = buildTransactionsExtra(cached, myId)
+                withContext(Dispatchers.Main) {
+                    (rvAllSettlableTransactions.adapter as RecentTransactionAdapter).recentTransactionList?.clear()
+                    (rvAllSettlableTransactions.adapter as RecentTransactionAdapter).recentTransactionList?.addAll(built)
+                    (rvAllSettlableTransactions.adapter as RecentTransactionAdapter).notifyDataSetChanged()
+                }
+            } catch (e: Exception) {
+                Log.e("SettlementActivity", "Error loading settlable transactions", e)
+            }
+        }
+    }
+
+    private suspend fun buildTransactionsExtra(cached: List<CachedTransaction>, myId: Long): List<RecentTransaction> {
+        if (cached.isEmpty()) return emptyList()
+        val txIds = cached.mapNotNull { it.id }
+        val allPayors = DeclareDatabase.transactionPayorsTable.select { filter { isIn("transaction_id", txIds) } }.decodeList<TransactionPayorTable>()
+        val allSplits = DeclareDatabase.transactionSplitsTable.select { filter { isIn("transaction_id", txIds) } }.decodeList<TransactionSplitTable>()
+        val allItems = DeclareDatabase.transactionItemsTable.select { filter { isIn("transaction_id", txIds) } }.decodeList<TransactionItemFull>()
+        
+        val allUserIds = (allPayors.map { it.userId } + allSplits.map { it.userId }).distinct()
+        val usersById = DeclareDatabase.usersTable.select { filter { isIn("user_id", allUserIds) } }.decodeList<User>().associateBy { it.id }
+
+        val gIds = cached.mapNotNull { it.groupId }.distinct()
+        val groupsById = DeclareDatabase.groupsTable.select { filter { isIn("group_id", gIds) } }.decodeList<PayerGroup>().associateBy { it.groupId }
+
+        val payorsByTx = allPayors.groupBy { it.transactionId }
+        val splitsByTx = allSplits.groupBy { it.transactionId }
+        val itemsByTx = allItems.groupBy { it.transactionId }
+
+        return cached.mapNotNull { tx ->
+            val txId = tx.id
+            val payors = payorsByTx[txId] ?: emptyList()
+            val splits = splitsByTx[txId] ?: emptyList()
+            val items = itemsByTx[txId] ?: emptyList()
+            
+            val timestamp = try { SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).apply { timeZone = TimeZone.getTimeZone("UTC") }.parse(tx.createdAt?.take(19) ?: "")?.time ?: 0L } catch (_: Exception) { 0L }
+            
+            val payorNames = payors.map { usersById[it.userId]?.username ?: "Unknown" }.toMutableList()
+            val payorIds = payors.map { it.userId.toString() }.toMutableList()
+            val amountsPaid = payors.map { it.currentAmountPaid as Double? }.toMutableList()
+
+            RecentTransaction().apply {
+                this.transactionId = txId
+                this.timestamp = timestamp
+                this.transactionItems = items
+                this.rawPayorRows = payors
+                this.rawSplitRows = splits
+                this.mostRecentTransactionType = items.maxByOrNull { it.amount }?.category
+                this.mostRecentDetails = tx.description ?: mostRecentTransactionType
+                this.mostRecentPaymentAmountStr = CurrencyUtils.formatAmountWithCurrency(tx.totalAmount)
+                this.transactionStatus = if (splits.isNotEmpty() && splits.all { s -> payors.filter { it.userId == s.userId }.sumOf { it.currentAmountPaid } >= s.amount - epsilon }) "Settled" else "Pending"
+                this.mostRecentDate = tx.createdAt?.let { 
+                    try { 
+                        val d = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault()).apply { timeZone = TimeZone.getTimeZone("UTC") }.parse(it.take(19))!!
+                        SimpleDateFormat("MMM - d", Locale.getDefault()).format(d) 
+                    } catch (_: Exception) { "" } 
+                } ?: ""
+                this.payorsList = payorNames as MutableList<String?>
+                this.payorUserIds = payorIds as MutableList<String?>
+                this.amountsPaidList = amountsPaid
+                this.groupName = groupsById[tx.groupId]?.groupName
+                this.createdBy = usersById[tx.createdBy]?.username
+                this.creatorNumericId = tx.createdBy
+                
+                this.itemPayorMap = items.associate { item ->
+                    val itemId = item.id ?: 0L
+                    val names = payors.filter { it.transactionItemsId == itemId }
+                        .map { usersById[it.userId]?.username ?: "Unknown" }
+                        .joinToString(", ").ifEmpty { "-" }
+                    itemId to names
+                }
+            }
+        }.sortedByDescending { it.timestamp }
     }
 
     private fun loadData() {

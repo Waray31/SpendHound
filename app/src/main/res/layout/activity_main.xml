@@ -291,6 +291,41 @@
     </LinearLayout>
 
     <LinearLayout
+        android:id="@+id/container_settlement"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:elevation="20dp"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:visibility="gone"
+        android:clickable="true"
+        android:focusable="true"
+        app:layout_anchor="@id/fab_main"
+        app:layout_anchorGravity="center">
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_settlement"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:backgroundTint="@color/mid_orange"
+            android:contentDescription="Settlement"
+            android:src="@drawable/settle"
+            app:fabSize="mini"
+            app:tint="@color/whitest" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="Settlement"
+            android:textColor="@color/whitest"
+            android:textSize="10sp"
+            android:clickable="false"
+            android:focusable="false" />
+    </LinearLayout>
+
+    <LinearLayout
         android:id="@+id/container_add_group"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"

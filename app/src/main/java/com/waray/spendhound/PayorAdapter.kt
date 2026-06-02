@@ -145,14 +145,23 @@ class PayorAdapter(
         val userId = payorUserIds?.get(position)
         val name = if (payorsNames != null && position < payorsNames.size) payorsNames[position] else "User"
         val paid = if (amountsPaid != null && position < amountsPaid!!.size) amountsPaid!![position] ?: 0.0 else 0.0
+        val individualPayment = individualPayments.getOrNull(position) ?: 0.0
 
         holder.payorName.text = name
 
-
         updateStatusUI(holder, paid, position)
 
+        val balance = paid - individualPayment
+        if (balance != 0.0) {
+            holder.payorBalanceAmount.visibility = View.VISIBLE
+            val sign = if (balance > 0) "+" else ""
+            holder.payorBalanceAmount.text = "$sign${CurrencyUtils.formatAmountWithCurrency(balance)}"
+            holder.payorBalanceAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, if (balance > 0) R.color.green else R.color.red))
+        } else {
+            holder.payorBalanceAmount.visibility = View.GONE
+        }
+
         if (isEditMode) {
-            val individualPayment = individualPayments.getOrNull(position) ?: 0.0
             holder.editButtonsLayout.visibility = View.VISIBLE
             holder.unpaidBtn.visibility = if (paid > 0) View.VISIBLE else View.GONE
             holder.paidBtn.visibility = if (paid < individualPayment) View.VISIBLE else View.GONE
@@ -274,6 +283,7 @@ class PayorAdapter(
         val payorName: TextView = itemView.findViewById(R.id.payorNameTextView)
 
         val payorStatus: TextView = itemView.findViewById(R.id.payorStatusTextView)
+        val payorBalanceAmount: TextView = itemView.findViewById(R.id.payorBalanceAmountTextView)
         val editButtonsLayout: View = itemView.findViewById(R.id.editButtonsLayout)
         val unpaidBtn: Button = itemView.findViewById(R.id.unpaid_btn)
         val paidBtn: Button = itemView.findViewById(R.id.paid_btn)

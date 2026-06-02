@@ -270,7 +270,7 @@
     <string name="label_transaction_placeholder">Transaction</string>
     <string name="status_archived">Archived</string>
     <string name="label_paid_by">Paid by</string>
-    <string name="label_payors">Payors</string>
+    <string name="label_payors">Settlement Status</string>
     <string name="label_added_by">Added by </string>
     <string name="label_on"> on </string>
     <string name="btn_settle">Settle</string>

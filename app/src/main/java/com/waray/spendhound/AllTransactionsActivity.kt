@@ -58,7 +58,6 @@ class AllTransactionsActivity : AppCompatActivity() {
     private fun initViews() {
         recyclerView = findViewById(R.id.allTransactionsRecyclerView)
         dateRangeSpinner = findViewById(R.id.dateRangeSpinner)
-        transactionCountTextView = findViewById(R.id.transactionCountTextView)
         loadingProgressBar = findViewById(R.id.rvSkeletonTransactions)
         emptyStateLayout = findViewById(R.id.emptyStateLayout)
 

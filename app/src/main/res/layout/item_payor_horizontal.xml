@@ -62,6 +62,15 @@
         android:text="Unpaid"
         android:textSize="11sp" />
 
+    <TextView
+        android:id="@+id/payorBalanceAmountTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:fontFamily="@font/montserratalternatess_bold"
+        android:text="+₱ 0"
+        android:visibility="gone"
+        android:textSize="11sp" />
+
     <LinearLayout
         android:id="@+id/editButtonsLayout"
         android:layout_width="wrap_content"

@@ -10,6 +10,7 @@ import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.core.content.res.ResourcesCompat
 import androidx.fragment.app.FragmentActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -128,7 +129,7 @@ class RecentTransactionAdapter(
                 holder.dividerBelowItems.visibility = View.GONE
                 val desc = item.itemDescription?.takeIf { it.isNotBlank() }
                 if (desc != null) {
-                    holder.tvSingleDescription.text = desc
+                    holder.tvSingleDescription.text = "Description: $desc"
                     holder.tvSingleDescription.visibility = View.VISIBLE
                 } else {
                     holder.tvSingleDescription.visibility = View.GONE
@@ -166,7 +167,6 @@ class RecentTransactionAdapter(
 
         if (payorUserIds == null) {
             holder.loadingOverlay.visibility = View.GONE
-            holder.editTransactionBtn.visibility = View.GONE
             return
         }
 
@@ -201,36 +201,8 @@ class RecentTransactionAdapter(
         resolveIsCreator(transaction) { isCreator ->
             if (isCreator) {
                 holder.createdByTextView.text = holder.itemView.context.getString(R.string.label_you)
-                holder.settlementLL.visibility = View.VISIBLE
-                holder.editTransactionBtn.setOnClickListener {
-                    val sheet = SettleBottomSheet().apply {
-                        this.transaction = transaction
-                        onSettleSaved = { onSettleRefresh?.invoke() }
-                    }
-                    val fm = (holder.itemView.context as? FragmentActivity)?.supportFragmentManager ?: return@setOnClickListener
-                    sheet.show(fm, "SettleBottomSheet")
-                }
             } else {
                 holder.createdByTextView.text = transaction.createdBy ?: holder.itemView.context.getString(R.string.label_unknown)
-                // Check if current user is a payor
-                val currentUserId = cachedCurrentNumericId
-                val userRow = transaction.rawPayorRows.firstOrNull { it.userId == currentUserId }
-                if (userRow != null) {
-                    val hasExcess = userRow.excessAmount > 0.0
-                    holder.settlementLL.visibility = View.VISIBLE
-                    holder.editTransactionBtn.text = if (hasExcess) holder.itemView.context.getString(R.string.btn_settle) else holder.itemView.context.getString(R.string.btn_details)
-                    holder.editTransactionBtn.setOnClickListener {
-                        val sheet = SettleBottomSheet().apply {
-                            this.transaction = transaction
-                            this.isDetailsMode = !hasExcess
-                            onSettleSaved = { onSettleRefresh?.invoke() }
-                        }
-                        val fm = (holder.itemView.context as? FragmentActivity)?.supportFragmentManager ?: return@setOnClickListener
-                        sheet.show(fm, "SettleBottomSheet")
-                    }
-                } else {
-                    holder.settlementLL.visibility = View.GONE
-                }
             }
         }
     }
@@ -308,10 +280,50 @@ class RecentTransactionAdapter(
         val inflater = LayoutInflater.from(holder.itemView.context)
         for (item in transaction.transactionItems) {
             val row = inflater.inflate(R.layout.item_transaction_item_row, holder.itemsTableContainer, false)
-            row.findViewById<ImageView>(R.id.ivItemCategory).setImageResource(getCategoryIcon(item.category))
-            row.findViewById<TextView>(R.id.tvItemAmount).text = CurrencyUtils.formatAmountWithCurrency(item.amount)
-            row.findViewById<TextView>(R.id.tvItemPaidBy).text = transaction.itemPayorMap[item.id] ?: "-"
+            
             row.findViewById<TextView>(R.id.tvItemDescription).text = item.itemDescription?.takeIf { it.isNotBlank() } ?: "-"
+            
+            val llPaidBy = row.findViewById<LinearLayout>(R.id.llItemPaidBy)
+            llPaidBy.removeAllViews()
+
+            val itemId = item.id ?: 0L
+            val itemPayors = transaction.rawPayorRows.filter { it.transactionItemsId == itemId }
+
+            if (itemPayors.isEmpty()) {
+                val tv = TextView(holder.itemView.context).apply {
+                    text = "-"
+                    textSize = 11f
+                    setTextColor(ContextCompat.getColor(context, R.color.grey))
+                    typeface = ResourcesCompat.getFont(context, R.font.montserratalternatess_regular)
+                }
+                llPaidBy.addView(tv)
+            } else {
+                for (payor in itemPayors) {
+                    val tv = TextView(holder.itemView.context).apply {
+                        textSize = 10f
+                        setTextColor(ContextCompat.getColor(context, R.color.darkBlue))
+                        typeface = ResourcesCompat.getFont(context, R.font.montserratalternatess_regular)
+                        
+                        UserHelper.getUsernameById(payor.userId, object : UserHelper.UsernameCallback {
+                            override fun onUsernameRetrieved(username: String?) {
+                                text = "${username ?: "Unknown"} - ${CurrencyUtils.formatAmountWithCurrency(payor.currentAmountPaid)}"
+                            }
+                            override fun onError(error: String?) {
+                                text = "Unknown - ${CurrencyUtils.formatAmountWithCurrency(payor.currentAmountPaid)}"
+                            }
+                        })
+                    }
+                    llPaidBy.addView(tv)
+                }
+            }
+            
+            row.findViewById<TextView>(R.id.tvItemAmount).text = CurrencyUtils.formatAmountWithCurrency(item.amount)
+            
+            // Hide divider for the last row
+            if (transaction.transactionItems.indexOf(item) == transaction.transactionItems.size - 1) {
+                row.findViewById<View>(R.id.dashedDivider).visibility = View.GONE
+            }
+            
             holder.itemsTableContainer.addView(row)
         }
     }
@@ -355,8 +367,6 @@ class RecentTransactionAdapter(
         val createdByTextView: TextView      = itemView.findViewById(R.id.createdByTextView)
         val payorsRecyclerView: RecyclerView = itemView.findViewById(R.id.payorsRecyclerView)
         val loadingOverlay: View             = itemView.findViewById(R.id.loadingOverlay_transaction)
-        val editTransactionBtn: TextView       = itemView.findViewById(R.id.editTransaction_btn)
-        val settlementLL: View               = itemView.findViewById(R.id.settlement_LL)
         val unreadIndicator: View            = itemView.findViewById(R.id.unreadIndicator)
         val archivedBadge: TextView          = itemView.findViewById(R.id.archivedBadge)
         val onGroupLabel: TextView           = itemView.findViewById(R.id.onGroupLabel)
