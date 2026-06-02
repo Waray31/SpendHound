@@ -110,160 +110,161 @@
                 android:id="@+id/expensesScrollView"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent"
-                android:fillViewport="true">
+                android:fillViewport="true"
+                android:paddingTop="20dp">
 
-            <LinearLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical">
-
-
-            <!-- Pull to Refresh Indicator -->
-            <LinearLayout
-                android:id="@+id/pullRefreshIndicator_expenses"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:orientation="vertical"
-                android:visibility="gone">
-
-                <ProgressBar
-                    style="@style/CustomProgressBarStyle"
-                    android:layout_width="28dp"
-                    android:layout_height="28dp" />
-            </LinearLayout>
-
-            <!-- Skeleton loading list (shown while expenses load) -->
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvSkeleton"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:clipToPadding="false"
-                android:nestedScrollingEnabled="false"
-                android:paddingHorizontal="16dp"
-                android:paddingBottom="32dp"
-                android:visibility="gone"
-                tools:itemCount="5"
-                tools:listitem="@layout/item_skeleton_transaction" />
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvExpenses"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:clipToPadding="false"
-                android:nestedScrollingEnabled="false"
-                android:paddingHorizontal="16dp"
-                android:paddingBottom="32dp"
-                tools:listitem="@layout/item_transaction" />
-
-            <!-- Show Archived Section -->
-            <LinearLayout
-                android:id="@+id/showArchivedSection"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginHorizontal="16dp"
-                android:layout_marginTop="16dp"
-                android:orientation="vertical"
-                android:visibility="gone">
-
-                <TextView
-                    android:id="@+id/showArchivedToggle"
+                <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:background="?android:attr/selectableItemBackground"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:padding="12dp"
-                    android:text="🗂 2 archived transactions — Show"
-                    android:textColor="@color/transaction_secondary_text"
-                    android:textSize="14sp" />
+                    android:orientation="vertical">
 
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/archivedTransactionsRecyclerView"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:alpha="0.6"
-                    android:clipToPadding="false"
-                    android:nestedScrollingEnabled="false"
-                    android:visibility="gone"
-                    tools:listitem="@layout/item_transaction" />
 
-            </LinearLayout>
+                    <!-- Pull to Refresh Indicator -->
+                    <LinearLayout
+                        android:id="@+id/pullRefreshIndicator_expenses"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:visibility="gone">
 
-            <LinearLayout
-                android:id="@+id/emptyExpenses"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center"
-                android:orientation="vertical"
-                android:padding="48dp"
-                android:visibility="gone">
+                        <ProgressBar
+                            style="@style/CustomProgressBarStyle"
+                            android:layout_width="28dp"
+                            android:layout_height="28dp" />
+                    </LinearLayout>
 
-                <ImageView
-                    android:layout_width="64dp"
-                    android:layout_height="64dp"
-                    android:alpha="0.4"
-                    android:src="@drawable/others" />
+                    <!-- Skeleton loading list (shown while expenses load) -->
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvSkeleton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:clipToPadding="false"
+                        android:nestedScrollingEnabled="false"
+                        android:paddingHorizontal="16dp"
+                        android:paddingBottom="32dp"
+                        android:visibility="gone"
+                        tools:itemCount="5"
+                        tools:listitem="@layout/item_skeleton_transaction" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="12dp"
-                    android:fontFamily="@font/montserratalternatess_bold"
-                    android:text="No expenses yet"
-                    android:textColor="@color/black"
-                    android:textSize="16sp" />
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/rvExpenses"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:clipToPadding="false"
+                        android:nestedScrollingEnabled="false"
+                        android:paddingHorizontal="16dp"
+                        android:paddingBottom="32dp"
+                        tools:listitem="@layout/item_transaction" />
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="6dp"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:text="Add an expense from the group card"
-                    android:textColor="@color/grey"
-                    android:textSize="13sp" />
-            </LinearLayout>
+                    <!-- Show Archived Section -->
+                    <LinearLayout
+                        android:id="@+id/showArchivedSection"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginHorizontal="16dp"
+                        android:layout_marginTop="16dp"
+                        android:orientation="vertical"
+                        android:visibility="gone">
 
-            <View
-                android:layout_width="match_parent"
-                android:layout_height="80dp" />
+                        <TextView
+                            android:id="@+id/showArchivedToggle"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:background="?android:attr/selectableItemBackground"
+                            android:clickable="true"
+                            android:focusable="true"
+                            android:fontFamily="@font/montserratalternatess_regular"
+                            android:padding="12dp"
+                            android:text="🗂 2 archived transactions — Show"
+                            android:textColor="@color/transaction_secondary_text"
+                            android:textSize="14sp" />
+
+                        <androidx.recyclerview.widget.RecyclerView
+                            android:id="@+id/archivedTransactionsRecyclerView"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:alpha="0.6"
+                            android:clipToPadding="false"
+                            android:nestedScrollingEnabled="false"
+                            android:visibility="gone"
+                            tools:listitem="@layout/item_transaction" />
+
+                    </LinearLayout>
+
+                    <LinearLayout
+                        android:id="@+id/emptyExpenses"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:gravity="center"
+                        android:orientation="vertical"
+                        android:padding="48dp"
+                        android:visibility="gone">
+
+                        <ImageView
+                            android:layout_width="64dp"
+                            android:layout_height="64dp"
+                            android:alpha="0.4"
+                            android:src="@drawable/others" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="12dp"
+                            android:fontFamily="@font/montserratalternatess_bold"
+                            android:text="No expenses yet"
+                            android:textColor="@color/black"
+                            android:textSize="16sp" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginTop="6dp"
+                            android:fontFamily="@font/montserratalternatess_regular"
+                            android:text="Add an expense from the group card"
+                            android:textColor="@color/grey"
+                            android:textSize="13sp" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="80dp" />
+
+                </LinearLayout>
+            </androidx.core.widget.NestedScrollView>
 
         </LinearLayout>
-    </androidx.core.widget.NestedScrollView>
 
-</LinearLayout>
+        <!-- Background Click Catcher -->
+        <View
+            android:id="@+id/popupOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@android:color/transparent"
+            android:clickable="true"
+            android:focusable="true"
+            android:visibility="gone" />
 
-    <!-- Background Click Catcher -->
-<View
-android:background="@android:color/transparent"
-android:clickable="true"
-android:focusable="true"
-android:id="@+id/popupOverlay"
-android:layout_height="match_parent"
-android:layout_width="match_parent"
-android:visibility="gone" />
+        <!-- Transaction Actions Popup -->
+        <include
+            android:id="@+id/transactionActionsPopup"
+            layout="@layout/popup_transaction_actions"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone" />
 
-    <!-- Transaction Actions Popup -->
-<include
-android:id="@+id/transactionActionsPopup"
-android:layout_height="wrap_content"
-android:layout_width="wrap_content"
-android:visibility="gone"
-layout="@layout/popup_transaction_actions" />
-
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/btnMultiSettle"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="24dp"
-        app:backgroundTint="@color/orange"
-        android:src="@drawable/settle"
-        android:visibility="gone"
-        tools:visibility="visible"
-        app:tint="@color/whitest" />
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/btnMultiSettle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|end"
+            android:layout_margin="24dp"
+            android:src="@drawable/settle"
+            android:visibility="gone"
+            app:backgroundTint="@color/orange"
+            app:tint="@color/whitest"
+            tools:visibility="visible" />
 
     </FrameLayout>
 
-    </com.waray.spendhound.utils.PullInterceptLayout>
+</com.waray.spendhound.utils.PullInterceptLayout>

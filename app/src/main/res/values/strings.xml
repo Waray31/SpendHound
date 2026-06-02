@@ -186,6 +186,10 @@
     <string name="label_borrow_money">Borrow Money</string>
     <string name="label_add_transaction">Add Transaction</string>
     <string name="label_fab_groups">My Groups</string>
+    <string name="label_fab_borrow">Borrow</string>
+    <string name="label_fab_expense">Expense</string>
+    <string name="label_fab_settle">Settle</string>
+    <string name="label_fab_group">Groups</string>
 
     <!-- Members Label -->
     <string name="members_format">Members: %1$s</string>

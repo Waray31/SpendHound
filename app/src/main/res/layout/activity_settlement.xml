@@ -62,113 +62,73 @@
         </LinearLayout>
     </LinearLayout>
 
-    <!-- Tab Section -->
-    <LinearLayout
-        android:id="@+id/tabSection"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:paddingTop="12dp"
-        android:background="@color/white"
-        app:layout_constraintTop_toBottomOf="@id/headerContainer">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="20dp"
-            android:text="Settle per"
-            android:fontFamily="@font/montserratalternatess_bold"
-            android:textColor="@color/grey"
-            android:textSize="12sp"
-            android:textAllCaps="true" />
-
-        <com.google.android.material.tabs.TabLayout
-            android:id="@+id/settleTabLayout"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:tabIndicatorColor="@color/orange"
-            app:tabSelectedTextColor="@color/orange"
-            app:tabTextColor="@color/grey"
-            app:tabIndicatorHeight="3dp"
-            app:tabRippleColor="@android:color/transparent">
-
-            <com.google.android.material.tabs.TabItem
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Transactions" />
-
-            <com.google.android.material.tabs.TabItem
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Person" />
-
-        </com.google.android.material.tabs.TabLayout>
-    </LinearLayout>
-
-    <!-- Transactions Tab Content -->
-    <LinearLayout
-        android:id="@+id/transactionsTabContainer"
+    <androidx.core.widget.NestedScrollView
+        android:id="@+id/mainScrollView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:orientation="vertical"
-        android:visibility="gone"
-        app:layout_constraintTop_toBottomOf="@id/tabSection"
+        android:fillViewport="true"
+        app:layout_constraintTop_toBottomOf="@id/headerContainer"
         app:layout_constraintBottom_toTopOf="@id/bottomActionContainer">
 
-        <include
-            layout="@layout/bottom_sheet_settle"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent" />
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/rvAllSettlableTransactions"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:padding="8dp"
-            android:visibility="gone"
-            tools:listitem="@layout/item_transaction" />
-    </LinearLayout>
-
-    <!-- Person Tab Content (Existing Logic) -->
-    <LinearLayout
-        android:id="@+id/personTabContainer"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:orientation="vertical"
-        app:layout_constraintTop_toBottomOf="@id/tabSection"
-        app:layout_constraintBottom_toTopOf="@id/bottomActionContainer">
-
-        <!-- Member Selection -->
         <LinearLayout
-            android:id="@+id/memberSelectionContainer"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
+            android:orientation="vertical">
 
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Select Member"
-                android:fontFamily="@font/montserratalternatess_bold"
-                android:textColor="@color/darkBlue"
-                android:textSize="14sp"
-                android:layout_marginBottom="12dp" />
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvMembers"
+            <!-- Group Selection -->
+            <LinearLayout
+                android:id="@+id/groupSelectionContainer"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
-                tools:listitem="@layout/item_member_selection" />
-        </LinearLayout>
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
+                android:paddingTop="16dp">
 
-        <androidx.core.widget.NestedScrollView
-            android:layout_width="match_parent"
-            android:layout_height="0dp"
-            android:layout_weight="1"
-            android:fillViewport="true">
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Select Group"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:textColor="@color/darkBlue"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="12dp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvGroups"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                    tools:listitem="@layout/item_member_selection" />
+            </LinearLayout>
+
+            <!-- Member Selection -->
+            <LinearLayout
+                android:id="@+id/memberSelectionContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:paddingHorizontal="16dp"
+                android:paddingTop="16dp"
+                android:paddingBottom="16dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Select Member"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:textColor="@color/darkBlue"
+                    android:textSize="14sp"
+                    android:layout_marginBottom="12dp" />
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvMembers"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    app:layoutManager="androidx.recyclerview.widget.LinearLayoutManager"
+                    tools:listitem="@layout/item_member_selection" />
+            </LinearLayout>
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -176,137 +136,165 @@
                 android:orientation="vertical"
                 android:padding="16dp">
 
-            <!-- Summary Card -->
-            <LinearLayout
-                android:id="@+id/summaryContainer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:background="@drawable/bg_profile_card"
-                android:padding="16dp"
-                android:layout_marginBottom="20dp"
-                android:visibility="gone"
-                tools:visibility="visible">
-
-                <TextView
-                    android:id="@+id/tvBalanceTitle"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/montserratalternatess_bold"
-                    android:textColor="@color/darkBlue"
-                    android:textSize="12sp"
-                    android:textAllCaps="true"
-                    tools:text="BALANCE WITH JENESSA" />
-
+                <!-- Summary Card -->
                 <LinearLayout
+                    android:id="@+id/summaryContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="horizontal"
-                    android:baselineAligned="false"
-                    android:layout_marginTop="12dp">
+                    android:orientation="vertical"
+                    android:background="@drawable/bg_profile_card"
+                    android:padding="16dp"
+                    android:layout_marginBottom="20dp"
+                    android:visibility="gone"
+                    tools:visibility="visible">
+
+                    <TextView
+                        android:id="@+id/tvBalanceTitle"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="12sp"
+                        android:textAllCaps="true"
+                        tools:text="BALANCE WITH JENESSA" />
 
                     <LinearLayout
-                        android:layout_width="0dp"
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
+                        android:orientation="horizontal"
+                        android:baselineAligned="false"
+                        android:layout_marginTop="12dp">
 
-                        <TextView
-                            android:id="@+id/tvReceivableLabel"
-                            android:layout_width="match_parent"
+                        <LinearLayout
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:text="@string/label_member_owes_you"
-                            android:textAlignment="center"
-                            android:fontFamily="@font/montserratalternatess_regular"
-                            android:textColor="@color/grey"
-                            android:textSize="12sp" />
+                            android:layout_weight="1"
+                            android:orientation="vertical">
 
-                        <TextView
-                            android:id="@+id/tvReceivableAmount"
-                            android:layout_width="match_parent"
+                            <TextView
+                                android:id="@+id/tvReceivableLabel"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/label_member_owes_you"
+                                android:textAlignment="center"
+                                android:fontFamily="@font/montserratalternatess_regular"
+                                android:textColor="@color/grey"
+                                android:textSize="12sp" />
+
+                            <TextView
+                                android:id="@+id/tvReceivableAmount"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:textAlignment="center"
+                                android:fontFamily="@font/montserratalternatess_bold"
+                                android:textColor="@color/green"
+                                android:textSize="20sp"
+                                tools:text="₱305" />
+                        </LinearLayout>
+
+                        <LinearLayout
+                            android:layout_width="0dp"
                             android:layout_height="wrap_content"
-                            android:textAlignment="center"
-                            android:fontFamily="@font/montserratalternatess_bold"
-                            android:textColor="@color/green"
-                            android:textSize="20sp"
-                            tools:text="₱305" />
-                    </LinearLayout>
+                            android:layout_weight="1"
+                            android:orientation="vertical">
 
-                    <LinearLayout
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:orientation="vertical">
+                            <TextView
+                                android:id="@+id/tvDebtLabel"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:text="@string/label_you_owe_member"
+                                android:textAlignment="center"
+                                android:fontFamily="@font/montserratalternatess_regular"
+                                android:textColor="@color/grey"
+                                android:textSize="12sp" />
 
-                        <TextView
-                            android:id="@+id/tvDebtLabel"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:text="@string/label_you_owe_member"
-                            android:textAlignment="center"
-                            android:fontFamily="@font/montserratalternatess_regular"
-                            android:textColor="@color/grey"
-                            android:textSize="12sp" />
+                            <TextView
+                                android:id="@+id/tvDebtAmount"
+                                android:layout_width="match_parent"
+                                android:layout_height="wrap_content"
+                                android:fontFamily="@font/montserratalternatess_bold"
+                                android:textColor="@color/red"
+                                android:textAlignment="center"
+                                android:textSize="20sp"
+                                tools:text="₱930.50" />
+                        </LinearLayout>
 
-                        <TextView
-                            android:id="@+id/tvDebtAmount"
-                            android:layout_width="match_parent"
-                            android:layout_height="wrap_content"
-                            android:fontFamily="@font/montserratalternatess_bold"
-                            android:textColor="@color/red"
-                            android:textAlignment="center"
-                            android:textSize="20sp"
-                            tools:text="₱930.50" />
                     </LinearLayout>
 
                 </LinearLayout>
 
-            </LinearLayout>
-
-            <!-- Transaction Selection Section Header -->
-            <LinearLayout
-                android:id="@+id/transactionsHeaderContainer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:gravity="center_vertical"
-                android:layout_marginBottom="12dp">
-
-                <TextView
-                    android:id="@+id/tvTransactionsHeader"
-                    android:layout_width="0dp"
+                <!-- Transaction Selection Section Header -->
+                <LinearLayout
+                    android:id="@+id/transactionsHeaderContainer"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:text="SELECT TRANSACTIONS TO SETTLE"
-                    android:fontFamily="@font/montserratalternatess_bold"
-                    android:textColor="@color/darkBlue"
-                    android:textSize="12sp"
-                    android:textAllCaps="true" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:layout_marginBottom="12dp">
 
-                <TextView
-                    android:id="@+id/btnSelectAll"
-                    android:layout_width="wrap_content"
+                    <TextView
+                        android:id="@+id/tvTransactionsHeader"
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="SELECT TRANSACTIONS TO SETTLE"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:textColor="@color/darkBlue"
+                        android:textSize="12sp"
+                        android:textAllCaps="true" />
+
+                    <TextView
+                        android:id="@+id/btnSelectAll"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/action_select_all"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:textColor="@color/orange"
+                        android:textSize="12sp"
+                        android:clickable="true"
+                        android:focusable="true"
+                        android:background="?attr/selectableItemBackground" />
+
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/rvTransactions"
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="@string/action_select_all"
-                    android:fontFamily="@font/montserratalternatess_bold"
-                    android:textColor="@color/orange"
-                    android:textSize="12sp"
-                    android:clickable="true"
-                    android:focusable="true"
-                    android:background="?attr/selectableItemBackground" />
+                    android:nestedScrollingEnabled="false"
+                    tools:listitem="@layout/item_multi_settle_transaction" />
+
+                <!-- Empty State -->
+                <LinearLayout
+                    android:id="@+id/emptySettlementsLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingVertical="48dp"
+                    android:visibility="gone"
+                    tools:visibility="visible">
+
+                    <ImageView
+                        android:layout_width="64dp"
+                        android:layout_height="64dp"
+                        android:alpha="0.4"
+                        android:src="@drawable/settle"
+                        app:tint="@color/grey" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="12dp"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:text="No pending settlements"
+                        android:textColor="@color/grey"
+                        android:textSize="16sp" />
+                </LinearLayout>
 
             </LinearLayout>
-
-            <androidx.recyclerview.widget.RecyclerView
-                android:id="@+id/rvTransactions"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:nestedScrollingEnabled="false"
-                tools:listitem="@layout/item_multi_settle_transaction" />
-
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
-</LinearLayout>
 
     <!-- Bottom Actions Container -->
     <LinearLayout

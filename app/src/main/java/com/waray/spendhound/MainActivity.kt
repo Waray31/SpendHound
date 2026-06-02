@@ -180,10 +180,10 @@ class MainActivity : AppCompatActivity() {
         fabMenuOverlay?.visibility = View.VISIBLE
         fabMenuOverlay?.animate()?.alpha(1f)?.setDuration(300)?.start()
         fabMain?.animate()?.rotation(45f)?.setDuration(300)?.start()
-        showFabOption(containerBorrow, 150)
-        showFabOption(containerAddTransaction, 105)
-        showFabOption(containerSettlement, 65)
-        showFabOption(containerAddGroup, 25)
+        showFabOption(containerBorrow, 157)
+        showFabOption(containerAddTransaction, 113)
+        showFabOption(containerSettlement, 67)
+        showFabOption(containerAddGroup, 23)
     }
 
     private fun closeFabMenu() {
@@ -206,9 +206,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun openBorrowSubMenu() {
         isBorrowSubMenuOpen = true
-        // container_borrow sits at angle 150°
+        // container_borrow sits at angle 157°
         val radius = 300f
-        val angleRadians = Math.toRadians(150.0)
+        val angleRadians = Math.toRadians(157.0)
         val baseX = (radius * cos(angleRadians)).toFloat()
         val baseY = -(radius * sin(angleRadians)).toFloat()
         

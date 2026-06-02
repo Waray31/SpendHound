@@ -23,6 +23,7 @@ import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
 import com.waray.spendhound.utils.PullInterceptLayout
 import com.waray.spendhound.utils.PullToRefreshHelper
+import com.waray.spendhound.SettleBottomSheet
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.Dispatchers
@@ -428,7 +429,8 @@ class GroupExpensesFragment : Fragment() {
         val options = mutableListOf<String?>("This Month", "Last Month", "All", "Custom Date")
         val spinnerAdapter = SpinnerItemMonths(requireContext(), options)
         dateRangeSpinner?.adapter = spinnerAdapter
-        setThisMonth()
+        setAllTime()
+        dateRangeSpinner?.setSelection(2)
         dateRangeSpinner?.onItemSelectedListener = object : android.widget.AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: android.widget.AdapterView<*>?, view: View?, position: Int, id: Long) {
                 when (position) {
@@ -631,6 +633,11 @@ class GroupExpensesFragment : Fragment() {
                 dismissPopup()
             }
             
+            popup.findViewById<TextView>(R.id.tvSettle)?.setOnClickListener {
+                showSettleBottomSheet(transaction)
+                dismissPopup()
+            }
+            
             popup.findViewById<TextView>(R.id.tvArchive)?.setOnClickListener {
                 archiveTransaction(transaction)
                 dismissPopup()
@@ -656,6 +663,7 @@ class GroupExpensesFragment : Fragment() {
             popup.y = (location[1] - rootLocation[1] + anchorView.height + 8).toFloat()
             
             popup.findViewById<TextView>(R.id.tvEdit)?.visibility = View.GONE
+            popup.findViewById<TextView>(R.id.tvSettle)?.visibility = View.GONE
             popup.findViewById<TextView>(R.id.tvArchive)?.apply {
                 text = getString(R.string.action_unarchive)
                 visibility = View.VISIBLE
@@ -678,6 +686,7 @@ class GroupExpensesFragment : Fragment() {
         transactionActionsPopup?.visibility = View.GONE
         popupOverlay?.visibility = View.GONE
         transactionActionsPopup?.findViewById<TextView>(R.id.tvEdit)?.visibility = View.VISIBLE
+        transactionActionsPopup?.findViewById<TextView>(R.id.tvSettle)?.visibility = View.VISIBLE
         transactionActionsPopup?.findViewById<TextView>(R.id.tvArchive)?.text = getString(R.string.action_archive)
     }
     
@@ -686,6 +695,15 @@ class GroupExpensesFragment : Fragment() {
         intent.putExtra("TRANSACTION_ID", transaction.transactionId)
         intent.putExtra("EDIT_MODE", true)
         startActivity(intent)
+    }
+
+    private fun showSettleBottomSheet(transaction: RecentTransaction) {
+        val sheet = SettleBottomSheet()
+        sheet.transaction = transaction
+        sheet.onSettleSaved = {
+            loadExpenses(false)
+        }
+        sheet.show(childFragmentManager, "SettleBottomSheet")
     }
     
     private fun archiveTransaction(transaction: RecentTransaction) {

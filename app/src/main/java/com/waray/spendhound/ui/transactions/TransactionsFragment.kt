@@ -39,6 +39,7 @@ import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
 import com.waray.spendhound.SkeletonAdapter
 import com.waray.spendhound.utils.LoadingManager
+import com.waray.spendhound.SettleBottomSheet
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.Dispatchers
@@ -348,7 +349,8 @@ class TransactionsFragment : Fragment() {
         val options = mutableListOf<String?>("This Month", "Last Month", "All", "Custom Date")
         val spinnerAdapter = SpinnerItemMonths(requireContext(), options)
         dateRangeSpinner?.adapter = spinnerAdapter
-        setThisMonth()
+        setAllTime()
+        dateRangeSpinner?.setSelection(2)
         dateRangeSpinner?.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 when (position) {
@@ -477,6 +479,11 @@ class TransactionsFragment : Fragment() {
                 dismissPopup()
             }
             
+            popup.findViewById<TextView>(R.id.tvSettle)?.setOnClickListener {
+                showSettleBottomSheet(transaction)
+                dismissPopup()
+            }
+            
             popup.findViewById<TextView>(R.id.tvArchive)?.setOnClickListener {
                 archiveTransaction(transaction)
                 dismissPopup()
@@ -535,6 +542,15 @@ class TransactionsFragment : Fragment() {
         intent.putExtra("TRANSACTION_ID", transaction.transactionId)
         intent.putExtra("EDIT_MODE", true)
         startActivity(intent)
+    }
+    
+    private fun showSettleBottomSheet(transaction: RecentTransaction) {
+        val sheet = SettleBottomSheet()
+        sheet.transaction = transaction
+        sheet.onSettleSaved = {
+            refreshTransactions()
+        }
+        sheet.show(childFragmentManager, "SettleBottomSheet")
     }
     
     private fun archiveTransaction(transaction: RecentTransaction) {

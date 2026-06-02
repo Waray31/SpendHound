@@ -24,9 +24,9 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginBottom="20dp"
                 android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:layout_marginBottom="24dp">
+                android:orientation="horizontal">
 
                 <TextView
                     android:layout_width="match_parent"
@@ -42,14 +42,14 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:elevation="4dp"
                 android:layout_margin="4dp"
-                android:paddingHorizontal="8dp"
-                android:gravity="center"
-                android:paddingVertical="8dp"
                 android:background="@drawable/rounded_white_background"
-                android:backgroundTint="@color/white2">
+                android:backgroundTint="@color/white2"
+                android:elevation="4dp"
+                android:gravity="center"
+                android:orientation="vertical"
+                android:paddingHorizontal="8dp"
+                android:paddingVertical="8dp">
 
                 <!-- Filter Section -->
                 <LinearLayout
@@ -141,7 +141,8 @@
             <FrameLayout
                 android:layout_width="match_parent"
                 android:layout_height="0dp"
-                android:layout_weight="1">
+                android:layout_weight="1"
+                android:paddingTop="20dp">
 
                 <androidx.core.widget.NestedScrollView
                     android:id="@+id/transactionsNestedScrollView"
@@ -205,9 +206,9 @@
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
                             android:nestedScrollingEnabled="false"
-                            tools:listitem="@layout/item_skeleton_transaction"
+                            android:visibility="gone"
                             tools:itemCount="5"
-                            android:visibility="gone" />
+                            tools:listitem="@layout/item_skeleton_transaction" />
 
                         <!-- Transaction List -->
                         <androidx.recyclerview.widget.RecyclerView
@@ -222,30 +223,30 @@
                             android:id="@+id/showArchivedSection"
                             android:layout_width="match_parent"
                             android:layout_height="wrap_content"
+                            android:layout_marginTop="16dp"
                             android:orientation="vertical"
-                            android:visibility="gone"
-                            android:layout_marginTop="16dp">
+                            android:visibility="gone">
 
                             <TextView
                                 android:id="@+id/showArchivedToggle"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
-                                android:text="🗂 2 archived transactions — Show"
-                                android:fontFamily="@font/montserratalternatess_regular"
-                                android:textColor="@color/grey"
-                                android:textSize="14sp"
-                                android:padding="12dp"
+                                android:background="?android:attr/selectableItemBackground"
                                 android:clickable="true"
                                 android:focusable="true"
-                                android:background="?android:attr/selectableItemBackground" />
+                                android:fontFamily="@font/montserratalternatess_regular"
+                                android:padding="12dp"
+                                android:text="🗂 2 archived transactions — Show"
+                                android:textColor="@color/grey"
+                                android:textSize="14sp" />
 
                             <androidx.recyclerview.widget.RecyclerView
                                 android:id="@+id/archivedTransactionsRecyclerView"
                                 android:layout_width="match_parent"
                                 android:layout_height="wrap_content"
+                                android:alpha="0.6"
                                 android:nestedScrollingEnabled="false"
                                 android:visibility="gone"
-                                android:alpha="0.6"
                                 tools:listitem="@layout/item_transaction" />
 
                         </LinearLayout>
@@ -265,10 +266,10 @@
             android:id="@+id/popupOverlay"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:visibility="gone"
+            android:background="@android:color/transparent"
             android:clickable="true"
             android:focusable="true"
-            android:background="@android:color/transparent" />
+            android:visibility="gone" />
 
         <!-- Transaction Actions Popup -->
         <include
