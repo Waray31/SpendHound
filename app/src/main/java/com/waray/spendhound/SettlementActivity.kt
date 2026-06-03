@@ -95,15 +95,43 @@ class SettlementActivity : AppCompatActivity() {
     private fun showSettlementConfirmation() {
         val count = selectedTransactions.size
         val memberName = selectedMember?.user?.username ?: getString(R.string.placeholder_name)
+        val totalToSettle = transactionListForMember
+            .filter { selectedTransactions.contains(it.transaction) }
+            .sumOf { kotlin.math.abs(it.balanceWithMember) }
+
+        val dialog = android.app.Dialog(this)
+        dialog.requestWindowFeature(android.view.Window.FEATURE_NO_TITLE)
+        dialog.setContentView(R.layout.dialog_confirm_settlement)
+        dialog.window?.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT))
+        dialog.window?.setLayout(
+            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+            android.view.ViewGroup.LayoutParams.WRAP_CONTENT
+        )
+
+        val tvTitle = dialog.findViewById<TextView>(R.id.dialogTitle)
+        val tvMessage = dialog.findViewById<TextView>(R.id.dialogMessage)
+        val tvSummaryAmount = dialog.findViewById<TextView>(R.id.tvSummaryAmount)
+        val tvSummaryCount = dialog.findViewById<TextView>(R.id.tvSummaryCount)
+        val summaryLayout = dialog.findViewById<View>(R.id.settlementSummaryLayout)
+        val btnConfirm = dialog.findViewById<android.widget.Button>(R.id.dialogConfirmBtn)
+        val btnCancel = dialog.findViewById<android.widget.Button>(R.id.dialogCancelBtn)
+
+        tvTitle.text = getString(R.string.dialog_confirm_settlement_title)
+        tvMessage.text = getString(R.string.dialog_confirm_settlement_message, count, memberName)
         
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(this, R.style.AppDialog)
-            .setTitle(getString(R.string.dialog_confirm_settlement_title))
-            .setMessage(getString(R.string.dialog_confirm_settlement_message, count, memberName))
-            .setPositiveButton(getString(R.string.btn_settle_now)) { _, _ ->
-                performBatchSettlement()
-            }
-            .setNegativeButton(getString(R.string.btn_cancel), null)
-            .show()
+        summaryLayout.visibility = View.VISIBLE
+        tvSummaryAmount.text = CurrencyUtils.formatAmountWithCurrency(totalToSettle)
+        tvSummaryCount.text = getString(R.string.transactions_selected_format, count)
+
+        btnConfirm.setOnClickListener {
+            dialog.dismiss()
+            performBatchSettlement()
+        }
+        btnCancel.setOnClickListener {
+            dialog.dismiss()
+        }
+
+        dialog.show()
     }
 
     private fun initViews() {
@@ -417,6 +445,7 @@ class SettlementActivity : AppCompatActivity() {
         prepareDisplayList()
         
         if (transactionListForMember.isNotEmpty()) {
+            emptySettlementsLayout.visibility = View.GONE
             summaryContainer.visibility = View.VISIBLE
             tvTransactionsHeader.visibility = View.VISIBLE
             btnSelectAll.visibility = View.VISIBLE
@@ -426,6 +455,7 @@ class SettlementActivity : AppCompatActivity() {
             selectedTransactions.addAll(transactionListForMember.map { it.transaction })
             updateTotalSelected()
         } else {
+            emptySettlementsLayout.visibility = View.VISIBLE
             summaryContainer.visibility = View.GONE
             tvTransactionsHeader.visibility = View.GONE
             btnSelectAll.visibility = View.GONE
