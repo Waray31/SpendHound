@@ -27,13 +27,9 @@ class SettlementHistoryActivity : AppCompatActivity() {
     private lateinit var emptyState: View
     private lateinit var btnBack: View
 
-    private var groupId: Long = -1
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_settlement_history)
-
-        groupId = intent.getLongExtra("group_id", -1)
 
         rvHistory = findViewById(R.id.rvHistory)
         loadingLayout = findViewById(R.id.loadingLayout)
@@ -50,7 +46,7 @@ class SettlementHistoryActivity : AppCompatActivity() {
         lifecycleScope.launch(Dispatchers.IO) {
             try {
                 // Fetch transaction payors where status is settled (1) and paidTo is not null
-                // We also filter by group if groupId is provided
+                // We show all settlements regardless of where group is it from
                 val payors = DeclareDatabase.transactionPayorsTable.select {
                     filter { 
                         eq("status", 1)
@@ -69,11 +65,10 @@ class SettlementHistoryActivity : AppCompatActivity() {
                 val transactions = DeclareDatabase.transactionsTable.select {
                     filter { 
                         isIn("id", txIds)
-                        if (groupId != -1L) eq("group_id", groupId)
                     }
                 }.decodeList<TransactionFull>().associateBy { it.id }
 
-                // Filter payors whose transactions belong to the selected group
+                // Filter payors whose transactions exist
                 val filteredPayors = payors.filter { transactions.containsKey(it.transactionId) }
 
                 val userIds = (filteredPayors.map { it.userId } + filteredPayors.mapNotNull { it.paidTo }).distinct()
@@ -92,22 +87,18 @@ class SettlementHistoryActivity : AppCompatActivity() {
                     val recipient = users[paidTo] ?: return@mapNotNull null
                     
                     val totalAmount = payorRows.sumOf { it.currentAmountPaid }
-                    val txTitles = payorRows.mapNotNull { transactions[it.transactionId]?.description }.distinct()
-                    val combinedTitle = if (txTitles.size > 1) {
-                        "Settlement for ${txTitles.size} transactions"
-                    } else {
-                        txTitles.firstOrNull() ?: "Settlement"
+                    val breakdowns = payorRows.map { p ->
+                        TransactionBreakdown(
+                            description = transactions[p.transactionId]?.description ?: "Settlement",
+                            amount = p.currentAmountPaid
+                        )
                     }
 
                     SettlementHistoryItem(
-                        transactionId = payorRows.first().transactionId,
-                        title = combinedTitle,
+                        title = "${payer.username} paid to ${recipient.username}",
                         date = timestamp,
                         amount = totalAmount,
-                        payerName = payer.username ?: "Unknown",
-                        recipientName = recipient.username ?: "Unknown",
-                        totalBill = payorRows.sumOf { transactions[it.transactionId]?.totalAmount ?: 0.0 },
-                        transactionDetails = txTitles
+                        breakdowns = breakdowns
                     )
                 }.sortedByDescending { it.date }
 
@@ -129,15 +120,16 @@ class SettlementHistoryActivity : AppCompatActivity() {
         }
     }
 
+    private data class TransactionBreakdown(
+        val description: String,
+        val amount: Double
+    )
+
     private data class SettlementHistoryItem(
-        val transactionId: Long,
         val title: String,
         val date: String,
         val amount: Double,
-        val payerName: String,
-        val recipientName: String,
-        val totalBill: Double,
-        val transactionDetails: List<String> = emptyList()
+        val breakdowns: List<TransactionBreakdown>
     )
 
     private inner class HistoryAdapter(private val items: List<SettlementHistoryItem>) : 
@@ -146,15 +138,12 @@ class SettlementHistoryActivity : AppCompatActivity() {
         private val expandedPositions = mutableSetOf<Int>()
 
         inner class VH(view: View) : RecyclerView.ViewHolder(view) {
-            val mainContent: View = view.findViewById(R.id.mainContent)
             val tvTitle: TextView = view.findViewById(R.id.tvTransactionTitle)
             val tvDate: TextView = view.findViewById(R.id.tvDate)
             val tvAmount: TextView = view.findViewById(R.id.tvAmount)
             val detailsContainer: View = view.findViewById(R.id.detailsContainer)
             val divider: View = view.findViewById(R.id.detailsDivider)
-            val tvPayer: TextView = view.findViewById(R.id.tvPayerName)
-            val tvRecipient: TextView = view.findViewById(R.id.tvRecipientName)
-            val tvTotalBill: TextView = view.findViewById(R.id.tvTotalBill)
+            val breakdownContainer: LinearLayout = view.findViewById(R.id.breakdownContainer)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = 
@@ -164,13 +153,6 @@ class SettlementHistoryActivity : AppCompatActivity() {
             val item = items[position]
             holder.tvTitle.text = item.title
             holder.tvAmount.text = CurrencyUtils.formatAmountWithCurrency(item.amount)
-            holder.tvPayer.text = item.payerName
-            holder.tvRecipient.text = item.recipientName
-            holder.tvTotalBill.text = CurrencyUtils.formatAmountWithCurrency(item.totalBill)
-
-            if (item.transactionDetails.size > 1) {
-                holder.tvTitle.append("\n${item.transactionDetails.size} transactions")
-            }
 
             // Format date
             try {
@@ -187,6 +169,16 @@ class SettlementHistoryActivity : AppCompatActivity() {
             val isExpanded = expandedPositions.contains(position)
             holder.detailsContainer.visibility = if (isExpanded) View.VISIBLE else View.GONE
             holder.divider.visibility = if (isExpanded) View.VISIBLE else View.GONE
+
+            if (isExpanded) {
+                holder.breakdownContainer.removeAllViews()
+                item.breakdowns.forEach { breakdown ->
+                    val row = LayoutInflater.from(holder.itemView.context).inflate(R.layout.item_settlement_breakdown_row, holder.breakdownContainer, false)
+                    row.findViewById<TextView>(R.id.tvDescription).text = breakdown.description
+                    row.findViewById<TextView>(R.id.tvAmount).text = CurrencyUtils.formatAmountWithCurrency(breakdown.amount)
+                    holder.breakdownContainer.addView(row)
+                }
+            }
 
             holder.itemView.setOnClickListener {
                 if (isExpanded) expandedPositions.remove(position)
