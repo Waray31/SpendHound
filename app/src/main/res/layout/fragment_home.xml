@@ -73,13 +73,12 @@
                 <androidx.viewpager2.widget.ViewPager2
                     android:id="@+id/spendingCardViewPager"
                     android:layout_width="match_parent"
-                    android:layout_height="260dp"
+                    android:layout_height="wrap_content"
                     android:clipChildren="false"
                     android:clipToPadding="false"
                     android:overScrollMode="never"
-                    android:paddingTop="20dp"
-                    android:paddingHorizontal="12dp"
-                    android:paddingBottom="10dp" />
+                    android:paddingVertical="28dp"
+                    android:paddingHorizontal="12dp" />
 
                 <!-- You Owe / You're Owed Cards -->
                 <LinearLayout

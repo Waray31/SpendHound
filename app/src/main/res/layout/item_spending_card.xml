@@ -12,6 +12,7 @@
         android:layout_marginHorizontal="12dp"
         android:background="@drawable/bg_spending_card"
         android:elevation="4dp"
+        android:layout_margin="8dp"
         android:orientation="vertical"
         android:padding="24dp">
 
