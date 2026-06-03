@@ -50,6 +50,7 @@ class SettlementActivity : AppCompatActivity() {
     private lateinit var btnSettle: View
     private lateinit var loadingLayout: View
     private lateinit var btnBack: View
+    private lateinit var btnHistory: View
     private lateinit var emptySettlementsLayout: View
 
     private var groupId: Long = -1
@@ -107,6 +108,7 @@ class SettlementActivity : AppCompatActivity() {
 
     private fun initViews() {
         btnBack = findViewById(R.id.btnBack)
+        btnHistory = findViewById(R.id.btnHistory)
         rvGroups = findViewById(R.id.rvGroups)
         rvMembers = findViewById(R.id.rvMembers)
         rvTransactions = findViewById(R.id.rvTransactions)
@@ -128,6 +130,11 @@ class SettlementActivity : AppCompatActivity() {
 
     private fun setupToolbar() {
         btnBack.setOnClickListener { finish() }
+        btnHistory.setOnClickListener {
+            val intent = android.content.Intent(this, SettlementHistoryActivity::class.java)
+            intent.putExtra("group_id", groupId)
+            startActivity(intent)
+        }
     }
 
     private fun setupRecyclerViews() {
@@ -291,35 +298,42 @@ class SettlementActivity : AppCompatActivity() {
             val splits = tx.rawSplitRows
             val myPaid = payors.filter { it.userId == myId }.sumOf { it.currentAmountPaid }
             val myShare = splits.filter { it.userId == myId }.sumOf { it.amount }
-            val totalDeficit = splits.sumOf { s ->
-                val p = payors.filter { it.userId == s.userId }.sumOf { it.currentAmountPaid }
-                if (s.amount > p) s.amount - p else 0.0
+
+            val userTotalPaid = payors.groupBy { it.userId }.mapValues { it.value.sumOf { p -> p.currentAmountPaid } }
+            val userTotalOwed = splits.groupBy { it.userId }.mapValues { it.value.sumOf { s -> s.amount } }
+
+            val totalDeficit = userTotalOwed.keys.sumOf { uid ->
+                val o = userTotalOwed[uid] ?: 0.0
+                val p = userTotalPaid[uid] ?: 0.0
+                if (o > p) o - p else 0.0
             }
-            val totalSurplus = payors.sumOf { p ->
-                val s = splits.filter { it.userId == p.userId }.sumOf { it.amount }
-                if (p.currentAmountPaid > s) p.currentAmountPaid - s else 0.0
+            val totalSurplus = userTotalPaid.keys.sumOf { uid ->
+                val p = userTotalPaid[uid] ?: 0.0
+                val o = userTotalOwed[uid] ?: 0.0
+                if (p > o) p - o else 0.0
             }
 
             if (myPaid > myShare) {
                 val mySurplus = myPaid - myShare
                 if (totalDeficit > 0) {
-                    splits.forEach { s ->
-                        val p = payors.filter { it.userId == s.userId }.sumOf { it.currentAmountPaid }
-                        if (s.amount > p) {
-                            val deficit = s.amount - p
+                    userTotalOwed.keys.forEach { uid ->
+                        val o = userTotalOwed[uid] ?: 0.0
+                        val p = userTotalPaid[uid] ?: 0.0
+                        if (o > p) {
+                            val deficit = o - p
                             val owesToMe = (deficit / totalDeficit) * mySurplus
-                            balances[s.userId] = (balances[s.userId] ?: 0.0) + owesToMe
+                            balances[uid] = (balances[uid] ?: 0.0) + owesToMe
                         }
                     }
                 }
             } else if (myShare > myPaid) {
                 val myDeficit = myShare - myPaid
                 if (totalSurplus > 0) {
-                    payors.map { it.userId }.distinct().forEach { uid ->
-                        val p = payors.filter { it.userId == uid }.sumOf { it.currentAmountPaid }
-                        val s = splits.filter { it.userId == uid }.sumOf { it.amount }
-                        if (p > s) {
-                            val surplus = p - s
+                    userTotalPaid.keys.forEach { uid ->
+                        val p = userTotalPaid[uid] ?: 0.0
+                        val o = userTotalOwed[uid] ?: 0.0
+                        if (p > o) {
+                            val surplus = p - o
                             val iOweThem = (surplus / totalSurplus) * myDeficit
                             balances[uid] = (balances[uid] ?: 0.0) - iOweThem
                         }
@@ -349,16 +363,21 @@ class SettlementActivity : AppCompatActivity() {
         for (tx in pendingTransactions) {
             val payors = tx.rawPayorRows
             val splits = tx.rawSplitRows
-            val myPaid = payors.filter { it.userId == myId }.sumOf { it.currentAmountPaid }
-            val myShare = splits.filter { it.userId == myId }.sumOf { it.amount }
-            val memberPaid = payors.filter { it.userId == memberId }.sumOf { it.currentAmountPaid }
-            val memberShare = splits.filter { it.userId == memberId }.sumOf { it.amount }
+            
+            val userTotalPaid = payors.groupBy { it.userId }.mapValues { it.value.sumOf { p -> p.currentAmountPaid } }
+            val userTotalOwed = splits.groupBy { it.userId }.mapValues { it.value.sumOf { s -> s.amount } }
+            
+            val myPaid = userTotalPaid[myId] ?: 0.0
+            val myShare = userTotalOwed[myId] ?: 0.0
+            val memberPaid = userTotalPaid[memberId] ?: 0.0
+            val memberShare = userTotalOwed[memberId] ?: 0.0
 
             if (myPaid > myShare) {
                 val mySurplus = myPaid - myShare
-                val totalDeficit = splits.sumOf { s ->
-                    val p = payors.filter { it.userId == s.userId }.sumOf { it.currentAmountPaid }
-                    if (s.amount > p) s.amount - p else 0.0
+                val totalDeficit = userTotalOwed.keys.sumOf { uid ->
+                    val o = userTotalOwed[uid] ?: 0.0
+                    val p = userTotalPaid[uid] ?: 0.0
+                    if (o > p) o - p else 0.0
                 }
                 if (totalDeficit > 0) {
                     val memberDeficit = if (memberShare > memberPaid) memberShare - memberPaid else 0.0
@@ -372,9 +391,10 @@ class SettlementActivity : AppCompatActivity() {
                 }
             } else if (memberPaid > memberShare) {
                 val memberSurplus = memberPaid - memberShare
-                val totalDeficit = splits.sumOf { s ->
-                    val p = payors.filter { it.userId == s.userId }.sumOf { it.currentAmountPaid }
-                    if (s.amount > p) s.amount - p else 0.0
+                val totalDeficit = userTotalOwed.keys.sumOf { uid ->
+                    val o = userTotalOwed[uid] ?: 0.0
+                    val p = userTotalPaid[uid] ?: 0.0
+                    if (o > p) o - p else 0.0
                 }
                 if (totalDeficit > 0) {
                     val myDeficit = if (myShare > myPaid) myShare - myPaid else 0.0
@@ -391,8 +411,8 @@ class SettlementActivity : AppCompatActivity() {
         
         memberReceivableTotal = receivableTotal
         memberDebtTotal = debtTotal
-        tvReceivableAmount.text = CurrencyUtils.formatAmountWithCurrency(receivableTotal)
-        tvDebtAmount.text = CurrencyUtils.formatAmountWithCurrency(debtTotal)
+        tvReceivableAmount.text = CurrencyUtils.formatAmountWithCurrency(kotlin.math.max(0.0, receivableTotal - debtTotal))
+        tvDebtAmount.text = CurrencyUtils.formatAmountWithCurrency(kotlin.math.max(0.0, debtTotal - receivableTotal))
         transactionListForMember.sortByDescending { it.transaction.timestamp }
         prepareDisplayList()
         
@@ -441,13 +461,25 @@ class SettlementActivity : AppCompatActivity() {
     }
 
     private fun updateTotalSelected() {
-        val totalReceivable = transactionListForMember.filter { it.isCurrentUserOwed && selectedTransactions.contains(it.transaction) }
+        val totalReceivableSelected = transactionListForMember.filter { it.isCurrentUserOwed && selectedTransactions.contains(it.transaction) }
             .sumOf { it.balanceWithMember }
-        val totalDebt = transactionListForMember.filter { !it.isCurrentUserOwed && selectedTransactions.contains(it.transaction) }
+        val totalDebtSelected = transactionListForMember.filter { !it.isCurrentUserOwed && selectedTransactions.contains(it.transaction) }
             .sumOf { kotlin.math.abs(it.balanceWithMember) }
         
-        tvReceivableFooterAmount.text = CurrencyUtils.formatAmountWithCurrency(totalReceivable)
-        tvComputedTotal.text = CurrencyUtils.formatAmountWithCurrency(totalDebt)
+        // Net receivable is receivable - debt
+        val netReceivable = totalReceivableSelected - totalDebtSelected
+        
+        tvReceivableFooterAmount.text = CurrencyUtils.formatAmountWithCurrency(kotlin.math.max(0.0, netReceivable))
+        
+        // Total to settle is total receivable + total debt (gross settlement volume)
+        // OR as requested: total receivable + total debt. 
+        // Note: The prompt says "total receivable is receivable - debt". 
+        // And "total to settle should be total receivable + total debt".
+        // This likely means: computedTotal = (receivable - debt) + debt = receivable? 
+        // Or maybe it means (gross receivable) + (gross debt). 
+        // Let's stick to the prompt's wording: total receivable + total debt.
+        
+        tvComputedTotal.text = CurrencyUtils.formatAmountWithCurrency(totalReceivableSelected + totalDebtSelected)
         
         val count = selectedTransactions.size
         
@@ -460,7 +492,7 @@ class SettlementActivity : AppCompatActivity() {
 
         tvTotalSummaryNote.text = getString(R.string.transactions_selected_format, count)
         
-        btnSettle.isEnabled = (totalDebt > epsilon && selectedTransactions.isNotEmpty())
+        btnSettle.isEnabled = ((totalReceivableSelected + totalDebtSelected) > epsilon && selectedTransactions.isNotEmpty())
         btnSettle.alpha = if (btnSettle.isEnabled) 1.0f else 0.5f
         
         // Ensure backgrounds update by notifying adapter
@@ -475,6 +507,11 @@ class SettlementActivity : AppCompatActivity() {
 
         lifecycleScope.launch(Dispatchers.IO) {
             try {
+                val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault()).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }
+                val batchTimestamp = sdf.format(java.util.Date())
+
                 val sortedSelections = transactionListForMember
                     .filter { selectedTransactions.contains(it.transaction) }
                     .sortedBy { it.transaction.timestamp }
@@ -487,28 +524,56 @@ class SettlementActivity : AppCompatActivity() {
                     val creditorId = if (item.balanceWithMember > 0) myId else memberId
                     val userOwedMap = tx.rawSplitRows.groupBy { it.userId }.mapValues { it.value.sumOf { s -> s.amount } }
                     val totalOwedByDebtor = userOwedMap[debtorId] ?: 0.0
-                    val existingDebtorRow = tx.rawPayorRows.firstOrNull { it.userId == debtorId }
-                    val newPaid = (existingDebtorRow?.currentAmountPaid ?: 0.0) + amountToApply
+                    val debtorRows = tx.rawPayorRows.filter { it.userId == debtorId }
+                    val totalCurrentPaid = debtorRows.sumOf { it.currentAmountPaid }
+                    val newPaid = totalCurrentPaid + amountToApply
                     val excess = if (newPaid > totalOwedByDebtor + epsilon) newPaid - totalOwedByDebtor else 0.0
                     val status = when {
                         newPaid <= epsilon -> 0
                         newPaid >= totalOwedByDebtor - epsilon -> 1
                         else -> 2
                     }
-                    if (existingDebtorRow != null) {
+                    val leadDebtorRow = debtorRows.firstOrNull { it.transactionItemsId == null } ?: debtorRows.firstOrNull()
+                    if (leadDebtorRow != null) {
+                        val otherRowsPaid = debtorRows.filter { it.id != leadDebtorRow.id }.sumOf { it.currentAmountPaid }
+                        val amountForLeadRow = newPaid - otherRowsPaid
                         DeclareDatabase.transactionPayorsTable.update({
-                            set("current_amount_paid", newPaid)
+                            set("current_amount_paid", amountForLeadRow)
                             set("excess_amount", excess)
                             set<Int>("status", status)
                             set<Long>("paid_to", creditorId)
-                        }) { filter { eq("transaction_id", txId); eq("user_id", debtorId) } }
+                            set("updated_at", batchTimestamp)
+                        }) { filter { eq("id", leadDebtorRow.id!!) } }
+
+                        val otherRowIds = debtorRows.mapNotNull { it.id }.filter { it != leadDebtorRow.id }
+                        if (otherRowIds.isNotEmpty()) {
+                            DeclareDatabase.transactionPayorsTable.update({
+                                set("excess_amount", 0.0)
+                                set("updated_at", batchTimestamp)
+                            }) { filter { isIn("id", otherRowIds) } }
+                        }
                     } else {
-                        DeclareDatabase.transactionPayorsTable.insert(TransactionPayorInsert(txId, debtorId, 0.0, newPaid, excess, null, status, creditorId))
+                        DeclareDatabase.transactionPayorsTable.insert(TransactionPayorInsert(txId, debtorId, 0.0, newPaid, excess, null, status, creditorId, batchTimestamp))
                     }
-                    val existingCreditorRow = tx.rawPayorRows.firstOrNull { it.userId == creditorId }
-                    if (existingCreditorRow != null && existingCreditorRow.excessAmount > epsilon) {
-                        val newExcess = kotlin.math.max(0.0, existingCreditorRow.excessAmount - amountToApply)
-                        DeclareDatabase.transactionPayorsTable.update({ set("excess_amount", newExcess) }) { filter { eq("transaction_id", txId); eq("user_id", creditorId) } }
+                    val creditorRows = tx.rawPayorRows.filter { it.userId == creditorId }
+                    val leadCreditorRow = creditorRows.firstOrNull { it.transactionItemsId == null } ?: creditorRows.firstOrNull()
+                    if (leadCreditorRow != null) {
+                        val totalExcess = creditorRows.map { it.excessAmount }.maxOrNull() ?: 0.0
+                        if (totalExcess > epsilon) {
+                            val newExcess = kotlin.math.max(0.0, totalExcess - amountToApply)
+                            DeclareDatabase.transactionPayorsTable.update({ 
+                                set("excess_amount", newExcess)
+                                set("updated_at", batchTimestamp)
+                            }) { filter { eq("id", leadCreditorRow.id!!) } }
+
+                            val otherRowIds = creditorRows.mapNotNull { it.id }.filter { it != leadCreditorRow.id }
+                            if (otherRowIds.isNotEmpty()) {
+                                DeclareDatabase.transactionPayorsTable.update({
+                                    set("excess_amount", 0.0)
+                                    set("updated_at", batchTimestamp)
+                                }) { filter { isIn("id", otherRowIds) } }
+                            }
+                        }
                     }
                     val allPayorsForTx = DeclareDatabase.transactionPayorsTable.select { filter { eq("transaction_id", txId) } }.decodeList<TransactionPayorTable>()
                     val allSettled = tx.rawSplitRows.all { s -> allPayorsForTx.filter { it.userId == s.userId }.sumOf { it.currentAmountPaid } >= s.amount - epsilon }
@@ -520,7 +585,11 @@ class SettlementActivity : AppCompatActivity() {
                     loadingLayout.visibility = View.GONE
                     Toast.makeText(this@SettlementActivity, "Settlement successful", Toast.LENGTH_SHORT).show()
                     TransactionState.notifyChange()
-                    finish()
+                    
+                    // Clear selection and refresh list instead of finishing
+                    selectedTransactions.clear()
+                    loadGroupData()
+                    updateTotalSelected()
                 }
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) {
@@ -644,10 +713,14 @@ class SettlementActivity : AppCompatActivity() {
             holder.name.text = item.user.username
             
             if (item.user.profileImageUrl.isNullOrEmpty()) {
-                holder.icon.setImageDrawable(null)
+                holder.icon.setImageResource(R.drawable.ic_profile_silhouette)
+                holder.icon.imageTintList = ContextCompat.getColorStateList(this@SettlementActivity, R.color.white)
+                val padding = (8 * resources.displayMetrics.density).toInt()
+                holder.icon.setPadding(padding, padding, padding, padding)
                 holder.card.setCardBackgroundColor(ContextCompat.getColor(this@SettlementActivity, R.color.orange))
             } else {
                 holder.icon.setPadding(0, 0, 0, 0)
+                holder.icon.imageTintList = null
                 holder.card.setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
                 holder.icon.load(item.user.profileImageUrl) {
                     crossfade(true)
@@ -696,7 +769,7 @@ class SettlementActivity : AppCompatActivity() {
                 holder.cbSelected.buttonTintList = ContextCompat.getColorStateList(this@SettlementActivity, R.color.orange)
                 holder.cbSelected.setOnCheckedChangeListener(null); val isSelected = selectedTransactions.contains(tx); holder.cbSelected.isChecked = isSelected
                 
-                holder.itemView.setBackgroundResource(if (isSelected) R.drawable.orange_rounded_background else R.drawable.transaction_rounded_background)
+                holder.itemView.setBackgroundResource(if (isSelected) R.drawable.bg_unread_transaction else R.drawable.transaction_rounded_background)
                 
                 holder.cbSelected.setOnCheckedChangeListener { _, isChecked -> 
                     onToggled(tx, isChecked)

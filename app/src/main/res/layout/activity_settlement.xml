@@ -59,6 +59,16 @@
                     android:textColor="@color/white"
                     android:textSize="12sp" />
             </LinearLayout>
+
+            <ImageButton
+                android:id="@+id/btnHistory"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/circular_button_background"
+                android:backgroundTint="@color/glassy_background"
+                android:src="@drawable/ic_history"
+                android:contentDescription="History"
+                app:tint="@color/white" />
         </LinearLayout>
     </LinearLayout>
 

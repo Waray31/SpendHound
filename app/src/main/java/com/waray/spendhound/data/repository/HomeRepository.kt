@@ -16,6 +16,7 @@ data class HomeData(
     val totalMonthSpends: Double,
     val youOweAmount: Double,
     val youreOwedAmount: Double,
+    val netBalance: Double = 0.0,
     val lastMonthTotal: Double = 0.0
 )
 
@@ -27,7 +28,7 @@ class HomeRepository(private val db: AppDatabase) {
         type = typeOf<HomeData>()
     ) {
         val balance = DeclareDatabase.userBalanceTable.select(
-            Columns.list("unpaid_total_group", "receivable_total_group")
+            Columns.list("unpaid_total_group", "receivable_total_group", "balance_total_group")
         ) { filter { eq("user_id", userId) } }.decodeSingleOrNull<UserBalance>()
 
         val splits = DeclareDatabase.transactionSplitsTable.select {
@@ -80,6 +81,7 @@ class HomeRepository(private val db: AppDatabase) {
             totalMonthSpends = thisMonthTotal,
             youOweAmount = balance?.unpaidTotalGroup ?: 0.0,
             youreOwedAmount = balance?.receivableTotalGroup ?: 0.0,
+            netBalance = balance?.balanceTotalGroup ?: 0.0,
             lastMonthTotal = lastMonthTotal
         )
     }
@@ -87,5 +89,6 @@ class HomeRepository(private val db: AppDatabase) {
     suspend fun invalidate(userId: Long) {
         db.jsonBlobDao().delete(CacheKeys.home(userId))
         db.jsonBlobDao().delete(CacheKeys.homeRecent(userId))
+        com.waray.spendhound.BalanceHelper.refreshUserBalance(userId)
     }
 }

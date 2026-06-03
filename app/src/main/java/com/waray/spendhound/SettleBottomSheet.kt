@@ -147,6 +147,7 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
                 onSuccess = {
                     loadingLayout.visibility = View.GONE
                     Toast.makeText(requireContext(), "Transaction updated", Toast.LENGTH_SHORT).show()
+                    com.waray.spendhound.TransactionState.notifyChange()
                     onSettleSaved?.invoke()
                     dismiss()
                 },
@@ -418,9 +419,10 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
             val userId = userIdStr?.toLongOrNull()
             val basePaid = baseAmounts.getOrElse(index) { 0.0 }
             val owed = userOwedMap[userId] ?: 0.0
-            val existingRow = transaction.rawPayorRows.firstOrNull { it.userId == userId }
-            if (existingRow != null && existingRow.initialAmountPaid >= owed - epsilon) {
-                existingRow.initialAmountPaid
+            val userRows = transaction.rawPayorRows.filter { it.userId == userId }
+            val totalInitial = userRows.sumOf { it.initialAmountPaid }
+            if (userRows.isNotEmpty() && totalInitial >= owed - epsilon) {
+                totalInitial
             } else {
                 basePaid + (payerTotals[userId] ?: 0.0)
             }
@@ -439,6 +441,10 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         scope.launch {
             try {
                 val payorUserIds = transaction.payorUserIds ?: emptyList()
+                val sdf = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", java.util.Locale.getDefault()).apply {
+                    timeZone = java.util.TimeZone.getTimeZone("UTC")
+                }
+                val batchTimestamp = sdf.format(java.util.Date())
 
                 // Calculate payor to receivers and receiver totals
                 val payorToReceivers = mutableMapOf<Long, MutableList<Long>>()
@@ -464,17 +470,31 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
                     }
                     val paidTo = payorToReceivers[userId]?.singleOrNull()
 
-                    val existingRow = transaction.rawPayorRows.firstOrNull { it.userId == userId }
-                    if (existingRow != null && existingRow.initialAmountPaid >= totalOwed - epsilon) return@forEachIndexed
+                    val userRows = transaction.rawPayorRows.filter { it.userId == userId }
+                    val totalInitial = userRows.sumOf { it.initialAmountPaid }
+                    if (userRows.isNotEmpty() && totalInitial >= totalOwed - epsilon) return@forEachIndexed
 
                     withContext(Dispatchers.IO) {
-                        if (existingRow != null) {
+                        val leadRow = userRows.firstOrNull { it.transactionItemsId == null } ?: userRows.firstOrNull()
+                        if (leadRow != null) {
+                            val otherRowsPaid = userRows.filter { it.id != leadRow.id }.sumOf { it.currentAmountPaid }
+                            val amountForLeadRow = newTotalAmount - otherRowsPaid
+
                             DeclareDatabase.transactionPayorsTable.update({
-                                set("current_amount_paid", newTotalAmount)
+                                set("current_amount_paid", amountForLeadRow)
                                 set("excess_amount", excess)
                                 set("status", status)
                                 set("paid_to", paidTo)
-                            }) { filter { eq("transaction_id", id); eq("user_id", userId) } }
+                                set("updated_at", batchTimestamp)
+                            }) { filter { eq("id", leadRow.id!!) } }
+
+                            val otherRowIds = userRows.mapNotNull { it.id }.filter { it != leadRow.id }
+                            if (otherRowIds.isNotEmpty()) {
+                                DeclareDatabase.transactionPayorsTable.update({
+                                    set("excess_amount", 0.0)
+                                    set("updated_at", batchTimestamp)
+                                }) { filter { isIn("id", otherRowIds) } }
+                            }
                         } else {
                             DeclareDatabase.transactionPayorsTable.insert(
                                 TransactionPayorInsert(
@@ -485,7 +505,8 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
                                     excessAmount = excess,
                                     transactionItemsId = null,
                                     status = status,
-                                    paidTo = paidTo
+                                    paidTo = paidTo,
+                                    updatedAt = batchTimestamp
                                 )
                             )
                         }
@@ -494,12 +515,23 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
 
                 // Update receivers' excess_amount
                 receiverTotals.forEach { (receiverId, amountReceived) ->
-                    val existingReceiverRow = transaction.rawPayorRows.firstOrNull { it.userId == receiverId }
-                    if (existingReceiverRow != null) {
+                    val userRows = transaction.rawPayorRows.filter { it.userId == receiverId }
+                    val leadRow = userRows.firstOrNull { it.transactionItemsId == null } ?: userRows.firstOrNull()
+                    if (leadRow != null) {
+                        val totalExcess = userRows.map { it.excessAmount }.maxOrNull() ?: 0.0
                         withContext(Dispatchers.IO) {
                             DeclareDatabase.transactionPayorsTable.update({
-                                set("excess_amount", existingReceiverRow.excessAmount - amountReceived)
-                            }) { filter { eq("transaction_id", id); eq("user_id", receiverId) } }
+                                set("excess_amount", totalExcess - amountReceived)
+                                set("updated_at", batchTimestamp)
+                            }) { filter { eq("id", leadRow.id!!) } }
+
+                            val otherRowIds = userRows.mapNotNull { it.id }.filter { it != leadRow.id }
+                            if (otherRowIds.isNotEmpty()) {
+                                DeclareDatabase.transactionPayorsTable.update({
+                                    set("excess_amount", 0.0)
+                                    set("updated_at", batchTimestamp)
+                                }) { filter { isIn("id", otherRowIds) } }
+                            }
                         }
                     }
                 }
@@ -569,11 +601,12 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
         val userOwedMap = tx.rawSplitRows.groupBy { it.userId }.mapValues { it.value.sumOf { s -> s.amount } }
         return (tx.payorUserIds ?: emptyList()).mapIndexedNotNull { index, uid ->
             val userId = uid?.toLongOrNull() ?: return@mapIndexedNotNull null
-            val existingRow = tx.rawPayorRows.firstOrNull { it.userId == userId }
+            val userRows = tx.rawPayorRows.filter { it.userId == userId }
+            val totalInitial = userRows.sumOf { it.initialAmountPaid }
             val owed = userOwedMap[userId] ?: 0.0
             val paid = amounts.getOrElse(index) { 0.0 }
-            val effectivePaid = if (existingRow != null && existingRow.initialAmountPaid >= owed - epsilon) {
-                existingRow.initialAmountPaid
+            val effectivePaid = if (userRows.isNotEmpty() && totalInitial >= owed - epsilon) {
+                totalInitial
             } else {
                 paid
             }
@@ -743,12 +776,9 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
             val userId = uid?.toLongOrNull()
             val paid = amounts.getOrElse(index) { 0.0 }
             val owed = userOwedMap[userId] ?: 0.0
-            val userRows = tx.rawPayorRows.filter { it.userId == userId }
             when {
                 paid >= owed - epsilon && owed > epsilon -> 1
-                userRows.isEmpty() -> 0
-                userRows.all { it.status == 1 } -> 1
-                userRows.any { it.currentAmountPaid > 0 } -> 2
+                paid > epsilon -> 2
                 else -> 0
             }
         }.toMutableList()
@@ -762,20 +792,21 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
             val name = tx.payorsList?.getOrNull(position) ?: "User"
             val userId = tx.payorUserIds?.getOrNull(position)
             val uidLong = userId?.toLongOrNull()
+            val userRows = tx.rawPayorRows.filter { it.userId == uidLong }
             val owed = userOwedMap[uidLong] ?: 0.0
             val paid = amounts.getOrElse(position) { 0.0 }
-            val existingRow = uidLong?.let { uid -> tx.rawPayorRows.firstOrNull { it.userId == uid } }
-            val effectivePaid = if (existingRow != null && existingRow.initialAmountPaid >= owed - epsilon) {
-                existingRow.initialAmountPaid
+            val totalInitial = userRows.sumOf { it.initialAmountPaid }
+            val effectivePaid = if (userRows.isNotEmpty() && totalInitial >= owed - epsilon) {
+                totalInitial
             } else {
                 paid
             }
-            val excessAmount = existingRow?.excessAmount ?: 0.0
+            val totalExcess = userRows.map { it.excessAmount }.maxOrNull() ?: 0.0
 
             holder.nameTV.text = name
             holder.owedTV.text = "${CurrencyUtils.formatAmountWithCurrency(effectivePaid)} / ${CurrencyUtils.formatAmountWithCurrency(owed)}"
-            if (excessAmount > 0.0) {
-                holder.excessTV.text = "+${CurrencyUtils.formatAmountWithCurrency(excessAmount)}"
+            if (totalExcess > 0.0) {
+                holder.excessTV.text = "+${CurrencyUtils.formatAmountWithCurrency(totalExcess)}"
                 holder.excessTV.visibility = View.VISIBLE
             } else {
                 holder.excessTV.visibility = View.GONE

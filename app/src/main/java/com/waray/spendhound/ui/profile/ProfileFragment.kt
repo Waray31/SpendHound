@@ -117,6 +117,7 @@ class ProfileFragment : Fragment() {
     private var currentUserId: Long = -1L
     private var lastSeenCrewUpdate: Long = 0L
     private var lastSeenGroupsUpdate: Long = 0L
+    private var lastSeenTransactionUpdate: Long = 0L
     private var hasLoadedOnce = false
     private var isTabClickEnabled = true
 
@@ -197,6 +198,7 @@ class ProfileFragment : Fragment() {
         // Initialize update timestamps to current global values to avoid redundant refresh on first load
         lastSeenCrewUpdate = com.waray.spendhound.CrewState.lastUpdateTimestamp
         lastSeenGroupsUpdate = GroupsState.lastUpdateTimestamp
+        lastSeenTransactionUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
         // Apply cached StateFlow values synchronously — same frame, no coroutine gap
         // This is exactly why groups has no flash: its observer fires synchronously here
         applyCachedState()
@@ -373,8 +375,13 @@ class ProfileFragment : Fragment() {
         if (groupsNeedRefresh) {
             lastSeenGroupsUpdate = GroupsState.lastUpdateTimestamp
         }
+
+        val txNeedRefresh = com.waray.spendhound.TransactionState.lastUpdateTimestamp > lastSeenTransactionUpdate
+        if (txNeedRefresh) {
+            lastSeenTransactionUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
+        }
         
-        loadNicknameAndData(forceGroupsRefresh = groupsNeedRefresh)
+        loadNicknameAndData(forceGroupsRefresh = groupsNeedRefresh || txNeedRefresh)
     }
 
     private fun setupRecyclerView(view: View) {

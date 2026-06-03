@@ -99,10 +99,8 @@ class RecentTransactionAdapter(
 
         // Unread indicator logic
         if (transaction.isUnread) {
-            holder.unreadIndicator.visibility = View.VISIBLE
             holder.mainContent.setBackgroundResource(R.drawable.bg_unread_transaction)
         } else {
-            holder.unreadIndicator.visibility = View.GONE
             holder.mainContent.setBackgroundResource(0)
         }
 
@@ -306,10 +304,12 @@ class RecentTransactionAdapter(
                         
                         UserHelper.getUsernameById(payor.userId, object : UserHelper.UsernameCallback {
                             override fun onUsernameRetrieved(username: String?) {
-                                text = "${username ?: "Unknown"} - ${CurrencyUtils.formatAmountWithCurrency(payor.currentAmountPaid)}"
+                                val name = username ?: "Unknown"
+                                text = if (itemPayors.size == 1) name else "$name - ${CurrencyUtils.formatAmountWithCurrency(payor.currentAmountPaid)}"
                             }
                             override fun onError(error: String?) {
-                                text = "Unknown - ${CurrencyUtils.formatAmountWithCurrency(payor.currentAmountPaid)}"
+                                val name = "Unknown"
+                                text = if (itemPayors.size == 1) name else "$name - ${CurrencyUtils.formatAmountWithCurrency(payor.currentAmountPaid)}"
                             }
                         })
                     }
@@ -367,7 +367,6 @@ class RecentTransactionAdapter(
         val createdByTextView: TextView      = itemView.findViewById(R.id.createdByTextView)
         val payorsRecyclerView: RecyclerView = itemView.findViewById(R.id.payorsRecyclerView)
         val loadingOverlay: View             = itemView.findViewById(R.id.loadingOverlay_transaction)
-        val unreadIndicator: View            = itemView.findViewById(R.id.unreadIndicator)
         val archivedBadge: TextView          = itemView.findViewById(R.id.archivedBadge)
         val onGroupLabel: TextView           = itemView.findViewById(R.id.onGroupLabel)
         val expandedGroupName: TextView      = itemView.findViewById(R.id.expandedGroupName)

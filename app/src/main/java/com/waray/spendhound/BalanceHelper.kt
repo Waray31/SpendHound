@@ -17,7 +17,7 @@ object BalanceHelper {
 
     /**
      * Recalculates and upserts the user_balance row for the given user
-     * by aggregating transaction_splits and transaction_payors.
+     * by aggregating transaction_splits and transaction_payors with per-person netting.
      * Call this after any transaction or settlement change.
      */
     suspend fun refreshUserBalance(userId: Long) {
@@ -27,54 +27,64 @@ object BalanceHelper {
             val allPayors = DeclareDatabase.transactionPayorsTable
                 .select().decodeList<TransactionPayorTable>()
 
-            val userSplitsByTx = allSplits.filter { it.userId == userId }.groupBy { it.transactionId }
-            val userPayorsByTx = allPayors.filter { it.userId == userId }.groupBy { it.transactionId }
-            val involvedTxIds = (userSplitsByTx.keys + userPayorsByTx.keys).toSet()
-
-            var youOwe = 0.0
-            var youreOwed = 0.0
-
-            // What the current user still owes
-            for (txId in involvedTxIds) {
-                val owed = userSplitsByTx[txId]?.sumOf { it.amount } ?: 0.0
-                val paid = userPayorsByTx[txId]?.sumOf { it.currentAmountPaid } ?: 0.0
-                if (paid < owed) youOwe += (owed - paid)
-            }
-
-            val payorsByTx = allPayors.groupBy { it.transactionId }
             val splitsByTx = allSplits.groupBy { it.transactionId }
+            val payorsByTx = allPayors.groupBy { it.transactionId }
+            val involvedTxIds = (splitsByTx.keys + payorsByTx.keys).toSet()
+
+            val netBalancesWithOthers = mutableMapOf<Long, Double>()
+
             for (txId in involvedTxIds) {
                 val splits = splitsByTx[txId] ?: continue
                 val payors = payorsByTx[txId] ?: emptyList()
-                youreOwed += calculateReceivableForUser(userId, splits, payors)
+
+                val transfers = calculateTransfersForTransaction(splits, payors)
+                for (transfer in transfers) {
+                    if (transfer.to == userId) {
+                        netBalancesWithOthers[transfer.from] = (netBalancesWithOthers[transfer.from] ?: 0.0) + transfer.amount
+                    } else if (transfer.from == userId) {
+                        netBalancesWithOthers[transfer.to] = (netBalancesWithOthers[transfer.to] ?: 0.0) - transfer.amount
+                    }
+                }
+            }
+
+            var totalNetReceivable = 0.0
+            var totalNetDebt = 0.0
+
+            for (balance in netBalancesWithOthers.values) {
+                if (balance > 0.01) {
+                    totalNetReceivable += balance
+                } else if (balance < -0.01) {
+                    totalNetDebt += -balance
+                }
             }
 
             val data = buildJsonObject {
                 put("user_id", userId)
-                put("unpaid_total_group", youOwe)
-                put("receivable_total_group", youreOwed)
-                put("balance_total_group", youreOwed - youOwe)
+                put("unpaid_total_group", totalNetDebt)
+                put("receivable_total_group", totalNetReceivable)
+                put("balance_total_group", totalNetReceivable - totalNetDebt)
                 put("unpaid_total_individual", 0.0)
                 put("receivable_total_individual", 0.0)
                 put("balance_total_individual", 0.0)
             }
             DeclareDatabase.userBalanceTable.upsert(data)
-            Log.d(TAG, "user_balance refreshed for user $userId: owe=$youOwe, owed=$youreOwed")
+            Log.d(TAG, "user_balance refreshed for user $userId: owe=$totalNetDebt, owed=$totalNetReceivable")
         } catch (e: Exception) {
             Log.e(TAG, "Failed to refresh user_balance: ${e.message}")
         }
     }
 
-    private fun calculateReceivableForUser(
-        userId: Long,
+    data class Transfer(val from: Long, val to: Long, val amount: Double)
+
+    private fun calculateTransfersForTransaction(
         splits: List<TransactionSplitTable>,
         payors: List<TransactionPayorTable>
-    ): Double {
+    ): List<Transfer> {
         val splitsByUser = splits.groupBy { it.userId }
         val payorsByUser = payors.groupBy { it.userId }
         val participantIds = (splitsByUser.keys + payorsByUser.keys).toSet()
 
-        if (participantIds.isEmpty()) return 0.0
+        if (participantIds.isEmpty()) return emptyList()
 
         data class ParticipantBalance(val userId: Long, var amount: Double)
 
@@ -100,24 +110,21 @@ object BalanceHelper {
             }
         }
 
-        var receivable = 0.0
+        val transfers = mutableListOf<Transfer>()
         while (creditors.isNotEmpty() && debtors.isNotEmpty()) {
             val creditor = creditors.first()
             val debtor = debtors.first()
-            val transfer = minOf(creditor.amount, debtor.amount)
+            val transferAmount = minOf(creditor.amount, debtor.amount)
 
-            if (creditor.userId == userId) {
-                receivable += transfer
-            }
+            transfers.add(Transfer(debtor.userId, creditor.userId, transferAmount))
 
-            creditor.amount -= transfer
-            debtor.amount -= transfer
+            creditor.amount -= transferAmount
+            debtor.amount -= transferAmount
 
             if (creditor.amount < 0.01) creditors.removeFirst()
             if (debtor.amount < 0.01) debtors.removeFirst()
         }
-
-        return receivable
+        return transfers
     }
 
     fun initializeBalancesForNewUser(userId: String?, callback: BalanceCallback?) {

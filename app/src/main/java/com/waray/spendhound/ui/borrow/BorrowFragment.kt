@@ -75,6 +75,8 @@ class BorrowFragment : Fragment() {
 
     private var customDateActive = false
 
+    private var lastSeenUpdate: Long = 0L
+
     private val viewModel: BorrowViewModel by viewModels()
 
     @SuppressLint("MissingInflatedId")
@@ -115,6 +117,7 @@ class BorrowFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
         resolveUserThenLoad()
         observeViewModel()
     }
@@ -153,9 +156,15 @@ class BorrowFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        // Only re-fetches from network if stale (5 min)
-        currentUserNumericId?.let { viewModel.load(it) }
-            ?: resolveUserThenLoad()
+        val needsRefresh = com.waray.spendhound.TransactionState.lastUpdateTimestamp > lastSeenUpdate
+        if (needsRefresh) {
+            lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
+        }
+        
+        currentUserNumericId?.let { 
+            if (needsRefresh) viewModel.invalidate(it)
+            else viewModel.load(it)
+        } ?: resolveUserThenLoad()
     }
 
     internal fun applyFilters(forceSkeleton: Boolean = false) {

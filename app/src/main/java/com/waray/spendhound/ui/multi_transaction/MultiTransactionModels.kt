@@ -105,7 +105,8 @@ data class TransactionPayorInsert(
     @SerialName("excess_amount")          val excessAmount: Double,
     @SerialName("transaction_items_id")   val transactionItemsId: Long?,
     @SerialName("status")                 val status: Int,
-    @SerialName("paid_to")                val paidTo: Long? = null
+    @SerialName("paid_to")                val paidTo: Long? = null,
+    @SerialName("updated_at")             val updatedAt: String? = null
 )
 
 /** SELECT */
@@ -121,7 +122,8 @@ data class TransactionPayorTable(
     @SerialName("created_at")             val createdAt: String? = null,
     @SerialName("transaction_items_id")   val transactionItemsId: Long? = null,
     @SerialName("status")                 val status: Int = 0,
-    @SerialName("paid_to")                val paidTo: Long? = null
+    @SerialName("paid_to")                val paidTo: Long? = null,
+    @SerialName("updated_at")             val updatedAt: String? = null
 )
 
 /** UPDATE - for editing payment amounts */
@@ -131,7 +133,8 @@ data class TransactionPayorUpdate(
     @SerialName("current_amount_paid")    val currentAmountPaid: Double,
     @SerialName("excess_amount")          val excessAmount: Double,
     @SerialName("status")                 val status: Int,
-    @SerialName("paid_to")                val paidTo: Long? = null
+    @SerialName("paid_to")                val paidTo: Long? = null,
+    @SerialName("updated_at")             val updatedAt: String? = null
 )
 
 /** UPDATE - for excess and status only */

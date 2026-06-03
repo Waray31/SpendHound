@@ -9,6 +9,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageButton
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
@@ -47,6 +48,7 @@ import io.github.jan.supabase.postgrest.query.Order
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
+import kotlin.math.abs
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -69,6 +71,10 @@ class HomeFragment : Fragment() {
 
     private var youOweAmountTV: TextView? = null
     private var youreOwedAmountTV: TextView? = null
+    private var netBalanceLayout: LinearLayout? = null
+    private var netBalanceLabel: TextView? = null
+    private var netBalanceAmount: TextView? = null
+    private var netBalanceIcon: ImageView? = null
 
     private var transactionListRecycler: RecyclerView? = null
     private var recentEmptyState: LinearLayout? = null
@@ -154,6 +160,7 @@ class HomeFragment : Fragment() {
             binding?.totalMonthSpends?.text = CurrencyUtils.formatAmountWithCurrency(data.totalMonthSpends)
             youOweAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(data.youOweAmount)
             youreOwedAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(data.youreOwedAmount)
+            updateNetBalanceUI(data.netBalance)
             (activity as? MainActivity)?.totalMonthSpends = data.totalMonthSpends
             updateMonthChangeText(data.totalMonthSpends, data.lastMonthTotal)
             hasLoadedOnce = true
@@ -182,6 +189,7 @@ class HomeFragment : Fragment() {
                 if (binding?.totalMonthSpends?.text != newSpend) binding?.totalMonthSpends?.text = newSpend
                 if (youOweAmountTV?.text != newOwe) youOweAmountTV?.text = newOwe
                 if (youreOwedAmountTV?.text != newOwed) youreOwedAmountTV?.text = newOwed
+                updateNetBalanceUI(data.netBalance)
                 (activity as? MainActivity)?.totalMonthSpends = data.totalMonthSpends
                 updateMonthChangeText(data.totalMonthSpends, data.lastMonthTotal)
             }
@@ -280,6 +288,30 @@ class HomeFragment : Fragment() {
         hasLoadedOnce = true
         scrollView?.post { scrollView.scrollTo(0, scrollY) }
         pullToRefreshHelper?.stopRefreshing()
+    }
+
+    private fun updateNetBalanceUI(netBalance: Double) {
+        if (abs(netBalance) < 0.01) {
+            netBalanceLayout?.visibility = View.GONE
+            return
+        }
+
+        netBalanceLayout?.visibility = View.VISIBLE
+        netBalanceAmount?.text = CurrencyUtils.formatAmountWithCurrency(abs(netBalance))
+        
+        if (netBalance < 0) {
+            // Net Debt
+            netBalanceLabel?.text = getString(R.string.label_net_debt).uppercase()
+            netBalanceAmount?.setTextColor(ContextCompat.getColor(requireContext(), R.color.orange))
+            netBalanceIcon?.setImageResource(R.drawable.ic_you_owe)
+            netBalanceIcon?.backgroundTintList = android.content.res.ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.orange))
+        } else {
+            // Net Receivable
+            netBalanceLabel?.text = getString(R.string.label_net_receivable).uppercase()
+            netBalanceAmount?.setTextColor(ContextCompat.getColor(requireContext(), R.color.green))
+            netBalanceIcon?.setImageResource(R.drawable.ic_youre_owed)
+            netBalanceIcon?.backgroundTintList = android.content.res.ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.green))
+        }
     }
 
     private fun updateMonthChangeText(currentTotal: Double, lastMonthTotal: Double) {
