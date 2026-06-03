@@ -20,6 +20,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import androidx.viewpager2.widget.ViewPager2
 import com.github.mikephil.charting.charts.LineChart
 import com.github.mikephil.charting.components.XAxis
 import com.github.mikephil.charting.data.Entry
@@ -93,6 +94,8 @@ class HomeFragment : Fragment() {
     private var lastSeenUpdate: Long = 0L
 
     private val viewModel: HomeViewModel by viewModels()
+    private var cardAdapter: CardStackAdapter? = null
+    private var currentGroupStates: List<HomeGroupState> = emptyList()
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -100,7 +103,6 @@ class HomeFragment : Fragment() {
     ): View {
         binding = FragmentHomeBinding.inflate(inflater, container, false)
         val view = binding!!.root
-        Log.d("TEST", "App started");
 
         mAuth = DeclareDatabase.auth
 
@@ -136,6 +138,7 @@ class HomeFragment : Fragment() {
             }
         })
 
+        setupViewPager()
         initializeCurrentWeekStart()
         setupToggleListeners()
         setupNavigationListeners()
@@ -147,60 +150,107 @@ class HomeFragment : Fragment() {
         return view
     }
 
+    private fun setupViewPager() {
+        cardAdapter = CardStackAdapter()
+        binding?.spendingCardViewPager?.apply {
+            adapter = cardAdapter
+            offscreenPageLimit = 5
+            setPageTransformer(StackedPageTransformer())
+            registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
+                override fun onPageSelected(position: Int) {
+                    if (currentGroupStates.isNotEmpty()) {
+                        val state = currentGroupStates[position % currentGroupStates.size]
+                        updateUIForState(state)
+                    }
+                }
+            })
+        }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
-        applyCachedState()
+        
+        // Start loading user and data as soon as view is created
+        val authId = mAuth?.currentUserOrNull()?.id
+        if (authId != null) {
+            viewLifecycleOwner.lifecycleScope.launch {
+                val user = withContext(Dispatchers.IO) {
+                    DeclareDatabase.usersTable.select(Columns.list("username", "user_id")) {
+                        filter { eq("auth_id", authId) }
+                    }.decodeSingleOrNull<User>()
+                }
+                if (user != null) {
+                    currentUserNumericId = user.id
+                    (activity as? MainActivity)?.currentNickname = user.username
+                    (activity as? MainActivity)?.currentUserNumericId = user.id
+                    user.id?.let { viewModel.load(it) }
+                }
+            }
+        }
+        
         observeViewModel()
-    }
-
-    // Reads StateFlow.value synchronously — zero coroutine gap, same frame as layout
-    private fun applyCachedState() {
-        viewModel.homeData.value?.let { data ->
-            binding?.totalMonthSpends?.text = CurrencyUtils.formatAmountWithCurrency(data.totalMonthSpends)
-            youOweAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(data.youOweAmount)
-            youreOwedAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(data.youreOwedAmount)
-            updateNetBalanceUI(data.netBalance)
-            (activity as? MainActivity)?.totalMonthSpends = data.totalMonthSpends
-            updateMonthChangeText(data.totalMonthSpends, data.lastMonthTotal)
-            hasLoadedOnce = true
-        }
-        val cachedTx = viewModel.recentTransactions.value
-        if (cachedTx.isNotEmpty()) {
-            recentTransactionList.clear()
-            recentTransactionList.addAll(cachedTx)
-            recentAdapter?.notifyDataSetChanged()
-            context?.let { recentAdapter?.preloadAllImages(it) }
-            recentEmptyState?.visibility = View.GONE
-            transactionListRecycler?.visibility = View.VISIBLE
-            hideLoading()
-            hasLoadedOnce = true
-        }
     }
 
     private fun observeViewModel() {
         viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.homeData.collectLatest { data ->
-                data ?: return@collectLatest
-                // Silent update — only write to views if value actually changed
-                val newSpend = CurrencyUtils.formatAmountWithCurrency(data.totalMonthSpends)
-                val newOwe = CurrencyUtils.formatAmountWithCurrency(data.youOweAmount)
-                val newOwed = CurrencyUtils.formatAmountWithCurrency(data.youreOwedAmount)
-                if (binding?.totalMonthSpends?.text != newSpend) binding?.totalMonthSpends?.text = newSpend
-                if (youOweAmountTV?.text != newOwe) youOweAmountTV?.text = newOwe
-                if (youreOwedAmountTV?.text != newOwed) youreOwedAmountTV?.text = newOwed
-                updateNetBalanceUI(data.netBalance)
-                (activity as? MainActivity)?.totalMonthSpends = data.totalMonthSpends
-                updateMonthChangeText(data.totalMonthSpends, data.lastMonthTotal)
+            viewModel.groupStates.collectLatest { states ->
+                if (states.isEmpty()) return@collectLatest
+                
+                val pager = binding?.spendingCardViewPager ?: return@collectLatest
+                val isFirstLoad = currentGroupStates.isEmpty()
+                
+                currentGroupStates = states
+                cardAdapter?.submitList(states)
+                
+                if (isFirstLoad) {
+                    val startPos = 1000 - (1000 % states.size)
+                    pager.setCurrentItem(startPos, false)
+                    updateUIForState(states[0])
+                } else {
+                    val currentItem = pager.currentItem
+                    updateUIForState(states[currentItem % states.size])
+                }
+                
+                // Crucial: Re-trigger the transformer on every data update or revisit
+                // This fixes the "disappearing cards until swipe" issue in ViewPager2
+                pager.post {
+                    pager.requestLayout()
+                    pager.invalidate()
+                    
+                    // Re-setting the transformer forces it to evaluate all visible pages immediately
+                    pager.setPageTransformer(null)
+                    pager.setPageTransformer(StackedPageTransformer())
+                    
+                    // A tiny fake drag also helps kick the rendering engine
+                    if (!pager.isFakeDragging) {
+                        try {
+                            pager.beginFakeDrag()
+                            pager.fakeDragBy(-0.1f) // Tiny nudge
+                            pager.fakeDragBy(0.1f)  // Back to center
+                            pager.endFakeDrag()
+                        } catch (e: Exception) {
+                            Log.e("HomeFragment", "Fake drag sync failed", e)
+                        }
+                    }
+                }
+                hasLoadedOnce = true
             }
         }
-        viewLifecycleOwner.lifecycleScope.launch {
-            viewModel.recentTransactions.collectLatest { list ->
-                // If we already have cached data and fresh list is empty, do nothing
-                if (list.isEmpty() && hasLoadedOnce) return@collectLatest
-                updateRecentTransactionsUI(list)
-            }
+    }
+
+    private fun updateUIForState(state: HomeGroupState) {
+        state.homeData?.let { data ->
+            youOweAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(data.youOweAmount)
+            youreOwedAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(data.youreOwedAmount)
+            updateNetBalanceUI(data.netBalance)
+            (activity as? MainActivity)?.totalMonthSpends = data.totalMonthSpends
         }
+        
+        updateRecentTransactionsUI(state.recentTransactions)
+        updateWeeklyChartUI(state.weeklyTotals)
+        
+        if (!isWeeklyMode) fetchMonthlyChartData(state.groupId)
     }
 
     private fun setupSwipeRefresh(view: View) {
@@ -215,39 +265,13 @@ class HomeFragment : Fragment() {
         val needsRefresh = com.waray.spendhound.TransactionState.lastUpdateTimestamp > lastSeenUpdate
         if (needsRefresh) {
             lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
-        }
-
-        val authId = mAuth?.currentUserOrNull()?.id ?: return
-        // Resolve userId then load — only fetches network if stale
-        if (currentUserNumericId != null) {
-            if (needsRefresh) viewModel.invalidate(currentUserNumericId!!)
-            else viewModel.load(currentUserNumericId!!)
-            refreshAnalytics()
-        } else {
-            viewLifecycleOwner.lifecycleScope.launch {
-                val user = withContext(Dispatchers.IO) {
-                    DeclareDatabase.usersTable.select(Columns.list("username", "user_id")) {
-                        filter { eq("auth_id", authId) }
-                    }.decodeSingleOrNull<User>()
-                }
-                if (user != null) {
-                    currentUserNumericId = user.id
-                    (activity as? MainActivity)?.currentNickname = user.username
-                    (activity as? MainActivity)?.currentUserNumericId = user.id
-                    user.id?.let {
-                        if (needsRefresh) viewModel.invalidate(it)
-                        else viewModel.load(it)
-                        refreshAnalytics()
-                    }
-                }
-            }
+            currentUserNumericId?.let { viewModel.invalidate(it) }
         }
     }
 
     internal fun refreshAllData() {
         val userId = currentUserNumericId ?: return
         viewModel.invalidate(userId)
-        refreshAnalytics()
         pullToRefreshHelper?.stopRefreshing()
     }
 
@@ -256,21 +280,12 @@ class HomeFragment : Fragment() {
         viewModel.invalidate(userId)
     }
 
-    private fun refreshAnalytics() {
-        val mainActivity = activity as? MainActivity ?: return
-        mainActivity.getEverydaySpends {
-            activity?.runOnUiThread { updateWeeklyChartUI() }
-        }
-        if (!isWeeklyMode) loadMonthlyChartData()
-    }
-
     @SuppressLint("NotifyDataSetChanged")
     private fun updateRecentTransactionsUI(list: List<RecentTransaction>) {
         if (list.isEmpty() && recentTransactionList.isEmpty()) {
             if (!hasLoadedOnce) showLoading()
             return
         }
-        // Preserve scroll position so background refresh doesn't jump the user
         val scrollView = binding?.homeNestedScrollView
         val scrollY = scrollView?.scrollY ?: 0
         recentTransactionList.clear()
@@ -300,13 +315,11 @@ class HomeFragment : Fragment() {
         netBalanceAmount?.text = CurrencyUtils.formatAmountWithCurrency(abs(netBalance))
         
         if (netBalance < 0) {
-            // Net Debt
             netBalanceLabel?.text = getString(R.string.label_net_debt).uppercase()
             netBalanceAmount?.setTextColor(ContextCompat.getColor(requireContext(), R.color.orange))
             netBalanceIcon?.setImageResource(R.drawable.ic_you_owe)
             netBalanceIcon?.backgroundTintList = android.content.res.ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.orange))
         } else {
-            // Net Receivable
             netBalanceLabel?.text = getString(R.string.label_net_receivable).uppercase()
             netBalanceAmount?.setTextColor(ContextCompat.getColor(requireContext(), R.color.green))
             netBalanceIcon?.setImageResource(R.drawable.ic_youre_owed)
@@ -314,40 +327,19 @@ class HomeFragment : Fragment() {
         }
     }
 
-    private fun updateMonthChangeText(currentTotal: Double, lastMonthTotal: Double) {
-        val (label, arrowColor, arrow) = when {
-            lastMonthTotal == 0.0 && currentTotal == 0.0 -> Triple("● No data yet", "#FFFFFF", "●")
-            lastMonthTotal == 0.0 -> Triple("● No data from last month", "#FFFFFF", "●")
-            currentTotal == lastMonthTotal -> Triple("● No change from last month", "#FFFFFF", "●")
-            else -> {
-                val pct = ((currentTotal - lastMonthTotal) / lastMonthTotal * 100).toInt()
-                if (currentTotal > lastMonthTotal)
-                    Triple("↑ +$pct% from last month", "#FF4444", "↑")
-                else
-                    Triple("↓ ${pct}% from last month", "#00CC66", "↓")
-            }
-        }
-        val spannable = android.text.SpannableString(label)
-        spannable.setSpan(android.text.style.ForegroundColorSpan(Color.parseColor(arrowColor)), 0, arrow.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-        spannable.setSpan(android.text.style.ForegroundColorSpan(Color.parseColor("#FFFFFF")), arrow.length, label.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
-        binding?.monthChangeText?.text = spannable
-    }
-
-    private fun updateWeeklyChartUI(dailyTotals: DoubleArray? = null) {
-        val mainActivity = activity as? MainActivity ?: return
+    private fun updateWeeklyChartUI(dailyTotals: DoubleArray) {
         val b = binding ?: return
-        val totals = dailyTotals ?: mainActivity.dailyTotals
-        if (dailyTotals == null) cachedDailyTotals = totals.copyOf()
+        cachedDailyTotals = dailyTotals.copyOf()
 
         val maxHeightDp = 120.0
         val minHeightDp = 10.0
-        val maxAmount = 2000.0
+        val maxAmount = (dailyTotals.maxOrNull() ?: 2000.0).coerceAtLeast(2000.0)
 
         val totalTextViews = arrayOf(b.totalday7, b.totalday6, b.totalday5, b.totalday4, b.totalday3, b.totalday2, b.totalday1)
         val barViews = arrayOf(b.day7Bar, b.day6Bar, b.day5Bar, b.day4Bar, b.day3Bar, b.day2Bar, b.day1Bar)
 
         for (i in 0..6) {
-            val amount = totals[i]
+            val amount = dailyTotals[i]
             totalTextViews[i].text = if (amount > 0) String.format("%,d", Math.round(amount)) else "0"
             if (amount > 0) {
                 totalTextViews[i].setTextColor(Color.parseColor("#FFBA08"))
@@ -387,12 +379,8 @@ class HomeFragment : Fragment() {
                 updateToggleUI()
                 updateDateRangeDisplay()
                 showWeeklyChart()
-                if (cachedDailyTotals != null) {
-                    updateWeeklyChartUI(cachedDailyTotals!!)
-                    refreshWeeklyData(false)
-                } else {
-                    refreshWeeklyData(true)
-                }
+                val currentPos = binding?.spendingCardViewPager?.currentItem ?: 0
+                if (currentPos < currentGroupStates.size) updateWeeklyChartUI(currentGroupStates[currentPos].weeklyTotals)
             }
         }
         btnMonthly?.setOnClickListener {
@@ -401,12 +389,8 @@ class HomeFragment : Fragment() {
                 updateToggleUI()
                 updateDateRangeDisplay()
                 showMonthlyChart()
-                if (cachedMonthlyEntries != null && cachedMonthlyLabels != null) {
-                    setupLineChart(cachedMonthlyEntries!!, cachedMonthlyLabels!!)
-                    loadMonthlyChartData(false)
-                } else {
-                    loadMonthlyChartData(true)
-                }
+                val currentPos = binding?.spendingCardViewPager?.currentItem ?: 0
+                if (currentPos < currentGroupStates.size) fetchMonthlyChartData(currentGroupStates[currentPos].groupId)
             }
         }
     }
@@ -427,13 +411,13 @@ class HomeFragment : Fragment() {
 
     private fun setupNavigationListeners() {
         btnPrevious?.setOnClickListener {
-            if (isWeeklyMode) { currentWeekStart.add(Calendar.WEEK_OF_YEAR, -1); cachedDailyTotals = null }
+            if (isWeeklyMode) { currentWeekStart.add(Calendar.WEEK_OF_YEAR, -1) }
             else { currentMonth.add(Calendar.MONTH, -1); cachedMonthlyEntries = null; cachedMonthlyLabels = null }
             updateDateRangeDisplay()
             refreshData()
         }
         btnNext?.setOnClickListener {
-            if (isWeeklyMode) { currentWeekStart.add(Calendar.WEEK_OF_YEAR, 1); cachedDailyTotals = null }
+            if (isWeeklyMode) { currentWeekStart.add(Calendar.WEEK_OF_YEAR, 1) }
             else { currentMonth.add(Calendar.MONTH, 1); cachedMonthlyEntries = null; cachedMonthlyLabels = null }
             updateDateRangeDisplay()
             refreshData()
@@ -453,15 +437,47 @@ class HomeFragment : Fragment() {
     }
 
     private fun refreshData() {
-        if (isWeeklyMode) refreshWeeklyData() else loadMonthlyChartData()
+        val currentPos = binding?.spendingCardViewPager?.currentItem ?: 0
+        val groupId = if (currentPos < currentGroupStates.size) currentGroupStates[currentPos].groupId else null
+        if (isWeeklyMode) refreshWeeklyData(groupId) else fetchMonthlyChartData(groupId)
     }
 
-    private fun refreshWeeklyData(showSkeleton: Boolean = true) {
-        val mainActivity = activity as? MainActivity ?: return
-        mainActivity.getEverydaySpendsForWeek(currentWeekStart) {
-            activity?.runOnUiThread { updateWeeklyChartUI() }
+    private fun refreshWeeklyData(groupId: Long?) {
+        val userId = currentUserNumericId ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val totals = calculateWeeklyTotalsForRange(userId, groupId, currentWeekStart)
+            activity?.runOnUiThread { updateWeeklyChartUI(totals) }
         }
         setTextViewsForWeek()
+    }
+
+    private suspend fun calculateWeeklyTotalsForRange(userId: Long, groupId: Long?, start: Calendar): DoubleArray = withContext(Dispatchers.IO) {
+        val weekStart = start.clone() as Calendar
+        val weekEnd = weekStart.clone() as Calendar
+        weekEnd.add(Calendar.DAY_OF_YEAR, 6)
+        weekEnd.set(Calendar.HOUR_OF_DAY, 23); weekEnd.set(Calendar.MINUTE, 59); weekEnd.set(Calendar.SECOND, 59)
+
+        try {
+            val allTransactions = DeclareDatabase.transactionsTable.select {
+                filter { if (groupId != null) eq("group_id", groupId) }
+            }.decodeList<TransactionFull>()
+            val allSplits = DeclareDatabase.transactionSplitsTable.select {
+                filter { eq("user_id", userId) }
+            }.decodeList<TransactionSplitTable>()
+            val userSplitsByTx = allSplits.groupBy { it.transactionId }
+            val totals = DoubleArray(7) { 0.0 }
+            val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+            for (tx in allTransactions) {
+                val txId = tx.id ?: continue
+                if (txId !in userSplitsByTx) continue
+                val timestamp = try { sdf.parse(tx.createdAt ?: "")?.time ?: 0L } catch (e: Exception) { 0L }
+                if (timestamp !in weekStart.timeInMillis..weekEnd.timeInMillis) continue
+                val transCal = Calendar.getInstance().apply { timeInMillis = timestamp }
+                val index = transCal.get(Calendar.DAY_OF_WEEK) - 1
+                totals[index] += userSplitsByTx[txId]?.sumOf { it.amount } ?: 0.0
+            }
+            totals
+        } catch (e: Exception) { DoubleArray(7) { 0.0 } }
     }
 
     private fun setTextViewsForWeek() {
@@ -496,9 +512,7 @@ class HomeFragment : Fragment() {
         monthlyLineChart?.visibility = View.VISIBLE
     }
 
-    private fun loadMonthlyChartData(showSkeleton: Boolean = true) { fetchMonthlyChartData() }
-
-    private fun fetchMonthlyChartData(showSkeleton: Boolean = true) {
+    private fun fetchMonthlyChartData(groupId: Long?) {
         val startOfMonth = currentMonth.clone() as Calendar
         startOfMonth.set(Calendar.DAY_OF_MONTH, 1)
         startOfMonth.set(Calendar.HOUR_OF_DAY, 0); startOfMonth.set(Calendar.MINUTE, 0)
@@ -515,7 +529,9 @@ class HomeFragment : Fragment() {
         lifecycleOwner.lifecycleScope.launch {
             try {
                 val allTransactions = withContext(Dispatchers.IO) {
-                    DeclareDatabase.transactionsTable.select().decodeList<TransactionFull>()
+                    DeclareDatabase.transactionsTable.select {
+                        filter { if (groupId != null) eq("group_id", groupId) }
+                    }.decodeList<TransactionFull>()
                 }
                 val allSplits = withContext(Dispatchers.IO) {
                     DeclareDatabase.transactionSplitsTable.select().decodeList<TransactionSplitTable>()
@@ -600,7 +616,6 @@ class HomeFragment : Fragment() {
     }
 
     private fun showLoading() {
-        // Only show skeleton on first-ever load — never flash it on revisit
         if (!hasLoadedOnce && recentTransactionList.isEmpty()) {
             rvSkeletonHome?.visibility = View.VISIBLE
             transactionListRecycler?.visibility = View.GONE
@@ -613,6 +628,131 @@ class HomeFragment : Fragment() {
         if (recentTransactionList.isNotEmpty()) {
             transactionListRecycler?.visibility = View.VISIBLE
             recentEmptyState?.visibility = View.GONE
+        }
+    }
+
+    // Inner classes for ViewPager2
+    private inner class CardStackAdapter : RecyclerView.Adapter<CardStackAdapter.ViewHolder>() {
+        private var items: List<HomeGroupState> = emptyList()
+
+        fun submitList(newItems: List<HomeGroupState>) {
+            items = newItems
+            notifyDataSetChanged()
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_spending_card, parent, false)
+            return ViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+            if (items.isEmpty()) return
+            holder.bind(items[position % items.size])
+            
+            // Explicitly trigger a requestLayout on the itemView to ensure it draws immediately
+            holder.itemView.post {
+                holder.itemView.requestLayout()
+            }
+        }
+
+        override fun getItemCount() = if (items.isEmpty()) 0 else 2000
+
+        inner class ViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+            val groupName: TextView = view.findViewById(R.id.groupName)
+            val totalMonthSpends: TextView = view.findViewById(R.id.totalMonthSpends)
+            val monthChangeText: TextView = view.findViewById(R.id.monthChangeText)
+
+            fun bind(state: HomeGroupState) {
+                groupName.text = state.groupName
+                
+                // Always set defaults or update based on state
+                totalMonthSpends.text = CurrencyUtils.formatAmountWithCurrency(state.homeData?.totalMonthSpends ?: 0.0)
+                updateMonthChangeTextInternal(
+                    monthChangeText, 
+                    state.homeData?.totalMonthSpends ?: 0.0, 
+                    state.homeData?.lastMonthTotal ?: 0.0
+                )
+                
+                // Ensure visibility
+                monthChangeText.visibility = View.VISIBLE
+            }
+
+            private fun updateMonthChangeTextInternal(view: TextView, currentTotal: Double, lastMonthTotal: Double) {
+                val (label, arrowColor, arrow) = when {
+                    lastMonthTotal == 0.0 && currentTotal == 0.0 -> Triple("● No data yet", "#FFFFFF", "●")
+                    lastMonthTotal == 0.0 -> Triple("● No data from last month", "#FFFFFF", "●")
+                    currentTotal == lastMonthTotal -> Triple("● No change from last month", "#FFFFFF", "●")
+                    else -> {
+                        val diff = currentTotal - lastMonthTotal
+                        val pct = (Math.abs(diff) / lastMonthTotal * 100).toInt()
+                        if (diff > 0)
+                            Triple("↑ +$pct% from last month", "#FF4444", "↑")
+                        else
+                            Triple("↓ -$pct% from last month", "#00CC66", "↓")
+                    }
+                }
+                val spannable = android.text.SpannableString(label)
+                spannable.setSpan(android.text.style.ForegroundColorSpan(Color.parseColor(arrowColor)), 0, arrow.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                spannable.setSpan(android.text.style.ForegroundColorSpan(Color.parseColor("#FFFFFF")), arrow.length, label.length, android.text.Spannable.SPAN_EXCLUSIVE_EXCLUSIVE)
+                view.text = spannable
+            }
+        }
+    }
+
+    private inner class StackedPageTransformer : ViewPager2.PageTransformer {
+        override fun transformPage(page: View, position: Float) {
+            val card = page.findViewById<View>(R.id.cardContainer) ?: return
+            val density = resources.displayMetrics.density
+            
+            // Show top card + 2 back cards = 3 total visible
+            val maxVisibleCards = 2f 
+            
+            when {
+                position < -1 -> { // Page is way off-screen to the left
+                    page.alpha = 0f
+                }
+                position <= 0 -> { // Page is swiping left (top card)
+                    page.alpha = 1f + position 
+                    page.translationX = 0f
+                    page.scaleX = 1f
+                    page.scaleY = 1f
+                    page.translationY = 0f
+                    page.elevation = 10f
+                }
+                position <= maxVisibleCards -> { // Page is in the visible "back" stack
+                    page.alpha = 1f
+                    
+                    val scaleFactor = 1.0f - (0.05f * position)
+                    page.scaleX = scaleFactor
+                    page.scaleY = scaleFactor
+                    
+                    page.elevation = 10f - position
+                    
+                    // Keep cards stacked by negating default translation
+                    page.translationX = -page.width * position
+                    
+                    // Diagonal offset (Up and Right)
+                    val offsetDp = 12 * position * density
+                    page.translationY = -offsetDp 
+                    page.translationX += offsetDp 
+                }
+                position <= maxVisibleCards + 1 -> { // Fading out the 4th card
+                    page.alpha = 1f - (position - maxVisibleCards)
+                    
+                    val scaleFactor = 1.0f - (0.05f * position)
+                    page.scaleX = scaleFactor
+                    page.scaleY = scaleFactor
+                    
+                    page.elevation = 10f - position
+                    page.translationX = -page.width * position
+                    val offsetDp = 12 * position * density
+                    page.translationY = -offsetDp 
+                    page.translationX += offsetDp 
+                }
+                else -> { // Hidden
+                    page.alpha = 0f
+                }
+            }
         }
     }
 }

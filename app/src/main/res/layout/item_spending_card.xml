@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <LinearLayout
+        android:id="@+id/cardContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="12dp"
+        android:background="@drawable/bg_spending_card"
+        android:elevation="4dp"
+        android:orientation="vertical"
+        android:padding="24dp">
+
+        <TextView
+            android:id="@+id/cardTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="↗  THIS MONTH'S SPENDING"
+            android:textColor="@color/whitest"
+            android:textSize="13sp" />
+
+        <TextView
+            android:id="@+id/groupName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:fontFamily="@font/montserratalternatess_regular"
+            android:text="All Spending"
+            android:textColor="@color/whitest"
+            android:textSize="11sp"
+            android:alpha="0.8" />
+
+        <TextView
+            android:id="@+id/totalMonthSpends"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:text="₱ 0"
+            android:textColor="@color/whitest"
+            android:textSize="52sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/monthChangeText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:background="@drawable/glassy_background3"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:paddingHorizontal="16dp"
+            android:paddingVertical="10dp"
+            android:text="● +0% from last month"
+            android:textColor="@color/white"
+            android:textSize="12sp" />
+
+    </LinearLayout>
+</LinearLayout>

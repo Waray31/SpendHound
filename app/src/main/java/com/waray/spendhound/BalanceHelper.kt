@@ -76,7 +76,7 @@ object BalanceHelper {
 
     data class Transfer(val from: Long, val to: Long, val amount: Double)
 
-    private fun calculateTransfersForTransaction(
+    fun calculateTransfersForTransaction(
         splits: List<TransactionSplitTable>,
         payors: List<TransactionPayorTable>
     ): List<Transfer> {

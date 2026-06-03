@@ -28,29 +28,37 @@ class TransactionRepository(private val db: AppDatabase) {
         type = typeOf<List<RecentTransaction>>()
     ) { fetchTransactions(userId, 200L) }
 
-    fun getRecentTransactions(userId: Long): Flow<List<RecentTransaction>> = db.cachedFlow(
-        key = CacheKeys.homeRecent(userId),
+    fun getRecentTransactions(userId: Long, groupId: Long? = null): Flow<List<RecentTransaction>> = db.cachedFlow(
+        key = CacheKeys.homeRecent(userId) + (groupId?.let { "_g$it" } ?: ""),
         staleTtlMs = CacheKeys.STALE_HOME,
         type = typeOf<List<RecentTransaction>>()
-    ) { fetchTransactions(userId, 5L) }
+    ) { fetchTransactions(userId, 5L, groupId) }
 
     suspend fun invalidate(userId: Long) {
         db.jsonBlobDao().delete(CacheKeys.transactions(userId))
         db.jsonBlobDao().delete(CacheKeys.homeRecent(userId))
+        // Note: Specific group caches will eventually expire or can be wiped by prefix if needed
     }
 
-    private suspend fun fetchTransactions(userId: Long, limit: Long): List<RecentTransaction> {
+    private suspend fun fetchTransactions(userId: Long, limit: Long, groupId: Long? = null): List<RecentTransaction> {
         val userSplits = DeclareDatabase.transactionSplitsTable.select {
-            filter { eq("user_id", userId) }
+            filter { 
+                eq("user_id", userId)
+            }
         }.decodeList<TransactionSplitTable>()
         val userPayors = DeclareDatabase.transactionPayorsTable.select {
-            filter { eq("user_id", userId) }
+            filter { 
+                eq("user_id", userId)
+            }
         }.decodeList<TransactionPayorTable>()
         val involvedIds = (userPayors.map { it.transactionId } + userSplits.map { it.transactionId }).toSet()
         if (involvedIds.isEmpty()) return emptyList()
 
         val txs = DeclareDatabase.transactionsTable.select {
-            filter { isIn("id", involvedIds.toList()) }
+            filter { 
+                isIn("id", involvedIds.toList()) 
+                if (groupId != null) eq("group_id", groupId)
+            }
             order("created_at", Order.DESCENDING)
             this.limit(limit)
         }.decodeList<TransactionFull>()
