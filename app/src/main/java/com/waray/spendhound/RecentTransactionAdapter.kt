@@ -125,9 +125,20 @@ class RecentTransactionAdapter(
                 holder.itemsTableHeader.visibility = View.GONE
                 holder.itemsTableContainer.visibility = View.GONE
                 holder.dividerBelowItems.visibility = View.GONE
+                
                 val desc = item.itemDescription?.takeIf { it.isNotBlank() }
+                val category = item.category?.takeIf { it.isNotBlank() }
+                
+                // If there's a custom description, show it.
+                // If no description but there's a category, and it's NOT the same as the title, show it.
+                // (Title usually IS the category for single items, so we check)
+                val title = holder.typeTextView.text.toString()
+                
                 if (desc != null) {
                     holder.tvSingleDescription.text = "Description: $desc"
+                    holder.tvSingleDescription.visibility = View.VISIBLE
+                } else if (category != null && category != title) {
+                    holder.tvSingleDescription.text = "Category: $category"
                     holder.tvSingleDescription.visibility = View.VISIBLE
                 } else {
                     holder.tvSingleDescription.visibility = View.GONE
@@ -279,7 +290,7 @@ class RecentTransactionAdapter(
         for (item in transaction.transactionItems) {
             val row = inflater.inflate(R.layout.item_transaction_item_row, holder.itemsTableContainer, false)
             
-            row.findViewById<TextView>(R.id.tvItemDescription).text = item.itemDescription?.takeIf { it.isNotBlank() } ?: "-"
+            row.findViewById<TextView>(R.id.tvItemDescription).text = item.itemDescription?.takeIf { it.isNotBlank() } ?: item.category ?: "-"
             
             val llPaidBy = row.findViewById<LinearLayout>(R.id.llItemPaidBy)
             llPaidBy.removeAllViews()
