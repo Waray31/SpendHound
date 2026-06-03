@@ -15,6 +15,7 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
@@ -93,7 +94,7 @@ class HomeFragment : Fragment() {
     private var hasLoadedOnce = false
     private var lastSeenUpdate: Long = 0L
 
-    private val viewModel: HomeViewModel by viewModels()
+    private val viewModel: HomeViewModel by activityViewModels()
     private var cardAdapter: CardStackAdapter? = null
     private var currentGroupStates: List<HomeGroupState> = emptyList()
 
@@ -152,10 +153,26 @@ class HomeFragment : Fragment() {
 
     private fun setupViewPager() {
         cardAdapter = CardStackAdapter()
+        
+        // Pre-populate if ViewModel already has data (for tab revisits)
+        val initialStates = viewModel.groupStates.value
+        if (initialStates.isNotEmpty()) {
+            cardAdapter?.submitList(initialStates)
+            currentGroupStates = initialStates
+        }
+
         binding?.spendingCardViewPager?.apply {
             adapter = cardAdapter
             offscreenPageLimit = 5
             setPageTransformer(StackedPageTransformer())
+            
+            if (initialStates.isNotEmpty()) {
+                val startPos = 1000 - (1000 % initialStates.size)
+                setCurrentItem(startPos, false)
+                // Force an immediate UI update for the bottom part
+                updateUIForState(initialStates[0])
+            }
+
             registerOnPageChangeCallback(object : ViewPager2.OnPageChangeCallback() {
                 override fun onPageSelected(position: Int) {
                     if (currentGroupStates.isNotEmpty()) {
@@ -171,7 +188,15 @@ class HomeFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         lastSeenUpdate = com.waray.spendhound.TransactionState.lastUpdateTimestamp
         
-        // Start loading user and data as soon as view is created
+        // Immediate load if cached ID exists to prevent blank screen
+        (activity as? MainActivity)?.currentUserNumericId?.let { cachedId ->
+            if (currentUserNumericId == null) {
+                currentUserNumericId = cachedId
+                viewModel.load(cachedId)
+            }
+        }
+
+        // Still check auth and update user info in background
         val authId = mAuth?.currentUserOrNull()?.id
         if (authId != null) {
             viewLifecycleOwner.lifecycleScope.launch {
@@ -181,10 +206,13 @@ class HomeFragment : Fragment() {
                     }.decodeSingleOrNull<User>()
                 }
                 if (user != null) {
+                    val isNewId = currentUserNumericId != user.id
                     currentUserNumericId = user.id
                     (activity as? MainActivity)?.currentNickname = user.username
                     (activity as? MainActivity)?.currentUserNumericId = user.id
-                    user.id?.let { viewModel.load(it) }
+                    if (isNewId) {
+                        user.id?.let { viewModel.load(it) }
+                    }
                 }
             }
         }
@@ -198,57 +226,60 @@ class HomeFragment : Fragment() {
                 if (states.isEmpty()) return@collectLatest
                 
                 val pager = binding?.spendingCardViewPager ?: return@collectLatest
-                val isFirstLoad = currentGroupStates.isEmpty()
+                val wasFragmentRecreated = currentGroupStates.isEmpty()
+                val sizeChanged = currentGroupStates.size != states.size
                 
-                currentGroupStates = states
-                cardAdapter?.submitList(states)
+                // If the list content is identical, skip update
+                if (!wasFragmentRecreated && currentGroupStates == states) return@collectLatest
                 
-                if (isFirstLoad) {
-                    val startPos = 1000 - (1000 % states.size)
-                    pager.setCurrentItem(startPos, false)
-                    updateUIForState(states[0])
-                } else {
-                    val currentItem = pager.currentItem
-                    updateUIForState(states[currentItem % states.size])
-                }
-                
-                // Crucial: Re-trigger the transformer on every data update or revisit
-                // This fixes the "disappearing cards until swipe" issue in ViewPager2
-                pager.post {
-                    pager.requestLayout()
-                    pager.invalidate()
+                if (wasFragmentRecreated || sizeChanged) {
+                    currentGroupStates = states
+                    cardAdapter?.submitList(states)
                     
-                    // Re-setting the transformer forces it to evaluate all visible pages immediately
-                    pager.setPageTransformer(null)
-                    pager.setPageTransformer(StackedPageTransformer())
-                    
-                    // A tiny fake drag also helps kick the rendering engine
-                    if (!pager.isFakeDragging) {
-                        try {
-                            pager.beginFakeDrag()
-                            pager.fakeDragBy(-0.1f) // Tiny nudge
-                            pager.fakeDragBy(0.1f)  // Back to center
-                            pager.endFakeDrag()
-                        } catch (e: Exception) {
-                            Log.e("HomeFragment", "Fake drag sync failed", e)
+                    pager.post {
+                        val currentPos = pager.currentItem
+                        val targetPos = 1000 - (1000 % states.size)
+                        
+                        // Only jump to center if we are at the wrong start position
+                        if (wasFragmentRecreated || Math.abs(currentPos - targetPos) > states.size) {
+                            pager.setCurrentItem(targetPos, false)
                         }
+                        updateUIForState(states[pager.currentItem % states.size])
+                        pager.requestLayout()
+                        pager.invalidate()
                     }
+                } else {
+                    currentGroupStates = states
+                    cardAdapter?.updateDataOnly(states)
+                    updateUIForState(states[pager.currentItem % states.size])
                 }
+                
                 hasLoadedOnce = true
             }
         }
     }
 
+    private var lastObservedState: HomeGroupState? = null
+
     private fun updateUIForState(state: HomeGroupState) {
+        // structural equality check to ensure silent update
+        if (lastObservedState == state && hasLoadedOnce) return
+        lastObservedState = state
+
         state.homeData?.let { data ->
             youOweAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(data.youOweAmount)
             youreOwedAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(data.youreOwedAmount)
             updateNetBalanceUI(data.netBalance)
             (activity as? MainActivity)?.totalMonthSpends = data.totalMonthSpends
+        } ?: run {
+            // Show placeholder/zero values if data is still loading
+            youOweAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(0.0)
+            youreOwedAmountTV?.text = CurrencyUtils.formatAmountWithCurrency(0.0)
+            updateNetBalanceUI(0.0)
         }
         
         updateRecentTransactionsUI(state.recentTransactions)
-        updateWeeklyChartUI(state.weeklyTotals)
+        updateWeeklyChartUI(state.weeklyTotals.toDoubleArray())
         
         if (!isWeeklyMode) fetchMonthlyChartData(state.groupId)
     }
@@ -286,6 +317,13 @@ class HomeFragment : Fragment() {
             if (!hasLoadedOnce) showLoading()
             return
         }
+        
+        // Prevent refresh if list content is identical
+        if (recentTransactionList == list) {
+            pullToRefreshHelper?.stopRefreshing()
+            return
+        }
+
         val scrollView = binding?.homeNestedScrollView
         val scrollY = scrollView?.scrollY ?: 0
         recentTransactionList.clear()
@@ -380,7 +418,7 @@ class HomeFragment : Fragment() {
                 updateDateRangeDisplay()
                 showWeeklyChart()
                 val currentPos = binding?.spendingCardViewPager?.currentItem ?: 0
-                if (currentPos < currentGroupStates.size) updateWeeklyChartUI(currentGroupStates[currentPos].weeklyTotals)
+                if (currentPos < currentGroupStates.size) updateWeeklyChartUI(currentGroupStates[currentPos].weeklyTotals.toDoubleArray())
             }
         }
         btnMonthly?.setOnClickListener {
@@ -640,6 +678,14 @@ class HomeFragment : Fragment() {
             notifyDataSetChanged()
         }
 
+        fun updateDataOnly(newItems: List<HomeGroupState>) {
+            items = newItems
+            // We don't call notifyDataSetChanged here because we'll update holders directly 
+            // if they are visible, or they'll be updated on rebind.
+            // For ViewPager2, it's often better to notify specifically if we know what changed.
+            notifyDataSetChanged() 
+        }
+
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
             val view = LayoutInflater.from(parent.context).inflate(R.layout.item_spending_card, parent, false)
             return ViewHolder(view)
@@ -649,7 +695,6 @@ class HomeFragment : Fragment() {
             if (items.isEmpty()) return
             holder.bind(items[position % items.size])
             
-            // Explicitly trigger a requestLayout on the itemView to ensure it draws immediately
             holder.itemView.post {
                 holder.itemView.requestLayout()
             }
@@ -701,17 +746,17 @@ class HomeFragment : Fragment() {
 
     private inner class StackedPageTransformer : ViewPager2.PageTransformer {
         override fun transformPage(page: View, position: Float) {
-            val card = page.findViewById<View>(R.id.cardContainer) ?: return
             val density = resources.displayMetrics.density
-            
-            // Show top card + 2 back cards = 3 total visible
             val maxVisibleCards = 2f 
             
+            // If width is not yet measured, we must still hide or stack pages to prevent "side display"
+            val width = if (page.width > 0) page.width.toFloat() else resources.displayMetrics.widthPixels.toFloat()
+
             when {
-                position < -1 -> { // Page is way off-screen to the left
+                position < -1 -> { 
                     page.alpha = 0f
                 }
-                position <= 0 -> { // Page is swiping left (top card)
+                position <= 0 -> { 
                     page.alpha = 1f + position 
                     page.translationX = 0f
                     page.scaleX = 1f
@@ -719,38 +764,20 @@ class HomeFragment : Fragment() {
                     page.translationY = 0f
                     page.elevation = 10f
                 }
-                position <= maxVisibleCards -> { // Page is in the visible "back" stack
+                position <= maxVisibleCards -> { 
                     page.alpha = 1f
-                    
                     val scaleFactor = 1.0f - (0.05f * position)
                     page.scaleX = scaleFactor
                     page.scaleY = scaleFactor
-                    
                     page.elevation = 10f - position
-                    
-                    // Keep cards stacked by negating default translation
-                    page.translationX = -page.width * position
-                    
-                    // Diagonal offset (Up and Right)
+                    page.translationX = -width * position
                     val offsetDp = 12 * position * density
                     page.translationY = -offsetDp 
                     page.translationX += offsetDp 
                 }
-                position <= maxVisibleCards + 1 -> { // Fading out the 4th card
-                    page.alpha = 1f - (position - maxVisibleCards)
-                    
-                    val scaleFactor = 1.0f - (0.05f * position)
-                    page.scaleX = scaleFactor
-                    page.scaleY = scaleFactor
-                    
-                    page.elevation = 10f - position
-                    page.translationX = -page.width * position
-                    val offsetDp = 12 * position * density
-                    page.translationY = -offsetDp 
-                    page.translationX += offsetDp 
-                }
-                else -> { // Hidden
+                else -> { 
                     page.alpha = 0f
+                    page.translationX = -width * position
                 }
             }
         }
