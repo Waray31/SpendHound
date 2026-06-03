@@ -226,32 +226,42 @@ class HomeFragment : Fragment() {
                 if (states.isEmpty()) return@collectLatest
                 
                 val pager = binding?.spendingCardViewPager ?: return@collectLatest
-                val wasFragmentRecreated = currentGroupStates.isEmpty()
+                val wasEmpty = currentGroupStates.isEmpty()
                 val sizeChanged = currentGroupStates.size != states.size
                 
-                // If the list content is identical, skip update
-                if (!wasFragmentRecreated && currentGroupStates == states) return@collectLatest
+                // If content is identical, skip everything
+                if (!wasEmpty && currentGroupStates == states) return@collectLatest
                 
-                if (wasFragmentRecreated || sizeChanged) {
+                if (wasEmpty || sizeChanged) {
                     currentGroupStates = states
                     cardAdapter?.submitList(states)
                     
                     pager.post {
                         val currentPos = pager.currentItem
-                        val targetPos = 1000 - (1000 % states.size)
+                        val targetPos = if (states.size > 1) {
+                            1000 - (1000 % states.size)
+                        } else 0
                         
-                        // Only jump to center if we are at the wrong start position
-                        if (wasFragmentRecreated || Math.abs(currentPos - targetPos) > states.size) {
+                        if (wasEmpty || Math.abs(currentPos - targetPos) > states.size) {
                             pager.setCurrentItem(targetPos, false)
                         }
+                        
+                        // Force a fresh transformation by using a new instance.
+                        // This bypasses the equality check in ViewPager2.setPageTransformer
+                        // and triggers the stacking logic immediately for the new data without flicker.
+                        pager.setPageTransformer(StackedPageTransformer())
                         updateUIForState(states[pager.currentItem % states.size])
-                        pager.requestLayout()
-                        pager.invalidate()
                     }
                 } else {
+                    // Data update only (e.g. spending total changed)
                     currentGroupStates = states
                     cardAdapter?.updateDataOnly(states)
-                    updateUIForState(states[pager.currentItem % states.size])
+                    
+                    pager.post {
+                        // Re-apply transformer to force stacked layout for rebound views
+                        pager.setPageTransformer(StackedPageTransformer())
+                        updateUIForState(states[pager.currentItem % states.size])
+                    }
                 }
                 
                 hasLoadedOnce = true
@@ -680,10 +690,9 @@ class HomeFragment : Fragment() {
 
         fun updateDataOnly(newItems: List<HomeGroupState>) {
             items = newItems
-            // We don't call notifyDataSetChanged here because we'll update holders directly 
-            // if they are visible, or they'll be updated on rebind.
-            // For ViewPager2, it's often better to notify specifically if we know what changed.
-            notifyDataSetChanged() 
+            // Notify only a range around the "middle" to keep visible cards updated without full flicker
+            // 2000 is our virtual size, we just notify all potentially cached holders
+            notifyItemRangeChanged(0, 2000, "PAYLOAD_DATA_ONLY")
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -694,9 +703,16 @@ class HomeFragment : Fragment() {
         override fun onBindViewHolder(holder: ViewHolder, position: Int) {
             if (items.isEmpty()) return
             holder.bind(items[position % items.size])
-            
-            holder.itemView.post {
-                holder.itemView.requestLayout()
+        }
+
+        override fun onBindViewHolder(holder: ViewHolder, position: Int, payloads: List<Any>) {
+            if (payloads.isEmpty()) {
+                onBindViewHolder(holder, position)
+            } else {
+                // Surgical update
+                if (items.isNotEmpty()) {
+                    holder.bind(items[position % items.size])
+                }
             }
         }
 
@@ -746,15 +762,21 @@ class HomeFragment : Fragment() {
 
     private inner class StackedPageTransformer : ViewPager2.PageTransformer {
         override fun transformPage(page: View, position: Float) {
+            val pager = binding?.spendingCardViewPager ?: return
             val density = resources.displayMetrics.density
             val maxVisibleCards = 2f 
             
-            // If width is not yet measured, we must still hide or stack pages to prevent "side display"
-            val width = if (page.width > 0) page.width.toFloat() else resources.displayMetrics.widthPixels.toFloat()
+            // FIX: Use pager width directly as it's more stable than page.width during re-binds.
+            // In ViewPager2, each page's width is (pager.width - paddingLeft - paddingRight).
+            val width = pager.width.toFloat() - pager.paddingLeft - pager.paddingRight
+            
+            // Fallback if not yet measured (48dp accounts for padding + card margins)
+            val finalWidth = if (width > 0) width else resources.displayMetrics.widthPixels.toFloat() - (48 * density)
 
             when {
                 position < -1 -> { 
                     page.alpha = 0f
+                    page.translationX = 0f
                 }
                 position <= 0 -> { 
                     page.alpha = 1f + position 
@@ -770,14 +792,18 @@ class HomeFragment : Fragment() {
                     page.scaleX = scaleFactor
                     page.scaleY = scaleFactor
                     page.elevation = 10f - position
-                    page.translationX = -width * position
+                    
+                    // Pull card back to stack it
+                    page.translationX = -finalWidth * position
+                    
+                    // Apply stacking offsets
                     val offsetDp = 12 * position * density
                     page.translationY = -offsetDp 
                     page.translationX += offsetDp 
                 }
                 else -> { 
                     page.alpha = 0f
-                    page.translationX = -width * position
+                    page.translationX = -finalWidth * position
                 }
             }
         }
