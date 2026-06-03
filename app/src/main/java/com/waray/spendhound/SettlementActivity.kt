@@ -676,14 +676,15 @@ class SettlementActivity : AppCompatActivity() {
             val item = items[position]
             holder.name.text = item.groupName
             
-            if (item.groupImageUrl.isNullOrEmpty()) {
+            val groupUrl = item.groupImageUrl
+            if (groupUrl.isNullOrEmpty() || groupUrl == "placeholder_group_image") {
                 holder.icon.setImageResource(R.drawable.add_group)
                 holder.icon.setPadding(20, 20, 20, 20)
                 holder.card.setCardBackgroundColor(ContextCompat.getColor(this@SettlementActivity, R.color.orange))
             } else {
                 holder.icon.setPadding(0, 0, 0, 0)
                 holder.card.setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
-                holder.icon.load(item.groupImageUrl) {
+                holder.icon.load(groupUrl) {
                     crossfade(true)
                     placeholder(R.drawable.add_group)
                     error(R.drawable.add_group)
@@ -712,7 +713,8 @@ class SettlementActivity : AppCompatActivity() {
             val item = items[position]
             holder.name.text = item.user.username
             
-            if (item.user.profileImageUrl.isNullOrEmpty()) {
+            val profileUrl = item.user.profileImageUrl
+            if (profileUrl.isNullOrEmpty() || profileUrl == "placeholder_profile_image") {
                 holder.icon.setImageResource(R.drawable.ic_profile_silhouette)
                 holder.icon.imageTintList = ContextCompat.getColorStateList(this@SettlementActivity, R.color.white)
                 val padding = (8 * resources.displayMetrics.density).toInt()
@@ -722,7 +724,7 @@ class SettlementActivity : AppCompatActivity() {
                 holder.icon.setPadding(0, 0, 0, 0)
                 holder.icon.imageTintList = null
                 holder.card.setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
-                holder.icon.load(item.user.profileImageUrl) {
+                holder.icon.load(profileUrl) {
                     crossfade(true)
                     placeholder(R.drawable.ic_profile_silhouette)
                     error(R.drawable.ic_profile_silhouette)

@@ -13,6 +13,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.RecyclerView
 import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionFull
+import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -68,6 +69,10 @@ class SettlementHistoryActivity : AppCompatActivity() {
                     }
                 }.decodeList<TransactionFull>().associateBy { it.id }
 
+                val allItems = DeclareDatabase.transactionItemsTable.select {
+                    filter { isIn("transaction_id", txIds) }
+                }.decodeList<TransactionItemFull>().groupBy { it.transactionId }
+
                 // Filter payors whose transactions exist
                 val filteredPayors = payors.filter { transactions.containsKey(it.transactionId) }
 
@@ -88,8 +93,18 @@ class SettlementHistoryActivity : AppCompatActivity() {
                     
                     val totalAmount = payorRows.sumOf { it.currentAmountPaid }
                     val breakdowns = payorRows.map { p ->
+                        val tx = transactions[p.transactionId]
+                        val itemsList = allItems[p.transactionId] ?: emptyList<TransactionItemFull>()
+                        
+                        var displayDesc = tx?.description?.takeIf { it.isNotBlank() }
+                        
+                        if (displayDesc == null && itemsList.isNotEmpty()) {
+                            val dominantItem = if (itemsList.size == 1) itemsList[0] else itemsList.maxByOrNull { it.amount }
+                            displayDesc = dominantItem?.itemDescription?.takeIf { it.isNotBlank() } ?: dominantItem?.category
+                        }
+
                         TransactionBreakdown(
-                            description = transactions[p.transactionId]?.description ?: "Settlement",
+                            description = displayDesc ?: "Settlement",
                             amount = p.currentAmountPaid
                         )
                     }
