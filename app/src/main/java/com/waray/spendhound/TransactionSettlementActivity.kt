@@ -843,6 +843,9 @@ class TransactionSettlementActivity : AppCompatActivity() {
             val initialExcess = kotlin.math.max(0.0, totalInitial - owed)
             val receivedPayment = kotlin.math.max(0.0, initialExcess - currentExcess)
 
+            // Adjust balance for creditors by subtracting already received payments
+            val adjustedDiff = if (diff > epsilon) diff - receivedPayment else diff
+
             holder.tvMemberName.text = name
             holder.tvAmountPaid.text = CurrencyUtils.formatAmountWithCurrency(effectivePaid)
             holder.tvFairShare.text = CurrencyUtils.formatAmountWithCurrency(owed)
@@ -854,14 +857,14 @@ class TransactionSettlementActivity : AppCompatActivity() {
                 holder.llReceivedPayment.visibility = View.GONE
             }
             
-            val balanceAmount = if (diff < -epsilon) -diff else if (diff > epsilon) diff else 0.0
-            val balanceStr = (if (diff < -epsilon) "-" else if (diff > epsilon) "+" else "") + 
+            val balanceAmount = if (adjustedDiff < -epsilon) -adjustedDiff else if (adjustedDiff > epsilon) adjustedDiff else 0.0
+            val balanceStr = (if (adjustedDiff < -epsilon) "-" else if (adjustedDiff > epsilon) "+" else "") + 
                            CurrencyUtils.formatAmountWithCurrency(balanceAmount)
             holder.tvDifference.text = balanceStr
             
             val balanceColor = when {
-                diff > epsilon -> R.color.green
-                diff < -epsilon -> R.color.red
+                adjustedDiff > epsilon -> R.color.green
+                adjustedDiff < -epsilon -> R.color.red
                 else -> R.color.black
             }
             holder.tvDifference.setTextColor(ContextCompat.getColor(this@TransactionSettlementActivity, balanceColor))
