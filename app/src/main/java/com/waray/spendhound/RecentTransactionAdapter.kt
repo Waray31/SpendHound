@@ -317,16 +317,21 @@ class RecentTransactionAdapter(
                         setTextColor(ContextCompat.getColor(context, R.color.darkBlue))
                         typeface = ResourcesCompat.getFont(context, R.font.montserratalternatess_regular)
                         
-                        UserHelper.getUsernameById(payor.userId, object : UserHelper.UsernameCallback {
-                            override fun onUsernameRetrieved(username: String?) {
-                                val name = username ?: "Unknown"
-                                text = if (itemPayors.size == 1) name else "$name - ${CurrencyUtils.formatAmountWithCurrency(payor.initialAmountPaid)}"
-                            }
-                            override fun onError(error: String?) {
-                                val name = "Unknown"
-                                text = if (itemPayors.size == 1) name else "$name - ${CurrencyUtils.formatAmountWithCurrency(payor.initialAmountPaid)}"
-                            }
-                        })
+                        val cachedName = UserHelper.getCachedUsername(payor.userId)
+                        if (cachedName != null) {
+                            text = if (itemPayors.size == 1) cachedName else "$cachedName - ${CurrencyUtils.formatAmountWithCurrency(payor.initialAmountPaid)}"
+                        } else {
+                            UserHelper.getUsernameById(payor.userId, object : UserHelper.UsernameCallback {
+                                override fun onUsernameRetrieved(username: String?) {
+                                    val name = username ?: "Unknown"
+                                    text = if (itemPayors.size == 1) name else "$name - ${CurrencyUtils.formatAmountWithCurrency(payor.initialAmountPaid)}"
+                                }
+                                override fun onError(error: String?) {
+                                    val name = "Unknown"
+                                    text = if (itemPayors.size == 1) name else "$name - ${CurrencyUtils.formatAmountWithCurrency(payor.initialAmountPaid)}"
+                                }
+                            })
+                        }
                     }
                     llPaidBy.addView(tv)
                 }

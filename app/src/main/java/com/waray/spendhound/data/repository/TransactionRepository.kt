@@ -80,9 +80,20 @@ class TransactionRepository(private val db: AppDatabase) {
 
         val allUserIds = (allPayors.map { it.userId } + allSplits.map { it.userId }).distinct()
         val usersById = if (allUserIds.isNotEmpty()) {
-            DeclareDatabase.usersTable.select {
+            val users = DeclareDatabase.usersTable.select {
                 filter { isIn("user_id", allUserIds) }
-            }.decodeList<User>().associate { it.id!! to (it.username ?: "Unknown") }
+            }.decodeList<User>()
+            
+            // Populate UserHelper cache for instant lookup in UI
+            users.forEach { u ->
+                val uid = u.id
+                val name = u.username
+                if (uid != null && name != null) {
+                    com.waray.spendhound.UserHelper.updateCache(uid, name)
+                }
+            }
+            
+            users.associate { it.id!! to (it.username ?: "Unknown") }
         } else emptyMap()
 
         val involvedGroupIds = txs.mapNotNull { it.groupId }.distinct()

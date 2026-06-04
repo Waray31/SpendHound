@@ -637,7 +637,18 @@ class SettlementActivity : AppCompatActivity() {
         val allItems = DeclareDatabase.transactionItemsTable.select { filter { isIn("transaction_id", txIds) } }.decodeList<TransactionItemFull>()
         
         val allUserIds = (allPayors.map { it.userId } + allSplits.map { it.userId }).distinct()
-        val usersById = DeclareDatabase.usersTable.select { filter { isIn("user_id", allUserIds) } }.decodeList<User>().associateBy { it.id }
+        val users = DeclareDatabase.usersTable.select { filter { isIn("user_id", allUserIds) } }.decodeList<User>()
+        
+        // Populate UserHelper cache
+        users.forEach { u ->
+            val uid = u.id
+            val name = u.username
+            if (uid != null && name != null) {
+                UserHelper.updateCache(uid, name)
+            }
+        }
+        
+        val usersById = users.associateBy { it.id }
 
         val payorsByTx = allPayors.groupBy { it.transactionId }
         val splitsByTx = allSplits.groupBy { it.transactionId }

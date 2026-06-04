@@ -107,17 +107,16 @@ class TransactionSettlementActivity : AppCompatActivity() {
     }
 
     private fun loadUserProfiles(tx: RecentTransaction) {
-        val payorIds = tx.payorUserIds?.filterNotNull() ?: emptyList()
-        val creatorId = tx.creatorNumericId?.toString()
-        val allIdsStr = (payorIds + listOfNotNull(creatorId)).distinct()
-        val allIdsLong = allIdsStr.mapNotNull { it.toLongOrNull() }
+        val payorIds = tx.rawPayorRows.map { it.userId }.distinct()
+        val creatorId = tx.creatorNumericId
+        val allIdsLong = (payorIds + listOfNotNull(creatorId)).distinct()
         
         if (allIdsLong.isEmpty()) return
 
         scope.launch {
             try {
                 val users = withContext(Dispatchers.IO) {
-                    DeclareDatabase.usersTable.select(Columns.list("user_id", "profile_image_url")) {
+                    DeclareDatabase.usersTable.select(Columns.list("user_id", "profile_image_url", "username")) {
                         filter { isIn("user_id", allIdsLong) }
                     }.decodeList<User>()
                 }
@@ -126,13 +125,20 @@ class TransactionSettlementActivity : AppCompatActivity() {
                     user.id?.let { id ->
                         val idStr = id.toString()
                         userProfilesMap[id] = user
+                        
+                        // Populate UserHelper cache
+                        user.username?.let { name ->
+                            UserHelper.updateCache(id, name)
+                        }
+
                         val url = user.profileImageUrl ?: DeclareDatabase.profileImagesBucket.publicUrl("$idStr/$idStr.jpg")
                         PayorAdapter.sDownloadUrlCache[idStr] = url
                     }
                 }
                 
-                // Refresh list to show images
+                // Refresh list to show images and instantly resolved names
                 memberBreakdownRecyclerView?.adapter?.notifyDataSetChanged()
+                buildItemsTable(tx) // Re-build to show names instantly
                 
                 // Re-build summary to show images in summary rows
                 val summaryContainer = findViewById<LinearLayout>(R.id.settleSummaryContainer)
@@ -448,15 +454,20 @@ class TransactionSettlementActivity : AppCompatActivity() {
                         setTextColor(ContextCompat.getColor(this@TransactionSettlementActivity, R.color.black))
                         typeface = ResourcesCompat.getFont(this@TransactionSettlementActivity, R.font.montserratalternatess_regular)
                         
-                        UserHelper.getUsernameById(payor.userId, object : UserHelper.UsernameCallback {
-                            override fun onUsernameRetrieved(username: String?) {
-                                val name = username ?: "Unknown"
-                                text = if (itemPayors.size == 1) name else "$name - ${CurrencyUtils.formatAmountWithCurrency(payor.initialAmountPaid)}"
-                            }
-                            override fun onError(error: String?) {
-                                text = "Unknown"
-                            }
-                        })
+                        val cachedName = UserHelper.getCachedUsername(payor.userId)
+                        if (cachedName != null) {
+                            text = if (itemPayors.size == 1) cachedName else "$cachedName - ${CurrencyUtils.formatAmountWithCurrency(payor.initialAmountPaid)}"
+                        } else {
+                            UserHelper.getUsernameById(payor.userId, object : UserHelper.UsernameCallback {
+                                override fun onUsernameRetrieved(username: String?) {
+                                    val name = username ?: "Unknown"
+                                    text = if (itemPayors.size == 1) name else "$name - ${CurrencyUtils.formatAmountWithCurrency(payor.initialAmountPaid)}"
+                                }
+                                override fun onError(error: String?) {
+                                    text = "Unknown"
+                                }
+                            })
+                        }
                     }
                     llPaidBy.addView(tv)
                 }
