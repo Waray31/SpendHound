@@ -365,22 +365,36 @@ class TransactionSettlementActivity : AppCompatActivity() {
     private fun getReceiptBitmap(): Bitmap {
         val scrollView = findViewById<androidx.core.widget.NestedScrollView>(R.id.mainScrollView)
         val zigzag = findViewById<View>(R.id.zigzagLayout)
+        val settlementDivider = findViewById<View>(R.id.settlementDivider)
         
         val scrollContent = scrollView.getChildAt(0)
         val width = scrollContent.width
-        val height = scrollContent.height + (zigzag?.height ?: 0)
+        
+        // Determine the effective height: hide settlement instructions if pending
+        val isPending = transaction?.transactionStatus == "Pending"
+        var effectiveScrollHeight = scrollContent.height
+        
+        if (isPending && settlementDivider != null && settlementDivider.visibility == View.VISIBLE) {
+            // Cut off at the start of the settlement section (just before the settlement divider)
+            effectiveScrollHeight = settlementDivider.top
+        }
+
+        val height = effectiveScrollHeight + (zigzag?.height ?: 0)
         
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         canvas.drawColor(Color.WHITE)
         
-        // Draw scroll content
+        // Draw scroll content (clipped if needed)
+        canvas.save()
+        canvas.clipRect(0, 0, width, effectiveScrollHeight)
         scrollContent.draw(canvas)
+        canvas.restore()
         
         // Draw zigzag below
         if (zigzag != null) {
             canvas.save()
-            canvas.translate(0f, scrollContent.height.toFloat())
+            canvas.translate(0f, effectiveScrollHeight.toFloat())
             zigzag.draw(canvas)
             canvas.restore()
         }
