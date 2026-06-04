@@ -330,11 +330,6 @@ class RecentTransactionAdapter(
             
             row.findViewById<TextView>(R.id.tvItemAmount).text = CurrencyUtils.formatAmountWithCurrency(item.amount)
             
-            // Hide divider for the last row
-            if (transaction.transactionItems.indexOf(item) == transaction.transactionItems.size - 1) {
-                row.findViewById<View>(R.id.dashedDivider).visibility = View.GONE
-            }
-            
             holder.itemsTableContainer.addView(row)
         }
     }

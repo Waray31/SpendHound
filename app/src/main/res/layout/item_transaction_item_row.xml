@@ -4,6 +4,14 @@
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
+    <View
+        android:id="@+id/dashedDivider"
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:backgroundTint="@color/lightest_grey"
+        android:background="@drawable/dashed_line"
+        android:layerType="software" />
+
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -45,13 +53,5 @@
             android:textSize="12sp" />
 
     </LinearLayout>
-
-    <View
-        android:id="@+id/dashedDivider"
-        android:layout_width="match_parent"
-        android:layout_height="2dp"
-        android:backgroundTint="@color/lightest_grey"
-        android:background="@drawable/dashed_line"
-        android:layerType="software" />
 
 </LinearLayout>

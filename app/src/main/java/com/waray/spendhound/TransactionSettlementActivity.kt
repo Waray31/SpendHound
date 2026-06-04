@@ -64,6 +64,7 @@ class TransactionSettlementActivity : AppCompatActivity() {
     private var receiptPerPersonTV: TextView? = null
     private var itemsTableContainer: LinearLayout? = null
     private var memberBreakdownRecyclerView: RecyclerView? = null
+    private val userProfilesMap = mutableMapOf<Long, User>()
 
     private var transaction: RecentTransaction? = null
     private var isDetailsMode: Boolean = false
@@ -111,6 +112,7 @@ class TransactionSettlementActivity : AppCompatActivity() {
                 users.forEach { user ->
                     user.id?.let { id ->
                         val idStr = id.toString()
+                        userProfilesMap[id] = user
                         val url = user.profileImageUrl ?: DeclareDatabase.profileImagesBucket.publicUrl("$idStr/$idStr.jpg")
                         PayorAdapter.sDownloadUrlCache[idStr] = url
                     }
@@ -825,6 +827,7 @@ class TransactionSettlementActivity : AppCompatActivity() {
             
             val userRows = tx.rawPayorRows.filter { it.userId == uidLong }
             val totalInitial = userRows.sumOf { it.initialAmountPaid }
+            val currentExcess = userRows.sumOf { it.excessAmount }
             val owed = userOwedMap[uidLong] ?: 0.0
             val paid = amounts.getOrElse(position) { 0.0 }
             
@@ -836,9 +839,20 @@ class TransactionSettlementActivity : AppCompatActivity() {
             
             val diff = effectivePaid - owed
 
+            // Received payment calculation (for creditors)
+            val initialExcess = kotlin.math.max(0.0, totalInitial - owed)
+            val receivedPayment = kotlin.math.max(0.0, initialExcess - currentExcess)
+
             holder.tvMemberName.text = name
             holder.tvAmountPaid.text = CurrencyUtils.formatAmountWithCurrency(effectivePaid)
             holder.tvFairShare.text = CurrencyUtils.formatAmountWithCurrency(owed)
+            
+            if (receivedPayment > epsilon) {
+                holder.llReceivedPayment.visibility = View.VISIBLE
+                holder.tvReceivedPayment.text = CurrencyUtils.formatAmountWithCurrency(receivedPayment)
+            } else {
+                holder.llReceivedPayment.visibility = View.GONE
+            }
             
             val balanceAmount = if (diff < -epsilon) -diff else if (diff > epsilon) diff else 0.0
             val balanceStr = (if (diff < -epsilon) "-" else if (diff > epsilon) "+" else "") + 
@@ -865,25 +879,36 @@ class TransactionSettlementActivity : AppCompatActivity() {
 
             // Initials / Avatar
             holder.tvInitials.text = name.take(2).uppercase()
-            holder.tvInitials.visibility = View.VISIBLE
-            holder.ivAvatar.visibility = View.GONE
+            
+            val user = uidLong?.let { userProfilesMap[it] }
+            val hasExplicitImage = !user?.profileImageUrl.isNullOrBlank()
 
-            val cachedUrl = PayorAdapter.sDownloadUrlCache[userId]
-            val url = cachedUrl ?: if (userId != null) DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg") else null
-
-            if (url != null) {
-                holder.ivAvatar.load(url) {
+            if (hasExplicitImage) {
+                // Priority: If user has an explicit profile image URL, hide initials immediately
+                holder.tvInitials.visibility = View.GONE
+                holder.ivAvatar.visibility = View.VISIBLE
+                holder.ivAvatar.load(user?.profileImageUrl) {
                     transformations(CircleCropTransformation())
-                    listener(
-                        onSuccess = { _, _ ->
+                    listener(onError = { _, _ ->
+                        // Fallback to initials if image load fails
+                        holder.tvInitials.visibility = View.VISIBLE
+                        holder.ivAvatar.visibility = View.GONE
+                    })
+                }
+            } else {
+                // No explicit image URL, show initials and try fallback bucket URL
+                holder.tvInitials.visibility = View.VISIBLE
+                holder.ivAvatar.visibility = View.GONE
+
+                val bucketUrl = if (userId != null) DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg") else null
+                if (bucketUrl != null) {
+                    holder.ivAvatar.load(bucketUrl) {
+                        transformations(CircleCropTransformation())
+                        listener(onSuccess = { _, _ ->
                             holder.tvInitials.visibility = View.GONE
                             holder.ivAvatar.visibility = View.VISIBLE
-                        },
-                        onError = { _, _ ->
-                            holder.tvInitials.visibility = View.VISIBLE
-                            holder.ivAvatar.visibility = View.GONE
-                        }
-                    )
+                        })
+                    }
                 }
             }
         }
@@ -895,6 +920,8 @@ class TransactionSettlementActivity : AppCompatActivity() {
             val tvStatusBadge: TextView = view.findViewById(R.id.tvStatusBadge)
             val tvAmountPaid: TextView = view.findViewById(R.id.tvAmountPaid)
             val tvFairShare: TextView = view.findViewById(R.id.tvFairShare)
+            val llReceivedPayment: View = view.findViewById(R.id.llReceivedPayment)
+            val tvReceivedPayment: TextView = view.findViewById(R.id.tvReceivedPayment)
             val tvDifference: TextView = view.findViewById(R.id.tvDifference)
         }
     }
