@@ -24,6 +24,7 @@ class PayorAdapter(
     private val payorsNames: MutableList<String?>?,
     amountsPaid: MutableList<Double?>,
     private val individualPayments: List<Double>,
+    private val excessAmounts: List<Double>,
     private val onPayorClickListener: OnPayorClickListener?
 ) : RecyclerView.Adapter<PayorAdapter.PayorViewHolder>() {
     var amountsPaid: MutableList<Double?>? = null
@@ -151,12 +152,18 @@ class PayorAdapter(
 
         updateStatusUI(holder, paid, position)
 
-        val balance = paid - individualPayment
-        if (balance != 0.0) {
+        val diff = paid - individualPayment
+        val excess = excessAmounts.getOrNull(position) ?: 0.0
+        val epsilon = 0.01
+
+        // Creditors show current excess (remaining receivable), debtors show diff (remaining debt)
+        val balance = if (diff > epsilon) excess else diff
+
+        if (kotlin.math.abs(balance) > epsilon) {
             holder.payorBalanceAmount.visibility = View.VISIBLE
-            val sign = if (balance > 0) "+" else ""
+            val sign = if (balance > epsilon) "+" else ""
             holder.payorBalanceAmount.text = "$sign${CurrencyUtils.formatAmountWithCurrency(balance)}"
-            holder.payorBalanceAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, if (balance > 0) R.color.green else R.color.red))
+            holder.payorBalanceAmount.setTextColor(ContextCompat.getColor(holder.itemView.context, if (balance > epsilon) R.color.green else R.color.red))
         } else {
             holder.payorBalanceAmount.visibility = View.GONE
         }
