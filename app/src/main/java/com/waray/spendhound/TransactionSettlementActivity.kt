@@ -40,7 +40,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import io.github.jan.supabase.postgrest.query.Columns
+import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.Color
+import android.graphics.pdf.PdfDocument
+import android.net.Uri
+import androidx.appcompat.widget.PopupMenu
+import androidx.core.content.FileProvider
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import java.io.File
+import java.io.FileOutputStream
 import java.util.Locale
 
 class TransactionSettlementActivity : AppCompatActivity() {
@@ -54,6 +66,7 @@ class TransactionSettlementActivity : AppCompatActivity() {
     private var remainingTV: TextView? = null
     private var instructionMessageTV: TextView? = null
     private var saveBtn: MaterialButton? = null
+    private var btnShare: ImageButton? = null
     private var settlementInstructions: LinearLayout? = null
     private val instructionRows = mutableListOf<InstructionRowBinding>()
 
@@ -178,6 +191,8 @@ class TransactionSettlementActivity : AppCompatActivity() {
         settlementInstructions = findViewById(R.id.settlement_instructions)
 
         findViewById<ImageButton>(R.id.btnBack).setOnClickListener { finish() }
+        btnShare = findViewById(R.id.btnShare)
+        btnShare?.setOnClickListener { showShareMenu() }
 
         memberBreakdownRecyclerView?.layoutManager = androidx.recyclerview.widget.LinearLayoutManager(this)
         memberBreakdownRecyclerView?.adapter = MemberBreakdownAdapter(tx, amounts)
@@ -244,6 +259,148 @@ class TransactionSettlementActivity : AppCompatActivity() {
             summaryContainer.visibility = View.GONE
             bottomActionContainer.visibility = View.GONE
         }
+    }
+
+    private fun showShareMenu() {
+        val popup = PopupMenu(this, btnShare!!)
+        popup.menu.add("Share as image (PNG)")
+        popup.menu.add("Share as PDF")
+        popup.menu.add("Share to group")
+
+        popup.setOnMenuItemClickListener { item ->
+            when (item.title) {
+                "Share as image (PNG)" -> shareAsImage()
+                "Share as PDF" -> shareAsPdf()
+                "Share to group" -> shareToGroup()
+            }
+            true
+        }
+        popup.show()
+    }
+
+    private fun shareAsImage() {
+        val bitmap = getReceiptBitmap()
+        val uri = saveBitmapToCache(bitmap)
+        if (uri != null) {
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "image/png"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, "Share Image"))
+        }
+    }
+
+    private fun shareAsPdf() {
+        val bitmap = getReceiptBitmap()
+
+        val pdfDocument = PdfDocument()
+        val pageInfo = PdfDocument.PageInfo.Builder(bitmap.width, bitmap.height, 1).create()
+        val page = pdfDocument.startPage(pageInfo)
+        page.canvas.drawBitmap(bitmap, 0f, 0f, null)
+        pdfDocument.finishPage(page)
+
+        val file = File(cacheDir, "settlement_${System.currentTimeMillis()}.pdf")
+        try {
+            FileOutputStream(file).use { out ->
+                pdfDocument.writeTo(out)
+            }
+            val uri = FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+            val intent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/pdf"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(intent, "Share PDF"))
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Toast.makeText(this, "Failed to generate PDF", Toast.LENGTH_SHORT).show()
+        } finally {
+            pdfDocument.close()
+        }
+    }
+
+    private fun shareToGroup() {
+        val tx = transaction ?: return
+        val gid = tx.groupId ?: -1L
+        if (gid == -1L) {
+            Toast.makeText(this, "No group associated with this transaction", Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        scope.launch(Dispatchers.IO) {
+            try {
+                val uid = DeclareDatabase.auth.currentUserOrNull()?.id?.let { authId ->
+                    DeclareDatabase.usersTable.select { filter { eq("auth_id", authId) } }.decodeSingleOrNull<User>()?.id
+                } ?: return@launch
+
+                val message = "Shared Transaction Settlement for ${tx.mostRecentDetails ?: "Transaction"}"
+
+                DeclareDatabase.groupMessagesTable.insert(
+                    GroupMessageInsert(
+                        groupId = gid,
+                        userId = uid,
+                        message = message,
+                        transactionId = tx.transactionId
+                    )
+                )
+
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@TransactionSettlementActivity, "Shared to group chat", Toast.LENGTH_SHORT).show()
+                    val intent = Intent(this@TransactionSettlementActivity, GroupDetailActivity::class.java).apply {
+                        putExtra(GroupDetailActivity.EXTRA_GROUP_ID, gid)
+                        putExtra("SELECT_TAB", 1)
+                        flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    }
+                    startActivity(intent)
+                }
+            } catch (e: Exception) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(this@TransactionSettlementActivity, "Failed to share: ${e.message}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
+
+    private fun getReceiptBitmap(): Bitmap {
+        val scrollView = findViewById<androidx.core.widget.NestedScrollView>(R.id.mainScrollView)
+        val zigzag = findViewById<View>(R.id.zigzagLayout)
+        
+        val scrollContent = scrollView.getChildAt(0)
+        val width = scrollContent.width
+        val height = scrollContent.height + (zigzag?.height ?: 0)
+        
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        canvas.drawColor(Color.WHITE)
+        
+        // Draw scroll content
+        scrollContent.draw(canvas)
+        
+        // Draw zigzag below
+        if (zigzag != null) {
+            canvas.save()
+            canvas.translate(0f, scrollContent.height.toFloat())
+            zigzag.draw(canvas)
+            canvas.restore()
+        }
+        
+        return bitmap
+    }
+
+    private fun saveBitmapToCache(bitmap: Bitmap): Uri? {
+        val imagesFolder = File(cacheDir, "images")
+        try {
+            imagesFolder.mkdirs()
+            val file = File(imagesFolder, "settlement_${System.currentTimeMillis()}.png")
+            FileOutputStream(file).use { stream ->
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
+            }
+            return FileProvider.getUriForFile(this, "$packageName.fileprovider", file)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        return null
     }
 
     private fun buildItemsTable(tx: RecentTransaction) {

@@ -56,6 +56,11 @@ class GroupDetailActivity : AppCompatActivity() {
         viewPager.offscreenPageLimit = 2
         viewPager.isUserInputEnabled = false
 
+        val selectTab = intent.getIntExtra("SELECT_TAB", 0)
+        viewPager.post {
+            viewPager.currentItem = selectTab
+        }
+
         bottomNav.setOnItemSelectedListener { item ->
             viewPager.currentItem = when (item.itemId) {
                 R.id.tab_expenses -> 0
@@ -93,6 +98,15 @@ class GroupDetailActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         currentUserId?.let { viewModel.preloadGroup(groupId, it) }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        val selectTab = intent.getIntExtra("SELECT_TAB", 0)
+        viewPager.post {
+            viewPager.currentItem = selectTab
+        }
     }
 
     private fun resolveCurrentUser() {

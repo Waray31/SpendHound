@@ -56,6 +56,17 @@
                 </LinearLayout>
 
                 <ImageButton
+                    android:id="@+id/btnShare"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginEnd="8dp"
+                    android:background="@drawable/circular_button_background"
+                    android:backgroundTint="@color/glassy_background"
+                    android:contentDescription="Share"
+                    android:src="@drawable/ic_share"
+                    app:tint="@color/white" />
+
+                <ImageButton
                     android:id="@+id/btnHistory"
                     android:layout_width="40dp"
                     android:layout_height="40dp"
@@ -74,6 +85,7 @@
             android:layout_height="0dp"
             android:layout_marginHorizontal="16dp"
             android:layout_marginTop="20dp"
+            android:paddingBottom="32dp"
             android:layout_weight="1"
             android:background="@drawable/top_round_border"
             android:backgroundTint="@color/whitest"
@@ -378,6 +390,7 @@
         </androidx.core.widget.NestedScrollView>
         <!-- Decorative zigzag -->
         <LinearLayout
+            android:id="@+id/zigzagLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:elevation="3dp"
