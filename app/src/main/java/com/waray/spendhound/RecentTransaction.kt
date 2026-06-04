@@ -3,7 +3,11 @@ package com.waray.spendhound
 import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
 import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.InternalSerializationApi
 
+@OptIn(InternalSerializationApi::class)
+@Serializable
 class RecentTransaction {
     var transactionId: Long? = null
     var mostRecentDate: String? = null

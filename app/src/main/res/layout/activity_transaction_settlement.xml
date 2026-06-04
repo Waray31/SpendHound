@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     android:background="@color/white">
 
-    <!-- Custom Header (Style from activity_settlement.xml) -->
+    <!-- Custom Header -->
     <LinearLayout
         android:id="@+id/headerContainer"
         android:layout_width="match_parent"
@@ -45,19 +45,10 @@
                     android:id="@+id/settleTitleTV"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Settle Transaction"
+                    android:text="Transaction Settlement"
                     android:fontFamily="@font/montserratalternatess_bold"
                     android:textColor="@color/whitest"
                     android:textSize="20sp" />
-
-                <TextView
-                    android:id="@+id/settleTotalTV"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:textColor="@color/white"
-                    android:textSize="12sp"
-                    tools:text="Total: ₱ 1,200.00  •  Each owes: ₱ 300.00" />
             </LinearLayout>
 
             <ImageButton
@@ -85,76 +76,176 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="vertical"
-            android:paddingHorizontal="20dp"
-            android:paddingTop="16dp"
+            android:paddingHorizontal="24dp"
+            android:paddingTop="32dp"
             android:paddingBottom="24dp">
 
-            <!-- Payment Status Section -->
+            <!-- Receipt Header Style -->
+            <TextView
+                android:id="@+id/receiptTransactionNameTV"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:textColor="@color/black"
+                android:textSize="24sp"
+                tools:text="Dinner Party" />
+
+            <TextView
+                android:id="@+id/receiptDateAndMembersTV"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="center"
+                android:layout_marginTop="4dp"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:textColor="@color/grey"
+                android:textSize="14sp"
+                tools:text="June 4, 2026 • 3 members" />
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:layout_marginTop="32dp"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
 
-                <LinearLayout
+                <TextView
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:text="Total bill"
+                    android:textColor="@color/black"
+                    android:textSize="18sp" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
                     android:orientation="vertical">
 
                     <TextView
+                        android:id="@+id/receiptTotalAmountTV"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:fontFamily="@font/montserratalternatess_bold"
-                        android:text="Payment Status"
-                        android:textColor="@color/darkBlue"
-                        android:textSize="18sp" />
+                        android:textColor="@color/black"
+                        android:textSize="24sp"
+                        tools:text="₱ 490.00" />
 
                     <TextView
+                        android:id="@+id/receiptPerPersonTV"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:layout_marginTop="2dp"
                         android:fontFamily="@font/montserratalternatess_regular"
-                        android:text="Review current paid amounts and statuses."
                         android:textColor="@color/grey"
-                        android:textSize="12sp" />
+                        android:textSize="14sp"
+                        tools:text="₱ 163.33 per person" />
                 </LinearLayout>
-
-                <TextView
-                    android:id="@+id/settleAdvancedToggleTV"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/montserratalternatess_bold"
-                    android:paddingHorizontal="8dp"
-                    android:paddingVertical="6dp"
-                    android:text="Show"
-                    android:textColor="@color/darkBlue"
-                    android:textSize="12sp" />
-            </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/settleAdvancedContainer"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="10dp"
-                android:orientation="vertical"
-                android:visibility="gone">
-
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/settlePayorsRecyclerView"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:nestedScrollingEnabled="false" />
             </LinearLayout>
 
             <View
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
-                android:layout_marginVertical="16dp"
-                android:background="@color/lightgrey" />
+                android:layout_marginVertical="24dp"
+                android:background="@drawable/dashed_line" />
+
+            <!-- Transaction Breakdown Section -->
+            <TextView
+                android:id="@+id/transactionBreakdownTitleTV"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:text="TRANSACTION BREAKDOWN"
+                android:textColor="@color/black"
+                android:textSize="14sp"
+                android:letterSpacing="0.1" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:layout_marginTop="12dp">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="horizontal"
+                    android:paddingBottom="4dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:text="Description"
+                        android:textColor="@color/grey"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="2"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:text="Paid By"
+                        android:textColor="@color/grey"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:fontFamily="@font/montserratalternatess_bold"
+                        android:text="Amount"
+                        android:textColor="@color/grey"
+                        android:textSize="11sp"
+                        android:gravity="end" />
+
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/itemsTableContainer"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+            </LinearLayout>
+
+            <View
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="24dp"
+                android:background="@drawable/dashed_line" />
+
+            <!-- Member Breakdown Section -->
+            <TextView
+                android:id="@+id/memberBreakdownTitleTV"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:text="MEMBER BREAKDOWN"
+                android:textColor="@color/black"
+                android:textSize="14sp"
+                android:letterSpacing="0.1" />
+
+            <androidx.recyclerview.widget.RecyclerView
+                android:id="@+id/memberBreakdownRecyclerView"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:nestedScrollingEnabled="false"
+                tools:listitem="@layout/item_member_breakdown" />
+
+            <View
+                android:id="@+id/settleSummaryDivider"
+                android:layout_width="match_parent"
+                android:layout_height="1dp"
+                android:layout_marginVertical="24dp"
+                android:background="@drawable/dashed_line" />
 
             <!-- Summary Section -->
             <TextView
+                android:id="@+id/settleSummaryTitleTV"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:fontFamily="@font/montserratalternatess_bold"
@@ -171,31 +262,8 @@
                 android:paddingVertical="10dp"
                 android:visibility="gone" />
 
-            <LinearLayout
-                android:id="@+id/settleNoteTV"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:orientation="vertical"
-                android:visibility="gone">
-
-                <View
-                    android:layout_width="match_parent"
-                    android:layout_height="1dp"
-                    android:layout_marginVertical="16dp"
-                    android:background="@color/lightgrey" />
-
-                <TextView
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:text="Please note: only payors are allowed to settle this transaction."
-                    android:textColor="@color/grey"
-                    android:textSize="12sp" />
-
-            </LinearLayout>
-
             <View
+                android:id="@+id/settlementDivider"
                 android:layout_width="match_parent"
                 android:layout_height="1dp"
                 android:layout_marginVertical="16dp"
@@ -282,7 +350,7 @@
         </LinearLayout>
     </androidx.core.widget.NestedScrollView>
 
-    <!-- Bottom Action Container (Sticky footer style from activity_settlement.xml) -->
+    <!-- Bottom Action Container -->
     <LinearLayout
         android:id="@+id/bottomActionContainer"
         android:layout_width="match_parent"

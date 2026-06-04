@@ -39,13 +39,14 @@ import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
 import com.waray.spendhound.SkeletonAdapter
 import com.waray.spendhound.utils.LoadingManager
-import com.waray.spendhound.SettleBottomSheet
+import com.waray.spendhound.TransactionSettlementActivity
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
@@ -480,7 +481,9 @@ class TransactionsFragment : Fragment() {
             }
             
             popup.findViewById<TextView>(R.id.tvSettle)?.setOnClickListener {
-                showSettleBottomSheet(transaction)
+                val intent = Intent(requireContext(), TransactionSettlementActivity::class.java)
+                intent.putExtra("EXTRA_TRANSACTION_JSON", Json.encodeToString(RecentTransaction.serializer(), transaction))
+                startActivity(intent)
                 dismissPopup()
             }
             
@@ -545,12 +548,9 @@ class TransactionsFragment : Fragment() {
     }
     
     private fun showSettleBottomSheet(transaction: RecentTransaction) {
-        val sheet = SettleBottomSheet()
-        sheet.transaction = transaction
-        sheet.onSettleSaved = {
-            refreshTransactions()
-        }
-        sheet.show(childFragmentManager, "SettleBottomSheet")
+        val intent = Intent(requireContext(), TransactionSettlementActivity::class.java)
+        intent.putExtra("EXTRA_TRANSACTION_JSON", Json.encodeToString(RecentTransaction.serializer(), transaction))
+        startActivity(intent)
     }
     
     private fun archiveTransaction(transaction: RecentTransaction) {

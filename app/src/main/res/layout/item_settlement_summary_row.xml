@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:background="@drawable/bg_add_expense_btn"
+    android:padding="12dp">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <!-- Payer -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            app:cardCornerRadius="14dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="@color/orange">
+            <ImageView
+                android:id="@+id/ivPayerAvatar"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_profile_silhouette" />
+        </androidx.cardview.widget.CardView>
+
+        <TextView
+            android:id="@+id/tvPayerName"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:textColor="@color/black"
+            android:textSize="14sp"
+            tools:text="Jene" />
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginHorizontal="8dp"
+            android:src="@drawable/ic_back"
+            android:rotation="180"
+            app:tint="@color/grey" />
+
+        <!-- Receiver -->
+        <androidx.cardview.widget.CardView
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            app:cardCornerRadius="14dp"
+            app:cardElevation="0dp"
+            app:cardBackgroundColor="@color/orange">
+            <ImageView
+                android:id="@+id/ivReceiverAvatar"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_profile_silhouette" />
+        </androidx.cardview.widget.CardView>
+
+        <TextView
+            android:id="@+id/tvReceiverName"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:fontFamily="@font/montserratalternatess_bold"
+            android:textColor="@color/black"
+            android:textSize="14sp"
+            tools:text="Gob" />
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/tvSettlementDescription"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:fontFamily="@font/montserratalternatess_regular"
+        android:textColor="@color/grey"
+        android:textSize="12sp"
+        tools:text="Jene pays Gob to settle up" />
+
+    </LinearLayout>
+
+    <!-- Amount Badge -->
+    <TextView
+        android:id="@+id/tvSettlementAmount"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="12dp"
+        android:layout_gravity="center"
+        android:paddingVertical="6dp"
+        android:background="@drawable/bg_status_badge"
+        android:backgroundTint="@color/yellow"
+        android:fontFamily="@font/montserratalternatess_bold"
+        android:textColor="@color/whitest"
+        android:textSize="14sp"
+        tools:text="₱23.33" />
+
+</LinearLayout>

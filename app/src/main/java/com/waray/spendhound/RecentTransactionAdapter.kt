@@ -296,7 +296,7 @@ class RecentTransactionAdapter(
             llPaidBy.removeAllViews()
 
             val itemId = item.id ?: 0L
-            val itemPayors = transaction.rawPayorRows.filter { it.transactionItemsId == itemId }
+            val itemPayors = transaction.rawPayorRows.filter { it.transactionItemsId == itemId && it.initialAmountPaid > 0.01 }
 
             if (itemPayors.isEmpty()) {
                 val tv = TextView(holder.itemView.context).apply {
@@ -316,11 +316,11 @@ class RecentTransactionAdapter(
                         UserHelper.getUsernameById(payor.userId, object : UserHelper.UsernameCallback {
                             override fun onUsernameRetrieved(username: String?) {
                                 val name = username ?: "Unknown"
-                                text = if (itemPayors.size == 1) name else "$name - ${CurrencyUtils.formatAmountWithCurrency(payor.currentAmountPaid)}"
+                                text = if (itemPayors.size == 1) name else "$name - ${CurrencyUtils.formatAmountWithCurrency(payor.initialAmountPaid)}"
                             }
                             override fun onError(error: String?) {
                                 val name = "Unknown"
-                                text = if (itemPayors.size == 1) name else "$name - ${CurrencyUtils.formatAmountWithCurrency(payor.currentAmountPaid)}"
+                                text = if (itemPayors.size == 1) name else "$name - ${CurrencyUtils.formatAmountWithCurrency(payor.initialAmountPaid)}"
                             }
                         })
                     }

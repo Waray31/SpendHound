@@ -24,9 +24,12 @@ import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
 import com.waray.spendhound.ui.multi_transaction.TransactionPayorInsert
 import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
+import com.waray.spendhound.TransactionSettlementActivity
+import android.content.Intent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import io.github.jan.supabase.postgrest.query.Order
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -146,7 +149,6 @@ class SettlementActivity : AppCompatActivity() {
         tvDebtAmount = findViewById(R.id.tvDebtAmount)
         tvTransactionsHeader = findViewById(R.id.tvTransactionsHeader)
         btnSelectAll = findViewById(R.id.btnSelectAll)
-        findViewById<View>(R.id.settleHandle)?.visibility = View.GONE
         amountInputContainer = findViewById(R.id.amountInputContainer)
         tvReceivableFooterAmount = findViewById(R.id.tvReceivableFooterAmount)
         tvComputedTotal = findViewById(R.id.tvComputedTotal)
@@ -182,12 +184,9 @@ class SettlementActivity : AppCompatActivity() {
     }
 
     private fun showSettleBottomSheet(transaction: RecentTransaction) {
-        val sheet = SettleBottomSheet()
-        sheet.transaction = transaction
-        sheet.onSettleSaved = {
-            loadGroupData()
-        }
-        sheet.show(supportFragmentManager, "SettleBottomSheet")
+        val intent = Intent(this, TransactionSettlementActivity::class.java)
+        intent.putExtra("EXTRA_TRANSACTION_JSON", Json.encodeToString(RecentTransaction.serializer(), transaction))
+        startActivity(intent)
     }
 
     private fun loadData() {

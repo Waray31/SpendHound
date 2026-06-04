@@ -23,12 +23,13 @@ import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
 import com.waray.spendhound.utils.PullInterceptLayout
 import com.waray.spendhound.utils.PullToRefreshHelper
-import com.waray.spendhound.SettleBottomSheet
+import com.waray.spendhound.TransactionSettlementActivity
 import io.github.jan.supabase.postgrest.query.Columns
 import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.json.Json
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
@@ -698,12 +699,9 @@ class GroupExpensesFragment : Fragment() {
     }
 
     private fun showSettleBottomSheet(transaction: RecentTransaction) {
-        val sheet = SettleBottomSheet()
-        sheet.transaction = transaction
-        sheet.onSettleSaved = {
-            loadExpenses(false)
-        }
-        sheet.show(childFragmentManager, "SettleBottomSheet")
+        val intent = Intent(requireContext(), TransactionSettlementActivity::class.java)
+        intent.putExtra("EXTRA_TRANSACTION_JSON", Json.encodeToString(RecentTransaction.serializer(), transaction))
+        startActivity(intent)
     }
     
     private fun archiveTransaction(transaction: RecentTransaction) {
