@@ -32,6 +32,7 @@ class DirectMessageAdapter(
     private var visibleTimeId: Long? = null
 
     inner class VH(view: View, val isMine: Boolean) : RecyclerView.ViewHolder(view) {
+        val messageRoot: LinearLayout = view.findViewById(R.id.messageRoot)
         val bubble: LinearLayout = view.findViewById(R.id.bubble)
         val tvContent: TextView = view.findViewById(R.id.tvDmContent)
         val tvTime: TextView = view.findViewById(R.id.tvDmTime)
@@ -62,6 +63,10 @@ class DirectMessageAdapter(
         val isLast = next?.senderId != msg.senderId
         val isMiddle = !isFirst && !isLast
 
+        val rootLp = holder.messageRoot.layoutParams as? ViewGroup.MarginLayoutParams
+        rootLp?.bottomMargin = if (isLast) dpToPx(holder.itemView, 8) else 0
+        holder.messageRoot.layoutParams = rootLp
+
         val bubbleLp = holder.bubble.layoutParams as? LinearLayout.LayoutParams
             ?: LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
 
@@ -81,7 +86,7 @@ class DirectMessageAdapter(
             })
         }
         bubbleLp.topMargin = if (isFirst) dpToPx(holder.itemView, 2) else 0
-        bubbleLp.bottomMargin = if (isLast) dpToPx(holder.itemView, 2) else 0
+        bubbleLp.bottomMargin = 0
         holder.bubble.layoutParams = bubbleLp
 
         // Avatar — show on last message of a consecutive group, hide otherwise

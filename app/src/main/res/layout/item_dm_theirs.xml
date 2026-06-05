@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/messageRoot"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:gravity="start"
     android:orientation="vertical"
-    android:padding="1dp"
-    android:layout_marginBottom="8dp">
+    android:padding="1dp">
 
     <TextView
         android:id="@+id/tvDmTime"
