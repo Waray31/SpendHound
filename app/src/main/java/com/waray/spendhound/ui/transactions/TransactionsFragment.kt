@@ -482,7 +482,7 @@ class TransactionsFragment : Fragment() {
             
             popup.findViewById<TextView>(R.id.tvSettle)?.setOnClickListener {
                 val intent = Intent(requireContext(), TransactionSettlementActivity::class.java)
-                intent.putExtra("EXTRA_TRANSACTION_JSON", Json.encodeToString(RecentTransaction.serializer(), transaction))
+                intent.putExtra(TransactionSettlementActivity.EXTRA_TRANSACTION_JSON, Json.encodeToString(RecentTransaction.serializer(), transaction))
                 startActivity(intent)
                 dismissPopup()
             }
@@ -549,7 +549,7 @@ class TransactionsFragment : Fragment() {
     
     private fun showSettleBottomSheet(transaction: RecentTransaction) {
         val intent = Intent(requireContext(), TransactionSettlementActivity::class.java)
-        intent.putExtra("EXTRA_TRANSACTION_JSON", Json.encodeToString(RecentTransaction.serializer(), transaction))
+        intent.putExtra(TransactionSettlementActivity.EXTRA_TRANSACTION_JSON, Json.encodeToString(RecentTransaction.serializer(), transaction))
         startActivity(intent)
     }
     

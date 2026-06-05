@@ -19,6 +19,9 @@ object UserHelper {
     // Cache for ID to username mappings
     private val idToUsernameCache: MutableMap<Long, String> = HashMap()
 
+    // Cache for ID to profile image URL mappings
+    private val idToImageUrlCache: MutableMap<Long, String> = HashMap()
+
     // Cache for username to ID mappings
     private val usernameToIdCache: MutableMap<String, Long> = HashMap()
 
@@ -225,12 +228,14 @@ object UserHelper {
         }
     }
 
-    fun updateCache(id: Long, username: String) {
+    fun updateCache(id: Long, username: String, profileImageUrl: String? = null) {
         idToUsernameCache[id] = username
         usernameToIdCache[username] = id
+        profileImageUrl?.let { idToImageUrlCache[id] = it }
     }
 
     fun getCachedUsername(id: Long?): String? = idToUsernameCache[id]
+    fun getCachedImageUrl(id: Long?): String? = idToImageUrlCache[id]
     fun getCachedId(username: String?): Long? = usernameToIdCache[username]
     fun clearCache() {
         idToUsernameCache.clear()

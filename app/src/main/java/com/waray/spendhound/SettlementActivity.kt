@@ -185,7 +185,7 @@ class SettlementActivity : AppCompatActivity() {
 
     private fun showSettleBottomSheet(transaction: RecentTransaction) {
         val intent = Intent(this, TransactionSettlementActivity::class.java)
-        intent.putExtra("EXTRA_TRANSACTION_JSON", Json.encodeToString(RecentTransaction.serializer(), transaction))
+        intent.putExtra(TransactionSettlementActivity.EXTRA_TRANSACTION_JSON, Json.encodeToString(RecentTransaction.serializer(), transaction))
         startActivity(intent)
     }
 
@@ -639,12 +639,14 @@ class SettlementActivity : AppCompatActivity() {
         val allUserIds = (allPayors.map { it.userId } + allSplits.map { it.userId }).distinct()
         val users = DeclareDatabase.usersTable.select { filter { isIn("user_id", allUserIds) } }.decodeList<User>()
         
-        // Populate UserHelper cache
+        // Populate UserHelper and image cache
         users.forEach { u ->
             val uid = u.id
-            val name = u.username
-            if (uid != null && name != null) {
-                UserHelper.updateCache(uid, name)
+            if (uid != null) {
+                u.username?.let { UserHelper.updateCache(uid, it) }
+                val idStr = uid.toString()
+                val url = u.profileImageUrl ?: DeclareDatabase.profileImagesBucket.publicUrl("$idStr/$idStr.jpg")
+                PayorAdapter.sDownloadUrlCache[idStr] = url
             }
         }
         

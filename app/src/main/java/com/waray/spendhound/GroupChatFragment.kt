@@ -4,6 +4,7 @@ import android.content.Intent
 import android.graphics.Paint
 import android.os.Bundle
 import android.util.Log
+import com.waray.spendhound.TransactionSettlementActivity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -239,7 +240,9 @@ class GroupChatFragment : Fragment() {
                     msg.transactionTitle = tx?.description ?: "Transaction"
                     msg.transactionAmount = tx?.totalAmount ?: 0.0
                     msg.transactionStatus = when (tx?.status) {
-                        1 -> "Settled"; 2 -> "Active"; else -> "Pending"
+                        1, 3 -> "Settled"
+                        2 -> "Pending"
+                        else -> "Pending"
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Failed to enrich transaction", e)
@@ -804,6 +807,8 @@ class GroupChatFragment : Fragment() {
             val tvTransactionTitle: TextView = view.findViewById(R.id.tvTransactionTitle)
             val tvTransactionAmount: TextView = view.findViewById(R.id.tvTransactionAmount)
             val tvTransactionStatus: TextView = view.findViewById(R.id.tvTransactionStatus)
+            val tvTransactionMessage: TextView = view.findViewById(R.id.tvTransactionMessage)
+            val transactionSeparator: View = view.findViewById(R.id.transactionSeparator)
         }
 
         override fun getItemViewType(position: Int) =
@@ -1018,19 +1023,45 @@ class GroupChatFragment : Fragment() {
             }
 
             // Transaction card
-            if (msg.transactionId != null && !msg.transactionTitle.isNullOrBlank()) {
+            if (msg.transactionId != null && !msg.transactionTitle.isNullOrBlank() && !msg.isDeleted) {
                 holder.transactionCard.visibility = View.VISIBLE
                 holder.tvTransactionTitle.text = msg.transactionTitle
                 holder.tvTransactionAmount.text = CurrencyUtils.formatAmountWithCurrency(msg.transactionAmount)
-                holder.tvTransactionStatus.text = msg.transactionStatus ?: ""
+                
+                val status = msg.transactionStatus ?: "Pending"
+                holder.tvTransactionStatus.text = status
+                
+                // Status Badge Styling
+                val (bgColor, textColor) = if (status.equals("Settled", ignoreCase = true)) {
+                    R.color.green to R.color.whitest
+                } else {
+                    R.color.yellow to R.color.whitest
+                }
+                holder.tvTransactionStatus.backgroundTintList = androidx.core.content.ContextCompat.getColorStateList(requireContext(), bgColor)
+                holder.tvTransactionStatus.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), textColor))
+
+                // Message inside card
+                holder.tvTransactionMessage.text = msg.message
+                holder.tvTransactionMessage.visibility = View.VISIBLE
+                holder.transactionSeparator.visibility = View.VISIBLE
+
+                // Set card width to 250dp explicitly in case layout params were reset
+                val lp = holder.transactionCard.layoutParams
+                lp.width = dpToPx(250)
+                holder.transactionCard.layoutParams = lp
+
+                // Hide bubble if it's just the share text
+                holder.bubble.visibility = View.GONE
+
                 holder.transactionCard.setOnClickListener {
-                    startActivity(
-                        Intent(requireContext(), TransactionDetailActivity::class.java)
-                            .putExtra(TransactionDetailActivity.EXTRA_TRANSACTION_ID, msg.transactionId)
-                    )
+                    val intent = Intent(requireContext(), TransactionSettlementActivity::class.java).apply {
+                        putExtra(TransactionSettlementActivity.EXTRA_TRANSACTION_ID, msg.transactionId)
+                    }
+                    startActivity(intent)
                 }
             } else {
                 holder.transactionCard.visibility = View.GONE
+                holder.bubble.visibility = View.VISIBLE
             }
 
             // Long press on bubble — show inline emoji + actions popup, no ripple

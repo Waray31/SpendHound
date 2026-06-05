@@ -18,12 +18,27 @@
             app:cardCornerRadius="26dp"
             app:cardBackgroundColor="@color/orange">
 
-            <ImageView
-                android:id="@+id/payorProfileImage"
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="centerCrop"
-                android:src="@drawable/ic_profile_silhouette" />
+                android:layout_height="match_parent">
+
+                <TextView
+                    android:id="@+id/payorInitialsTextView"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:gravity="center"
+                    android:textColor="@color/white"
+                    android:textSize="18sp"
+                    android:visibility="gone" />
+
+                <ImageView
+                    android:id="@+id/payorProfileImage"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop" />
+
+            </FrameLayout>
 
         </androidx.cardview.widget.CardView>
 

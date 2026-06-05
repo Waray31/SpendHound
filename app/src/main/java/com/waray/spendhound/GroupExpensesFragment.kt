@@ -241,9 +241,20 @@ class GroupExpensesFragment : Fragment() {
 
         val allUserIds = (allPayors.map { it.userId } + allSplits.map { it.userId }).distinct()
         val usersById: Map<Long, String> = if (allUserIds.isNotEmpty()) {
-            DeclareDatabase.usersTable.select {
+            val users = DeclareDatabase.usersTable.select {
                 filter { isIn("user_id", allUserIds) }
-            }.decodeList<User>().associate { it.id!! to (it.username ?: getString(R.string.label_unknown)) }
+            }.decodeList<User>()
+            
+            users.forEach { u ->
+                val uid = u.id
+                if (uid != null) {
+                    u.username?.let { UserHelper.updateCache(uid, it) }
+                    val idStr = uid.toString()
+                    val url = u.profileImageUrl ?: DeclareDatabase.profileImagesBucket.publicUrl("$idStr/$idStr.jpg")
+                    PayorAdapter.sDownloadUrlCache[idStr] = url
+                }
+            }
+            users.associate { it.id!! to (it.username ?: getString(R.string.label_unknown)) }
         } else emptyMap()
 
         val payorsByTx = allPayors.groupBy { it.transactionId }
@@ -700,7 +711,7 @@ class GroupExpensesFragment : Fragment() {
 
     private fun showSettleBottomSheet(transaction: RecentTransaction) {
         val intent = Intent(requireContext(), TransactionSettlementActivity::class.java)
-        intent.putExtra("EXTRA_TRANSACTION_JSON", Json.encodeToString(RecentTransaction.serializer(), transaction))
+        intent.putExtra(TransactionSettlementActivity.EXTRA_TRANSACTION_JSON, Json.encodeToString(RecentTransaction.serializer(), transaction))
         startActivity(intent)
     }
     

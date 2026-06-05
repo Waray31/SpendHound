@@ -250,41 +250,65 @@ class RecentTransactionAdapter(
     /** Loads the creator's profile image into createdByImageView. */
     private fun loadCreatorImage(holder: ViewHolder, transaction: RecentTransaction) {
         val creatorUserId = transaction.createdByUserId
+        val name = transaction.createdBy ?: holder.itemView.context.getString(R.string.label_unknown)
+        
         if (creatorUserId.isNullOrBlank()) {
-            holder.createdByImageView.setImageResource(R.drawable.ic_profile_silhouette)
+            holder.createdByInitials.text = name.take(2).uppercase()
+            holder.createdByInitials.visibility = View.VISIBLE
+            holder.createdByImageView.visibility = View.GONE
             return
         }
 
-        val cachedUrl = PayorAdapter.sDownloadUrlCache[creatorUserId]
+        val cachedUrl = PayorAdapter.sDownloadUrlCache[creatorUserId] ?: UserHelper.getCachedImageUrl(creatorUserId.toLongOrNull())
         if (cachedUrl != null) {
-            loadCoilImageForCreator(holder, cachedUrl)
+            loadCoilImageForCreator(holder, cachedUrl, name)
         } else {
             scope.launch {
                 try {
-                    val url = withContext(Dispatchers.IO) {
-                        DeclareDatabase.profileImagesBucket.publicUrl("$creatorUserId/$creatorUserId.jpg")
+                    val uidLong = creatorUserId.toLongOrNull()
+                    val user = withContext(Dispatchers.IO) {
+                        if (uidLong != null) {
+                            DeclareDatabase.usersTable.select { filter { eq("user_id", uidLong) } }.decodeSingleOrNull<User>()
+                        } else null
                     }
+                    val url = user?.profileImageUrl?.takeIf { it.isNotBlank() && it != "placeholder_profile_image" }
+                        ?: withContext(Dispatchers.IO) {
+                            DeclareDatabase.profileImagesBucket.publicUrl("$creatorUserId/$creatorUserId.jpg")
+                        }
                     PayorAdapter.sDownloadUrlCache[creatorUserId] = url
-                    loadCoilImageForCreator(holder, url)
+                    if (uidLong != null) {
+                        user?.username?.let { UserHelper.updateCache(uidLong, it, url) }
+                    }
+                    loadCoilImageForCreator(holder, url, name)
                 } catch (e: Exception) {
-                    holder.createdByImageView.setImageResource(R.drawable.ic_profile_silhouette)
-                    holder.createdByImageView.imageTintList = ContextCompat.getColorStateList(holder.itemView.context, R.color.white)
+                    holder.createdByInitials.text = name.take(2).uppercase()
+                    holder.createdByInitials.visibility = View.VISIBLE
+                    holder.createdByImageView.visibility = View.GONE
                 }
             }
         }
     }
 
     /** Loads image using Coil for the creator profile. */
-    private fun loadCoilImageForCreator(holder: ViewHolder, url: String) {
+    private fun loadCoilImageForCreator(holder: ViewHolder, url: String, name: String) {
+        holder.createdByInitials.text = name.take(2).uppercase()
+        holder.createdByInitials.visibility = View.VISIBLE
+        
+        holder.createdByImageView.visibility = View.VISIBLE
+        holder.createdByImageView.setImageDrawable(null)
         holder.createdByImageView.imageTintList = null
+
         holder.createdByImageView.load(url) {
-            placeholder(R.drawable.ic_profile_silhouette)
-            error(R.drawable.ic_profile_silhouette)
             transformations(CircleCropTransformation())
-            listener(onError = { _, _ ->
-                holder.createdByImageView.setImageResource(R.drawable.ic_profile_silhouette)
-                holder.createdByImageView.imageTintList = ContextCompat.getColorStateList(holder.itemView.context, R.color.white)
-            })
+            listener(
+                onSuccess = { _, _ ->
+                    holder.createdByInitials.visibility = View.GONE
+                },
+                onError = { _, _ ->
+                    holder.createdByInitials.visibility = View.VISIBLE
+                    holder.createdByImageView.visibility = View.GONE
+                }
+            )
         }
     }
 
@@ -379,6 +403,7 @@ class RecentTransactionAdapter(
         val dividerBelowItems: View          = itemView.findViewById(R.id.dividerBelowItems)
         val tvSingleDescription: TextView    = itemView.findViewById(R.id.tvSingleDescription)
         val createdByImageView: ImageView    = itemView.findViewById(R.id.createdByImageView)
+        val createdByInitials: TextView      = itemView.findViewById(R.id.createdByInitialsTextView)
         val createdByTextView: TextView      = itemView.findViewById(R.id.createdByTextView)
         val payorsRecyclerView: RecyclerView = itemView.findViewById(R.id.payorsRecyclerView)
         val loadingOverlay: View             = itemView.findViewById(R.id.loadingOverlay_transaction)

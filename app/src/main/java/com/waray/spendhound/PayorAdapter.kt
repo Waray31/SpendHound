@@ -80,9 +80,16 @@ class PayorAdapter(
             } else {
                 scope.launch {
                     try {
-                        val url = withContext(Dispatchers.IO) {
-                            DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
+                        val uidLong = userId.toLongOrNull()
+                        val user = withContext(Dispatchers.IO) {
+                            if (uidLong != null) {
+                                DeclareDatabase.usersTable.select { filter { eq("user_id", uidLong) } }.decodeSingleOrNull<User>()
+                            } else null
                         }
+                        val url = user?.profileImageUrl?.takeIf { it.isNotBlank() && it != "placeholder_profile_image" }
+                            ?: withContext(Dispatchers.IO) {
+                                DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
+                            }
                         sDownloadUrlCache[userId] = url
                         preloadProfileImage(context, url, i)
                     } catch (e: Exception) {
@@ -144,7 +151,7 @@ class PayorAdapter(
 
     override fun onBindViewHolder(holder: PayorViewHolder, position: Int) {
         val userId = payorUserIds?.get(position)
-        val name = if (payorsNames != null && position < payorsNames.size) payorsNames[position] else "User"
+        val name = if (payorsNames != null && position < payorsNames.size) payorsNames[position] ?: "User" else "User"
         val paid = if (amountsPaid != null && position < amountsPaid!!.size) amountsPaid!![position] ?: 0.0 else 0.0
         val individualPayment = individualPayments.getOrNull(position) ?: 0.0
 
@@ -194,20 +201,31 @@ class PayorAdapter(
         }
 
         if (userId != null) {
-            val cachedUrl = sDownloadUrlCache[userId]
+            val cachedUrl = sDownloadUrlCache[userId] ?: UserHelper.getCachedImageUrl(userId.toLongOrNull())
             if (cachedUrl != null) {
-                loadCoilImage(holder, cachedUrl, position)
+                loadCoilImage(holder, cachedUrl, position, name)
             } else {
                 scope.launch {
                     try {
-                        val url = withContext(Dispatchers.IO) {
-                            DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
+                        val uidLong = userId.toLongOrNull()
+                        val user = withContext(Dispatchers.IO) {
+                            if (uidLong != null) {
+                                DeclareDatabase.usersTable.select { filter { eq("user_id", uidLong) } }.decodeSingleOrNull<User>()
+                            } else null
                         }
+                        val url = user?.profileImageUrl?.takeIf { it.isNotBlank() && it != "placeholder_profile_image" }
+                            ?: withContext(Dispatchers.IO) {
+                                DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
+                            }
                         sDownloadUrlCache[userId] = url
-                        loadCoilImage(holder, url, position)
+                        if (uidLong != null) {
+                            user?.username?.let { UserHelper.updateCache(uidLong, it, url) }
+                        }
+                        loadCoilImage(holder, url, position, name)
                     } catch (e: Exception) {
-                        holder.payorImage.setImageResource(R.drawable.ic_profile_silhouette)
-                        holder.payorImage.imageTintList = ContextCompat.getColorStateList(holder.itemView.context, R.color.white)
+                        holder.payorInitials.text = name.take(2).uppercase()
+                        holder.payorInitials.visibility = View.VISIBLE
+                        holder.payorImage.visibility = View.GONE
                         checkLoadingComplete(position)
                     }
                 }
@@ -221,18 +239,34 @@ class PayorAdapter(
         }
     }
 
-    private fun loadCoilImage(holder: PayorViewHolder, url: String?, position: Int) {
+    private fun loadCoilImage(holder: PayorViewHolder, url: String?, position: Int, name: String) {
+        holder.payorInitials.text = name.take(2).uppercase()
+        holder.payorInitials.visibility = View.VISIBLE
+        
+        // Ensure image view is visible for Coil to load into it, but clear it first
+        holder.payorImage.visibility = View.VISIBLE
+        holder.payorImage.setImageDrawable(null)
         holder.payorImage.imageTintList = null
+
+        if (url.isNullOrBlank()) {
+            holder.payorImage.visibility = View.GONE
+            checkLoadingComplete(position)
+            return
+        }
+
         holder.payorImage.load(url) {
-            placeholder(R.drawable.ic_profile_silhouette)
-            error(R.drawable.ic_profile_silhouette)
             transformations(CircleCropTransformation())
+            crossfade(true)
             listener(
-                onSuccess = { _, _ -> checkLoadingComplete(position) },
-                onError = { _, _ -> 
-                    holder.payorImage.setImageResource(R.drawable.ic_profile_silhouette)
-                    holder.payorImage.imageTintList = ContextCompat.getColorStateList(holder.itemView.context, R.color.white)
-                    checkLoadingComplete(position) 
+                onSuccess = { _, _ ->
+                    holder.payorInitials.visibility = View.GONE
+                    holder.payorImage.visibility = View.VISIBLE
+                    checkLoadingComplete(position)
+                },
+                onError = { _, _ ->
+                    holder.payorInitials.visibility = View.VISIBLE
+                    holder.payorImage.visibility = View.GONE
+                    checkLoadingComplete(position)
                 }
             )
         }
@@ -286,6 +320,7 @@ class PayorAdapter(
 
     class PayorViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
         val payorImage: ImageView = itemView.findViewById(R.id.payorProfileImage)
+        val payorInitials: TextView = itemView.findViewById(R.id.payorInitialsTextView)
         val payorStatusBadge: ImageView = itemView.findViewById(R.id.payorStatusBadge)
         val payorName: TextView = itemView.findViewById(R.id.payorNameTextView)
 

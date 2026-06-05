@@ -27,12 +27,26 @@
             app:cardCornerRadius="14dp"
             app:cardElevation="0dp"
             app:cardBackgroundColor="@color/orange">
-            <ImageView
-                android:id="@+id/ivPayerAvatar"
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="centerCrop"
-                android:src="@drawable/ic_profile_silhouette" />
+                android:layout_height="match_parent">
+                <TextView
+                    android:id="@+id/tvPayerInitials"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:textColor="@color/white"
+                    android:textSize="10sp"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:visibility="gone"
+                    tools:text="JE"
+                    tools:visibility="visible"/>
+                <ImageView
+                    android:id="@+id/ivPayerAvatar"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop" />
+            </FrameLayout>
         </androidx.cardview.widget.CardView>
 
         <TextView
@@ -60,12 +74,26 @@
             app:cardCornerRadius="14dp"
             app:cardElevation="0dp"
             app:cardBackgroundColor="@color/orange">
-            <ImageView
-                android:id="@+id/ivReceiverAvatar"
+            <FrameLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:scaleType="centerCrop"
-                android:src="@drawable/ic_profile_silhouette" />
+                android:layout_height="match_parent">
+                <TextView
+                    android:id="@+id/tvReceiverInitials"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:gravity="center"
+                    android:textColor="@color/white"
+                    android:textSize="10sp"
+                    android:fontFamily="@font/montserratalternatess_bold"
+                    android:visibility="gone"
+                    tools:text="GO"
+                    tools:visibility="visible"/>
+                <ImageView
+                    android:id="@+id/ivReceiverAvatar"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop" />
+            </FrameLayout>
         </androidx.cardview.widget.CardView>
 
         <TextView

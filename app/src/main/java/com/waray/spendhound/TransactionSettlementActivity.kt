@@ -54,8 +54,16 @@ import kotlinx.serialization.json.put
 import java.io.File
 import java.io.FileOutputStream
 import java.util.Locale
+import com.waray.spendhound.data.local.AppDatabase
+import com.waray.spendhound.data.repository.TransactionRepository
 
 class TransactionSettlementActivity : AppCompatActivity() {
+
+    companion object {
+        const val EXTRA_TRANSACTION_ID = "EXTRA_TRANSACTION_ID"
+        const val EXTRA_TRANSACTION_JSON = "EXTRA_TRANSACTION_JSON"
+        const val EXTRA_IS_DETAILS = "EXTRA_IS_DETAILS"
+    }
 
     private val scope = CoroutineScope(Dispatchers.Main)
     private val epsilon = 0.01
@@ -86,7 +94,8 @@ class TransactionSettlementActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_transaction_settlement)
 
-        val txJson = intent.getStringExtra("EXTRA_TRANSACTION_JSON")
+        val txId = intent.getLongExtra(EXTRA_TRANSACTION_ID, -1L)
+        val txJson = intent.getStringExtra(EXTRA_TRANSACTION_JSON)
         if (txJson != null) {
             transaction = try {
                 Json.decodeFromString<RecentTransaction>(txJson)
@@ -94,16 +103,47 @@ class TransactionSettlementActivity : AppCompatActivity() {
                 null
             }
         }
-        isDetailsMode = intent.getBooleanExtra("EXTRA_IS_DETAILS", false)
+        isDetailsMode = intent.getBooleanExtra(EXTRA_IS_DETAILS, false)
 
-        val tx = transaction ?: run {
+        val tx = transaction
+        if (tx != null) {
+            initViews(tx)
+            loadUserProfiles(tx)
+        } else if (txId != -1L) {
+            fetchTransactionAndInit(txId)
+        } else {
             Toast.makeText(this, "Transaction not found", Toast.LENGTH_SHORT).show()
             finish()
-            return
         }
+    }
 
-        initViews(tx)
-        loadUserProfiles(tx)
+    private fun fetchTransactionAndInit(txId: Long) {
+        val loadingLayout = findViewById<View>(R.id.settleLoadingLayout)
+        loadingLayout?.visibility = View.VISIBLE
+        
+        scope.launch {
+            try {
+                val db = AppDatabase.getInstance(this@TransactionSettlementActivity)
+                val repo = TransactionRepository(db)
+                val tx = withContext(Dispatchers.IO) {
+                    repo.getTransactionById(txId)
+                }
+                
+                if (tx != null) {
+                    transaction = tx
+                    initViews(tx)
+                    loadUserProfiles(tx)
+                    loadingLayout?.visibility = View.GONE
+                } else {
+                    Toast.makeText(this@TransactionSettlementActivity, "Failed to load transaction", Toast.LENGTH_SHORT).show()
+                    finish()
+                }
+            } catch (e: Exception) {
+                Log.e("TransactionSettlement", "Error fetching transaction: ${e.message}")
+                Toast.makeText(this@TransactionSettlementActivity, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                finish()
+            }
+        }
     }
 
     private fun loadUserProfiles(tx: RecentTransaction) {
@@ -126,12 +166,14 @@ class TransactionSettlementActivity : AppCompatActivity() {
                         val idStr = id.toString()
                         userProfilesMap[id] = user
                         
+                        val url = user.profileImageUrl?.takeIf { it.isNotBlank() && it != "placeholder_profile_image" }
+                            ?: DeclareDatabase.profileImagesBucket.publicUrl("$idStr/$idStr.jpg")
+                        
                         // Populate UserHelper cache
                         user.username?.let { name ->
-                            UserHelper.updateCache(id, name)
+                            UserHelper.updateCache(id, name, url)
                         }
 
-                        val url = user.profileImageUrl ?: DeclareDatabase.profileImagesBucket.publicUrl("$idStr/$idStr.jpg")
                         PayorAdapter.sDownloadUrlCache[idStr] = url
                     }
                 }
@@ -949,8 +991,10 @@ class TransactionSettlementActivity : AppCompatActivity() {
         plan.instructions.forEach { instr ->
             val rowView = inflater.inflate(R.layout.item_settlement_summary_row, container, false)
             val ivPayer = rowView.findViewById<ImageView>(R.id.ivPayerAvatar)
+            val tvPayerInitials = rowView.findViewById<TextView>(R.id.tvPayerInitials)
             val tvPayer = rowView.findViewById<TextView>(R.id.tvPayerName)
             val ivReceiver = rowView.findViewById<ImageView>(R.id.ivReceiverAvatar)
+            val tvReceiverInitials = rowView.findViewById<TextView>(R.id.tvReceiverInitials)
             val tvReceiver = rowView.findViewById<TextView>(R.id.tvReceiverName)
             val tvAmount = rowView.findViewById<TextView>(R.id.tvSettlementAmount)
             val tvDesc = rowView.findViewById<TextView>(R.id.tvSettlementDescription)
@@ -963,24 +1007,38 @@ class TransactionSettlementActivity : AppCompatActivity() {
             tvAmount.text = CurrencyUtils.formatAmountWithCurrency(instr.amount)
             tvDesc.text = "$payerName pays $receiverName to settle up"
 
-            loadProfileImage(instr.payerId, ivPayer)
-            loadProfileImage(instr.receiverId, ivReceiver)
+            loadProfileImage(instr.payerId, ivPayer, tvPayerInitials, payerName)
+            loadProfileImage(instr.receiverId, ivReceiver, tvReceiverInitials, receiverName)
 
             container.addView(rowView)
         }
     }
 
-    private fun loadProfileImage(userId: Long?, imageView: ImageView) {
+    private fun loadProfileImage(userId: Long?, imageView: ImageView, initialsView: TextView, name: String) {
         if (userId == null) return
+        
+        initialsView.text = name.take(2).uppercase()
+        initialsView.visibility = View.VISIBLE
+        
+        imageView.visibility = View.VISIBLE
+        imageView.setImageDrawable(null)
+
         val userIdStr = userId.toString()
         val cachedUrl = PayorAdapter.sDownloadUrlCache[userIdStr]
         val url = cachedUrl ?: DeclareDatabase.profileImagesBucket.publicUrl("$userIdStr/$userIdStr.jpg")
 
         imageView.load(url) {
             transformations(CircleCropTransformation())
-            placeholder(R.drawable.ic_profile_silhouette)
-            error(R.drawable.ic_profile_silhouette)
             crossfade(true)
+            listener(
+                onSuccess = { _, _ ->
+                    initialsView.visibility = View.GONE
+                },
+                onError = { _, _ ->
+                    initialsView.visibility = View.VISIBLE
+                    imageView.visibility = View.GONE
+                }
+            )
         }
     }
 
@@ -1064,37 +1122,29 @@ class TransactionSettlementActivity : AppCompatActivity() {
 
             // Initials / Avatar
             holder.tvInitials.text = name.take(2).uppercase()
-            
-            val user = uidLong?.let { userProfilesMap[it] }
-            val hasExplicitImage = !user?.profileImageUrl.isNullOrBlank()
+            holder.tvInitials.visibility = View.VISIBLE
+            holder.ivAvatar.visibility = View.VISIBLE
+            holder.ivAvatar.setImageDrawable(null)
 
-            if (hasExplicitImage) {
-                // Priority: If user has an explicit profile image URL, hide initials immediately
-                holder.tvInitials.visibility = View.GONE
-                holder.ivAvatar.visibility = View.VISIBLE
-                holder.ivAvatar.load(user?.profileImageUrl) {
+            val user = uidLong?.let { userProfilesMap[it] }
+            val url = user?.profileImageUrl?.takeIf { it.isNotBlank() && it != "placeholder_profile_image" }
+                ?: (if (userId != null) DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg") else null)
+
+            if (!url.isNullOrBlank()) {
+                holder.ivAvatar.load(url) {
                     transformations(CircleCropTransformation())
-                    listener(onError = { _, _ ->
-                        // Fallback to initials if image load fails
-                        holder.tvInitials.visibility = View.VISIBLE
-                        holder.ivAvatar.visibility = View.GONE
-                    })
+                    listener(
+                        onSuccess = { _, _ ->
+                            holder.tvInitials.visibility = View.GONE
+                        },
+                        onError = { _, _ ->
+                            holder.tvInitials.visibility = View.VISIBLE
+                            holder.ivAvatar.visibility = View.GONE
+                        }
+                    )
                 }
             } else {
-                // No explicit image URL, show initials and try fallback bucket URL
-                holder.tvInitials.visibility = View.VISIBLE
                 holder.ivAvatar.visibility = View.GONE
-
-                val bucketUrl = if (userId != null) DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg") else null
-                if (bucketUrl != null) {
-                    holder.ivAvatar.load(bucketUrl) {
-                        transformations(CircleCropTransformation())
-                        listener(onSuccess = { _, _ ->
-                            holder.tvInitials.visibility = View.GONE
-                            holder.ivAvatar.visibility = View.VISIBLE
-                        })
-                    }
-                }
             }
         }
 

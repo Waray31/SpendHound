@@ -249,12 +249,27 @@
                         app:cardElevation="0dp"
                         app:cardBackgroundColor="@color/orange">
 
-                        <ImageView
-                            android:id="@+id/createdByImageView"
+                        <FrameLayout
                             android:layout_width="match_parent"
-                            android:layout_height="match_parent"
-                            android:scaleType="centerCrop"
-                            android:src="@drawable/ic_profile_silhouette" />
+                            android:layout_height="match_parent">
+
+                            <TextView
+                                android:id="@+id/createdByInitialsTextView"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:fontFamily="@font/montserratalternatess_bold"
+                                android:gravity="center"
+                                android:textColor="@color/white"
+                                android:textSize="12sp"
+                                android:visibility="gone" />
+
+                            <ImageView
+                                android:id="@+id/createdByImageView"
+                                android:layout_width="match_parent"
+                                android:layout_height="match_parent"
+                                android:scaleType="centerCrop" />
+
+                        </FrameLayout>
 
                     </androidx.cardview.widget.CardView>
 

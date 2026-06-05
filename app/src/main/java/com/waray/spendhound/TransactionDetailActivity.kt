@@ -38,8 +38,7 @@ class TransactionDetailActivity : AppCompatActivity() {
                     findViewById<TextView>(R.id.tvDetailAmount).text =
                         CurrencyUtils.formatAmountWithCurrency(tx.totalAmount)
                     findViewById<TextView>(R.id.tvDetailStatus).text = when (tx.status) {
-                        1 -> "Settled"
-                        2 -> "Active"
+                        1, 3 -> "Settled"
                         else -> "Pending"
                     }
                     findViewById<TextView>(R.id.tvDetailDate).text = tx.createdAt?.take(10) ?: ""

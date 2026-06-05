@@ -34,6 +34,91 @@ class TransactionRepository(private val db: AppDatabase) {
         type = typeOf<List<RecentTransaction>>()
     ) { fetchTransactions(userId, 5L, groupId) }
 
+    suspend fun getTransactionById(txId: Long): RecentTransaction? {
+        val tx = DeclareDatabase.transactionsTable.select {
+            filter { eq("id", txId) }
+        }.decodeSingleOrNull<TransactionFull>() ?: return null
+
+        val payors = DeclareDatabase.transactionPayorsTable.select {
+            filter { eq("transaction_id", txId) }
+        }.decodeList<TransactionPayorTable>()
+        
+        val splits = DeclareDatabase.transactionSplitsTable.select {
+            filter { eq("transaction_id", txId) }
+        }.decodeList<TransactionSplitTable>()
+        
+        val items = DeclareDatabase.transactionItemsTable.select {
+            filter { eq("transaction_id", txId) }
+        }.decodeList<TransactionItemFull>()
+
+        val allUserIds = (payors.map { it.userId } + splits.map { it.userId }).distinct()
+        val usersById = if (allUserIds.isNotEmpty()) {
+            val users = DeclareDatabase.usersTable.select {
+                filter { isIn("user_id", allUserIds) }
+            }.decodeList<User>()
+            
+            users.forEach { u ->
+                val uid = u.id
+                if (uid != null) {
+                    val url = u.profileImageUrl?.takeIf { it.isNotBlank() && it != "placeholder_profile_image" } 
+                        ?: DeclareDatabase.profileImagesBucket.publicUrl("$uid/$uid.jpg")
+                    
+                    u.username?.let { com.waray.spendhound.UserHelper.updateCache(uid, it, url) }
+                    
+                    val idStr = uid.toString()
+                    com.waray.spendhound.PayorAdapter.sDownloadUrlCache[idStr] = url
+                }
+            }
+            users.associate { it.id!! to (it.username ?: "Unknown") }
+        } else emptyMap()
+
+        val groupName = tx.groupId?.let { gid ->
+            DeclareDatabase.groupsTable.select {
+                filter { eq("group_id", gid) }
+            }.decodeSingleOrNull<PayerGroup>()?.groupName
+        }
+
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+        val timestamp = try { sdf.parse(tx.createdAt ?: "")?.time ?: 0L } catch (e: Exception) { 0L }
+        val cal = Calendar.getInstance().apply { timeInMillis = timestamp }
+        val monthName = cal.getDisplayName(Calendar.MONTH, Calendar.LONG, Locale.getDefault())
+        val year = cal.get(Calendar.YEAR).toString()
+        val day = cal.get(Calendar.DAY_OF_MONTH).toString()
+        val timeKey = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(cal.time)
+        
+        val contributorIds = (payors.map { it.userId } + splits.map { it.userId }).distinct()
+        val payorNames = contributorIds.map { usersById[it] ?: "Unknown" }.toMutableList<String?>()
+        val payorUserIds = contributorIds.map { it.toString() }.toMutableList<String?>()
+        val amountsPaid = contributorIds.map { uid ->
+            payors.filter { it.userId == uid }.sumOf { it.currentAmountPaid } as Double?
+        }.toMutableList()
+        
+        val userOwedMap = splits.groupBy { it.userId }.mapValues { it.value.sumOf { s -> s.amount } }
+        val individualPayment = userOwedMap.values.firstOrNull() ?: 0.0
+        val paidByUser = payors.groupBy { it.userId }.mapValues { e -> e.value.sumOf { it.currentAmountPaid } }
+        val allSettled = userOwedMap.isNotEmpty() && userOwedMap.all { (userId, owed) ->
+            (paidByUser[userId] ?: 0.0) >= owed - 0.01
+        }
+
+        return RecentTransaction(
+            txId, "$monthName - $day", tx.description, tx.description,
+            CurrencyUtils.formatAmountWithCurrency(tx.totalAmount),
+            getIcon(tx.description), "$year-$monthName-$day $timeKey", timestamp,
+            payorNames, payorUserIds, amountsPaid, individualPayment,
+            "$monthName $day, $year", usersById[tx.createdBy] ?: "Unknown",
+            tx.createdBy?.toString(), "$monthName-$year", day, timeKey
+        ).also {
+            it.transactionItems = items
+            it.transactionStatus = if (allSettled) "Settled" else "Pending"
+            it.creatorNumericId = tx.createdBy
+            it.rawPayorRows = payors
+            it.rawSplitRows = splits
+            it.groupId = tx.groupId
+            it.groupName = groupName
+            it.isArchived = tx.isArchived ?: false
+        }
+    }
+
     suspend fun invalidate(userId: Long) {
         db.jsonBlobDao().delete(CacheKeys.transactions(userId))
         db.jsonBlobDao().delete(CacheKeys.homeRecent(userId))
@@ -84,12 +169,17 @@ class TransactionRepository(private val db: AppDatabase) {
                 filter { isIn("user_id", allUserIds) }
             }.decodeList<User>()
             
-            // Populate UserHelper cache for instant lookup in UI
+            // Populate UserHelper and Image cache for instant lookup in UI
             users.forEach { u ->
                 val uid = u.id
-                val name = u.username
-                if (uid != null && name != null) {
-                    com.waray.spendhound.UserHelper.updateCache(uid, name)
+                if (uid != null) {
+                    val url = u.profileImageUrl?.takeIf { it.isNotBlank() && it != "placeholder_profile_image" } 
+                        ?: DeclareDatabase.profileImagesBucket.publicUrl("$uid/$uid.jpg")
+                    
+                    u.username?.let { com.waray.spendhound.UserHelper.updateCache(uid, it, url) }
+                    
+                    val idStr = uid.toString()
+                    com.waray.spendhound.PayorAdapter.sDownloadUrlCache[idStr] = url
                 }
             }
             
