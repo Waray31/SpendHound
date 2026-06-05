@@ -710,7 +710,9 @@ class SettlementActivity : AppCompatActivity() {
         fun updateGroups(newGroups: List<PayerGroup>) { items = newGroups; notifyDataSetChanged() }
         fun setSelected(group: PayerGroup) { selectedId = group.groupId; notifyDataSetChanged() }
         inner class VH(view: View) : RecyclerView.ViewHolder(view) {
-            val icon: ImageView = view.findViewById(R.id.ivMemberIcon); val name: TextView = view.findViewById(R.id.tvMemberName)
+            val icon: ImageView = view.findViewById(R.id.ivMemberIcon)
+            val initials: TextView = view.findViewById(R.id.tvMemberInitials)
+            val name: TextView = view.findViewById(R.id.tvMemberName)
             val card: androidx.cardview.widget.CardView = view.findViewById(R.id.profileCardView)
         }
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = VH(LayoutInflater.from(parent.context).inflate(R.layout.item_member_selection, parent, false))
@@ -718,19 +720,34 @@ class SettlementActivity : AppCompatActivity() {
             val item = items[position]
             holder.name.text = item.groupName
             
+            val initials = item.groupName?.take(2)?.uppercase() ?: ""
+            holder.initials.text = initials
+            holder.initials.visibility = View.VISIBLE
+            holder.icon.visibility = View.VISIBLE
+            holder.icon.setImageDrawable(null)
+            holder.icon.imageTintList = null
+
             val groupUrl = item.groupImageUrl
             if (groupUrl.isNullOrEmpty() || groupUrl == "placeholder_group_image") {
                 holder.icon.setImageResource(R.drawable.add_group)
                 holder.icon.setPadding(20, 20, 20, 20)
                 holder.card.setCardBackgroundColor(ContextCompat.getColor(this@SettlementActivity, R.color.orange))
+                holder.initials.visibility = View.GONE
             } else {
                 holder.icon.setPadding(0, 0, 0, 0)
                 holder.card.setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
                 holder.icon.load(groupUrl) {
                     crossfade(true)
-                    placeholder(R.drawable.add_group)
-                    error(R.drawable.add_group)
                     transformations(CircleCropTransformation())
+                    listener(
+                        onSuccess = { _, _ ->
+                            holder.initials.visibility = View.GONE
+                        },
+                        onError = { _, _ ->
+                            holder.initials.visibility = View.VISIBLE
+                            holder.icon.visibility = View.GONE
+                        }
+                    )
                 }
             }
 
@@ -747,7 +764,9 @@ class SettlementActivity : AppCompatActivity() {
         fun updateMembers(newMembers: List<MemberWithUser>) { items = newMembers; notifyDataSetChanged() }
         fun setSelected(member: MemberWithUser) { selectedId = member.user.id; notifyDataSetChanged() }
         inner class VH(view: View) : RecyclerView.ViewHolder(view) {
-            val icon: ImageView = view.findViewById(R.id.ivMemberIcon); val name: TextView = view.findViewById(R.id.tvMemberName)
+            val icon: ImageView = view.findViewById(R.id.ivMemberIcon)
+            val initials: TextView = view.findViewById(R.id.tvMemberInitials)
+            val name: TextView = view.findViewById(R.id.tvMemberName)
             val card: androidx.cardview.widget.CardView = view.findViewById(R.id.profileCardView)
         }
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = VH(LayoutInflater.from(parent.context).inflate(R.layout.item_member_selection, parent, false))
@@ -755,22 +774,52 @@ class SettlementActivity : AppCompatActivity() {
             val item = items[position]
             holder.name.text = item.user.username
             
+            val initials = item.user.username?.take(2)?.uppercase() ?: ""
+            holder.initials.text = initials
+            holder.initials.visibility = View.VISIBLE
+            holder.icon.visibility = View.VISIBLE
+            holder.icon.setImageDrawable(null)
+            holder.icon.imageTintList = null
+            holder.icon.setPadding(0, 0, 0, 0)
+
             val profileUrl = item.user.profileImageUrl
             if (profileUrl.isNullOrEmpty() || profileUrl == "placeholder_profile_image") {
-                holder.icon.setImageResource(R.drawable.ic_profile_silhouette)
-                holder.icon.imageTintList = ContextCompat.getColorStateList(this@SettlementActivity, R.color.white)
-                val padding = (8 * resources.displayMetrics.density).toInt()
-                holder.icon.setPadding(padding, padding, padding, padding)
                 holder.card.setCardBackgroundColor(ContextCompat.getColor(this@SettlementActivity, R.color.orange))
+                // Try fallback bucket URL
+                val userId = item.user.id
+                if (userId != null) {
+                    val bucketUrl = DeclareDatabase.profileImagesBucket.publicUrl("$userId/$userId.jpg")
+                    holder.icon.load(bucketUrl) {
+                        crossfade(true)
+                        transformations(CircleCropTransformation())
+                        listener(
+                            onSuccess = { _, _ ->
+                                holder.initials.visibility = View.GONE
+                                holder.card.setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
+                            },
+                            onError = { _, _ ->
+                                holder.initials.visibility = View.VISIBLE
+                                holder.icon.visibility = View.GONE
+                            }
+                        )
+                    }
+                } else {
+                    holder.icon.visibility = View.GONE
+                }
             } else {
-                holder.icon.setPadding(0, 0, 0, 0)
-                holder.icon.imageTintList = null
                 holder.card.setCardBackgroundColor(android.graphics.Color.TRANSPARENT)
                 holder.icon.load(profileUrl) {
                     crossfade(true)
-                    placeholder(R.drawable.ic_profile_silhouette)
-                    error(R.drawable.ic_profile_silhouette)
                     transformations(CircleCropTransformation())
+                    listener(
+                        onSuccess = { _, _ ->
+                            holder.initials.visibility = View.GONE
+                        },
+                        onError = { _, _ ->
+                            holder.initials.visibility = View.VISIBLE
+                            holder.icon.visibility = View.GONE
+                        }
+                    )
                 }
             }
 

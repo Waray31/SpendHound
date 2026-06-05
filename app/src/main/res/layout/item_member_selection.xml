@@ -18,12 +18,27 @@
         app:cardBackgroundColor="@color/orange"
         app:cardElevation="0dp">
 
-        <ImageView
-            android:id="@+id/ivMemberIcon"
+        <FrameLayout
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:src="@drawable/ic_profile_silhouette"
-            android:scaleType="centerCrop" />
+            android:layout_height="match_parent">
+
+            <TextView
+                android:id="@+id/tvMemberInitials"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:gravity="center"
+                android:textColor="@color/white"
+                android:textSize="18sp"
+                android:fontFamily="@font/montserratalternatess_bold"
+                android:visibility="gone" />
+
+            <ImageView
+                android:id="@+id/ivMemberIcon"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop" />
+
+        </FrameLayout>
     </androidx.cardview.widget.CardView>
 
     <TextView
