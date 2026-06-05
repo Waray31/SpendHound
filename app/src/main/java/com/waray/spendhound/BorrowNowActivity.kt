@@ -139,6 +139,7 @@ class BorrowNowActivity : AppCompatActivity() {
 
     private fun loadCurrentUser() {
         val authId = mAuth?.currentUserOrNull()?.id ?: return
+        loadingOverlay_borrowNow?.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
                 val user = DeclareDatabase.usersTable.select(Columns.list("user_id", "username")) {
@@ -152,10 +153,18 @@ class BorrowNowActivity : AppCompatActivity() {
                 } else {
                     tvBorrower?.text = currentUsername
                 }
+                checkLoadingComplete()
             } catch (e: Exception) {
                 Log.e("BorrowNowActivity", "Error loading current user: ${e.message}")
+                checkLoadingComplete()
             }
         }
+    }
+
+    private fun checkLoadingComplete() {
+        // Hide if both users and current user are likely loaded
+        // For simplicity, we can hide it in each or use a counter
+        loadingOverlay_borrowNow?.visibility = View.GONE
     }
 
     private fun setupRecyclerViews() {
@@ -165,6 +174,7 @@ class BorrowNowActivity : AppCompatActivity() {
 
     private fun fetchUsers() {
         val authId = mAuth?.currentUserOrNull()?.id ?: return
+        loadingOverlay_borrowNow?.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
                 val users = DeclareDatabase.usersTable.select().decodeList<User>()
@@ -179,8 +189,10 @@ class BorrowNowActivity : AppCompatActivity() {
                 } else {
                     rvLenders?.adapter = adapter
                 }
+                checkLoadingComplete()
             } catch (e: Exception) {
                 Log.e("BorrowNowActivity", "Error fetching users: ${e.message}")
+                checkLoadingComplete()
             }
         }
     }

@@ -3,9 +3,12 @@ package com.waray.spendhound
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.TextView
 import androidx.cardview.widget.CardView
 import androidx.recyclerview.widget.RecyclerView
+import coil.load
+import coil.transform.CircleCropTransformation
 
 class LenderChipAdapter(
     private val lenders: List<User>,
@@ -17,6 +20,7 @@ class LenderChipAdapter(
         val container: View = view.findViewById(R.id.chipContainer)
         val cvInitial: CardView = view.findViewById(R.id.cvInitial)
         val tvInitial: TextView = view.findViewById(R.id.tvInitial)
+        val ivProfile: ImageView = view.findViewById(R.id.ivProfile)
         val tvName: TextView = view.findViewById(R.id.tvName)
 
         init {
@@ -47,7 +51,39 @@ class LenderChipAdapter(
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
         val lender = lenders[position]
         holder.tvName.text = lender.username
-        holder.tvInitial.text = lender.username?.take(1)?.uppercase() ?: "?"
+        
+        val initials = lender.username?.take(2)?.uppercase() ?: "?"
+        holder.tvInitial.text = initials
+
+        // Reset state: show initials, clear and show image view (transparent)
+        holder.tvInitial.visibility = View.VISIBLE
+        holder.ivProfile.visibility = View.VISIBLE
+        holder.ivProfile.setImageDrawable(null)
+
+        val profileUrl = lender.profileImageUrl
+        val finalUrl = if (!profileUrl.isNullOrBlank() && profileUrl != "placeholder_profile_image") {
+            profileUrl
+        } else {
+            lender.id?.let { DeclareDatabase.profileImagesBucket.publicUrl("$it/$it.jpg") }
+        }
+
+        if (!finalUrl.isNullOrBlank()) {
+            holder.ivProfile.load(finalUrl) {
+                transformations(CircleCropTransformation())
+                crossfade(true)
+                listener(
+                    onSuccess = { _, _ ->
+                        holder.tvInitial.visibility = View.GONE
+                    },
+                    onError = { _, _ ->
+                        holder.tvInitial.visibility = View.VISIBLE
+                        holder.ivProfile.visibility = View.GONE
+                    }
+                )
+            }
+        } else {
+            holder.ivProfile.visibility = View.GONE
+        }
 
         val isSelected = lender.id == selectedLenderId
         

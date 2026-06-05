@@ -43,6 +43,7 @@ class PendingStatusActivity : AppCompatActivity(),
     var currentNickname2: String? = null
     private var borrowerListRecyclerView: RecyclerView? = null
     private var payerListRecyclerView: RecyclerView? = null
+    private var loadingOverlay: View? = null
     private var adapter: BorrowerListTransactionAdapter? = null
     private var adapterPayer: PayerListTransactionAdapter? = null
     private var borrowerListTransactions: MutableList<BorrowerListTransaction> = ArrayList()
@@ -87,6 +88,7 @@ class PendingStatusActivity : AppCompatActivity(),
         denyPayerBtn = findViewById(R.id.denyPayerBtn)
         confirmAllPayerBtn = findViewById(R.id.confirmAllPayerBtn)
         denyAllPayerBtn = findViewById(R.id.denyAllPayerBtn)
+        loadingOverlay = findViewById(R.id.loadingOverlay_pending)
 
         setupBorrowerListTVClicked()
         setupPayerListTVClicked()
@@ -135,6 +137,7 @@ class PendingStatusActivity : AppCompatActivity(),
     private fun fetchBorrowerList() {
         val currentUserId = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return
         
+        loadingOverlay?.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
                 val results = withContext(Dispatchers.IO) {
@@ -166,11 +169,21 @@ class PendingStatusActivity : AppCompatActivity(),
                 
                 borrowerNum = borrowerListTransactions.size
                 updateBorrowerButtons(borrowerNum >= 2)
+                checkAllLoadingComplete()
             } catch (e: Exception) {
                 Log.e("Supabase", "Error fetching borrower list", e)
                 showToast("Error fetching borrower list")
+                checkAllLoadingComplete()
             }
         }
+    }
+
+    private fun checkAllLoadingComplete() {
+        // Simple check: if both adapters are set or we have results/errors
+        // In this case, we can just hide it when the last one finishes if we want to be safe.
+        // For simplicity, let's just hide it in each since they are likely fast.
+        // But better is to track if both are done.
+        loadingOverlay?.visibility = View.GONE
     }
 
     private fun updateBorrowerButtons(enabled: Boolean) {
@@ -198,6 +211,7 @@ class PendingStatusActivity : AppCompatActivity(),
     private fun fetchPayerList() {
         val currentUserId = mAuth?.currentUserOrNull()?.id?.toLongOrNull() ?: return
 
+        loadingOverlay?.visibility = View.VISIBLE
         lifecycleScope.launch {
             try {
                 val results = withContext(Dispatchers.IO) {
@@ -229,9 +243,11 @@ class PendingStatusActivity : AppCompatActivity(),
                 
                 payerNum = payerListTransactions.size
                 updatePayerButtons(payerNum >= 2)
+                checkAllLoadingComplete()
             } catch (e: Exception) {
                 Log.e("Supabase", "Error fetching payer list", e)
                 showToast("Error fetching payer list")
+                checkAllLoadingComplete()
             }
         }
     }

@@ -42,60 +42,63 @@
         android:layout_marginBottom="8dp"
         android:background="@drawable/bottom_border" />
 
-    <LinearLayout
+    <FrameLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
-        android:background="@color/darkBlue"
-        android:elevation="4dp"
-        android:orientation="vertical"
-        android:padding="2dp">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="8dp"
-            android:layout_marginTop="8dp"
-            android:orientation="horizontal">
-
-            <TextView
-                android:id="@+id/borrowerListTV"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:background="@drawable/top_round_border"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:paddingVertical="12dp"
-                android:text="Borrower List"
-                android:textAlignment="center"
-                android:textColor="@color/darkBlue"
-                android:textSize="16dp" />
-
-            <TextView
-                android:id="@+id/payerListTV"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:fontFamily="@font/montserratalternatess_regular"
-                android:paddingVertical="12dp"
-                android:text="Payer List"
-                android:textAlignment="center"
-                android:textColor="@color/white"
-                android:textSize="16dp" />
-        </LinearLayout>
+        android:layout_weight="1">
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:layout_marginHorizontal="8dp"
-            android:layout_marginBottom="8dp"
-            android:background="@drawable/bottom_round_border"
-            android:elevation="2dp"
+            android:background="@color/darkBlue"
+            android:elevation="4dp"
             android:orientation="vertical"
-            android:paddingVertical="20dp">
+            android:padding="2dp">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="8dp"
+                android:layout_marginTop="8dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/borrowerListTV"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:background="@drawable/top_round_border"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:paddingVertical="12dp"
+                    android:text="Borrower List"
+                    android:textAlignment="center"
+                    android:textColor="@color/darkBlue"
+                    android:textSize="16dp" />
+
+                <TextView
+                    android:id="@+id/payerListTV"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:fontFamily="@font/montserratalternatess_regular"
+                    android:paddingVertical="12dp"
+                    android:text="Payer List"
+                    android:textAlignment="center"
+                    android:textColor="@color/white"
+                    android:textSize="16dp" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:layout_marginHorizontal="8dp"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/bottom_round_border"
+                android:elevation="2dp"
+                android:orientation="vertical"
+                android:paddingVertical="20dp">
 
                 <LinearLayout
-
                     android:id="@+id/borrowerListLinearLayout"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -132,112 +135,139 @@
 
                 </LinearLayout>
 
-            <View
-                android:id="@+id/bottom_border"
-                android:layout_width="match_parent"
-                android:layout_height="1dp"
-                android:layout_marginHorizontal="8dp"
-                android:background="@drawable/border_line_darkblue" />
+                <View
+                    android:id="@+id/bottom_border"
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:layout_marginHorizontal="8dp"
+                    android:background="@drawable/border_line_darkblue" />
 
-            <ScrollView
-                android:id="@+id/borrowerListScrollView"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:layout_margin="8dp">
+                <ScrollView
+                    android:id="@+id/borrowerListScrollView"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:layout_margin="8dp">
 
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/borrowerListRecyclerView"
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/borrowerListRecyclerView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        tools:listitem="@layout/borrower_row_layout" />
+                </ScrollView>
+
+                <ScrollView
+                    android:id="@+id/payerListScrollView"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:layout_margin="8dp"
+                    android:visibility="gone">
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/payerListRecyclerView"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        tools:listitem="@layout/payer_row_layout" />
+                </ScrollView>
+
+                <LinearLayout
+                    android:id="@+id/borrowerListBtn"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    tools:listitem="@layout/borrower_row_layout" />
-            </ScrollView>
+                    android:orientation="horizontal"
+                    android:paddingHorizontal="20dp"
+                    android:layout_marginTop="8dp">
 
-            <ScrollView
-                android:id="@+id/payerListScrollView"
-                android:layout_width="match_parent"
-                android:layout_height="0dp"
-                android:layout_weight="1"
-                android:layout_margin="8dp"
-                android:visibility="gone">
+                    <Button
+                        android:id="@+id/acceptAllBorrowerBtn"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Accept All"
+                        android:backgroundTint="@color/yellow"
+                        android:elevation="4dp"
+                        android:textSize="12dp"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:textColor="@color/whitest"/>
+                    <Button
+                        android:id="@+id/declineAllBorrowerBtn"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Decline All"
+                        android:backgroundTint="@color/red"
+                        android:textSize="12dp"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:elevation="4dp"
+                        android:textColor="@color/whitest"/>
 
-                <androidx.recyclerview.widget.RecyclerView
-                    android:id="@+id/payerListRecyclerView"
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/payerListBtn"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    tools:listitem="@layout/payer_row_layout" />
-            </ScrollView>
+                    android:orientation="horizontal"
+                    android:visibility="gone"
+                    android:paddingHorizontal="20dp"
+                    android:layout_marginTop="8dp">
 
-            <LinearLayout
-                android:id="@+id/borrowerListBtn"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:paddingHorizontal="20dp"
-                android:layout_marginTop="8dp">
+                    <Button
+                        android:id="@+id/confirmAllPayerBtn"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Confirm All"
+                        android:backgroundTint="@color/yellow"
+                        android:elevation="4dp"
+                        android:textSize="12dp"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:textColor="@color/whitest"/>
+                    <Button
+                        android:id="@+id/denyAllPayerBtn"
+                        android:layout_width="0dp"
+                        android:layout_weight="1"
+                        android:layout_height="wrap_content"
+                        android:text="Deny All"
+                        android:backgroundTint="@color/red"
+                        android:textSize="12dp"
+                        android:fontFamily="@font/montserratalternatess_regular"
+                        android:elevation="4dp"
+                        android:textColor="@color/whitest"/>
 
-                <Button
-                    android:id="@+id/acceptAllBorrowerBtn"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content"
-                    android:text="Accept All"
-                    android:backgroundTint="@color/yellow"
-                    android:elevation="4dp"
-                    android:textSize="12dp"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:textColor="@color/whitest"/>
-                <Button
-                    android:id="@+id/declineAllBorrowerBtn"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content"
-                    android:text="Decline All"
-                    android:backgroundTint="@color/red"
-                    android:textSize="12dp"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:elevation="4dp"
-                    android:textColor="@color/whitest"/>
+                </LinearLayout>
+
 
             </LinearLayout>
-
-            <LinearLayout
-                android:id="@+id/payerListBtn"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="horizontal"
-                android:visibility="gone"
-                android:paddingHorizontal="20dp"
-                android:layout_marginTop="8dp">
-
-                <Button
-                    android:id="@+id/confirmAllPayerBtn"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content"
-                    android:text="Confirm All"
-                    android:backgroundTint="@color/yellow"
-                    android:elevation="4dp"
-                    android:textSize="12dp"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:textColor="@color/whitest"/>
-                <Button
-                    android:id="@+id/denyAllPayerBtn"
-                    android:layout_width="0dp"
-                    android:layout_weight="1"
-                    android:layout_height="wrap_content"
-                    android:text="Deny All"
-                    android:backgroundTint="@color/red"
-                    android:textSize="12dp"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:elevation="4dp"
-                    android:textColor="@color/whitest"/>
-
-            </LinearLayout>
-
 
         </LinearLayout>
 
-    </LinearLayout>
+        <!-- Loading Overlay -->
+        <LinearLayout
+            android:id="@+id/loadingOverlay_pending"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="@color/glassy_background"
+            android:gravity="center"
+            android:visibility="gone"
+            android:orientation="vertical">
+
+            <ProgressBar
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                style="@style/CustomProgressBarStyle"/>
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/loading_text"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:textColor="@color/darkBlue"
+                android:textSize="14sp"/>
+
+        </LinearLayout>
+    </FrameLayout>
 
 </LinearLayout>

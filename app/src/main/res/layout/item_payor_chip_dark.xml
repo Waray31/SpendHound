@@ -14,16 +14,27 @@
         android:id="@+id/cvInitial"
         android:layout_width="24dp"
         android:layout_height="24dp"
-        app:cardBackgroundColor="#FBE9E7"
+        app:cardBackgroundColor="@color/orange"
         app:cardCornerRadius="12dp">
-        <TextView
-            android:id="@+id/tvInitial"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:text="M"
-            android:textColor="#BF360C"
-            android:textSize="10sp" />
+        <FrameLayout
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+            <TextView
+                android:id="@+id/tvInitial"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_gravity="center"
+                android:fontFamily="@font/montserratalternatess_regular"
+                android:text="M"
+                android:textColor="@color/whitest"
+                android:textSize="10sp" />
+            <ImageView
+                android:id="@+id/ivProfile"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop"
+                android:visibility="gone" />
+        </FrameLayout>
     </androidx.cardview.widget.CardView>
 
     <TextView
