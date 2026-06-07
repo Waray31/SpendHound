@@ -6,7 +6,8 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:background="@drawable/bg_add_expense_btn"
-    android:padding="12dp">
+    android:padding="12dp"
+    android:layout_marginBottom="8dp">
 
     <LinearLayout
         android:layout_width="0dp"
@@ -22,8 +23,8 @@
 
         <!-- Payer -->
         <androidx.cardview.widget.CardView
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             app:cardCornerRadius="14dp"
             app:cardElevation="0dp"
             app:cardBackgroundColor="@color/orange">
@@ -36,7 +37,7 @@
                     android:layout_height="match_parent"
                     android:gravity="center"
                     android:textColor="@color/white"
-                    android:textSize="10sp"
+                    android:textSize="9sp"
                     android:fontFamily="@font/montserratalternatess_bold"
                     android:visibility="gone"
                     tools:text="JE"
@@ -56,7 +57,7 @@
             android:layout_marginStart="8dp"
             android:fontFamily="@font/montserratalternatess_bold"
             android:textColor="@color/black"
-            android:textSize="14sp"
+            android:textSize="12sp"
             tools:text="Jene" />
 
         <ImageView
@@ -69,8 +70,8 @@
 
         <!-- Receiver -->
         <androidx.cardview.widget.CardView
-            android:layout_width="28dp"
-            android:layout_height="28dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             app:cardCornerRadius="14dp"
             app:cardElevation="0dp"
             app:cardBackgroundColor="@color/orange">
@@ -83,7 +84,7 @@
                     android:layout_height="match_parent"
                     android:gravity="center"
                     android:textColor="@color/white"
-                    android:textSize="10sp"
+                    android:textSize="9sp"
                     android:fontFamily="@font/montserratalternatess_bold"
                     android:visibility="gone"
                     tools:text="GO"
@@ -104,7 +105,7 @@
             android:layout_weight="1"
             android:fontFamily="@font/montserratalternatess_bold"
             android:textColor="@color/black"
-            android:textSize="14sp"
+            android:textSize="12sp"
             tools:text="Gob" />
 
     </LinearLayout>
@@ -116,7 +117,7 @@
         android:layout_marginTop="6dp"
         android:fontFamily="@font/montserratalternatess_regular"
         android:textColor="@color/grey"
-        android:textSize="12sp"
+        android:textSize="11sp"
         tools:text="Jene pays Gob to settle up" />
 
     </LinearLayout>
@@ -126,14 +127,14 @@
         android:id="@+id/tvSettlementAmount"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:paddingHorizontal="12dp"
         android:layout_gravity="center"
-        android:paddingVertical="6dp"
         android:background="@drawable/bg_status_badge"
         android:backgroundTint="@color/yellow"
         android:fontFamily="@font/montserratalternatess_bold"
+        android:paddingHorizontal="12dp"
+        android:paddingVertical="6dp"
         android:textColor="@color/whitest"
-        android:textSize="14sp"
+        android:textSize="12sp"
         tools:text="₱23.33" />
 
 </LinearLayout>

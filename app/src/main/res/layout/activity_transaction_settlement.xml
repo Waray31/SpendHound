@@ -295,7 +295,6 @@
                     android:id="@+id/settleSummaryContainer"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="8dp"
                     android:orientation="vertical"
                     android:paddingVertical="10dp"
                     android:visibility="gone" />
