@@ -33,6 +33,7 @@ class PaymentConfigBottomSheet : BottomSheetDialogFragment() {
     
     private lateinit var tvItemTitle: TextView
     private lateinit var tvItemAmount: TextView
+    private lateinit var tvIndividualShare: TextView
     private lateinit var tvRemainingAmount: TextView
     private lateinit var rvMembers: RecyclerView
     private lateinit var btnConfirm: MaterialButton
@@ -106,6 +107,7 @@ class PaymentConfigBottomSheet : BottomSheetDialogFragment() {
     private fun initViews(view: View) {
         tvItemTitle = view.findViewById(R.id.tvItemTitle)
         tvItemAmount = view.findViewById(R.id.tvItemAmount)
+        tvIndividualShare = view.findViewById(R.id.tvIndividualShare)
         tvRemainingAmount = view.findViewById(R.id.tvRemainingAmount)
         rvMembers = view.findViewById(R.id.rvMembers)
         btnConfirm = view.findViewById(R.id.btnConfirm)
@@ -131,6 +133,11 @@ class PaymentConfigBottomSheet : BottomSheetDialogFragment() {
 
         val totalPaid = memberStates.sumOf { it.amountPaid }
         val remaining = itemAmount - totalPaid
+        
+        // Update individual share
+        val includedCount = memberStates.count { it.isIncludedInSplit }
+        val individualShare = if (includedCount > 0) itemAmount / includedCount else 0.0
+        tvIndividualShare.text = "₱${String.format("%.2f", individualShare)} each"
         
         tvRemainingAmount.text = "₱${String.format("%.2f", remaining)}"
         

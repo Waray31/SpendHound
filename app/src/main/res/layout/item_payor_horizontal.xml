@@ -16,6 +16,7 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             app:cardCornerRadius="26dp"
+            android:layout_margin="6dp"
             app:cardBackgroundColor="@color/orange">
 
             <FrameLayout
