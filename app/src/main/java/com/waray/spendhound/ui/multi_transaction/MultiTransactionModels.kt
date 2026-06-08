@@ -3,6 +3,7 @@ package com.waray.spendhound.ui.multi_transaction
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 // ─── UI / local models ────────────────────────────────────────────────────────
 
@@ -167,4 +168,29 @@ data class TransactionSplitTable(
     @SerialName("amount")               val amount: Double = 0.0,
     @SerialName("created_at")           val createdAt: String? = null,
     @SerialName("transaction_items_id") val transactionItemsId: Long? = null
+)
+
+// ─── transaction_history table ───────────────────────────────────────────────
+
+/** INSERT */
+@OptIn(InternalSerializationApi::class)
+@Serializable
+data class TransactionHistoryInsert(
+    @SerialName("transaction_id") val transactionId: Long,
+    @SerialName("user_id")        val userId: Long,
+    @SerialName("action")         val action: String,
+    @SerialName("details")        val details: String? = null
+)
+
+/** SELECT */
+@OptIn(InternalSerializationApi::class)
+@Serializable
+data class TransactionHistoryFull(
+    @SerialName("id")             val id: Long? = null,
+    @SerialName("transaction_id") val transactionId: Long,
+    @SerialName("user_id")        val userId: Long,
+    @SerialName("action")         val action: String,
+    @SerialName("details")        val details: String? = null,
+    @SerialName("created_at")     val createdAt: String? = null,
+    @Transient var userName: String? = null
 )

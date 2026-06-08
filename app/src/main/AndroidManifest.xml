@@ -40,6 +40,12 @@
             android:theme="@style/Theme.SpendHound.NoActionBar"
             android:windowSoftInputMode="adjustPan"/>
 
+        <activity android:name=".ui.multi_transaction.ExpenseHistoryActivity"
+            android:exported="false"
+            android:label="Expense History"
+            android:theme="@style/Theme.SpendHound.NoActionBar"
+            android:parentActivityName=".ui.multi_transaction.MultiTransactionActivity" />
+
         <activity android:name=".BorrowNowActivity"
             android:exported="true"
             android:label="Borrow Money"

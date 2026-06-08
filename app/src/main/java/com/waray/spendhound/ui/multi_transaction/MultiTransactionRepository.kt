@@ -160,6 +160,16 @@ class MultiTransactionRepository {
                 member.id?.let { BalanceHelper.refreshUserBalance(it) }
             }
 
+            // 7. Record History
+            client.postgrest.from("transaction_history").insert(
+                TransactionHistoryInsert(
+                    transactionId = txId,
+                    userId = createdBy,
+                    action = "CREATE",
+                    details = "Transaction created with ${entries.size} items"
+                )
+            )
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -334,6 +344,16 @@ class MultiTransactionRepository {
             groupMembers.forEach { member ->
                 member.id?.let { BalanceHelper.refreshUserBalance(it) }
             }
+
+            // Record History
+            client.postgrest.from("transaction_history").insert(
+                TransactionHistoryInsert(
+                    transactionId = transactionId,
+                    userId = createdBy,
+                    action = "EDIT",
+                    details = "Transaction updated with ${entries.size} items"
+                )
+            )
 
             Result.success(Unit)
         } catch (e: Exception) {

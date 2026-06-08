@@ -61,6 +61,7 @@ class MultiTransactionActivity : AppCompatActivity() {
 
         setupTransactionMode()
         setupToolbar()
+        setupHistoryButton()
         setupRecyclerView()
         setupListeners()
         observeState()
@@ -84,6 +85,15 @@ class MultiTransactionActivity : AppCompatActivity() {
 
     private fun setupToolbar() {
         binding.btnBack.setOnClickListener { finish() }
+    }
+
+    private fun setupHistoryButton() {
+        binding.btnHistory.isVisible = isEditMode
+        binding.btnHistory.setOnClickListener {
+            editTransactionId?.let { id ->
+                ExpenseHistoryActivity.start(this, id)
+            }
+        }
     }
 
     private fun setupRecyclerView() {
