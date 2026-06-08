@@ -134,8 +134,8 @@ class PaymentConfigBottomSheet : BottomSheetDialogFragment() {
         
         val coveredByMap = mutableMapOf<String, String>()
         memberStates.forEach { state ->
-            state.coveredByUserId?.let { covererId ->
-                coveredByMap[state.userId] = covererId
+            if (state.isIncludedInSplit && state.coveredByUserId != null) {
+                coveredByMap[state.userId] = state.coveredByUserId
             }
         }
 
@@ -427,18 +427,47 @@ class MembersAdapter(
                 val currentState = memberStates[currentPos]
                 val newState = !currentState.isIncludedInSplit
                 
-                val updatedState = currentState.copy(isIncludedInSplit = newState)
+                var updatedState = currentState.copy(
+                    isIncludedInSplit = newState,
+                    coveringUserIds = currentState.coveringUserIds.toMutableList()
+                )
+                var stateChangedSignificantly = false
                 
-                // If toggled OUT, clear custom split amount
+                // If toggled OUT
                 if (!newState) {
-                    updatedState.customSplitAmount = 0.0
+                    updatedState = updatedState.copy(customSplitAmount = 0.0)
+                    
+                    // Case 1: They were covered by someone -> Uncover them
+                    if (currentState.coveredByUserId != null) {
+                        memberStates.find { it.userId == currentState.coveredByUserId }
+                            ?.coveringUserIds?.remove(currentState.userId)
+                        updatedState = updatedState.copy(coveredByUserId = null)
+                        stateChangedSignificantly = true
+                    }
+                    
+                    // Case 2: They were covering others -> Stop covering them
+                    if (currentState.coveringUserIds.isNotEmpty()) {
+                        currentState.coveringUserIds.forEach { childId ->
+                            val childIdx = memberStates.indexOfFirst { it.userId == childId }
+                            if (childIdx != -1) {
+                                memberStates[childIdx] = memberStates[childIdx].copy(coveredByUserId = null)
+                            }
+                        }
+                        updatedState.coveringUserIds.clear()
+                        stateChangedSignificantly = true
+                    }
                 }
                 
                 memberStates[currentPos] = updatedState
                 updateToggleAppearance(holder, newState)
                 
-                val showWarn = updatedState.amountPaid > 0 && !newState
-                holder.ivWarningIcon.visibility = if (showWarn) View.VISIBLE else View.GONE
+                // Refresh list if coverage changed (to update other members' UI)
+                if (stateChangedSignificantly) {
+                    notifyDataSetChanged()
+                } else {
+                    val showWarn = updatedState.amountPaid > 0 && !newState
+                    holder.ivWarningIcon.visibility = if (showWarn) View.VISIBLE else View.GONE
+                }
                 
                 onStateChanged()
             }
@@ -461,7 +490,7 @@ class MembersAdapter(
         }
 
         if (state.coveredByUserId != null) {
-            // tagCovered removed as per request
+            // tagCovered removed
         } else if (state.coveringUserIds.isNotEmpty()) {
             holder.tagCovering.visibility = View.VISIBLE
             holder.tagCovering.text = "covering ${state.coveringUserIds.size}"
@@ -587,19 +616,14 @@ class MembersAdapter(
         val label = holder.tvToggleLabel
         
         val density = holder.itemView.resources.displayMetrics.density
-        // Width 56dp, Thumb 24dp.
-        // Start pos: 4dp. End pos: 56dp - 24dp - 4dp = 28dp.
-        val translationX = if (isIncluded) 28 * density else 0f
-        
-        thumb.animate().translationX(translationX).setDuration(200).start()
         
         val layoutParams = thumb.layoutParams as FrameLayout.LayoutParams
         if (isIncluded) {
             track.setBackgroundResource(R.drawable.bg_toggle_track_on)
             label.text = "IN"
+            layoutParams.gravity = android.view.Gravity.CENTER_VERTICAL or android.view.Gravity.END
             layoutParams.marginStart = 0
             layoutParams.marginEnd = (4 * density).toInt()
-            layoutParams.gravity = android.view.Gravity.CENTER_VERTICAL or android.view.Gravity.START
             
             label.layoutParams = (label.layoutParams as FrameLayout.LayoutParams).apply {
                 gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
@@ -609,9 +633,9 @@ class MembersAdapter(
         } else {
             track.setBackgroundResource(R.drawable.bg_toggle_track)
             label.text = "OUT"
+            layoutParams.gravity = android.view.Gravity.CENTER_VERTICAL or android.view.Gravity.START
             layoutParams.marginStart = (4 * density).toInt()
             layoutParams.marginEnd = 0
-            layoutParams.gravity = android.view.Gravity.CENTER_VERTICAL or android.view.Gravity.START
 
             label.layoutParams = (label.layoutParams as FrameLayout.LayoutParams).apply {
                 gravity = android.view.Gravity.END or android.view.Gravity.CENTER_VERTICAL
@@ -620,6 +644,8 @@ class MembersAdapter(
             label.setTextColor(0xFF6C757D.toInt())
         }
         thumb.layoutParams = layoutParams
+        thumb.animate().cancel()
+        thumb.translationX = 0f
     }
 
     override fun getItemCount() = memberStates.size
