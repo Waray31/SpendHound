@@ -166,14 +166,14 @@ class MultiTransactionActivity : AppCompatActivity() {
                 }
                 
                 currentGroups.getOrNull(pos - 1)?.groupId?.let { groupId ->
-                    if (isEditMode && groupId == pendingGroupId) {
-                        // Initial load for edit mode - don't reset transactions
+                    if (groupId == pendingGroupId) {
+                        // Initial load for edit mode OR re-trigger of same group selection
                         viewModel.onGroupSelected(groupId, resetTransactions = false)
-                        pendingGroupId = null // Clear once matched
                     } else {
                         // Regular group change or manual selection
                         adapter.resetToSingleItem()
                         viewModel.onGroupSelected(groupId)
+                        pendingGroupId = groupId
                     }
                 }
                 validateSubmission()
