@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="280dp"
     android:layout_height="wrap_content"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="8dp"
-    app:cardBackgroundColor="@color/whitest">
+    android:background="@drawable/bg_profile_card"
+    android:elevation="8dp"
+    android:padding="2dp">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -57,4 +57,4 @@
 
     </LinearLayout>
 
-</androidx.cardview.widget.CardView>
+</FrameLayout>

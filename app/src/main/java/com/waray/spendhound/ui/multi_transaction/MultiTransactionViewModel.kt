@@ -224,7 +224,14 @@ class MultiTransactionViewModel(
         }
     }
 
-    fun updateItemPaymentConfig(position: Int, payers: List<PayerContribution>, participants: List<String>, coveredByMap: Map<String, String> = emptyMap()) {
+    fun updateItemPaymentConfig(
+        position: Int, 
+        payers: List<PayerContribution>, 
+        participants: List<String>, 
+        coveredByMap: Map<String, String> = emptyMap(),
+        splitMode: Int = 0,
+        customSplitMap: Map<String, Double> = emptyMap()
+    ) {
         val currentList = _transactions.value.toMutableList()
         if (position in currentList.indices) {
             // Convert to existing PayorEntry format for compatibility
@@ -247,11 +254,21 @@ class MultiTransactionViewModel(
                     coveredId to covererId
                 } else null
             }.toMap()
+
+            // Convert customSplitMap String keys to Long
+            val longCustomSplitMap = customSplitMap.mapNotNull { entry ->
+                val userId = entry.key.toLongOrNull()
+                if (userId != null) {
+                    userId to entry.value
+                } else null
+            }.toMap()
             
             currentList[position] = currentList[position].copy(
                 payors = payorEntries,
                 includedMemberIds = includedMemberIds,
-                coveredByMap = longCoveredByMap
+                coveredByMap = longCoveredByMap,
+                splitMode = splitMode,
+                customSplitMap = longCustomSplitMap
             )
             _transactions.value = currentList
             calculateTotals()

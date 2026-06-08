@@ -15,6 +15,8 @@ data class TransactionEntry(
     var category: String = "",        // maps to transaction_items.category
     var payors: MutableList<PayorEntry> = mutableListOf(),
     var includedMemberIds: List<Long> = emptyList(),  // members included in split for this item
+    var splitMode: Int = 0, // 0: Equally, 1: Exact
+    var customSplitMap: Map<Long, Double> = emptyMap(), // userId -> amount
     var coveredByMap: Map<Long, Long> = emptyMap()   // coveredId -> covererId
 )
 

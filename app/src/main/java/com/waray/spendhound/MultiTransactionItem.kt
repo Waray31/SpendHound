@@ -7,6 +7,8 @@ data class MultiTransactionItem(
     val category: String = "",
     val payers: List<PayerContribution> = emptyList(),
     val includedMembers: List<String> = emptyList(), // List of member IDs
+    val splitMode: Int = 0, // 0: Equally, 1: Exact
+    val customSplitMap: Map<String, Double> = emptyMap(), // userId -> amount
     val isValid: Boolean = false,
     val coveredByMap: Map<String, String> = emptyMap() // coveredId -> covererId
 ) {

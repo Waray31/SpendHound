@@ -248,15 +248,19 @@ class MultiTransactionActivity : AppCompatActivity() {
             groupMembers = currentMembers,
             currentPayers = item.payers,
             currentParticipants = item.includedMembers,
-            initialCoveredByMap = item.coveredByMap
+            initialCoveredByMap = item.coveredByMap,
+            splitMode = item.splitMode,
+            customSplitMap = item.customSplitMap
         )
         
-        bottomSheet.setOnConfirmWithCoversListener { payers, participants, coveredByMap ->
+        bottomSheet.setOnConfirmWithCoversListener { payers, participants, coveredByMap, splitMode, customSplitMap ->
             // Update the item directly in adapter first
             val updatedItem = item.copy(
                 payers = payers,
                 includedMembers = participants,
-                coveredByMap = coveredByMap
+                coveredByMap = coveredByMap,
+                splitMode = splitMode,
+                customSplitMap = customSplitMap
             )
             adapter.updateTransactionPayment(position, updatedItem)
             
@@ -264,7 +268,7 @@ class MultiTransactionActivity : AppCompatActivity() {
             adapter.updateIncludedMembers(position, participants)
             
             // Update ViewModel for consistency
-            viewModel.updateItemPaymentConfig(position, payers, participants, coveredByMap)
+            viewModel.updateItemPaymentConfig(position, payers, participants, coveredByMap, splitMode, customSplitMap)
             
             // Trigger validation after payment config changes
             validateSubmission()
@@ -333,6 +337,11 @@ class MultiTransactionActivity : AppCompatActivity() {
                                 it.key.toString() to it.value.toString() 
                             }.toMap()
 
+                            // Convert customSplitMap Long keys to String for UI
+                            val stringCustomSplitMap = entry.customSplitMap.map {
+                                it.key.toString() to it.value
+                            }.toMap()
+
                             MultiTransactionItem(
                                 id = "",
                                 title = entry.title,
@@ -346,6 +355,8 @@ class MultiTransactionActivity : AppCompatActivity() {
                                     )
                                 },
                                 includedMembers = entry.includedMemberIds.map { it.toString() },
+                                splitMode = entry.splitMode,
+                                customSplitMap = stringCustomSplitMap,
                                 isValid = entry.amount > 0 && entry.category.isNotEmpty() && entry.payors.isNotEmpty() && isPaymentComplete,
                                 coveredByMap = stringCoveredByMap
                             )
