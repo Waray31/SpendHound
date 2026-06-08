@@ -147,38 +147,51 @@ class MultiTransactionRepository {
             
             // 5. Update all payors with calculated excess_amount and status based on total payments
             // Also ensure covered users are marked as "Paid" (status 1) even if they paid 0
-            userTotalSplitOwed.forEach { (userId, userSplitOwed) ->
+            val allInvolvedUserIds = (userTotalSplitOwed.keys + userTotalInitialPayments.keys).distinct()
+            
+            allInvolvedUserIds.forEach { userId ->
+                val userSplitOwed = userTotalSplitOwed[userId] ?: 0.0
                 val totalInitialPaid = userTotalInitialPayments[userId] ?: 0.0
                 
                 // A user is "Paid" if their initial payment >= split owed, 
                 // OR if they were covered (split owed is 0 and they are in the coveredByMap)
-                val wasCovered = userSplitOwed == 0.0 && entries.any { it.coveredByMap.containsKey(userId) }
+                val wasCovered = userSplitOwed < 0.01 && entries.any { it.coveredByMap.containsKey(userId) }
                 
                 val currentPaid = if (totalInitialPaid > userSplitOwed) userSplitOwed else totalInitialPaid
                 val excess = if (totalInitialPaid > userSplitOwed) totalInitialPaid - userSplitOwed else 0.0
                 
                 val status = when {
                     wasCovered -> 1 // Marked as Paid if covered
-                    currentPaid >= userSplitOwed && userSplitOwed > 0 -> 1
-                    currentPaid == 0.0 -> 0
+                    totalInitialPaid >= userSplitOwed - 0.01 -> 1 // Settled or Creditor
+                    totalInitialPaid < 0.01 -> 0 // Unpaid
                     else -> 2 // Partial
                 }
 
-                // Check if payor record exists for this user (they might not have been an initial payer)
-                val existingPayor = client.postgrest.from("transaction_payors").select {
+                // Check if payor records exist for this user
+                val existingPayors = client.postgrest.from("transaction_payors").select {
                     filter { eq("transaction_id", txId); eq("user_id", userId) }
-                }.decodeSingleOrNull<TransactionPayorTable>()
+                }.decodeList<TransactionPayorTable>()
 
-                if (existingPayor != null) {
-                    client.postgrest.from("transaction_payors").update(buildJsonObject {
-                        put("excess_amount", excess)
-                        put("status", status)
-                        put("current_amount_paid", currentPaid)
-                    }) {
-                        filter { eq("transaction_id", txId); eq("user_id", userId) }
+                if (existingPayors.isNotEmpty()) {
+                    // Update all existing records to new status, but usually we just want to update the "lead" one with excess
+                    // For simplicity, let's update them all to the same status, but only the first one gets the full currentPaid and excess
+                    existingPayors.forEachIndexed { i, payor ->
+                        val isLead = i == 0
+                        client.postgrest.from("transaction_payors").update(buildJsonObject {
+                            put("status", status)
+                            if (isLead) {
+                                put("excess_amount", excess)
+                                put("current_amount_paid", currentPaid)
+                            } else {
+                                put("excess_amount", 0.0)
+                                // Keep its existing current_amount_paid (which was its initial contribution to that item)
+                            }
+                        }) {
+                            filter { eq("id", payor.id!!) }
+                        }
                     }
-                } else if (wasCovered || currentPaid > 0) {
-                    // Create payor record for covered user or someone who paid after split (though unlikely here)
+                } else if (wasCovered || totalInitialPaid > 0.01) {
+                    // Create payor record for covered user or someone who paid
                     client.postgrest.from("transaction_payors").insert(
                         TransactionPayorInsert(
                             transactionId = txId,
@@ -371,20 +384,23 @@ class MultiTransactionRepository {
             
             // Update payors with calculated values
             // Also ensure covered users are marked as "Paid" (status 1) even if they paid 0
-            userTotalSplitOwed.forEach { (userId, userSplitOwed) ->
+            val allInvolvedUserIds = (userTotalSplitOwed.keys + userTotalInitialPayments.keys).distinct()
+            
+            allInvolvedUserIds.forEach { userId ->
+                val userSplitOwed = userTotalSplitOwed[userId] ?: 0.0
                 val totalInitialPaid = userTotalInitialPayments[userId] ?: 0.0
                 
                 // A user is "Paid" if their initial payment >= split owed, 
                 // OR if they were covered (split owed is 0 and they are in the coveredByMap)
-                val wasCovered = userSplitOwed == 0.0 && entries.any { it.coveredByMap.containsKey(userId) }
+                val wasCovered = userSplitOwed < 0.01 && entries.any { it.coveredByMap.containsKey(userId) }
                 
                 val currentPaid = if (totalInitialPaid > userSplitOwed) userSplitOwed else totalInitialPaid
                 val excess = if (totalInitialPaid > userSplitOwed) totalInitialPaid - userSplitOwed else 0.0
                 
                 val status = when {
                     wasCovered -> 1 // Marked as Paid if covered
-                    currentPaid >= userSplitOwed && userSplitOwed > 0 -> 1
-                    currentPaid == 0.0 -> 0
+                    totalInitialPaid >= userSplitOwed - 0.01 -> 1 // Settled or Creditor
+                    totalInitialPaid < 0.01 -> 0 // Unpaid
                     else -> 2 // Partial
                 }
 
@@ -401,7 +417,7 @@ class MultiTransactionRepository {
                     }) {
                         filter { eq("transaction_id", transactionId); eq("user_id", userId) }
                     }
-                } else if (wasCovered || currentPaid > 0) {
+                } else if (wasCovered || totalInitialPaid > 0.01) {
                     // Create payor record for covered user
                     client.postgrest.from("transaction_payors").insert(
                         TransactionPayorInsert(

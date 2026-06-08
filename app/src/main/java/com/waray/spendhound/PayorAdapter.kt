@@ -276,6 +276,13 @@ class PayorAdapter(
         val context = holder.itemView.context
         val individualPayment = individualPayments.getOrNull(position) ?: 0.0
         when {
+            individualPayment <= 0.01 -> { // Covered or nothing owed
+                holder.payorStatus.text = "Settled"
+                holder.payorStatus.setTextColor(ContextCompat.getColor(context, R.color.green))
+                holder.payorStatusBadge.visibility = View.VISIBLE
+                holder.payorStatusBadge.setImageResource(R.drawable.ic_circle_checked)
+                holder.payorStatusBadge.setColorFilter(ContextCompat.getColor(context, R.color.green))
+            }
             paid <= 0 -> {
                 holder.payorStatus.text = "Unpaid"
                 holder.payorStatus.setTextColor(ContextCompat.getColor(context, R.color.bright_red))
@@ -291,7 +298,7 @@ class PayorAdapter(
                 holder.payorStatusBadge.setColorFilter(ContextCompat.getColor(context, R.color.mid_orange))
             }
             else -> {
-                holder.payorStatus.text = "Paid"
+                holder.payorStatus.text = "Settled"
                 holder.payorStatus.setTextColor(ContextCompat.getColor(context, R.color.green))
                 holder.payorStatusBadge.visibility = View.VISIBLE
                 holder.payorStatusBadge.setImageResource(R.drawable.ic_circle_checked)

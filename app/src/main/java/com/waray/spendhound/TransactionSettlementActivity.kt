@@ -809,8 +809,9 @@ class TransactionSettlementActivity : AppCompatActivity() {
                     val totalOwed = userOwedMap[userId] ?: 0.0
                     val excess = if (newTotalAmount > totalOwed + epsilon) newTotalAmount - totalOwed else 0.0
                     val status = when {
-                        newTotalAmount <= epsilon -> 0
+                        totalOwed <= epsilon -> 1 // Covered member is always Settled
                         newTotalAmount >= totalOwed - epsilon -> 1
+                        newTotalAmount <= epsilon -> 0
                         else -> 2
                     }
                     val paidTo = payorToReceivers[userId]?.singleOrNull()
@@ -1110,8 +1111,10 @@ class TransactionSettlementActivity : AppCompatActivity() {
             holder.tvDifference.setTextColor(ContextCompat.getColor(this@TransactionSettlementActivity, balanceColor))
 
             // Status Badge: Settled, Pending, Unpaid
+            // A member is "Settled" if they've paid their share, OR if their share is 0 (covered)
             val (statusText, statusColor, bgColor) = when {
-                effectivePaid >= owed - epsilon && owed > epsilon -> Triple("Settled", R.color.whitest, R.color.green)
+                owed <= epsilon -> Triple("Settled", R.color.whitest, R.color.green)
+                effectivePaid >= owed - epsilon -> Triple("Settled", R.color.whitest, R.color.green)
                 effectivePaid > epsilon -> Triple("Pending", R.color.whitest, R.color.yellow)
                 else -> Triple("Unpaid", R.color.whitest, R.color.red)
             }

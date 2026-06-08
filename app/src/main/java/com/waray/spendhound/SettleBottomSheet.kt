@@ -464,8 +464,9 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
                     val totalOwed = userOwedMap[userId] ?: 0.0
                     val excess = if (newTotalAmount > totalOwed + epsilon) newTotalAmount - totalOwed else 0.0
                     val status = when {
-                        newTotalAmount <= epsilon -> 0
+                        totalOwed <= epsilon -> 1 // Covered member is always Settled
                         newTotalAmount >= totalOwed - epsilon -> 1
+                        newTotalAmount <= epsilon -> 0
                         else -> 2
                     }
                     val paidTo = payorToReceivers[userId]?.singleOrNull()
@@ -777,9 +778,10 @@ class SettleBottomSheet : BottomSheetDialogFragment() {
             val paid = amounts.getOrElse(index) { 0.0 }
             val owed = userOwedMap[userId] ?: 0.0
             when {
-                paid >= owed - epsilon && owed > epsilon -> 1
-                paid > epsilon -> 2
-                else -> 0
+                owed <= epsilon -> 1 // Covered or nothing owed is Settled
+                paid >= owed - epsilon -> 1 // Fully paid is Settled
+                paid > epsilon -> 2 // Some payment is Pending
+                else -> 0 // No payment is Unpaid
             }
         }.toMutableList()
 
