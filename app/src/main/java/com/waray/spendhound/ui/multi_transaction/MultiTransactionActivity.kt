@@ -247,14 +247,16 @@ class MultiTransactionActivity : AppCompatActivity() {
             itemAmount = item.amount,
             groupMembers = currentMembers,
             currentPayers = item.payers,
-            currentParticipants = item.includedMembers
+            currentParticipants = item.includedMembers,
+            initialCoveredByMap = item.coveredByMap
         )
         
-        bottomSheet.setOnConfirmListener { payers, participants ->
+        bottomSheet.setOnConfirmWithCoversListener { payers, participants, coveredByMap ->
             // Update the item directly in adapter first
             val updatedItem = item.copy(
                 payers = payers,
-                includedMembers = participants
+                includedMembers = participants,
+                coveredByMap = coveredByMap
             )
             adapter.updateTransactionPayment(position, updatedItem)
             
@@ -262,7 +264,7 @@ class MultiTransactionActivity : AppCompatActivity() {
             adapter.updateIncludedMembers(position, participants)
             
             // Update ViewModel for consistency
-            viewModel.updateItemPaymentConfig(position, payers, participants)
+            viewModel.updateItemPaymentConfig(position, payers, participants, coveredByMap)
             
             // Trigger validation after payment config changes
             validateSubmission()
@@ -325,6 +327,12 @@ class MultiTransactionActivity : AppCompatActivity() {
                         val multiItems = transactions.map { entry ->
                             val totalPaid = entry.payors.sumOf { it.amount }
                             val isPaymentComplete = Math.abs(totalPaid - entry.amount) < 0.01
+                            
+                            // Convert coveredByMap Long keys/values to String for UI
+                            val stringCoveredByMap = entry.coveredByMap.map { 
+                                it.key.toString() to it.value.toString() 
+                            }.toMap()
+
                             MultiTransactionItem(
                                 id = "",
                                 title = entry.title,
@@ -338,7 +346,8 @@ class MultiTransactionActivity : AppCompatActivity() {
                                     )
                                 },
                                 includedMembers = entry.includedMemberIds.map { it.toString() },
-                                isValid = entry.amount > 0 && entry.category.isNotEmpty() && entry.payors.isNotEmpty() && isPaymentComplete
+                                isValid = entry.amount > 0 && entry.category.isNotEmpty() && entry.payors.isNotEmpty() && isPaymentComplete,
+                                coveredByMap = stringCoveredByMap
                             )
                         }
                         

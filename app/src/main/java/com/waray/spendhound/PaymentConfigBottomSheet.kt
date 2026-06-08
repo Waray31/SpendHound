@@ -10,6 +10,9 @@ import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
 import android.view.inputmethod.InputMethodManager
 import android.widget.EditText
+import android.widget.ProgressBar
+import android.widget.PopupWindow
+import android.animation.ValueAnimator
 import androidx.core.widget.addTextChangedListener
 import android.text.TextWatcher
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -26,7 +29,9 @@ data class MemberPaymentState(
     val userId: String,
     val userName: String,
     val amountPaid: Double = 0.0,
-    val isIncludedInSplit: Boolean = true
+    val isIncludedInSplit: Boolean = true,
+    val coveredByUserId: String? = null,
+    val coveringUserIds: MutableList<String> = mutableListOf()
 )
 
 class PaymentConfigBottomSheet : BottomSheetDialogFragment() {
@@ -40,12 +45,12 @@ class PaymentConfigBottomSheet : BottomSheetDialogFragment() {
     private lateinit var btnClose: ImageButton
     
     private lateinit var membersAdapter: MembersAdapter
-    
     private var itemAmount: Double = 0.0
     private var groupMembers: List<User> = emptyList()
     private var memberStates: MutableList<MemberPaymentState> = mutableListOf()
     
     private var onConfirmListener: ((List<PayerContribution>, List<String>) -> Unit)? = null
+    private var onConfirmWithCoversListener: ((List<PayerContribution>, List<String>, Map<String, String>) -> Unit)? = null
     
     companion object {
         fun newInstance(
@@ -53,7 +58,8 @@ class PaymentConfigBottomSheet : BottomSheetDialogFragment() {
             itemAmount: Double,
             groupMembers: List<User>,
             currentPayers: List<PayerContribution>,
-            currentParticipants: List<String>
+            currentParticipants: List<String>,
+            initialCoveredByMap: Map<String, String> = emptyMap()
         ): PaymentConfigBottomSheet {
             return PaymentConfigBottomSheet().apply {
                 this.itemAmount = itemAmount
@@ -61,16 +67,26 @@ class PaymentConfigBottomSheet : BottomSheetDialogFragment() {
                 
                 // Initialize member states
                 this.memberStates = groupMembers.map { member ->
-                    val existingPayer = currentPayers.find { it.payerId == member.id.toString() }
-                    val isIncluded = currentParticipants.contains(member.id.toString()) || currentParticipants.isEmpty()
+                    val userIdStr = member.id.toString()
+                    val existingPayer = currentPayers.find { it.payerId == userIdStr }
+                    val isIncluded = currentParticipants.contains(userIdStr) || currentParticipants.isEmpty()
+                    val coveredBy = initialCoveredByMap[userIdStr]
                     
                     MemberPaymentState(
-                        userId = member.id.toString(),
+                        userId = userIdStr,
                         userName = member.username ?: "Unknown",
                         amountPaid = existingPayer?.amount ?: 0.0,
-                        isIncludedInSplit = isIncluded
+                        isIncludedInSplit = isIncluded,
+                        coveredByUserId = coveredBy
                     )
                 }.toMutableList()
+                
+                // Build coveringUserIds lists
+                this.memberStates.forEach { state ->
+                    state.coveredByUserId?.let { covererId ->
+                        this.memberStates.find { it.userId == covererId }?.coveringUserIds?.add(state.userId)
+                    }
+                }
                 
                 arguments = Bundle().apply {
                     putString("itemTitle", itemTitle)
@@ -98,7 +114,11 @@ class PaymentConfigBottomSheet : BottomSheetDialogFragment() {
                 PayerContribution(it.userId, it.userName, it.amountPaid)
             }
             val participants = memberStates.filter { it.isIncludedInSplit }.map { it.userId }
+            val coveredByMap = memberStates
+                .filter { it.coveredByUserId != null }
+                .associate { it.userId to it.coveredByUserId!! }
             
+            onConfirmWithCoversListener?.invoke(payers, participants, coveredByMap)
             onConfirmListener?.invoke(payers, participants)
             dismiss()
         }
@@ -115,7 +135,7 @@ class PaymentConfigBottomSheet : BottomSheetDialogFragment() {
     }
     
     private fun setupAdapter() {
-        membersAdapter = MembersAdapter(memberStates) { validateAndUpdate() }
+        membersAdapter = MembersAdapter(memberStates, itemAmount) { validateAndUpdate() }
         rvMembers.layoutManager = LinearLayoutManager(context)
         rvMembers.adapter = membersAdapter
     }
@@ -134,10 +154,10 @@ class PaymentConfigBottomSheet : BottomSheetDialogFragment() {
         val totalPaid = memberStates.sumOf { it.amountPaid }
         val remaining = itemAmount - totalPaid
         
-        // Update individual share
+        // Update individual share (base share for anyone included)
         val includedCount = memberStates.count { it.isIncludedInSplit }
-        val individualShare = if (includedCount > 0) itemAmount / includedCount else 0.0
-        tvIndividualShare.text = "₱${String.format("%.2f", individualShare)} each"
+        val baseShare = if (includedCount > 0) itemAmount / includedCount else 0.0
+        tvIndividualShare.text = "₱${String.format("%.2f", baseShare)} each"
         
         tvRemainingAmount.text = "₱${String.format("%.2f", remaining)}"
         
@@ -159,7 +179,8 @@ class PaymentConfigBottomSheet : BottomSheetDialogFragment() {
             btnConfirm.setBackgroundResource(R.drawable.greyed_out_rounded_button)
         }
         
-        // Don't call notifyDataSetChanged() here - let individual items update themselves
+        // Notify adapter to update badges and tags
+        membersAdapter.notifyDataSetChanged()
     }
     
     private fun setupKeyboardDismissal(view: View) {
@@ -180,14 +201,19 @@ class PaymentConfigBottomSheet : BottomSheetDialogFragment() {
             false
         }
     }
+
+    fun setOnConfirmWithCoversListener(listener: (List<PayerContribution>, List<String>, Map<String, String>) -> Unit) {
+        this.onConfirmWithCoversListener = listener
+    }
     
     fun setOnConfirmListener(listener: (List<PayerContribution>, List<String>) -> Unit) {
-        onConfirmListener = listener
+        this.onConfirmListener = listener
     }
 }
 
 class MembersAdapter(
     private val memberStates: MutableList<MemberPaymentState>,
+    private val totalItemAmount: Double,
     private val onStateChanged: () -> Unit
 ) : RecyclerView.Adapter<MembersAdapter.ViewHolder>() {
     
@@ -198,6 +224,11 @@ class MembersAdapter(
         val layoutSplitToggle: View? = view.findViewById(R.id.layoutSplitToggle)
         val toggleThumb: View = view.findViewById(R.id.toggleThumb)
         val tvToggleLabel: TextView = view.findViewById(R.id.tvToggleLabel)
+        val progressBarLongPress: ProgressBar = view.findViewById(R.id.progressBarLongPress)
+        val tvCoverSubtitle: TextView = view.findViewById(R.id.tvCoverSubtitle)
+        val tagCovered: TextView = view.findViewById(R.id.tagCovered)
+        val tagCovering: TextView = view.findViewById(R.id.tagCovering)
+        val tvSplitBadge: TextView = view.findViewById(R.id.tvSplitBadge)
     }
     
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ViewHolder {
@@ -233,6 +264,9 @@ class MembersAdapter(
         
         // Setup keyboard dismissal for this item
         setupItemKeyboardDismissal(holder)
+
+        // Update Cover Share UI
+        updateCoverUI(holder, memberState)
         
         // Amount change listener
         val textWatcher = holder.etMemberAmount.addTextChangedListener { text ->
@@ -282,6 +316,219 @@ class MembersAdapter(
                 }
             }
         }
+
+        // Long press for Cover Share
+        setupLongPress(holder, memberState)
+    }
+
+    private fun updateCoverUI(holder: ViewHolder, state: MemberPaymentState) {
+        val includedCount = memberStates.count { it.isIncludedInSplit }
+        val baseShare = if (includedCount > 0) totalItemAmount / includedCount else 0.0
+
+        // Reset visibility
+        holder.tvCoverSubtitle.visibility = View.GONE
+        holder.tagCovered.visibility = View.GONE
+        holder.tagCovering.visibility = View.GONE
+        holder.tvSplitBadge.visibility = View.GONE
+
+        if (!state.isIncludedInSplit) {
+            holder.tvSplitBadge.visibility = View.GONE
+            return
+        }
+
+        var finalShare = baseShare
+        if (state.coveredByUserId != null) {
+            finalShare = 0.0
+            val coverer = memberStates.find { it.userId == state.coveredByUserId }
+            val covererName = coverer?.userName ?: "Someone"
+            holder.tvCoverSubtitle.visibility = View.VISIBLE
+            holder.tvCoverSubtitle.text = "Share absorbed by $covererName"
+            holder.tagCovered.visibility = View.VISIBLE
+            holder.tagCovered.text = "covered by $covererName"
+        } else if (state.coveringUserIds.isNotEmpty()) {
+            finalShare = baseShare * (1 + state.coveringUserIds.size)
+            holder.tagCovering.visibility = View.VISIBLE
+            holder.tagCovering.text = "covering ${state.coveringUserIds.size}"
+            holder.tvCoverSubtitle.visibility = View.VISIBLE
+            holder.tvCoverSubtitle.text = "Own share + ${state.coveringUserIds.size} covered → ₱${String.format("%.2f", finalShare)}"
+        }
+
+        holder.tvSplitBadge.visibility = View.VISIBLE
+        holder.tvSplitBadge.text = "₱${String.format("%.2f", finalShare)}"
+        holder.tvSplitBadge.setTextColor(if (finalShare > 0) 0xFF2ECC71.toInt() else 0xFF6C757D.toInt())
+    }
+
+    private fun setupLongPress(holder: ViewHolder, state: MemberPaymentState) {
+        var longPressAnimator: ValueAnimator? = null
+
+        holder.itemView.setOnTouchListener { v, event ->
+            when (event.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    if (!state.isIncludedInSplit) return@setOnTouchListener false
+                    
+                    // Rule 3: A member who is already covering someone cannot be covered by others.
+                    if (state.coveringUserIds.isNotEmpty()) return@setOnTouchListener false
+                    
+                    holder.progressBarLongPress.visibility = View.VISIBLE
+                    holder.progressBarLongPress.progress = 0
+                    
+                    longPressAnimator = ValueAnimator.ofInt(0, 100).apply {
+                        duration = 550
+                        addUpdateListener { animator ->
+                            holder.progressBarLongPress.progress = animator.animatedValue as Int
+                        }
+                        addListener(object : android.animation.AnimatorListenerAdapter() {
+                            override fun onAnimationEnd(animation: android.animation.Animator) {
+                                if (holder.progressBarLongPress.progress == 100) {
+                                    holder.progressBarLongPress.visibility = View.INVISIBLE
+                                    showCoverMenu(holder, state)
+                                }
+                            }
+                        })
+                        start()
+                    }
+                    true
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    longPressAnimator?.cancel()
+                    holder.progressBarLongPress.visibility = View.INVISIBLE
+                    holder.progressBarLongPress.progress = 0
+                    if (event.action == MotionEvent.ACTION_UP) {
+                        v.performClick()
+                    }
+                    true
+                }
+                else -> false
+            }
+        }
+    }
+
+    private fun showCoverMenu(holder: ViewHolder, state: MemberPaymentState) {
+        val context = holder.itemView.context
+        val inflater = LayoutInflater.from(context)
+        val menuView = inflater.inflate(R.layout.layout_cover_menu, null)
+        
+        val popupWindow = PopupWindow(
+            menuView,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            true
+        )
+        popupWindow.elevation = 10f
+
+        val tvMenuTitle: TextView = menuView.findViewById(R.id.tvMenuTitle)
+        tvMenuTitle.text = "Who covers ${state.userName}'s share?"
+
+        val rvCoverMembers: RecyclerView = menuView.findViewById(R.id.rvCoverMembers)
+        val eligibleMembers = memberStates.filter { it.userId != state.userId && it.isIncludedInSplit }
+        
+        rvCoverMembers.adapter = CoverMembersAdapter(eligibleMembers, state) { covererId ->
+            updateCoverAssignment(state.userId, covererId)
+            popupWindow.dismiss()
+        }
+
+        val btnRemoveCover: View = menuView.findViewById(R.id.btnRemoveCover)
+        btnRemoveCover.setOnClickListener {
+            updateCoverAssignment(state.userId, null)
+            popupWindow.dismiss()
+        }
+
+        // To ensure the menu is fully visible when the row is at the bottom, 
+        // we use Gravity.CENTER to try and center it or smart positioning.
+        // showAsDropDown with y-offset can still go off-screen. 
+        // Using Gravity.CENTER on the anchor's location is safer.
+        
+        menuView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+        val menuHeight = menuView.measuredHeight
+        val location = IntArray(2)
+        holder.itemView.getLocationOnScreen(location)
+        val screenHeight = context.resources.displayMetrics.heightPixels
+        
+        // If showing it above the row would push it off the top of the screen, show it below.
+        // If showing it below would push it off the bottom, show it above.
+        val yOffset = if (location[1] + menuHeight > screenHeight) {
+            -menuHeight - holder.itemView.height
+        } else {
+            -holder.itemView.height / 2
+        }
+
+        popupWindow.showAsDropDown(holder.itemView, 0, yOffset)
+    }
+
+    private fun updateCoverAssignment(coveredUserId: String, covererUserId: String?) {
+        val coveredMemberIndex = memberStates.indexOfFirst { it.userId == coveredUserId }
+        if (coveredMemberIndex == -1) return
+        
+        val oldCovererUserId = memberStates[coveredMemberIndex].coveredByUserId
+        
+        // Remove from old coverer's list
+        if (oldCovererUserId != null) {
+            val oldCovererIndex = memberStates.indexOfFirst { it.userId == oldCovererUserId }
+            if (oldCovererIndex != -1) {
+                val oldCoverer = memberStates[oldCovererIndex]
+                oldCoverer.coveringUserIds.remove(coveredUserId)
+            }
+        }
+
+        // Update covered member
+        memberStates[coveredMemberIndex] = memberStates[coveredMemberIndex].copy(
+            coveredByUserId = covererUserId
+        )
+
+        // Add to new coverer's list
+        if (covererUserId != null) {
+            val newCovererIndex = memberStates.indexOfFirst { it.userId == covererUserId }
+            if (newCovererIndex != -1) {
+                val newCoverer = memberStates[newCovererIndex]
+                if (!newCoverer.coveringUserIds.contains(coveredUserId)) {
+                    newCoverer.coveringUserIds.add(coveredUserId)
+                }
+            }
+        }
+
+        onStateChanged()
+    }
+
+    private inner class CoverMembersAdapter(
+        private val members: List<MemberPaymentState>,
+        private val targetMember: MemberPaymentState,
+        private val onMemberSelected: (String) -> Unit
+    ) : RecyclerView.Adapter<CoverMembersAdapter.CoverViewHolder>() {
+
+        inner class CoverViewHolder(view: View) : RecyclerView.ViewHolder(view) {
+            val tvMemberName: TextView = view.findViewById(R.id.tvMemberName)
+            val tvStatus: TextView = view.findViewById(R.id.tvStatus)
+            val ivCheck: ImageView = view.findViewById(R.id.ivCheck)
+        }
+
+        override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): CoverViewHolder {
+            val view = LayoutInflater.from(parent.context).inflate(R.layout.item_cover_menu_member, parent, false)
+            return CoverViewHolder(view)
+        }
+
+        override fun onBindViewHolder(holder: CoverViewHolder, position: Int) {
+            val member = members[position]
+            holder.tvMemberName.text = member.userName
+            
+            // Rule 2: A member who is already being covered by someone cannot cover others.
+            val cannotCover = member.coveredByUserId != null 
+            
+            holder.ivCheck.visibility = if (targetMember.coveredByUserId == member.userId) View.VISIBLE else View.GONE
+            
+            if (cannotCover) {
+                holder.tvMemberName.setTextColor(0xFFCED4DA.toInt())
+                holder.tvStatus.visibility = View.VISIBLE
+                holder.tvStatus.text = "already covered"
+                holder.itemView.isEnabled = false
+            } else {
+                holder.tvMemberName.setTextColor(0xFF03071E.toInt())
+                holder.tvStatus.visibility = View.GONE
+                holder.itemView.isEnabled = true
+                holder.itemView.setOnClickListener { onMemberSelected(member.userId) }
+            }
+        }
+
+        override fun getItemCount() = members.size
     }
     
     private fun setupItemKeyboardDismissal(holder: ViewHolder) {
@@ -342,7 +589,7 @@ class MembersAdapter(
             // Move thumb to right - to the "most end"
             val maxTravel = toggleWidth - thumbWidth - (2 * density) // Account for 2dp padding to reach edge
             holder.toggleThumb.animate()
-                .translationX(maxTravel)
+                .translationX(maxTravel.toFloat())
                 .setDuration(200)
                 .start()
         } else {

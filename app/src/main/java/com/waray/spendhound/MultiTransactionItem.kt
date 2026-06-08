@@ -7,7 +7,8 @@ data class MultiTransactionItem(
     val category: String = "",
     val payers: List<PayerContribution> = emptyList(),
     val includedMembers: List<String> = emptyList(), // List of member IDs
-    val isValid: Boolean = false
+    val isValid: Boolean = false,
+    val coveredByMap: Map<String, String> = emptyMap() // coveredId -> covererId
 ) {
     fun getTotalPaid(): Double = payers.sumOf { it.amount }
     

@@ -14,7 +14,8 @@ data class TransactionEntry(
     var amount: Double = 0.0,
     var category: String = "",        // maps to transaction_items.category
     var payors: MutableList<PayorEntry> = mutableListOf(),
-    var includedMemberIds: List<Long> = emptyList()  // members included in split for this item
+    var includedMemberIds: List<Long> = emptyList(),  // members included in split for this item
+    var coveredByMap: Map<Long, Long> = emptyMap()   // coveredId -> covererId
 )
 
 @OptIn(InternalSerializationApi::class)
@@ -155,7 +156,8 @@ data class TransactionSplitInsert(
     @SerialName("transaction_id")       val transactionId: Long,
     @SerialName("user_id")              val userId: Long,
     @SerialName("amount")               val amount: Double,
-    @SerialName("transaction_items_id") val transactionItemsId: Long
+    @SerialName("transaction_items_id") val transactionItemsId: Long,
+    @SerialName("covered_by_user_id")   val coveredByUserId: Long? = null
 )
 
 /** SELECT */
@@ -167,7 +169,8 @@ data class TransactionSplitTable(
     @SerialName("user_id")              val userId: Long = 0,
     @SerialName("amount")               val amount: Double = 0.0,
     @SerialName("created_at")           val createdAt: String? = null,
-    @SerialName("transaction_items_id") val transactionItemsId: Long? = null
+    @SerialName("transaction_items_id") val transactionItemsId: Long? = null,
+    @SerialName("covered_by_user_id")   val coveredByUserId: Long? = null
 )
 
 // ─── transaction_history table ───────────────────────────────────────────────

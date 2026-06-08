@@ -224,7 +224,7 @@ class MultiTransactionViewModel(
         }
     }
 
-    fun updateItemPaymentConfig(position: Int, payers: List<PayerContribution>, participants: List<String>) {
+    fun updateItemPaymentConfig(position: Int, payers: List<PayerContribution>, participants: List<String>, coveredByMap: Map<String, String> = emptyMap()) {
         val currentList = _transactions.value.toMutableList()
         if (position in currentList.indices) {
             // Convert to existing PayorEntry format for compatibility
@@ -238,10 +238,20 @@ class MultiTransactionViewModel(
             
             // Convert participant IDs to Long list
             val includedMemberIds = participants.mapNotNull { it.toLongOrNull() }
+
+            // Convert coveredByMap String keys/values to Long
+            val longCoveredByMap = coveredByMap.mapNotNull { entry ->
+                val coveredId = entry.key.toLongOrNull()
+                val covererId = entry.value.toLongOrNull()
+                if (coveredId != null && covererId != null) {
+                    coveredId to covererId
+                } else null
+            }.toMap()
             
             currentList[position] = currentList[position].copy(
                 payors = payorEntries,
-                includedMemberIds = includedMemberIds
+                includedMemberIds = includedMemberIds,
+                coveredByMap = longCoveredByMap
             )
             _transactions.value = currentList
             calculateTotals()
@@ -301,12 +311,17 @@ class MultiTransactionViewModel(
             val itemSplits = splits.filter { it.transactionItemsId == item.id }
             val includedMemberIds = itemSplits.map { it.userId }
             
+            val coveredByMap = itemSplits
+                .filter { it.coveredByUserId != null }
+                .associate { it.userId to it.coveredByUserId!! }
+            
             TransactionEntry(
                 title = item.itemDescription ?: "",
                 amount = item.amount,
                 category = item.category ?: "",
                 payors = payorEntries,
-                includedMemberIds = includedMemberIds
+                includedMemberIds = includedMemberIds,
+                coveredByMap = coveredByMap
             )
         }
         

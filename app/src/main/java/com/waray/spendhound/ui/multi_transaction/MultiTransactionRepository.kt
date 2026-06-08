@@ -116,42 +116,80 @@ class MultiTransactionRepository {
                 }
                 
                 if (membersToSplit.isNotEmpty()) {
-                    val splitAmount = entry.amount / membersToSplit.size
+                    // Calculate split amount per member, accounting for covers
+                    val baseSplitAmount = entry.amount / membersToSplit.size
                     
-                    // Track each user's total split owed across all items
-                    membersToSplit.forEach { member ->
+                    val splitRecords = membersToSplit.map { member ->
+                        val covererId = entry.coveredByMap[member.id]
+                        val amount = if (covererId != null) {
+                            0.0 // Covered member pays 0
+                        } else {
+                            val coversCount = entry.coveredByMap.values.count { it == member.id }
+                            baseSplitAmount * (1 + coversCount)
+                        }
+
+                        // Track each user's total split owed across all items
                         userTotalSplitOwed[member.id!!] = 
-                            (userTotalSplitOwed[member.id!!] ?: 0.0) + splitAmount
+                            (userTotalSplitOwed[member.id!!] ?: 0.0) + amount
+
+                        TransactionSplitInsert(
+                            transactionId = txId,
+                            userId = member.id!!,
+                            amount = amount,
+                            transactionItemsId = itemId,
+                            coveredByUserId = covererId
+                        )
                     }
                     
-                    client.postgrest.from("transaction_splits").insert(
-                        membersToSplit.map { member ->
-                            TransactionSplitInsert(
-                                transactionId = txId,
-                                userId = member.id!!,
-                                amount = splitAmount,
-                                transactionItemsId = itemId
-                            )
-                        }
-                    )
+                    client.postgrest.from("transaction_splits").insert(splitRecords)
                 }
             }
             
             // 5. Update all payors with calculated excess_amount and status based on total payments
-            userTotalInitialPayments.forEach { (userId, totalInitialPaid) ->
-                val userSplitOwed = userTotalSplitOwed[userId] ?: 0.0
+            // Also ensure covered users are marked as "Paid" (status 1) even if they paid 0
+            userTotalSplitOwed.forEach { (userId, userSplitOwed) ->
+                val totalInitialPaid = userTotalInitialPayments[userId] ?: 0.0
+                
+                // A user is "Paid" if their initial payment >= split owed, 
+                // OR if they were covered (split owed is 0 and they are in the coveredByMap)
+                val wasCovered = userSplitOwed == 0.0 && entries.any { it.coveredByMap.containsKey(userId) }
+                
                 val currentPaid = if (totalInitialPaid > userSplitOwed) userSplitOwed else totalInitialPaid
                 val excess = if (totalInitialPaid > userSplitOwed) totalInitialPaid - userSplitOwed else 0.0
+                
                 val status = when {
+                    wasCovered -> 1 // Marked as Paid if covered
+                    currentPaid >= userSplitOwed && userSplitOwed > 0 -> 1
                     currentPaid == 0.0 -> 0
-                    currentPaid >= userSplitOwed -> 1
-                    else -> 2
+                    else -> 2 // Partial
                 }
-                client.postgrest.from("transaction_payors").update(buildJsonObject {
-                    put("excess_amount", excess)
-                    put("status", status)
-                }) {
+
+                // Check if payor record exists for this user (they might not have been an initial payer)
+                val existingPayor = client.postgrest.from("transaction_payors").select {
                     filter { eq("transaction_id", txId); eq("user_id", userId) }
+                }.decodeSingleOrNull<TransactionPayorTable>()
+
+                if (existingPayor != null) {
+                    client.postgrest.from("transaction_payors").update(buildJsonObject {
+                        put("excess_amount", excess)
+                        put("status", status)
+                        put("current_amount_paid", currentPaid)
+                    }) {
+                        filter { eq("transaction_id", txId); eq("user_id", userId) }
+                    }
+                } else if (wasCovered || currentPaid > 0) {
+                    // Create payor record for covered user or someone who paid after split (though unlikely here)
+                    client.postgrest.from("transaction_payors").insert(
+                        TransactionPayorInsert(
+                            transactionId = txId,
+                            userId = userId,
+                            initialAmountPaid = 0.0,
+                            currentAmountPaid = currentPaid,
+                            excessAmount = excess,
+                            transactionItemsId = null,
+                            status = status
+                        )
+                    )
                 }
             }
 
@@ -302,41 +340,80 @@ class MultiTransactionRepository {
                 }
                 
                 if (membersToSplit.isNotEmpty()) {
-                    val splitAmount = entry.amount / membersToSplit.size
+                    // Calculate split amount per member, accounting for covers
+                    val baseSplitAmount = entry.amount / membersToSplit.size
                     
-                    membersToSplit.forEach { member ->
+                    val splitRecords = membersToSplit.map { member ->
+                        val covererId = entry.coveredByMap[member.id]
+                        val amount = if (covererId != null) {
+                            0.0 // Covered member pays 0
+                        } else {
+                            val coversCount = entry.coveredByMap.values.count { it == member.id }
+                            baseSplitAmount * (1 + coversCount)
+                        }
+
+                        // Track each user's total split owed across all items
                         userTotalSplitOwed[member.id!!] = 
-                            (userTotalSplitOwed[member.id!!] ?: 0.0) + splitAmount
+                            (userTotalSplitOwed[member.id!!] ?: 0.0) + amount
+
+                        TransactionSplitInsert(
+                            transactionId = transactionId,
+                            userId = member.id!!,
+                            amount = amount,
+                            transactionItemsId = itemId,
+                            coveredByUserId = covererId
+                        )
                     }
                     
-                    client.postgrest.from("transaction_splits").insert(
-                        membersToSplit.map { member ->
-                            TransactionSplitInsert(
-                                transactionId = transactionId,
-                                userId = member.id!!,
-                                amount = splitAmount,
-                                transactionItemsId = itemId
-                            )
-                        }
-                    )
+                    client.postgrest.from("transaction_splits").insert(splitRecords)
                 }
             }
             
             // Update payors with calculated values
-            userTotalInitialPayments.forEach { (userId, totalInitialPaid) ->
-                val userSplitOwed = userTotalSplitOwed[userId] ?: 0.0
+            // Also ensure covered users are marked as "Paid" (status 1) even if they paid 0
+            userTotalSplitOwed.forEach { (userId, userSplitOwed) ->
+                val totalInitialPaid = userTotalInitialPayments[userId] ?: 0.0
+                
+                // A user is "Paid" if their initial payment >= split owed, 
+                // OR if they were covered (split owed is 0 and they are in the coveredByMap)
+                val wasCovered = userSplitOwed == 0.0 && entries.any { it.coveredByMap.containsKey(userId) }
+                
                 val currentPaid = if (totalInitialPaid > userSplitOwed) userSplitOwed else totalInitialPaid
                 val excess = if (totalInitialPaid > userSplitOwed) totalInitialPaid - userSplitOwed else 0.0
+                
                 val status = when {
+                    wasCovered -> 1 // Marked as Paid if covered
+                    currentPaid >= userSplitOwed && userSplitOwed > 0 -> 1
                     currentPaid == 0.0 -> 0
-                    currentPaid >= userSplitOwed -> 1
-                    else -> 2
+                    else -> 2 // Partial
                 }
-                client.postgrest.from("transaction_payors").update(buildJsonObject {
-                    put("excess_amount", excess)
-                    put("status", status)
-                }) {
+
+                // Check if payor record exists for this user (they might not have been an initial payer)
+                val existingPayor = client.postgrest.from("transaction_payors").select {
                     filter { eq("transaction_id", transactionId); eq("user_id", userId) }
+                }.decodeSingleOrNull<TransactionPayorTable>()
+
+                if (existingPayor != null) {
+                    client.postgrest.from("transaction_payors").update(buildJsonObject {
+                        put("excess_amount", excess)
+                        put("status", status)
+                        put("current_amount_paid", currentPaid)
+                    }) {
+                        filter { eq("transaction_id", transactionId); eq("user_id", userId) }
+                    }
+                } else if (wasCovered || currentPaid > 0) {
+                    // Create payor record for covered user
+                    client.postgrest.from("transaction_payors").insert(
+                        TransactionPayorInsert(
+                            transactionId = transactionId,
+                            userId = userId,
+                            initialAmountPaid = 0.0,
+                            currentAmountPaid = currentPaid,
+                            excessAmount = excess,
+                            transactionItemsId = null,
+                            status = status
+                        )
+                    )
                 }
             }
 
