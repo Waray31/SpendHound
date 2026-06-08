@@ -120,36 +120,10 @@ class RecentTransactionAdapter(
                 holder.expandedGroupName.visibility = View.GONE
             }
 
-            if (isSingle) {
-                val item = transaction.transactionItems[0]
-                holder.itemsTableHeader.visibility = View.GONE
-                holder.itemsTableContainer.visibility = View.GONE
-                holder.dividerBelowItems.visibility = View.GONE
-                
-                val desc = item.itemDescription?.takeIf { it.isNotBlank() }
-                val category = item.category?.takeIf { it.isNotBlank() }
-                
-                // If there's a custom description, show it.
-                // If no description but there's a category, and it's NOT the same as the title, show it.
-                // (Title usually IS the category for single items, so we check)
-                val title = holder.typeTextView.text.toString()
-                
-                if (desc != null) {
-                    holder.tvSingleDescription.text = "Description: $desc"
-                    holder.tvSingleDescription.visibility = View.VISIBLE
-                } else if (category != null && category != title) {
-                    holder.tvSingleDescription.text = "Category: $category"
-                    holder.tvSingleDescription.visibility = View.VISIBLE
-                } else {
-                    holder.tvSingleDescription.visibility = View.GONE
-                }
-            } else {
-                holder.itemsTableHeader.visibility = View.VISIBLE
-                holder.itemsTableContainer.visibility = View.VISIBLE
-                holder.dividerBelowItems.visibility = View.VISIBLE
-                holder.tvSingleDescription.visibility = View.GONE
-                buildItemsTable(holder, transaction)
-            }
+            holder.itemsTableHeader.visibility = View.VISIBLE
+            holder.itemsTableContainer.visibility = View.VISIBLE
+            holder.dividerBelowItems.visibility = View.VISIBLE
+            buildItemsTable(holder, transaction)
             setupPayors(holder, transaction)
         } else {
             holder.loadingOverlay.visibility = View.GONE
@@ -401,7 +375,6 @@ class RecentTransactionAdapter(
         val itemsTableHeader: View           = itemView.findViewById(R.id.itemsTableHeader)
         val itemsTableContainer: LinearLayout = itemView.findViewById(R.id.itemsTableContainer)
         val dividerBelowItems: View          = itemView.findViewById(R.id.dividerBelowItems)
-        val tvSingleDescription: TextView    = itemView.findViewById(R.id.tvSingleDescription)
         val createdByImageView: ImageView    = itemView.findViewById(R.id.createdByImageView)
         val createdByInitials: TextView      = itemView.findViewById(R.id.createdByInitialsTextView)
         val createdByTextView: TextView      = itemView.findViewById(R.id.createdByTextView)
