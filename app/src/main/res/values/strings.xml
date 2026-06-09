@@ -47,6 +47,7 @@
     <string name="transactionList">Transaction List</string>
     <string name="viewAll_transactions">View all ></string>
     <string name="app_logo_description">App logo</string>
+    <string name="tagline">Track Expenses Effortlessly</string>
 
     <!-- Breakdown Dialog Strings -->
     <string name="breakdown_title">Financial Breakdown</string>
