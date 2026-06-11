@@ -18,9 +18,11 @@
 
         <ImageView
             android:id="@+id/imageView"
-            android:layout_width="200dp"
-            android:layout_height="200dp"
-            app:srcCompat="@drawable/logotwo" />
+            android:layout_width="300dp"
+            android:layout_height="300dp"
+            android:layout_marginBottom="-30dp"
+            android:layout_marginTop="-30dp"
+            app:srcCompat="@drawable/logo_animated" />
 
         <LinearLayout
             android:layout_width="wrap_content"
@@ -31,7 +33,7 @@
                 android:id="@+id/brandName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="0dp"
                 android:fontFamily="@font/montserratalternatess_bold"
                 android:text="Spend"
                 android:textColor="@android:color/white"
@@ -42,10 +44,10 @@
                 android:id="@+id/brandName2"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="16dp"
+                android:layout_marginTop="0dp"
                 android:fontFamily="@font/montserratalternatess_bold"
                 android:text="Hound"
-                android:textColor="@color/brand_orange"
+                android:textColor="@color/orange"
                 android:textSize="34sp"
                 android:textStyle="bold" />
         </LinearLayout>

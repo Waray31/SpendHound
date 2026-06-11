@@ -1,5 +1,6 @@
 package com.waray.spendhound
 
+import android.graphics.drawable.Animatable
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
@@ -31,8 +32,10 @@ class SplashActivity : AppCompatActivity() {
         entranceAnimation.setAnimationListener(object : Animation.AnimationListener {
             override fun onAnimationStart(animation: Animation?) {}
             override fun onAnimationEnd(animation: Animation?) {
-                val wiggle = AnimationUtils.loadAnimation(this@SplashActivity, R.anim.logo_wiggle)
-                imageView.startAnimation(wiggle)
+                val drawable = imageView.drawable
+                if (drawable is Animatable) {
+                    (drawable as Animatable).start()
+                }
             }
             override fun onAnimationRepeat(animation: Animation?) {}
         })
