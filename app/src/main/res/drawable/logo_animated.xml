@@ -1,0 +1,12 @@
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:drawable="@drawable/logo_vector">
+
+    <target
+        android:name="tail"
+        android:animation="@animator/tail_wag" />
+
+    <target
+        android:name="ear"
+        android:animation="@animator/ear_twitch" />
+
+</animated-vector>

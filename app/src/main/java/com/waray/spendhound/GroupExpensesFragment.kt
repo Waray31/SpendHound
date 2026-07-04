@@ -512,9 +512,12 @@ class GroupExpensesFragment : Fragment() {
 
     private fun computeStatus(payors: List<TransactionPayorTable>, splits: List<TransactionSplitTable>): String {
         if (splits.isEmpty()) return "Pending"
-        val individualOwed = splits.groupBy { it.userId }.values.firstOrNull()?.sumOf { it.amount } ?: 0.0
         val paidByUser = payors.groupBy { it.userId }.mapValues { e -> e.value.sumOf { it.currentAmountPaid } }
-        val allSettled = splits.map { it.userId }.distinct().all { (paidByUser[it] ?: 0.0) >= individualOwed }
+        val userOwedMap = splits.groupBy { it.userId }.mapValues { e -> e.value.sumOf { it.amount } }
+        
+        val allSettled = userOwedMap.all { (userId, owed) ->
+            (paidByUser[userId] ?: 0.0) >= owed - 0.01
+        }
         return if (allSettled) "Settled" else "Pending"
     }
 

@@ -185,18 +185,6 @@
                     android:layout_marginVertical="8dp"
                     android:background="#DDDDDD" />
 
-                <!-- Single item description (shown only for single-item transactions) -->
-                <TextView
-                    android:id="@+id/tvSingleDescription"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginHorizontal="12dp"
-                    android:layout_marginBottom="8dp"
-                    android:fontFamily="@font/montserratalternatess_regular"
-                    android:textColor="@color/transaction_secondary_text"
-                    android:textSize="12sp"
-                    android:visibility="gone" />
-
                 <!-- Payors header + edit buttons -->
                 <LinearLayout
                     android:layout_width="match_parent"

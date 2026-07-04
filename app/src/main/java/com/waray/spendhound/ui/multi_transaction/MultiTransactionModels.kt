@@ -3,6 +3,7 @@ package com.waray.spendhound.ui.multi_transaction
 import kotlinx.serialization.InternalSerializationApi
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 // ─── UI / local models ────────────────────────────────────────────────────────
 
@@ -13,7 +14,10 @@ data class TransactionEntry(
     var amount: Double = 0.0,
     var category: String = "",        // maps to transaction_items.category
     var payors: MutableList<PayorEntry> = mutableListOf(),
-    var includedMemberIds: List<Long> = emptyList()  // members included in split for this item
+    var includedMemberIds: List<Long> = emptyList(),  // members included in split for this item
+    var splitMode: Int = 0, // 0: Equally, 1: Exact
+    var customSplitMap: Map<Long, Double> = emptyMap(), // userId -> amount
+    var coveredByMap: Map<Long, Long> = emptyMap()   // coveredId -> covererId
 )
 
 @OptIn(InternalSerializationApi::class)
@@ -154,7 +158,8 @@ data class TransactionSplitInsert(
     @SerialName("transaction_id")       val transactionId: Long,
     @SerialName("user_id")              val userId: Long,
     @SerialName("amount")               val amount: Double,
-    @SerialName("transaction_items_id") val transactionItemsId: Long
+    @SerialName("transaction_items_id") val transactionItemsId: Long,
+    @SerialName("covered_by_user_id")   val coveredByUserId: Long? = null
 )
 
 /** SELECT */
@@ -166,5 +171,31 @@ data class TransactionSplitTable(
     @SerialName("user_id")              val userId: Long = 0,
     @SerialName("amount")               val amount: Double = 0.0,
     @SerialName("created_at")           val createdAt: String? = null,
-    @SerialName("transaction_items_id") val transactionItemsId: Long? = null
+    @SerialName("transaction_items_id") val transactionItemsId: Long? = null,
+    @SerialName("covered_by_user_id")   val coveredByUserId: Long? = null
+)
+
+// ─── transaction_history table ───────────────────────────────────────────────
+
+/** INSERT */
+@OptIn(InternalSerializationApi::class)
+@Serializable
+data class TransactionHistoryInsert(
+    @SerialName("transaction_id") val transactionId: Long,
+    @SerialName("user_id")        val userId: Long,
+    @SerialName("action")         val action: String,
+    @SerialName("details")        val details: String? = null
+)
+
+/** SELECT */
+@OptIn(InternalSerializationApi::class)
+@Serializable
+data class TransactionHistoryFull(
+    @SerialName("id")             val id: Long? = null,
+    @SerialName("transaction_id") val transactionId: Long,
+    @SerialName("user_id")        val userId: Long,
+    @SerialName("action")         val action: String,
+    @SerialName("details")        val details: String? = null,
+    @SerialName("created_at")     val createdAt: String? = null,
+    @Transient var userName: String? = null
 )

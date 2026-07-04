@@ -175,6 +175,14 @@ class MultiTransactionAdapter(
     fun getTransactions(): List<TransactionEntry> {
         // Convert MultiTransactionItem back to TransactionEntry for compatibility
         return transactions.map { item ->
+            val coveredByMapLong = item.coveredByMap.mapNotNull { entry ->
+                val coveredId = entry.key.toLongOrNull()
+                val covererId = entry.value.toLongOrNull()
+                if (coveredId != null && covererId != null) {
+                    coveredId to covererId
+                } else null
+            }.toMap()
+
             TransactionEntry(
                 title = item.title,
                 amount = item.amount,
@@ -186,7 +194,8 @@ class MultiTransactionAdapter(
                         amount = payer.amount
                     )
                 }.toMutableList(),
-                includedMemberIds = item.includedMembers.mapNotNull { it.toLongOrNull() }
+                includedMemberIds = item.includedMembers.mapNotNull { it.toLongOrNull() },
+                coveredByMap = coveredByMapLong
             )
         }
     }

@@ -61,6 +61,7 @@ class MultiTransactionActivity : AppCompatActivity() {
 
         setupTransactionMode()
         setupToolbar()
+        setupHistoryButton()
         setupRecyclerView()
         setupListeners()
         observeState()
@@ -84,6 +85,15 @@ class MultiTransactionActivity : AppCompatActivity() {
 
     private fun setupToolbar() {
         binding.btnBack.setOnClickListener { finish() }
+    }
+
+    private fun setupHistoryButton() {
+        binding.btnHistory.isVisible = isEditMode
+        binding.btnHistory.setOnClickListener {
+            editTransactionId?.let { id ->
+                ExpenseHistoryActivity.start(this, id)
+            }
+        }
     }
 
     private fun setupRecyclerView() {
@@ -156,14 +166,14 @@ class MultiTransactionActivity : AppCompatActivity() {
                 }
                 
                 currentGroups.getOrNull(pos - 1)?.groupId?.let { groupId ->
-                    if (isEditMode && groupId == pendingGroupId) {
-                        // Initial load for edit mode - don't reset transactions
+                    if (groupId == pendingGroupId) {
+                        // Initial load for edit mode OR re-trigger of same group selection
                         viewModel.onGroupSelected(groupId, resetTransactions = false)
-                        pendingGroupId = null // Clear once matched
                     } else {
                         // Regular group change or manual selection
                         adapter.resetToSingleItem()
                         viewModel.onGroupSelected(groupId)
+                        pendingGroupId = groupId
                     }
                 }
                 validateSubmission()
@@ -237,14 +247,20 @@ class MultiTransactionActivity : AppCompatActivity() {
             itemAmount = item.amount,
             groupMembers = currentMembers,
             currentPayers = item.payers,
-            currentParticipants = item.includedMembers
+            currentParticipants = item.includedMembers,
+            initialCoveredByMap = item.coveredByMap,
+            splitMode = item.splitMode,
+            customSplitMap = item.customSplitMap
         )
         
-        bottomSheet.setOnConfirmListener { payers, participants ->
+        bottomSheet.setOnConfirmWithCoversListener { payers, participants, coveredByMap, splitMode, customSplitMap ->
             // Update the item directly in adapter first
             val updatedItem = item.copy(
                 payers = payers,
-                includedMembers = participants
+                includedMembers = participants,
+                coveredByMap = coveredByMap,
+                splitMode = splitMode,
+                customSplitMap = customSplitMap
             )
             adapter.updateTransactionPayment(position, updatedItem)
             
@@ -252,7 +268,7 @@ class MultiTransactionActivity : AppCompatActivity() {
             adapter.updateIncludedMembers(position, participants)
             
             // Update ViewModel for consistency
-            viewModel.updateItemPaymentConfig(position, payers, participants)
+            viewModel.updateItemPaymentConfig(position, payers, participants, coveredByMap, splitMode, customSplitMap)
             
             // Trigger validation after payment config changes
             validateSubmission()
@@ -315,6 +331,17 @@ class MultiTransactionActivity : AppCompatActivity() {
                         val multiItems = transactions.map { entry ->
                             val totalPaid = entry.payors.sumOf { it.amount }
                             val isPaymentComplete = Math.abs(totalPaid - entry.amount) < 0.01
+                            
+                            // Convert coveredByMap Long keys/values to String for UI
+                            val stringCoveredByMap = entry.coveredByMap.map { 
+                                it.key.toString() to it.value.toString() 
+                            }.toMap()
+
+                            // Convert customSplitMap Long keys to String for UI
+                            val stringCustomSplitMap = entry.customSplitMap.map {
+                                it.key.toString() to it.value
+                            }.toMap()
+
                             MultiTransactionItem(
                                 id = "",
                                 title = entry.title,
@@ -328,7 +355,10 @@ class MultiTransactionActivity : AppCompatActivity() {
                                     )
                                 },
                                 includedMembers = entry.includedMemberIds.map { it.toString() },
-                                isValid = entry.amount > 0 && entry.category.isNotEmpty() && entry.payors.isNotEmpty() && isPaymentComplete
+                                splitMode = entry.splitMode,
+                                customSplitMap = stringCustomSplitMap,
+                                isValid = entry.amount > 0 && entry.category.isNotEmpty() && entry.payors.isNotEmpty() && isPaymentComplete,
+                                coveredByMap = stringCoveredByMap
                             )
                         }
                         

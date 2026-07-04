@@ -1,11 +1,15 @@
 package com.waray.spendhound
 
-import android.content.Context
+import android.graphics.drawable.Animatable
 import android.content.Intent
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import android.view.animation.Animation
+import android.view.animation.AnimationUtils
+import android.widget.ImageView
+import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import io.github.jan.supabase.gotrue.SessionStatus
@@ -19,9 +23,26 @@ class SplashActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.splash_screen)
 
+        val logoContainer = findViewById<LinearLayout>(R.id.logoContainer)
+        val imageView = findViewById<ImageView>(R.id.imageView)
+        
+        val entranceAnimation = AnimationUtils.loadAnimation(this, R.anim.splash_animation)
+        logoContainer.startAnimation(entranceAnimation)
+
+        entranceAnimation.setAnimationListener(object : Animation.AnimationListener {
+            override fun onAnimationStart(animation: Animation?) {}
+            override fun onAnimationEnd(animation: Animation?) {
+                val drawable = imageView.drawable
+                if (drawable is Animatable) {
+                    (drawable as Animatable).start()
+                }
+            }
+            override fun onAnimationRepeat(animation: Animation?) {}
+        })
+
         Handler(Looper.getMainLooper()).postDelayed({
             checkSessionAndNavigate()
-        }, 2000)
+        }, 3500)
     }
 
     private fun checkSessionAndNavigate() {
