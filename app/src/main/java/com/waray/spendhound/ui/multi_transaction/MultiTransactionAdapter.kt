@@ -26,6 +26,7 @@ class MultiTransactionAdapter(
     private val transactions = mutableListOf<MultiTransactionItem>()
     private var groupMembers = listOf<User>()
     private var isGroupSelected = false
+    private var isOnline = true
     
     // Track current EditText values, selected categories, and included members to preserve them across updates
     private val currentTitles = mutableMapOf<Int, String>()
@@ -167,6 +168,13 @@ class MultiTransactionAdapter(
         }
     }
 
+    fun setOnlineStatus(isOnline: Boolean) {
+        if (this.isOnline != isOnline) {
+            this.isOnline = isOnline
+            safeNotify { notifyDataSetChanged() }
+        }
+    }
+
     fun setMode(isMultiple: Boolean) {
         // Mode is now handled per-item via bottom sheets
         safeNotify { notifyDataSetChanged() }
@@ -260,6 +268,9 @@ class MultiTransactionAdapter(
             // Payment summary
             updatePaymentSummary(item, position)
 
+            // Hide payment & split section if offline
+            binding.layoutPaymentSummary.isVisible = isOnline
+
             // Payment chip click listener
             binding.layoutPaymentChip.setOnClickListener {
                 val currentPos = adapterPosition
@@ -349,6 +360,7 @@ class MultiTransactionAdapter(
             
             if (flattenedPayloads.contains("PAYMENT")) {
                 updatePaymentSummary(item, position)
+                binding.layoutPaymentSummary.isVisible = isOnline
             }
             
             if (flattenedPayloads.contains("VALIDATION")) {
@@ -445,12 +457,16 @@ class MultiTransactionAdapter(
         private fun updateValidation(item: MultiTransactionItem, position: Int) {
             val currentAmount = currentAmounts[position]?.toDoubleOrNull() ?: item.amount
             val hasAmountInput = currentAmount > 0
+            val isCategorySelected = item.category.isNotEmpty()
             val isPayorsConfigured = item.payers.isNotEmpty()
             val isPaymentComplete = item.isPaymentComplete()
             
+            // Special case for pending offline edit: we relax the validation messages
+            val isPendingOfflineEdit = !isOnline && item.id.isBlank() // Simple way to detect pending locally added item
+
             // Update validation display
             when {
-                !isGroupSelected -> {
+                isOnline && !isGroupSelected -> {
                     binding.ivValidationError.isVisible = true
                     binding.tvValidationMessage.isVisible = true
                     binding.tvValidationMessage.text = "Please input payer group first"
@@ -460,12 +476,17 @@ class MultiTransactionAdapter(
                     binding.tvValidationMessage.isVisible = true
                     binding.tvValidationMessage.text = "Please input amount first"
                 }
-                !isPayorsConfigured -> {
+                !isCategorySelected -> {
+                    binding.ivValidationError.isVisible = true
+                    binding.tvValidationMessage.isVisible = true
+                    binding.tvValidationMessage.text = "Please select a category"
+                }
+                !isPendingOfflineEdit && isOnline && !isPayorsConfigured -> {
                     binding.ivValidationError.isVisible = true
                     binding.tvValidationMessage.isVisible = true
                     binding.tvValidationMessage.text = "Select who paid for this item"
                 }
-                !isPaymentComplete -> {
+                !isPendingOfflineEdit && isOnline && !isPaymentComplete -> {
                     binding.ivValidationError.isVisible = true
                     binding.tvValidationMessage.isVisible = true
                     binding.tvValidationMessage.text = "Payment total must equal item amount"

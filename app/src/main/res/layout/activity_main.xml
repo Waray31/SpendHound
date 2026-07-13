@@ -9,13 +9,22 @@
     android:clipToPadding="false"
     tools:context=".MainActivity">
 
-    <androidx.fragment.app.FragmentContainerView
-        android:id="@+id/nav_host_fragment_activity_main"
-        android:name="androidx.navigation.fragment.NavHostFragment"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        app:defaultNavHost="true"
-        app:navGraph="@navigation/mobile_navigation" />
+        android:orientation="vertical">
+
+        <include layout="@layout/view_offline_banner" />
+
+        <androidx.fragment.app.FragmentContainerView
+            android:id="@+id/nav_host_fragment_activity_main"
+            android:name="androidx.navigation.fragment.NavHostFragment"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            app:defaultNavHost="true"
+            app:navGraph="@navigation/mobile_navigation" />
+    </LinearLayout>
 
     <!-- Overlay: Placed behind FABs but above content -->
     <View
@@ -61,21 +70,31 @@
     </FrameLayout>
 
     <!-- Main FAB -->
-    <com.google.android.material.floatingactionbutton.FloatingActionButton
-        android:id="@+id/fab_main"
+    <FrameLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginBottom="28dp"
-        app:backgroundTint="@color/mid_orange"
-        android:contentDescription="Add"
-        android:src="@drawable/baseline_add_24"
-        app:elevation="16dp"
-        android:outlineProvider="none"
-        app:borderWidth="4dp"
-        app:strokeColor="@color/whitest"
+        android:elevation="12dp"
+        android:translationZ="4dp"
         app:layout_anchor="@id/navView"
-        app:layout_anchorGravity="top|center_horizontal"
-        app:tint="@color/whitest" />
+        app:layout_anchorGravity="top|center_horizontal">
+
+        <com.google.android.material.floatingactionbutton.FloatingActionButton
+            android:id="@+id/fab_main"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            app:backgroundTint="@color/mid_orange"
+            android:elevation="4dp"
+            android:contentDescription="Add"
+            android:src="@drawable/baseline_add_24"
+            app:elevation="16dp"
+            android:outlineProvider="none"
+            app:borderWidth="4dp"
+            app:strokeColor="@color/whitest"
+            app:tint="@color/whitest" />
+
+
+    </FrameLayout>
 
     <!-- Mini FAB Containers: Placed after fab_main and with higher elevation -->
     <LinearLayout

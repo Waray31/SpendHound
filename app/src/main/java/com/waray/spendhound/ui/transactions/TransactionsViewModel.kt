@@ -21,7 +21,11 @@ class TransactionsViewModel(app: Application) : AndroidViewModel(app) {
 
     fun load(userId: Long) {
         viewModelScope.launch {
-            repo.getTransactions(userId).collectLatest { _transactions.value = it }
+            try {
+                repo.getTransactions(userId).collectLatest { _transactions.value = it }
+            } catch (e: Exception) {
+                android.util.Log.e("TransactionsViewModel", "Error loading transactions: ${e.message}")
+            }
         }
     }
 

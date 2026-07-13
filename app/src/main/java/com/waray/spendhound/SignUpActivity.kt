@@ -26,7 +26,6 @@ import coil.transform.CircleCropTransformation
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.gotrue.providers.builtin.Email
 import io.github.jan.supabase.postgrest.query.Columns
-import io.github.jan.supabase.storage.storage
 import com.waray.spendhound.utils.ImageUtils
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -364,25 +363,15 @@ class SignUpActivity : AppCompatActivity() {
             }
             Log.d(tag, "🔍 ✓ Step 2 Complete: Image bytes read (${bytes.size} bytes)")
 
-            // Step 3: Get Supabase client
-            Log.d(tag, "🔍 Step 3: Getting Supabase client...")
-            val client = try {
-                DeclareDatabase.client
-            } catch (e: Exception) {
-                Log.e(tag, "❌ FAILED Step 3: Cannot get Supabase client: ${e.message}", e)
-                throw e
-            }
-            Log.d(tag, "🔍 ✓ Step 3a: Supabase client obtained")
-
-            // Step 4: Get storage module
-            Log.d(tag, "🔍 Step 4: Getting storage module...")
+            // Step 3: Get storage module
+            Log.d(tag, "🔍 Step 3: Getting storage module...")
             val storage = try {
-                client.storage
+                DeclareDatabase.storage
             } catch (e: Exception) {
-                Log.e(tag, "❌ FAILED Step 4: Cannot get storage module: ${e.message}", e)
+                Log.e(tag, "❌ FAILED Step 3: Cannot get storage module: ${e.message}", e)
                 throw e
             }
-            Log.d(tag, "🔍 ✓ Step 4a: Storage module obtained")
+            Log.d(tag, "🔍 ✓ Step 3a: Storage module obtained")
 
             // Step 5: Get bucket reference
             Log.d(tag, "🔍 Step 5: Getting bucket reference...")

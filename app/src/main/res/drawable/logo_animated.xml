@@ -5,8 +5,4 @@
         android:name="tail"
         android:animation="@animator/tail_wag" />
 
-    <target
-        android:name="ear"
-        android:animation="@animator/ear_twitch" />
-
 </animated-vector>

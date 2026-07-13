@@ -78,6 +78,9 @@ class RecentTransactionAdapter(
         // Archived badge visibility
         holder.archivedBadge.visibility = if (transaction.isArchived) View.VISIBLE else View.GONE
         
+        // Lacks info indicator
+        holder.ivLacksInfo.visibility = if (transaction.lacksInfo) View.VISIBLE else View.GONE
+
         // Apply archived styling
         if (transaction.isArchived) {
             holder.itemView.alpha = 0.6f
@@ -85,17 +88,34 @@ class RecentTransactionAdapter(
             holder.itemView.alpha = 1.0f
         }
 
-        // Status: Settled = green, Pending = yellow
+        // Status: Settled = green, Pending = yellow, Pending Sync/Sync Failed = grey
         val status = transaction.transactionStatus
         holder.detailsTextView.text = when(status) {
             "Settled" -> holder.itemView.context.getString(R.string.status_settled)
             "Pending" -> holder.itemView.context.getString(R.string.status_pending)
+            "Lacks Info" -> "Lacks Info"
+            "Pending Sync" -> "Tap to edit"
+            "Sync Failed" -> "Tap to edit"
             else -> status
         }
-        holder.detailsTextView.setTextColor(
-            ContextCompat.getColor(holder.itemView.context,
-                if (status == "Settled") R.color.green else R.color.yellow)
-        )
+        
+        val statusColor = when(status) {
+            "Settled" -> R.color.green
+            "Pending" -> R.color.yellow
+            "Lacks Info" -> R.color.red
+            "Pending Sync" -> R.color.grey
+            "Sync Failed" -> R.color.grey
+            else -> R.color.yellow
+        }
+        holder.detailsTextView.setTextColor(ContextCompat.getColor(holder.itemView.context, statusColor))
+
+        if (status == "Pending Sync" || status == "Sync Failed") {
+            holder.mainContent.alpha = 0.5f
+            // Optionally add dashed border if a drawable exists, 
+            // but for now alpha + status text is clear.
+        } else {
+            holder.mainContent.alpha = 1.0f
+        }
 
         // Unread indicator logic
         if (transaction.isUnread) {
@@ -381,6 +401,7 @@ class RecentTransactionAdapter(
         val payorsRecyclerView: RecyclerView = itemView.findViewById(R.id.payorsRecyclerView)
         val loadingOverlay: View             = itemView.findViewById(R.id.loadingOverlay_transaction)
         val archivedBadge: TextView          = itemView.findViewById(R.id.archivedBadge)
+        val ivLacksInfo: ImageView           = itemView.findViewById(R.id.ivLacksInfo)
         val onGroupLabel: TextView           = itemView.findViewById(R.id.onGroupLabel)
         val expandedGroupName: TextView      = itemView.findViewById(R.id.expandedGroupName)
     }

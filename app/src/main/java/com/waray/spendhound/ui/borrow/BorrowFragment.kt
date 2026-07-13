@@ -42,6 +42,7 @@ import java.util.Calendar
 import java.text.SimpleDateFormat
 import java.util.Locale
 import com.waray.spendhound.utils.LoadingManager
+import com.waray.spendhound.data.local.*
 
 class BorrowFragment : Fragment() {
     private var dateRangeSpinner: android.widget.Spinner? = null
@@ -83,7 +84,7 @@ class BorrowFragment : Fragment() {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
         val view: View = inflater.inflate(R.layout.fragment_borrow, container, false)
 
-        mAuth = DeclareDatabase.auth
+        mAuth = try { DeclareDatabase.auth } catch (e: Exception) { null }
 
         dateRangeSpinner = view.findViewById(R.id.dateRangeSpinner)
         currentMonthTextView = view.findViewById(R.id.currentMonthTextView)
@@ -123,8 +124,34 @@ class BorrowFragment : Fragment() {
     }
 
     private fun resolveUserThenLoad() {
-        val authId = mAuth?.currentUserOrNull()?.id ?: return
+        // Fallback: Immediate load if MainActivity already has a cached/resolved ID
+        (activity as? MainActivity)?.currentUserNumericId?.let { cachedId ->
+            if (currentUserNumericId == null) {
+                currentUserNumericId = cachedId
+                viewModel.load(cachedId)
+            }
+        }
+
+        val authId = mAuth?.currentUserOrNull()?.id
+        if (authId == null) {
+            if (currentUserNumericId == null) {
+                // Last resort: check local database for cached ID
+                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                    val db = AppDatabase.getInstance(requireContext().applicationContext)
+                    val cachedId = db.jsonBlobDao().get("current_user_id")?.json?.toLongOrNull()
+                    if (cachedId != null) {
+                        withContext(Dispatchers.Main) {
+                            currentUserNumericId = cachedId
+                            viewModel.load(cachedId)
+                        }
+                    }
+                }
+            }
+            return
+        }
+
         if (currentUserNumericId != null) { viewModel.load(currentUserNumericId!!); return }
+
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             try {
                 val user = DeclareDatabase.usersTable.select(Columns.list("user_id", "username")) {

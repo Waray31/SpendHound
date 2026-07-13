@@ -84,21 +84,26 @@ class HomeViewModel(app: Application) : AndroidViewModel(app) {
                 filter { isIn("group_id", groupIds) }
             }.decodeList<PayerGroup>()
         } catch (e: Exception) {
+            android.util.Log.e("HomeViewModel", "Error fetching user groups: ${e.message}")
             emptyList()
         }
     }
 
     private fun loadDataForGroup(userId: Long, groupId: Long?) {
         viewModelScope.launch {
-            combine(
-                homeRepo.getHomeData(userId, groupId),
-                txRepo.getRecentTransactions(userId, groupId)
-            ) { hData, recentTx ->
-                val weeklyTotals = calculateWeeklyTotals(userId, groupId)
-                hData to (recentTx to weeklyTotals)
-            }.collectLatest { (hData, pair) ->
-                val (recentTx, weeklyTotals) = pair
-                updateGroupState(groupId, hData, recentTx, weeklyTotals)
+            try {
+                combine(
+                    homeRepo.getHomeData(userId, groupId),
+                    txRepo.getRecentTransactions(userId, groupId)
+                ) { hData, recentTx ->
+                    val weeklyTotals = calculateWeeklyTotals(userId, groupId)
+                    hData to (recentTx to weeklyTotals)
+                }.collectLatest { (hData, pair) ->
+                    val (recentTx, weeklyTotals) = pair
+                    updateGroupState(groupId, hData, recentTx, weeklyTotals)
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("HomeViewModel", "Error loading data for group $groupId: ${e.message}")
             }
         }
     }

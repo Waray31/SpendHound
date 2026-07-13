@@ -5,7 +5,16 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
+import kotlinx.serialization.json.Json
+
 // ─── UI / local models ────────────────────────────────────────────────────────
+
+val AppJson = Json {
+    allowStructuredMapKeys = true
+    ignoreUnknownKeys = true
+    encodeDefaults = true
+    prettyPrint = false
+}
 
 @OptIn(InternalSerializationApi::class)
 @Serializable

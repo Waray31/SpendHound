@@ -109,13 +109,14 @@ class TransactionRepository(private val db: AppDatabase) {
             tx.createdBy?.toString(), "$monthName-$year", day, timeKey
         ).also {
             it.transactionItems = items
-            it.transactionStatus = if (allSettled) "Settled" else "Pending"
+            it.transactionStatus = if (tx.status == 4) "Lacks Info" else if (allSettled) "Settled" else "Pending"
             it.creatorNumericId = tx.createdBy
             it.rawPayorRows = payors
             it.rawSplitRows = splits
             it.groupId = tx.groupId
             it.groupName = groupName
             it.isArchived = tx.isArchived ?: false
+            it.lacksInfo = tx.status == 4
         }
     }
 
@@ -235,7 +236,7 @@ class TransactionRepository(private val db: AppDatabase) {
                 tx.createdBy?.toString(), "$monthName-$year", day, timeKey
             ).also {
                 it.transactionItems = items
-                it.transactionStatus = if (allSettled) "Settled" else "Pending"
+                it.transactionStatus = if (tx.status == 4) "Lacks Info" else if (allSettled) "Settled" else "Pending"
                 it.itemPayorMap = itemPayorMap
                 it.creatorNumericId = tx.createdBy
                 it.rawPayorRows = payors
@@ -244,6 +245,7 @@ class TransactionRepository(private val db: AppDatabase) {
                 it.groupId = tx.groupId
                 it.groupName = groupsById[tx.groupId]
                 it.isArchived = tx.isArchived ?: false
+                it.lacksInfo = tx.status == 4
             }
         }.sortedByDescending { it.timestamp }
     }

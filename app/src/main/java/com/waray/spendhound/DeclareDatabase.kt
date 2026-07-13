@@ -24,70 +24,82 @@ object DeclareDatabase {
 
     private var _client: SupabaseClient? = null
 
+    @Synchronized
     @OptIn(SupabaseInternal::class)
     fun initialize(context: Context) {
-        if (_client != null) return
+        android.util.Log.d("DeclareDatabase", "initialize: START")
+        if (_client != null) {
+            android.util.Log.d("DeclareDatabase", "initialize: Client already exists")
+            return
+        }
         
-        _client = createSupabaseClient(
-            supabaseUrl = SUPABASE_URL,
-            supabaseKey = SUPABASE_KEY
-        ) {
-            httpEngine = OkHttp.create()
-            install(Auth) {
-                sessionManager = SharedPreferencesSessionManager(context)
-            }
-            install(Postgrest)
-            install(Realtime)
-            install(Storage)
-            
-            defaultSerializer = KotlinXSerializer(Json {
-                ignoreUnknownKeys = true
-                coerceInputValues = true
-                encodeDefaults = true
-            })
-            
-            httpConfig {
-                install(HttpTimeout) {
-                    requestTimeoutMillis = 60000L
-                    connectTimeoutMillis = 60000L
-                    socketTimeoutMillis = 60000L
+        try {
+            android.util.Log.d("DeclareDatabase", "initialize: Creating Supabase client")
+            val client = createSupabaseClient(
+                supabaseUrl = SUPABASE_URL,
+                supabaseKey = SUPABASE_KEY
+            ) {
+                httpEngine = OkHttp.create()
+                install(Auth) {
+                    sessionManager = SharedPreferencesSessionManager(context.applicationContext)
+                }
+                install(Postgrest)
+                install(Realtime)
+                install(Storage)
+                
+                defaultSerializer = KotlinXSerializer(Json {
+                    ignoreUnknownKeys = true
+                    coerceInputValues = true
+                    encodeDefaults = true
+                })
+                
+                httpConfig {
+                    install(HttpTimeout) {
+                        requestTimeoutMillis = 60000L
+                        connectTimeoutMillis = 60000L
+                        socketTimeoutMillis = 60000L
+                    }
                 }
             }
+            _client = client
+            android.util.Log.d("DeclareDatabase", "initialize: Supabase client initialized successfully")
+        } catch (e: Exception) {
+            android.util.Log.e("DeclareDatabase", "initialize: Failed to initialize Supabase client: ${e.message}", e)
         }
     }
 
-    val client: SupabaseClient
-        get() = _client ?: throw IllegalStateException("DeclareDatabase not initialized. Call initialize(context) first.")
+    val clientOrNull: SupabaseClient? get() = _client
+    val client: SupabaseClient get() = _client ?: throw IllegalStateException("Supabase client is not initialized. Ensure initialize() is called successfully.")
 
-    // Supabase Module Helpers
-    val auth: Auth get() = client.auth
-    val postgrest: Postgrest get() = client.postgrest
-    val storage: Storage get() = client.storage
-    val realtime: Realtime get() = client.realtime
+    // Supabase Module Helpers - Safer getters that return null instead of crashing
+    val auth: Auth get() = _client?.auth ?: throw IllegalStateException("Supabase Auth is not initialized. Ensure initialize() is called successfully.")
+    val postgrest: Postgrest get() = _client?.postgrest ?: throw IllegalStateException("Supabase Postgrest is not initialized. Ensure initialize() is called successfully.")
+    val storage: Storage get() = _client?.storage ?: throw IllegalStateException("Supabase Storage is not initialized. Ensure initialize() is called successfully.")
+    val realtime: Realtime get() = _client?.realtime ?: throw IllegalStateException("Supabase Realtime is not initialized. Ensure initialize() is called successfully.")
 
-    // Table References
-    val usersTable get() = client.from("users")
-    val userBalanceTable get() = client.from("user_balance")
-    val transactionsTable get() = client.from("transactions")
-    val transactionItemsTable get() = client.from("transaction_items")
-    val transactionPayorsTable get() = client.from("transaction_payors")
-    val transactionSplitsTable get() = client.from("transaction_splits")
-    val groupsTable get() = client.from("groups")
-    val groupMembersTable get() = client.from("group_members")
-    val groupMessagesTable get() = client.from("group_messages")
-    val messageReadsTable get() = client.from("message_reads")
-    val transactionReadsTable get() = client.from("transaction_reads")
-    val groupMessageReactionsTable get() = client.from("group_message_reactions")
-    val messageReactionsTable get() = client.from("message_reactions")
-    val transactionHistoryTable get() = client.from("transaction_history")
-    val borrowsTable get() = client.from("borrows")
-    val userBorrowsTable get() = client.from("userBorrows")
-    val crewMembersTable get() = client.from("crew_members")
-    val directMessagesTable get() = client.from("direct_messages")
+    // Table References - Use property syntax but handle potential null client
+    val usersTable get() = _client?.from("users") ?: throw IllegalStateException("Supabase client is not initialized.")
+    val userBalanceTable get() = _client?.from("user_balance") ?: throw IllegalStateException("Supabase client is not initialized.")
+    val transactionsTable get() = _client?.from("transactions") ?: throw IllegalStateException("Supabase client is not initialized.")
+    val transactionItemsTable get() = _client?.from("transaction_items") ?: throw IllegalStateException("Supabase client is not initialized.")
+    val transactionPayorsTable get() = _client?.from("transaction_payors") ?: throw IllegalStateException("Supabase client is not initialized.")
+    val transactionSplitsTable get() = _client?.from("transaction_splits") ?: throw IllegalStateException("Supabase client is not initialized.")
+    val groupsTable get() = _client?.from("groups") ?: throw IllegalStateException("Supabase client is not initialized.")
+    val groupMembersTable get() = _client?.from("group_members") ?: throw IllegalStateException("Supabase client is not initialized.")
+    val groupMessagesTable get() = _client?.from("group_messages") ?: throw IllegalStateException("Supabase client is not initialized.")
+    val messageReadsTable get() = _client?.from("message_reads") ?: throw IllegalStateException("Supabase client is not initialized.")
+    val transactionReadsTable get() = _client?.from("transaction_reads") ?: throw IllegalStateException("Supabase client is not initialized.")
+    val groupMessageReactionsTable get() = _client?.from("group_message_reactions") ?: throw IllegalStateException("Supabase client is not initialized.")
+    val messageReactionsTable get() = _client?.from("message_reactions") ?: throw IllegalStateException("Supabase client is not initialized.")
+    val transactionHistoryTable get() = _client?.from("transaction_history") ?: throw IllegalStateException("Supabase client is not initialized.")
+    val borrowsTable get() = _client?.from("borrows") ?: throw IllegalStateException("Supabase client is not initialized.")
+    val userBorrowsTable get() = _client?.from("userBorrows") ?: throw IllegalStateException("Supabase client is not initialized.")
+    val crewMembersTable get() = _client?.from("crew_members") ?: throw IllegalStateException("Supabase client is not initialized.")
+    val directMessagesTable get() = _client?.from("direct_messages") ?: throw IllegalStateException("Supabase client is not initialized.")
 
     // Storage Bucket References
-    val profileImagesBucket get() = client.storage.from("profile_images")
-    val groupImagesBucket get() = client.storage.from("group_images")
+    val profileImagesBucket get() = _client?.storage?.from("profile_images") ?: throw IllegalStateException("Supabase client is not initialized.")
+    val groupImagesBucket get() = _client?.storage?.from("group_images") ?: throw IllegalStateException("Supabase client is not initialized.")
 
     // Legacy method names updated for Supabase compatibility
     @JvmStatic fun getDatabaseReference() = usersTable

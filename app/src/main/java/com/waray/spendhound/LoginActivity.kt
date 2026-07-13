@@ -38,7 +38,12 @@ class LoginActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_login)
 
-        mAuth = DeclareDatabase.auth
+        try {
+            mAuth = DeclareDatabase.auth
+        } catch (e: Exception) {
+            android.util.Log.e("LoginActivity", "Failed to access auth: ${e.message}")
+        }
+
         usernameEditText = findViewById(R.id.usernameEditText)
         passwordEditText = findViewById(R.id.passwordEditText)
         progressBar = findViewById(R.id.progressBar)

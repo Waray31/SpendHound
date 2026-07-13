@@ -21,7 +21,11 @@ class BorrowViewModel(app: Application) : AndroidViewModel(app) {
 
     fun load(userId: Long) {
         viewModelScope.launch {
-            repo.getBorrowData(userId).collectLatest { _borrowData.value = it }
+            try {
+                repo.getBorrowData(userId).collectLatest { _borrowData.value = it }
+            } catch (e: Exception) {
+                android.util.Log.e("BorrowViewModel", "Error loading borrow data: ${e.message}")
+            }
         }
     }
 

@@ -40,6 +40,7 @@ class RecentTransaction {
     var groupId: Long? = null
     var groupName: String? = null
     var isArchived: Boolean = false
+    var lacksInfo: Boolean = false
 
     constructor()
 

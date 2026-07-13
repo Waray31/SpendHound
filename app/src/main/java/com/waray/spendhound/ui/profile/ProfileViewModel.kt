@@ -24,10 +24,18 @@ class ProfileViewModel(app: Application) : AndroidViewModel(app) {
 
     fun load(userId: Long, authId: String) {
         viewModelScope.launch {
-            repo.getProfile(userId, authId).collectLatest { _profile.value = it }
+            try {
+                repo.getProfile(userId, authId).collectLatest { _profile.value = it }
+            } catch (e: Exception) {
+                android.util.Log.e("ProfileViewModel", "Error loading profile: ${e.message}")
+            }
         }
         viewModelScope.launch {
-            repo.getProfileGroups(userId).collectLatest { _groups.value = it }
+            try {
+                repo.getProfileGroups(userId).collectLatest { _groups.value = it }
+            } catch (e: Exception) {
+                android.util.Log.e("ProfileViewModel", "Error loading profile groups: ${e.message}")
+            }
         }
     }
 

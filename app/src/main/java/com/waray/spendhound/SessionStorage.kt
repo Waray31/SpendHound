@@ -8,25 +8,34 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
 class SharedPreferencesSessionManager(context: Context) : SessionManager {
-    private val sharedPreferences = context.getSharedPreferences("supabase_session", Context.MODE_PRIVATE)
+    private val sharedPreferences = context.applicationContext.getSharedPreferences("supabase_session", Context.MODE_PRIVATE)
     private val json = Json { ignoreUnknownKeys = true }
 
     override suspend fun saveSession(session: UserSession) {
+        android.util.Log.d("SessionManager", "saveSession: Saving session")
         sharedPreferences.edit {
             putString("session", json.encodeToString(session))
         }
     }
 
     override suspend fun loadSession(): UserSession? {
-        val sessionString = sharedPreferences.getString("session", null) ?: return null
+        android.util.Log.d("SessionManager", "loadSession: Loading session")
+        val sessionString = sharedPreferences.getString("session", null) ?: run {
+            android.util.Log.d("SessionManager", "loadSession: No session string found")
+            return null
+        }
         return try {
-            json.decodeFromString<UserSession>(sessionString)
+            val session = json.decodeFromString<UserSession>(sessionString)
+            android.util.Log.d("SessionManager", "loadSession: Session decoded successfully")
+            session
         } catch (e: Exception) {
+            android.util.Log.e("SessionManager", "loadSession: Failed to decode session: ${e.message}", e)
             null
         }
     }
 
     override suspend fun deleteSession() {
+        android.util.Log.d("SessionManager", "deleteSession: Deleting session")
         sharedPreferences.edit {
             remove("session")
         }

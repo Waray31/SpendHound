@@ -30,12 +30,22 @@ import com.waray.spendhound.PayerGroup
 import com.waray.spendhound.PaymentConfigBottomSheet
 import com.waray.spendhound.R
 import com.waray.spendhound.User
+import com.waray.spendhound.data.local.AppDatabase
+import com.waray.spendhound.data.local.PendingTransaction
 import com.waray.spendhound.databinding.ActivityAddTransactionsMultiBinding
 import com.waray.spendhound.ui.multi_transaction.PayorEntry
+import com.waray.spendhound.utils.NetworkMonitor
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+private data class StateBundle(
+    val members: List<User>,
+    val currentUser: User?,
+    val isOnline: Boolean
+)
 
 class MultiTransactionActivity : AppCompatActivity() {
 
@@ -46,6 +56,7 @@ class MultiTransactionActivity : AppCompatActivity() {
     private var currentGroups: List<PayerGroup> = emptyList()
     private var currentMembers: List<User> = emptyList()
     private var editTransactionId: Long? = null
+    private var editLocalId: String? = null
     private var isEditMode = false
     private var pendingGroupId: Long? = null
     private var latestMultiItems: List<MultiTransactionItem>? = null
@@ -57,7 +68,8 @@ class MultiTransactionActivity : AppCompatActivity() {
 
         // Check if in edit mode
         editTransactionId = intent.getLongExtra("TRANSACTION_ID", -1L).takeIf { it != -1L }
-        isEditMode = intent.getBooleanExtra("EDIT_MODE", false) && editTransactionId != null
+        editLocalId = intent.getStringExtra("LOCAL_ID")
+        isEditMode = intent.getBooleanExtra("EDIT_MODE", false) && (editTransactionId != null || editLocalId != null)
 
         setupTransactionMode()
         setupToolbar()
@@ -132,15 +144,21 @@ class MultiTransactionActivity : AppCompatActivity() {
 
         binding.btnSubmit.setOnClickListener {
             val pos = binding.spinnerGroup.selectedItemPosition
-            if (pos > 0) {
-                val selectedGroup = currentGroups.getOrNull(pos - 1)
-                if (selectedGroup?.groupId != null) {
-                    val requireTitle = adapter.getTransactions().size > 1
-                    if (isEditMode) {
-                        viewModel.updateTransaction(editTransactionId!!, selectedGroup.groupId!!, requireTitle)
-                    } else {
-                        viewModel.submit(selectedGroup.groupId!!, requireTitle)
+            val selectedGroup = if (pos > 0) currentGroups.getOrNull(pos - 1) else null
+            val groupId = selectedGroup?.groupId
+            val requireTitle = adapter.getTransactions().size > 1
+            
+            if (groupId != null || !NetworkMonitor.isOnline.value) {
+                if (isEditMode) {
+                    if (editTransactionId != null && groupId != null) {
+                        viewModel.updateTransaction(editTransactionId!!, groupId, requireTitle)
+                    } else if (editLocalId != null) {
+                        viewModel.updatePendingTransaction(editLocalId!!, groupId, requireTitle)
+                    } else if (editTransactionId != null && groupId == null) {
+                        Toast.makeText(this, "Group is required for synced transactions", Toast.LENGTH_SHORT).show()
                     }
+                } else {
+                    viewModel.submit(groupId, requireTitle)
                 }
             } else {
                 Toast.makeText(this, getString(R.string.error_select_group), Toast.LENGTH_SHORT).show()
@@ -149,15 +167,18 @@ class MultiTransactionActivity : AppCompatActivity() {
 
         binding.spinnerGroup.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(p0: AdapterView<*>?, p1: View?, pos: Int, p3: Long) {
-                // Adjust for "Select a payer group" placeholder at index 0
+                val isOnline = NetworkMonitor.isOnline.value
                 val isGroupSelected = pos > 0
-                adapter.setGroupSelected(isGroupSelected)
+                val shouldShowContent = isGroupSelected || !isOnline
                 
-                binding.rvTransactions.isVisible = isGroupSelected
-                binding.btnAddRow.isVisible = isGroupSelected
-                binding.summaryCard.isVisible = isGroupSelected
+                adapter.setGroupSelected(shouldShowContent)
                 
-                if (!isGroupSelected) {
+                // When offline, we show the list even if no group is selected
+                binding.rvTransactions.isVisible = shouldShowContent
+                binding.btnAddRow.isVisible = shouldShowContent
+                binding.summaryCard.isVisible = shouldShowContent
+                
+                if (!isGroupSelected && isOnline) {
                     binding.titleLabel.isVisible = false
                     binding.titleInputLayout.isVisible = false
                     binding.titleDivider.isVisible = false
@@ -165,16 +186,26 @@ class MultiTransactionActivity : AppCompatActivity() {
                     return
                 }
                 
-                currentGroups.getOrNull(pos - 1)?.groupId?.let { groupId ->
-                    if (groupId == pendingGroupId) {
-                        // Initial load for edit mode OR re-trigger of same group selection
-                        viewModel.onGroupSelected(groupId, resetTransactions = false)
-                    } else {
-                        // Regular group change or manual selection
-                        adapter.resetToSingleItem()
-                        viewModel.onGroupSelected(groupId)
-                        pendingGroupId = groupId
+                if (isGroupSelected) {
+                    currentGroups.getOrNull(pos - 1)?.groupId?.let { groupId ->
+                        if (groupId == pendingGroupId) {
+                            viewModel.onGroupSelected(groupId, resetTransactions = false)
+                        } else if (pendingGroupId == null) {
+                            // First time selecting a group for this session.
+                            // If we already have items (e.g. from offline unassigned edit), preserve them.
+                            viewModel.onGroupSelected(groupId, resetTransactions = false)
+                            pendingGroupId = groupId
+                        } else {
+                            // Actual group change - reset items
+                            adapter.resetToSingleItem()
+                            viewModel.onGroupSelected(groupId)
+                            pendingGroupId = groupId
+                        }
                     }
+                } else if (!isOnline) {
+                    // Offline and no group selected
+                    // Force a dummy member list containing at least the current user
+                    viewModel.calculateTotals()
                 }
                 validateSubmission()
             }
@@ -210,16 +241,27 @@ class MultiTransactionActivity : AppCompatActivity() {
         val transactions = adapter.getTransactions()
         val titleRequired = transactions.size > 1
         val titleFilled = !titleRequired || binding.etTransactionTitle.text?.isNotBlank() == true
+        val isOnline = NetworkMonitor.isOnline.value
         val groupSelected = binding.spinnerGroup.selectedItemPosition > 0
-        var allValid = transactions.isNotEmpty() && titleFilled && groupSelected
+        
+        // Group is optional ONLY when offline
+        val groupValid = groupSelected || !isOnline
+        
+        // If editing a pending transaction offline, we consider it a special case
+        val isPendingOfflineEdit = !isOnline && editLocalId != null
+
+        var allValid = transactions.isNotEmpty() && (titleFilled || isPendingOfflineEdit) && groupValid
 
         for (tx in transactions) {
-            if (tx.amount <= 0) { allValid = false; break }
+            if (tx.amount <= 0 || tx.amount.isNaN()) { allValid = false; break }
             if (tx.category.isBlank()) { allValid = false; break }
             
-            // Check if total payment equals the transaction amount
-            val totalPaid = tx.payors.sumOf { it.amount }
-            if (Math.abs(totalPaid - tx.amount) >= 0.01) { allValid = false; break }
+            // Check if total payment equals the transaction amount - ONLY required when online
+            // For pending offline edits, we relax the requirement further
+            if (isOnline) {
+                val totalPaid = tx.payors.sumOf { it.amount }
+                if (totalPaid.isNaN() || Math.abs(totalPaid - tx.amount) >= 0.01) { allValid = false; break }
+            }
         }
 
         binding.btnSubmit.isVisible = true
@@ -295,10 +337,28 @@ class MultiTransactionActivity : AppCompatActivity() {
     }
 
     private fun updateTitleSectionVisibility(itemCount: Int) {
-        val visibility = itemCount > 1
-        binding.titleLabel.isVisible = visibility
-        binding.titleInputLayout.isVisible = visibility
-        binding.titleDivider.isVisible = visibility
+        val isOnline = NetworkMonitor.isOnline.value
+        val isMulti = itemCount > 1
+        
+        // Group section visibility - only show when online
+        binding.layoutGroupSection.isVisible = isOnline
+        
+        if (isOnline) {
+            binding.titleCard.isVisible = true 
+            binding.titleLabel.isVisible = isMulti
+            binding.titleInputLayout.isVisible = isMulti
+            binding.titleDivider.isVisible = isMulti
+        } else {
+            // Offline
+            if (isMulti) {
+                binding.titleCard.isVisible = true
+                binding.titleLabel.isVisible = true
+                binding.titleInputLayout.isVisible = true
+                binding.titleDivider.isVisible = false // Hide divider when offline + multi
+            } else {
+                binding.titleCard.isVisible = false // Hide entirely if only 1 item offline
+            }
+        }
     }
 
     private fun observeState() {
@@ -319,10 +379,54 @@ class MultiTransactionActivity : AppCompatActivity() {
                     }
                 }
                 launch {
-                    viewModel.members.collect { members ->
-                        currentMembers = members
-                        adapter.setMembers(members)
+                    combine(
+                        viewModel.members,
+                        viewModel.currentUser,
+                        NetworkMonitor.isOnline
+                    ) { members, currentUser, isOnline ->
+                        StateBundle(members, currentUser, isOnline)
+                    }.collect { bundle ->
+                        val members = bundle.members
+                        val currentUser = bundle.currentUser
+                        val isOnline = bundle.isOnline
+                        
+                        // Update UI based on online status
+                        val isGroupSelected = binding.spinnerGroup.selectedItemPosition > 0
+                        val shouldShowContent = isGroupSelected || !isOnline
+                        
+                        binding.rvTransactions.isVisible = shouldShowContent
+                        binding.btnAddRow.isVisible = shouldShowContent
+                        binding.summaryCard.isVisible = shouldShowContent
+                        
+                        // Hide Group section when offline
+                        binding.layoutGroupSection.isVisible = isOnline
+                        
+                        // Hide split summary in summary card when offline
+                        binding.tvEachOwesLabel.isVisible = isOnline
+                        binding.tvEachOwes.isVisible = isOnline
+                        
+                        adapter.setOnlineStatus(isOnline)
+                        adapter.setGroupSelected(shouldShowContent)
+                        
+                        // If offline and no group members, use the current user as the only member
+                        if (members.isEmpty() && !isOnline) {
+                            if (currentUser != null) {
+                                currentMembers = listOf(currentUser)
+                                adapter.setMembers(currentMembers)
+                            } else {
+                                currentMembers = emptyList()
+                                adapter.setMembers(emptyList())
+                            }
+                        } else {
+                            currentMembers = members
+                            adapter.setMembers(members)
+                        }
+                        
+                        // Update UI section visibility
+                        updateTitleSectionVisibility(adapter.itemCount)
+
                         viewModel.calculateTotals()
+                        validateSubmission()
                     }
                 }
                 launch {
@@ -430,7 +534,14 @@ class MultiTransactionActivity : AppCompatActivity() {
                                 com.waray.spendhound.TransactionState.notifyChange()
                                 finish()
                             }
+                            is MultiTransactionViewModel.UiState.SuccessOffline -> {
+                                Toast.makeText(this@MultiTransactionActivity, "Saved offline. Will sync when you're back online.", Toast.LENGTH_LONG).show()
+                                com.waray.spendhound.TransactionState.notifyChange()
+                                finish()
+                            }
                             is MultiTransactionViewModel.UiState.Error -> {
+                                binding.progressOverlay.isVisible = false
+                                setContentEnabled(true)
                                 Toast.makeText(this@MultiTransactionActivity, state.message, Toast.LENGTH_LONG).show()
                             }
                             else -> {}
@@ -442,48 +553,75 @@ class MultiTransactionActivity : AppCompatActivity() {
     }
     
     private fun loadTransactionForEdit() {
-        val txId = editTransactionId ?: return
+        val txId = editTransactionId
+        val localId = editLocalId
+        
         lifecycleScope.launch {
             try {
-                // Load transaction data from database
-                val transaction = withContext(Dispatchers.IO) {
-                    DeclareDatabase.transactionsTable.select {
-                        filter { eq("id", txId) }
-                    }.decodeSingleOrNull<com.waray.spendhound.ui.multi_transaction.TransactionFull>()
-                }
-                
-                if (transaction != null) {
-                    // Set transaction title and pending group ID
-                    binding.etTransactionTitle.setText(transaction.description)
-                    pendingGroupId = transaction.groupId
-                    
-                    // Try to select group if groups are already loaded
-                    trySelectPendingGroup()
-                    
-                    // Load transaction items, payors, and splits
-                    val items = withContext(Dispatchers.IO) {
-                        DeclareDatabase.transactionItemsTable.select {
-                            filter { eq("transaction_id", txId) }
-                        }.decodeList<TransactionItemFull>()
+                if (txId != null) {
+                    // Load transaction data from database
+                    val transaction = withContext(Dispatchers.IO) {
+                        DeclareDatabase.transactionsTable.select {
+                            filter { eq("id", txId) }
+                        }.decodeSingleOrNull<com.waray.spendhound.ui.multi_transaction.TransactionFull>()
                     }
                     
-                    val payors = withContext(Dispatchers.IO) {
-                        DeclareDatabase.transactionPayorsTable.select {
-                            filter { eq("transaction_id", txId) }
-                        }.decodeList<TransactionPayorTable>()
-                    }
-                    
-                    val splits = withContext(Dispatchers.IO) {
-                        DeclareDatabase.transactionSplitsTable.select {
-                            filter { eq("transaction_id", txId) }
-                        }.decodeList<TransactionSplitTable>()
-                    }
-                    
-                    // Wait for members to be loaded for the group before populating
-                    // This ensures usernames are resolved correctly
-                    launch {
-                        viewModel.members.first { it.isNotEmpty() }
+                    if (transaction != null) {
+                        // Set transaction title and pending group ID
+                        binding.etTransactionTitle.setText(transaction.description)
+                        pendingGroupId = transaction.groupId
+                        
+                        // Try to select group if groups are already loaded
+                        trySelectPendingGroup()
+                        
+                        // Load transaction items, payors, and splits
+                        val items = withContext(Dispatchers.IO) {
+                            DeclareDatabase.transactionItemsTable.select {
+                                filter { eq("transaction_id", txId) }
+                            }.decodeList<TransactionItemFull>()
+                        }
+                        
+                        val payors = withContext(Dispatchers.IO) {
+                            DeclareDatabase.transactionPayorsTable.select {
+                                filter { eq("transaction_id", txId) }
+                            }.decodeList<TransactionPayorTable>()
+                        }
+                        
+                        val splits = withContext(Dispatchers.IO) {
+                            DeclareDatabase.transactionSplitsTable.select {
+                                filter { eq("transaction_id", txId) }
+                            }.decodeList<TransactionSplitTable>()
+                        }
+                        
+                        // Load items immediately. Usernames will resolve if members are cached.
                         viewModel.loadExistingTransaction(transaction, items, payors, splits)
+                        
+                        // Wait for members in background to potentially refresh UI with correct names
+                        launch {
+                            viewModel.members.first { it.isNotEmpty() }
+                            // Re-load if necessary to get correct usernames, or just let ViewModel handle it
+                            viewModel.loadExistingTransaction(transaction, items, payors, splits)
+                        }
+                    }
+                } else if (localId != null) {
+                    val pending = withContext(Dispatchers.IO) {
+                        AppDatabase.getInstance(this@MultiTransactionActivity).pendingTransactionDao().getAll().find { it.localId == localId }
+                    }
+                    if (pending != null) {
+                        binding.etTransactionTitle.setText(pending.description)
+                        pendingGroupId = pending.groupId
+                        trySelectPendingGroup()
+                        
+                        // Load items immediately without waiting for members
+                        viewModel.loadPendingTransactionForEdit(pending)
+                        
+                        // Separately ensure members are loaded if group exists
+                        if (pendingGroupId != null) {
+                            launch {
+                                viewModel.members.first { it.isNotEmpty() }
+                                // If needed, re-trigger calculateTotals or something
+                            }
+                        }
                     }
                 }
             } catch (e: Exception) {

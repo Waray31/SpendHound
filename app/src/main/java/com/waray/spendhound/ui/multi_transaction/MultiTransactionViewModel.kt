@@ -1,12 +1,16 @@
 package com.waray.spendhound.ui.multi_transaction
 
-import androidx.lifecycle.ViewModel
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.waray.spendhound.DeclareDatabase
 import com.waray.spendhound.PayerContribution
 import com.waray.spendhound.PayerGroup
+import com.waray.spendhound.SpendHoundApplication
 import com.waray.spendhound.User
-import io.github.jan.supabase.postgrest.postgrest
+import com.waray.spendhound.data.local.AppDatabase
+import com.waray.spendhound.data.local.CachedJsonBlob
+import com.waray.spendhound.data.local.PendingTransaction
+import com.waray.spendhound.utils.NetworkMonitor
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,10 +19,19 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
+import java.util.UUID
 
-class MultiTransactionViewModel(
-    private val repository: MultiTransactionRepository = MultiTransactionRepository()
-) : ViewModel() {
+class MultiTransactionViewModel @JvmOverloads constructor(
+    application: android.app.Application
+) : AndroidViewModel(application) {
+
+    private val database = AppDatabase.getInstance(application)
+    private val pendingTransactionDao = database.pendingTransactionDao()
+    private val repository: MultiTransactionRepository = MultiTransactionRepository(database)
 
     private val _groups = MutableStateFlow<List<PayerGroup>>(emptyList())
     val groups: StateFlow<List<PayerGroup>> = _groups.asStateFlow()
@@ -63,6 +76,9 @@ class MultiTransactionViewModel(
 
     private val _currentUserNumericId = MutableStateFlow<Long?>(null)
     
+    private val _currentUser = MutableStateFlow<User?>(null)
+    val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
+
     private val _isLoading = MutableStateFlow(true)
     val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
 
@@ -75,15 +91,41 @@ class MultiTransactionViewModel(
     }
 
     private fun fetchCurrentUser() {
-        val authId = DeclareDatabase.auth.currentUserOrNull()?.id ?: return
         viewModelScope.launch {
+            // First, try to load from cache immediately
             try {
-                val user = DeclareDatabase.client.postgrest.from("users").select {
-                    filter { eq("auth_id", authId) }
-                }.decodeSingleOrNull<User>()
-                _currentUserNumericId.value = user?.id
+                val cachedId = database.jsonBlobDao().get("current_user_id")
+                if (cachedId != null) {
+                    _currentUserNumericId.value = cachedId.json.toLongOrNull()
+                    android.util.Log.d("MultiTransactionVM", "Loaded user ID from cache: ${_currentUserNumericId.value}")
+                }
+                
+                val cachedUser = database.jsonBlobDao().get("current_user_obj")
+                if (cachedUser != null) {
+                    _currentUser.value = AppJson.decodeFromString<User>(cachedUser.json)
+                }
             } catch (e: Exception) {
-                // Handle error
+                android.util.Log.e("MultiTransactionVM", "Error loading user from cache", e)
+            }
+
+            // Then, if online, try to refresh from network
+            val authId = DeclareDatabase.auth.currentUserOrNull()?.id
+            if (authId != null && NetworkMonitor.isOnline.value) {
+                try {
+                    val user = DeclareDatabase.usersTable.select {
+                        filter { eq("auth_id", authId) }
+                    }.decodeSingleOrNull<User>()
+                    
+                    if (user != null) {
+                        _currentUserNumericId.value = user.id
+                        _currentUser.value = user
+                        // Update cache
+                        database.jsonBlobDao().upsert(CachedJsonBlob("current_user_id", user.id.toString(), System.currentTimeMillis()))
+                        database.jsonBlobDao().upsert(CachedJsonBlob("current_user_obj", Json.encodeToString(user), System.currentTimeMillis()))
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("MultiTransactionVM", "Error fetching user from network", e)
+                }
             }
         }
     }
@@ -189,10 +231,13 @@ class MultiTransactionViewModel(
         _transactions.value = currentList
     }
 
-    fun submit(groupId: Long, requireTitle: Boolean = true) {
+    fun submit(groupId: Long?, requireTitle: Boolean = true) {
         val creatorId = _currentUserNumericId.value
         if (creatorId == null) {
-            _uiState.value = UiState.Error("User session not found")
+            val isOnline = NetworkMonitor.isOnline.value
+            val msg = if (isOnline) "User session not found. Please try again in a moment." 
+                      else "User session not found. Please connect to the internet to initialize your offline profile."
+            _uiState.value = UiState.Error(msg)
             return
         }
 
@@ -206,20 +251,61 @@ class MultiTransactionViewModel(
             return
         }
 
-        if (_transactions.value.any { it.payors.isEmpty() }) {
-            _uiState.value = UiState.Error("Please select who paid for each transaction")
-            return
-        }
-
         viewModelScope.launch {
             _uiState.value = UiState.Loading
-            val result = repository.submitTransactions(
-                groupId, creatorId, _transactionTitle.value, _transactions.value, _members.value
-            )
-            result.onSuccess {
-                _uiState.value = UiState.Success
-            }.onFailure {
-                _uiState.value = UiState.Error(it.message ?: "Submission failed")
+            
+            try {
+                if (NetworkMonitor.isOnline.value && groupId != null) {
+                    if (_transactions.value.any { it.payors.isEmpty() }) {
+                        _uiState.value = UiState.Error("Please select who paid for each transaction")
+                        return@launch
+                    }
+
+                    val result = repository.submitTransactions(
+                        groupId, creatorId, _transactionTitle.value, _transactions.value, _members.value
+                    )
+                    result.onSuccess {
+                        _uiState.value = UiState.Success
+                    }.onFailure {
+                        _uiState.value = UiState.Error(it.message ?: "Submission failed")
+                    }
+                } else {
+                    // Offline branch or unassigned
+                    val currentUser = _currentUser.value
+                    val currentTransactionsSnapshot = _transactions.value.toList()
+                    
+                    val updatedTransactions = currentTransactionsSnapshot.map { entry ->
+                        if (entry.payors.isEmpty() && currentUser != null) {
+                            entry.copy(payors = mutableListOf(PayorEntry(creatorId, currentUser.username ?: "Me", entry.amount)))
+                        } else {
+                            if (entry.payors.size == 1) {
+                                entry.copy(payors = mutableListOf(entry.payors[0].copy(amount = entry.amount)))
+                            } else entry
+                        }
+                    }
+
+                    val newTotalAmount = updatedTransactions.sumOf { it.amount }
+                    val itemsJson = AppJson.encodeToString(updatedTransactions)
+                    val localId = UUID.randomUUID().toString()
+                    val pending = PendingTransaction(
+                        localId = localId,
+                        groupId = groupId,
+                        createdByUserId = creatorId,
+                        description = _transactionTitle.value,
+                        totalAmount = newTotalAmount,
+                        itemsJson = itemsJson,
+                        createdAt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())
+                    )
+                    
+                    withContext(Dispatchers.IO) {
+                        pendingTransactionDao.insert(pending)
+                    }
+                    SpendHoundApplication.scheduleSync(getApplication())
+                    _uiState.value = UiState.SuccessOffline
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("MultiTransactionVM", "Error submitting transaction", e)
+                _uiState.value = UiState.Error("Failed to save: ${e.message}")
             }
         }
     }
@@ -304,6 +390,7 @@ class MultiTransactionViewModel(
         object Idle : UiState()
         object Loading : UiState()
         object Success : UiState()
+        object SuccessOffline : UiState()
         data class Error(val message: String) : UiState()
     }
     
@@ -365,20 +452,155 @@ class MultiTransactionViewModel(
         }
 
         if (_transactions.value.any { it.payors.isEmpty() }) {
-            _uiState.value = UiState.Error("Please select who paid for each transaction")
+            if (NetworkMonitor.isOnline.value) {
+                _uiState.value = UiState.Error("Please select who paid for each transaction")
+                return
+            } else {
+                // In offline mode, if no payors selected, default to current user paying everything
+                val currentUser = _currentUser.value
+                if (currentUser != null) {
+                    val updatedTransactions = _transactions.value.map { entry ->
+                        if (entry.payors.isEmpty()) {
+                            entry.copy(payors = mutableListOf(PayorEntry(creatorId, currentUser.username ?: "Me", entry.amount)))
+                        } else entry
+                    }
+                    _transactions.value = updatedTransactions
+                } else {
+                    _uiState.value = UiState.Error("User session not found")
+                    return
+                }
+            }
+        }
+
+        viewModelScope.launch {
+            _uiState.value = UiState.Loading
+
+            if (NetworkMonitor.isOnline.value) {
+                val result = repository.updateTransaction(
+                    transactionId, groupId, creatorId, _transactionTitle.value, _transactions.value, _members.value
+                )
+                result.onSuccess {
+                    _uiState.value = UiState.Success
+                }.onFailure {
+                    _uiState.value = UiState.Error(it.message ?: "Update failed")
+                }
+            } else {
+                _uiState.value = UiState.Error("Cannot update synced transactions while offline.")
+            }
+        }
+    }
+
+    fun updatePendingTransaction(localId: String, groupId: Long?, requireTitle: Boolean = true) {
+        val creatorId = _currentUserNumericId.value
+        if (creatorId == null) {
+            _uiState.value = UiState.Error("User session not found")
+            return
+        }
+
+        val isOnline = NetworkMonitor.isOnline.value
+        val currentTransactionsSnapshot = _transactions.value.toList()
+
+        // Validation for online submission
+        if (isOnline && requireTitle && _transactionTitle.value.isBlank() && currentTransactionsSnapshot.size > 1) {
+            _uiState.value = UiState.Error("Please enter a transaction title")
+            return
+        }
+
+        if (currentTransactionsSnapshot.any { it.amount <= 0 }) {
+            _uiState.value = UiState.Error("Please fill in all amounts")
             return
         }
 
         viewModelScope.launch {
             _uiState.value = UiState.Loading
-            val result = repository.updateTransaction(
-                transactionId, groupId, creatorId, _transactionTitle.value, _transactions.value, _members.value
-            )
-            result.onSuccess {
-                _uiState.value = UiState.Success
-            }.onFailure {
-                _uiState.value = UiState.Error(it.message ?: "Update failed")
+            
+            try {
+                // Check if all details are met for cloud submission
+                val allPayorsValid = currentTransactionsSnapshot.all { entry ->
+                    val totalPaid = entry.payors.sumOf { it.amount }
+                    entry.payors.isNotEmpty() && Math.abs(totalPaid - entry.amount) < 0.01
+                }
+                
+                val detailsMet = groupId != null && 
+                                 currentTransactionsSnapshot.all { it.amount > 0 && it.category.isNotBlank() } &&
+                                 allPayorsValid
+
+                if (isOnline && detailsMet) {
+                    // Directly save to cloud database
+                    val result = repository.submitTransactions(
+                        groupId!!, creatorId, _transactionTitle.value, currentTransactionsSnapshot, _members.value, status = 2
+                    )
+                    result.onSuccess {
+                        // Success! Delete the offline pending record
+                        withContext(Dispatchers.IO) {
+                            pendingTransactionDao.delete(localId)
+                        }
+                        _uiState.value = UiState.Success
+                        return@launch
+                    }.onFailure {
+                        // If direct sync fails, fall back to updating the local record
+                        performLocalPendingSave(localId, groupId, creatorId, currentTransactionsSnapshot)
+                        _uiState.value = UiState.Error("Cloud sync failed (${it.message}), but changes were saved offline.")
+                        return@launch
+                    }
+                } else {
+                    // Offline mode or details not met - save local update
+                    performLocalPendingSave(localId, groupId, creatorId, currentTransactionsSnapshot)
+                    _uiState.value = UiState.SuccessOffline
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("MultiTransactionVM", "Error in updatePendingTransaction", e)
+                _uiState.value = UiState.Error("Failed to save: ${e.message}")
             }
         }
+    }
+
+    private suspend fun performLocalPendingSave(localId: String, groupId: Long?, creatorId: Long, transactions: List<TransactionEntry>) {
+        try {
+            val currentUser = _currentUser.value
+            val updatedTransactions = transactions.map { entry ->
+                if (entry.payors.isEmpty() && currentUser != null) {
+                    entry.copy(payors = mutableListOf(PayorEntry(creatorId, currentUser.username ?: "Me", entry.amount)))
+                } else {
+                    // Ensure amount in payor matches transaction amount if only 1 payor
+                    if (entry.payors.size == 1) {
+                        entry.copy(payors = mutableListOf(entry.payors[0].copy(amount = entry.amount)))
+                    } else entry
+                }
+            }
+
+            val itemsJson = AppJson.encodeToString(updatedTransactions)
+            val pending = PendingTransaction(
+                localId = localId,
+                groupId = groupId,
+                createdByUserId = creatorId,
+                description = _transactionTitle.value,
+                totalAmount = updatedTransactions.sumOf { it.amount },
+                itemsJson = itemsJson,
+                createdAt = java.text.SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date()),
+                status = 0
+            )
+            withContext(Dispatchers.IO) {
+                pendingTransactionDao.insert(pending)
+            }
+            
+            // Only schedule if context is valid
+            SpendHoundApplication.scheduleSync(getApplication())
+        } catch (e: Exception) {
+            android.util.Log.e("MultiTransactionVM", "Local save failed: ${e.message}")
+            throw e
+        }
+    }
+
+
+    fun loadPendingTransactionForEdit(pending: PendingTransaction) {
+        val entries = try {
+            AppJson.decodeFromString<List<TransactionEntry>>(pending.itemsJson)
+        } catch (e: Exception) {
+            emptyList()
+        }
+        _transactions.value = entries
+        _transactionTitle.value = pending.description ?: ""
+        calculateTotals()
     }
 }

@@ -14,8 +14,12 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.waray.spendhound.data.local.AppDatabase
 import com.waray.spendhound.data.local.CachedTransaction
+import com.waray.spendhound.data.local.PendingTransaction
 import com.waray.spendhound.data.repository.GroupRepository
+import com.waray.spendhound.ui.multi_transaction.AppJson
+import com.waray.spendhound.ui.multi_transaction.TransactionEntry
 import com.waray.spendhound.ui.multi_transaction.MultiTransactionActivity
 import com.waray.spendhound.ui.multi_transaction.TransactionFull
 import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
@@ -60,6 +64,7 @@ class GroupExpensesFragment : Fragment() {
     private var archivedAdapter: RecentTransactionAdapter? = null
     private var isArchivedExpanded = false
     private var lastSeenUpdate: Long = 0L
+    private var pendingTransactions: List<RecentTransaction> = emptyList()
     private lateinit var repo: GroupRepository
     private var groupName: String? = null
 
@@ -101,6 +106,12 @@ class GroupExpensesFragment : Fragment() {
         
         adapter = RecentTransactionAdapter(transactionList, { loadExpenses(false) }, { tx ->
             if (tx == null) return@RecentTransactionAdapter
+            
+            if (tx.transactionStatus == "Pending Sync" || tx.transactionStatus == "Sync Failed") {
+                editTransaction(tx)
+                return@RecentTransactionAdapter
+            }
+
             tx.isExpanded = !tx.isExpanded
             val pos = transactionList.indexOf(tx)
             if (tx.isUnread) {
@@ -183,6 +194,7 @@ class GroupExpensesFragment : Fragment() {
     @SuppressLint("NotifyDataSetChanged")
     private fun loadExpenses(forceSkeleton: Boolean = false) {
         showLoading(forceSkeleton)
+        loadPendingTransactions()
         lifecycleScope.launch {
             repo.getTransactions(groupId).collect { cached ->
                 val result = buildTransactions(cached)
@@ -192,6 +204,100 @@ class GroupExpensesFragment : Fragment() {
                     checkSettlementVisibility()
                     hideLoading()
                     pullToRefreshHelper?.stopRefreshing()
+                }
+            }
+        }
+    }
+
+    private fun loadPendingTransactions() {
+        val appContext = context?.applicationContext ?: return
+        lifecycleScope.launch(Dispatchers.IO) {
+            val database = AppDatabase.getInstance(appContext)
+            val pending = try {
+                database.pendingTransactionDao().getAll().filter { it.groupId == groupId }
+            } catch (e: Exception) {
+                emptyList()
+            }
+            
+            val mapped = pending.map { pt ->
+                try {
+                    val entries = try {
+                        AppJson.decodeFromString<List<TransactionEntry>>(pt.itemsJson)
+                    } catch (e: Exception) {
+                        emptyList<TransactionEntry>()
+                    }
+
+                    RecentTransaction().apply {
+                        transactionId = null
+                        val isoSdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+                        val displaySdf = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+                        val date = try { isoSdf.parse(pt.createdAt) } catch (e: Exception) { null } ?: Date()
+                        
+                        mostRecentDate = displaySdf.format(date)
+                        mostRecentTransactionType = if (entries.size == 1) entries[0].category.ifBlank { "Expense" } else "Multiple"
+                        mostRecentDetails = pt.description
+                        mostRecentPaymentAmountStr = CurrencyUtils.formatAmountWithCurrency(pt.totalAmount)
+                        timestamp = date.time
+                        transactionStatus = "Pending Sync"
+                        lacksInfo = pt.groupId == null
+                        groupId = pt.groupId
+                        createdBy = "You"
+                        timeKey = pt.localId
+
+                        // Populate items for expanded view
+                        transactionItems = entries.mapIndexed { index, entry ->
+                            TransactionItemFull(
+                                id = index.toLong() + 1000000, // Dummy ID
+                                amount = entry.amount,
+                                category = entry.category,
+                                itemDescription = entry.title
+                            )
+                        }
+                        
+                        // Mock payors and splits for expanded view
+                        val payors = mutableListOf<TransactionPayorTable>()
+                        val splits = mutableListOf<TransactionSplitTable>()
+                        
+                        entries.forEachIndexed { itemIndex, entry ->
+                            val itemId = itemIndex.toLong() + 1000000
+                            entry.payors.forEach { p ->
+                                payors.add(TransactionPayorTable(
+                                    transactionId = 0,
+                                    userId = p.userId,
+                                    initialAmountPaid = p.amount,
+                                    currentAmountPaid = p.amount,
+                                    transactionItemsId = itemId
+                                ))
+                            }
+                            entry.includedMemberIds.forEach { uid ->
+                                splits.add(TransactionSplitTable(
+                                    transactionId = 0,
+                                    userId = uid,
+                                    amount = if (entry.includedMemberIds.isNotEmpty()) entry.amount / entry.includedMemberIds.size else 0.0,
+                                    transactionItemsId = itemId
+                                ))
+                            }
+                        }
+                        rawPayorRows = payors
+                        rawSplitRows = splits
+
+                        // Essential for RecentTransactionAdapter's setupPayors()
+                        val contributorIds = entries.flatMap { it.payors.map { p -> p.userId } }.distinct()
+                        payorUserIds = contributorIds.map { it.toString() }.toMutableList()
+                        payorsList = contributorIds.map { "You" }.toMutableList()
+                        amountsPaidList = contributorIds.map { uid -> 
+                            entries.flatMap { it.payors }.filter { it.userId == uid }.sumOf { it.amount }
+                        }.toMutableList()
+                    }
+                } catch (e: Exception) {
+                    null
+                }
+            }.filterNotNull()
+            
+            withContext(Dispatchers.Main) {
+                if (isAdded) {
+                    pendingTransactions = mapped.sortedByDescending { it.timestamp }
+                    applyStatusFilter()
                 }
             }
         }
@@ -284,7 +390,7 @@ class GroupExpensesFragment : Fragment() {
             val individualPayment = splits.groupBy { it.userId }
                 .values.firstOrNull()?.sumOf { it.amount } ?: 0.0
 
-            val txStatus = computeStatus(payors, splits)
+            val txStatus = if (tx.status == 4) "Lacks Info" else computeStatus(payors, splits)
 
             val itemPayorMap = items.associate { item ->
                 val itemId = item.id ?: 0L
@@ -326,6 +432,7 @@ class GroupExpensesFragment : Fragment() {
             rt.groupId = tx.groupId
             rt.groupName = groupName
             rt.isArchived = tx.isArchived ?: false
+            rt.lacksInfo = tx.status == 4
             rt
         }.sortedByDescending { it.timestamp }
     }
@@ -428,6 +535,7 @@ class GroupExpensesFragment : Fragment() {
         }
         
         transactionList.clear()
+        transactionList.addAll(pendingTransactions)
         transactionList.addAll(filtered)
         adapter.notifyDataSetChanged()
         context?.let { adapter.preloadAllImages(it) }
@@ -707,7 +815,11 @@ class GroupExpensesFragment : Fragment() {
     
     private fun editTransaction(transaction: RecentTransaction) {
         val intent = Intent(requireContext(), MultiTransactionActivity::class.java)
-        intent.putExtra("TRANSACTION_ID", transaction.transactionId)
+        if (transaction.transactionId != null) {
+            intent.putExtra("TRANSACTION_ID", transaction.transactionId)
+        } else if (transaction.timeKey != null) {
+            intent.putExtra("LOCAL_ID", transaction.timeKey)
+        }
         intent.putExtra("EDIT_MODE", true)
         startActivity(intent)
     }

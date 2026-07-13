@@ -5,7 +5,10 @@ import com.waray.spendhound.DeclareDatabase
 import com.waray.spendhound.GroupMember
 import com.waray.spendhound.PayerGroup
 import com.waray.spendhound.User
-import io.github.jan.supabase.postgrest.postgrest
+import com.waray.spendhound.data.local.AppDatabase
+import com.waray.spendhound.data.local.CachedJsonBlob
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.coroutines.Dispatchers
@@ -14,32 +17,62 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class MultiTransactionRepository {
+class MultiTransactionRepository(
+    private val database: AppDatabase? = null
+) {
 
-    private val client = DeclareDatabase.client
+    private val jsonBlobDao = database?.jsonBlobDao()
 
     suspend fun getGroups(): List<PayerGroup> = withContext(Dispatchers.IO) {
-        client.postgrest.from("groups").select().decodeList<PayerGroup>()
+        try {
+            val fetchedGroups = DeclareDatabase.groupsTable.select().decodeList<PayerGroup>()
+            // Cache groups
+            jsonBlobDao?.upsert(CachedJsonBlob("all_groups", Json.encodeToString(fetchedGroups), System.currentTimeMillis()))
+            fetchedGroups
+        } catch (e: Exception) {
+            // Load from cache
+            val cached = jsonBlobDao?.get("all_groups")
+            if (cached != null) {
+                Json.decodeFromString<List<PayerGroup>>(cached.json)
+            } else {
+                emptyList()
+            }
+        }
     }
 
     suspend fun getGroupMembers(groupId: Long): List<User> = withContext(Dispatchers.IO) {
-        val memberIds = client.postgrest.from("group_members").select {
-            filter { eq("group_id", groupId) }
-        }.decodeList<GroupMember>().mapNotNull { it.userId }
+        try {
+            val memberIds = DeclareDatabase.groupMembersTable.select {
+                filter { eq("group_id", groupId) }
+            }.decodeList<GroupMember>().mapNotNull { it.userId }
 
-        if (memberIds.isEmpty()) return@withContext emptyList()
+            if (memberIds.isEmpty()) return@withContext emptyList()
 
-        client.postgrest.from("users").select {
-            filter { isIn("user_id", memberIds) }
-        }.decodeList<User>()
+            val fetchedMembers = DeclareDatabase.usersTable.select {
+                filter { isIn("user_id", memberIds) }
+            }.decodeList<User>()
+            
+            // Cache members
+            jsonBlobDao?.upsert(CachedJsonBlob("group_members_$groupId", Json.encodeToString(fetchedMembers), System.currentTimeMillis()))
+            fetchedMembers
+        } catch (e: Exception) {
+            // Load from cache
+            val cached = jsonBlobDao?.get("group_members_$groupId")
+            if (cached != null) {
+                Json.decodeFromString<List<User>>(cached.json)
+            } else {
+                emptyList()
+            }
+        }
     }
 
     suspend fun submitTransactions(
-        groupId: Long,
+        groupId: Long?,
         createdBy: Long,
         title: String,
         entries: List<TransactionEntry>,
-        groupMembers: List<User>
+        groupMembers: List<User>,
+        status: Int = 2
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
             val isoFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSSXXX", Locale.getDefault())
@@ -47,14 +80,14 @@ class MultiTransactionRepository {
             val totalAmount = entries.sumOf { it.amount }
 
             // 1. Insert into transactions
-            val txResponse = client.postgrest.from("transactions").insert(
+            val txResponse = DeclareDatabase.transactionsTable.insert(
                 TransactionInsert(
                     totalAmount = totalAmount,
                     description = title.ifBlank { null },
                     groupId = groupId,
                     createdBy = createdBy,
                     createdAt = createdAt,
-                    status = 2 // starts as Pending
+                    status = status
                 )
             ) { select() }.decodeSingle<TransactionResponse>()
 
@@ -69,7 +102,7 @@ class MultiTransactionRepository {
             
             entries.forEach { entry ->
                 // 2. Insert transaction_item
-                val itemResponse = client.postgrest.from("transaction_items").insert(
+                val itemResponse = DeclareDatabase.transactionItemsTable.insert(
                     TransactionItemInsert(
                         transactionId = txId,
                         amount = entry.amount,
@@ -104,7 +137,7 @@ class MultiTransactionRepository {
                         }
                     
                     if (payorRecords.isNotEmpty()) {
-                        client.postgrest.from("transaction_payors").insert(payorRecords)
+                        DeclareDatabase.transactionPayorsTable.insert(payorRecords)
                     }
                 }
 
@@ -117,31 +150,34 @@ class MultiTransactionRepository {
                 
                 if (membersToSplit.isNotEmpty()) {
                     // Calculate split amount per member, accounting for covers
+                    // If there's only one item, entry.amount should be used.
+                    // If multiple items, each item's amount is split independently.
                     val baseSplitAmount = entry.amount / membersToSplit.size
                     
                     val splitRecords = membersToSplit.map { member ->
-                        val covererId = entry.coveredByMap[member.id]
+                        val memberId = member.id ?: 0L
+                        val covererId = entry.coveredByMap[memberId]
                         val amount = if (covererId != null) {
                             0.0 // Covered member pays 0
                         } else {
-                            val coversCount = entry.coveredByMap.values.count { it == member.id }
+                            val coversCount = entry.coveredByMap.values.count { it == memberId }
                             baseSplitAmount * (1 + coversCount)
                         }
 
                         // Track each user's total split owed across all items
-                        userTotalSplitOwed[member.id!!] = 
-                            (userTotalSplitOwed[member.id!!] ?: 0.0) + amount
+                        userTotalSplitOwed[memberId] = 
+                            (userTotalSplitOwed[memberId] ?: 0.0) + amount
 
                         TransactionSplitInsert(
                             transactionId = txId,
-                            userId = member.id!!,
+                            userId = memberId,
                             amount = amount,
                             transactionItemsId = itemId,
                             coveredByUserId = covererId
                         )
                     }
                     
-                    client.postgrest.from("transaction_splits").insert(splitRecords)
+                    DeclareDatabase.transactionSplitsTable.insert(splitRecords)
                 }
             }
             
@@ -168,7 +204,7 @@ class MultiTransactionRepository {
                 }
 
                 // Check if payor records exist for this user
-                val existingPayors = client.postgrest.from("transaction_payors").select {
+                val existingPayors = DeclareDatabase.transactionPayorsTable.select {
                     filter { eq("transaction_id", txId); eq("user_id", userId) }
                 }.decodeList<TransactionPayorTable>()
 
@@ -177,7 +213,8 @@ class MultiTransactionRepository {
                     // For simplicity, let's update them all to the same status, but only the first one gets the full currentPaid and excess
                     existingPayors.forEachIndexed { i, payor ->
                         val isLead = i == 0
-                        client.postgrest.from("transaction_payors").update(buildJsonObject {
+                        val payorId = payor.id ?: return@forEachIndexed
+                        DeclareDatabase.transactionPayorsTable.update(buildJsonObject {
                             put("status", status)
                             if (isLead) {
                                 put("excess_amount", excess)
@@ -187,12 +224,12 @@ class MultiTransactionRepository {
                                 // Keep its existing current_amount_paid (which was its initial contribution to that item)
                             }
                         }) {
-                            filter { eq("id", payor.id!!) }
+                            filter { eq("id", payorId) }
                         }
                     }
                 } else if (wasCovered || totalInitialPaid > 0.01) {
                     // Create payor record for covered user or someone who paid
-                    client.postgrest.from("transaction_payors").insert(
+                    DeclareDatabase.transactionPayorsTable.insert(
                         TransactionPayorInsert(
                             transactionId = txId,
                             userId = userId,
@@ -212,7 +249,7 @@ class MultiTransactionRepository {
             }
 
             // 7. Record History
-            client.postgrest.from("transaction_history").insert(
+            DeclareDatabase.transactionHistoryTable.insert(
                 TransactionHistoryInsert(
                     transactionId = txId,
                     userId = createdBy,
@@ -253,7 +290,7 @@ class MultiTransactionRepository {
                 else -> 2  // pending (partial payment)
             }
             
-            client.postgrest.from("transaction_payors").update(buildJsonObject {
+            DeclareDatabase.transactionPayorsTable.update(buildJsonObject {
                 put("current_amount_paid", newAmountPaid)
                 put("excess_amount", excess)
                 put("status", status)
@@ -283,21 +320,23 @@ class MultiTransactionRepository {
             val totalAmount = entries.sumOf { it.amount }
 
             // 1. Update main transaction
-            client.postgrest.from("transactions").update(buildJsonObject {
+            DeclareDatabase.transactionsTable.update(buildJsonObject {
                 put("total_amount", totalAmount)
                 put("description", title.ifBlank { null })
+                put("group_id", groupId)
+                put("status", 2) // Reset to standard status once info is provided
             }) {
                 filter { eq("id", transactionId) }
             }
 
             // 2. Delete existing related records
-            client.postgrest.from("transaction_payors").delete {
+            DeclareDatabase.transactionPayorsTable.delete {
                 filter { eq("transaction_id", transactionId) }
             }
-            client.postgrest.from("transaction_splits").delete {
+            DeclareDatabase.transactionSplitsTable.delete {
                 filter { eq("transaction_id", transactionId) }
             }
-            client.postgrest.from("transaction_items").delete {
+            DeclareDatabase.transactionItemsTable.delete {
                 filter { eq("transaction_id", transactionId) }
             }
 
@@ -309,7 +348,7 @@ class MultiTransactionRepository {
             val userTotalInitialPayments = mutableMapOf<Long, Double>()
             
             entries.forEach { entry ->
-                val itemResponse = client.postgrest.from("transaction_items").insert(
+                val itemResponse = DeclareDatabase.transactionItemsTable.insert(
                     TransactionItemInsert(
                         transactionId = transactionId,
                         amount = entry.amount,
@@ -342,7 +381,7 @@ class MultiTransactionRepository {
                         }
                     
                     if (payorRecords.isNotEmpty()) {
-                        client.postgrest.from("transaction_payors").insert(payorRecords)
+                        DeclareDatabase.transactionPayorsTable.insert(payorRecords)
                     }
                 }
 
@@ -378,7 +417,7 @@ class MultiTransactionRepository {
                         )
                     }
                     
-                    client.postgrest.from("transaction_splits").insert(splitRecords)
+                    DeclareDatabase.transactionSplitsTable.insert(splitRecords)
                 }
             }
             
@@ -404,22 +443,26 @@ class MultiTransactionRepository {
                     else -> 2 // Partial
                 }
 
-                // Check if payor record exists for this user (they might not have been an initial payer)
-                val existingPayor = client.postgrest.from("transaction_payors").select {
+                // Check if payor records exist for this user (they might not have been an initial payer)
+                val existingPayors = DeclareDatabase.transactionPayorsTable.select {
                     filter { eq("transaction_id", transactionId); eq("user_id", userId) }
-                }.decodeSingleOrNull<TransactionPayorTable>()
+                }.decodeList<TransactionPayorTable>()
 
-                if (existingPayor != null) {
-                    client.postgrest.from("transaction_payors").update(buildJsonObject {
-                        put("excess_amount", excess)
-                        put("status", status)
-                        put("current_amount_paid", currentPaid)
-                    }) {
-                        filter { eq("transaction_id", transactionId); eq("user_id", userId) }
+                if (existingPayors.isNotEmpty()) {
+                    existingPayors.forEachIndexed { i, payor ->
+                        val isLead = i == 0
+                        val payorId = payor.id ?: return@forEachIndexed
+                        DeclareDatabase.transactionPayorsTable.update(buildJsonObject {
+                            put("excess_amount", if (isLead) excess else 0.0)
+                            put("status", status)
+                            put("current_amount_paid", if (isLead) currentPaid else payor.currentAmountPaid)
+                        }) {
+                            filter { eq("id", payorId) }
+                        }
                     }
                 } else if (wasCovered || totalInitialPaid > 0.01) {
                     // Create payor record for covered user
-                    client.postgrest.from("transaction_payors").insert(
+                    DeclareDatabase.transactionPayorsTable.insert(
                         TransactionPayorInsert(
                             transactionId = transactionId,
                             userId = userId,
@@ -439,7 +482,7 @@ class MultiTransactionRepository {
             }
 
             // Record History
-            client.postgrest.from("transaction_history").insert(
+            DeclareDatabase.transactionHistoryTable.insert(
                 TransactionHistoryInsert(
                     transactionId = transactionId,
                     userId = createdBy,

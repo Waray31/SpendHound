@@ -4,8 +4,13 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.view.animation.AccelerateInterpolator
+import android.view.animation.DecelerateInterpolator
+import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.NavigationUI
@@ -13,7 +18,12 @@ import androidx.navigation.ui.NavigationUI.setupWithNavController
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.waray.spendhound.ui.multi_transaction.MultiTransactionActivity
+import com.waray.spendhound.utils.NetworkMonitor
+import com.waray.spendhound.data.local.AppDatabase
 import io.github.jan.supabase.gotrue.Auth
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -71,19 +81,27 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Log.d("MainActivity", "onCreate: START")
         val binding = com.waray.spendhound.databinding.ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
         Log.d("APP_CHECK", "APP STARTED");
 
-        mAuth = DeclareDatabase.auth
-        
-        val currentSupabaseUser = mAuth?.currentUserOrNull()
-        if (currentSupabaseUser != null) {
-            currentUserId = currentSupabaseUser.id
+        try {
+            Log.d("MainActivity", "onCreate: Accessing DeclareDatabase.auth")
+            mAuth = DeclareDatabase.auth
+            
+            val currentSupabaseUser = mAuth?.currentUserOrNull()
+            Log.d("MainActivity", "onCreate: Current user from Supabase is ${currentSupabaseUser?.id}")
+            if (currentSupabaseUser != null) {
+                currentUserId = currentSupabaseUser.id
+            }
+        } catch (e: Exception) {
+            Log.e("MainActivity", "onCreate: Failed to access auth: ${e.message}", e)
         }
 
         // Initialize view components
+        Log.d("MainActivity", "onCreate: Initializing views")
         navView = findViewById(R.id.navView)
         val navHostFragment = supportFragmentManager.findFragmentById(R.id.nav_host_fragment_activity_main) as NavHostFragment
         val navController = navHostFragment.navController
@@ -91,8 +109,11 @@ class MainActivity : AppCompatActivity() {
 
         setupFabMenu()
         fetchCurrentUserDetails()
+        setupNetworkObserver()
+        observePendingCount()
 
         navView?.setOnItemSelectedListener { item ->
+            Log.d("MainActivity", "onItemSelected: ${item.itemId}")
             if (isFabMenuOpen) closeFabMenu()
             val handled = NavigationUI.onNavDestinationSelected(item, navController)
             if (item.itemId == R.id.navigation_profile) {
@@ -103,12 +124,84 @@ class MainActivity : AppCompatActivity() {
         }
 
         navView?.setOnItemReselectedListener { item ->
+            Log.d("MainActivity", "onItemReselected: ${item.itemId}")
             val fragment = navHostFragment.childFragmentManager.primaryNavigationFragment
             when (item.itemId) {
                 R.id.navigation_home -> (fragment as? com.waray.spendhound.ui.home.HomeFragment)?.refreshAllData()
                 R.id.navigation_transactions -> (fragment as? com.waray.spendhound.ui.transactions.TransactionsFragment)?.refreshTransactions()
                 R.id.navigation_borrow -> (fragment as? com.waray.spendhound.ui.borrow.BorrowFragment)?.applyFilters()
                 R.id.navigation_profile -> (fragment as? com.waray.spendhound.ui.profile.ProfileFragment)?.loadNicknameAndData()
+            }
+        }
+        Log.d("MainActivity", "onCreate: FINISH")
+    }
+
+    private fun setupNetworkObserver() {
+        val banner = findViewById<LinearLayout>(R.id.offlineBanner)
+        val bannerIcon = banner.findViewById<ImageView>(R.id.bannerIcon)
+        val bannerText = banner.findViewById<TextView>(R.id.bannerText)
+        var wasOffline = false
+
+        lifecycleScope.launch {
+            NetworkMonitor.isOnline.collectLatest { isOnline ->
+                try {
+                    if (!isOnline) {
+                        wasOffline = true
+                        banner.visibility = View.VISIBLE
+                        banner.setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.orange))
+                        bannerIcon.setImageResource(R.drawable.ic_wifi_off)
+                        bannerText.text = "You're offline — showing cached data"
+                        
+                        banner.post {
+                            if (banner.height > 0) {
+                                banner.translationY = -banner.height.toFloat()
+                                banner.animate()
+                                    .translationY(0f)
+                                    .setDuration(300)
+                                    .setInterpolator(DecelerateInterpolator())
+                                    .start()
+                            } else {
+                                banner.translationY = 0f
+                            }
+                        }
+                    } else if (wasOffline) {
+                        wasOffline = false
+                        banner.setBackgroundColor(ContextCompat.getColor(this@MainActivity, R.color.green))
+                        bannerIcon.setImageResource(R.drawable.check)
+                        bannerText.text = "Back online"
+                        
+                        delay(2000)
+                        banner.animate()
+                            .translationY(-banner.height.toFloat())
+                            .setDuration(300)
+                            .setInterpolator(AccelerateInterpolator())
+                            .withEndAction { banner.visibility = View.GONE }
+                            .start()
+                    } else {
+                        banner.visibility = View.GONE
+                    }
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Error in network observer: ${e.message}")
+                }
+            }
+        }
+    }
+
+    private fun observePendingCount() {
+        val database = AppDatabase.getInstance(this)
+        lifecycleScope.launch {
+            database.pendingTransactionDao().getCount().collectLatest { count ->
+                navView?.let { nav ->
+                    if (count > 0) {
+                        val badge = nav.getOrCreateBadge(R.id.navigation_transactions)
+                        badge.isVisible = true
+                        badge.number = count
+                        badge.backgroundColor = ContextCompat.getColor(this@MainActivity, R.color.orange)
+                        badge.badgeTextColor = ContextCompat.getColor(this@MainActivity, R.color.whitest)
+                    } else {
+                        nav.removeBadge(R.id.navigation_transactions)
+                    }
+                }
             }
         }
     }
@@ -268,17 +361,116 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun fetchCurrentUserDetails() {
-        val authId = currentUserId ?: return
+        val authId = currentUserId
+        Log.d("MainActivity", "fetchCurrentUserDetails: authId=$authId")
         lifecycleScope.launch {
             try {
-                val user = DeclareDatabase.usersTable.select {
-                    filter { eq("auth_id", authId) }
-                }.decodeSingleOrNull<User>()
-                
-                currentUserNumericId = user?.id
-                currentNickname = user?.username
+                // If we have an authId, try to fetch fresh details
+                if (authId != null) {
+                    Log.d("MainActivity", "fetchCurrentUserDetails: Fetching from network")
+                    val user = try {
+                        DeclareDatabase.usersTable.select {
+                            filter { eq("auth_id", authId) }
+                        }.decodeSingleOrNull<User>()
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "fetchCurrentUserDetails: Network fetch failed: ${e.message}", e)
+                        null
+                    }
+                    
+                    if (user != null) {
+                        Log.d("MainActivity", "fetchCurrentUserDetails: Network success, user id=${user.id}")
+                        currentUserNumericId = user.id
+                        currentNickname = user.username
+                        
+                        // Cache user details for offline use
+                        val id = user.id
+                        if (id != null) {
+                            val db = AppDatabase.getInstance(this@MainActivity)
+                            db.jsonBlobDao().upsert(com.waray.spendhound.data.local.CachedJsonBlob("current_user_id", id.toString(), System.currentTimeMillis()))
+                            db.jsonBlobDao().upsert(com.waray.spendhound.data.local.CachedJsonBlob("current_user_obj", kotlinx.serialization.json.Json.encodeToString(User.serializer(), user), System.currentTimeMillis()))
+                            
+                            // Warm up caches for all tabs
+                            warmUpCaches(id, authId)
+                        }
+                        return@launch
+                    }
+                }
+
+                // Fallback: Try to load from cache if network failed, offline, or authId is null
+                Log.d("MainActivity", "fetchCurrentUserDetails: Loading from cache fallback")
+                val db = AppDatabase.getInstance(this@MainActivity)
+                val cachedId = db.jsonBlobDao().get("current_user_id")
+                Log.d("MainActivity", "fetchCurrentUserDetails: Cached ID found=${cachedId != null}")
+                if (cachedId != null) {
+                    val id = cachedId.json.toLongOrNull()
+                    currentUserNumericId = id
+                    
+                    // Warm up caches from existing cache even if offline
+                    if (id != null) {
+                        warmUpCaches(id, authId ?: "")
+                    }
+                }
+                val cachedUser = db.jsonBlobDao().get("current_user_obj")
+                Log.d("MainActivity", "fetchCurrentUserDetails: Cached User Object found=${cachedUser != null}")
+                if (cachedUser != null) {
+                    try {
+                        val userObj = kotlinx.serialization.json.Json.decodeFromString(User.serializer(), cachedUser.json)
+                        currentNickname = userObj.username
+                        Log.d("MainActivity", "fetchCurrentUserDetails: Resolved nickname ${currentNickname}")
+                    } catch (e: Exception) {
+                        Log.e("MainActivity", "fetchCurrentUserDetails: Cache decode error: ${e.message}", e)
+                    }
+                }
             } catch (e: Exception) {
-                Log.e("MainActivity", "Error fetching user details: ${e.message}")
+                Log.e("MainActivity", "fetchCurrentUserDetails: Fatal error: ${e.message}", e)
+            }
+        }
+    }
+
+    private fun warmUpCaches(userId: Long, authId: String) {
+        lifecycleScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                Log.d("MainActivity", "warmUpCaches: Starting background warm-up for user $userId")
+                val db = AppDatabase.getInstance(this@MainActivity)
+                
+                // Home and Transactions (Recent)
+                val homeRepo = com.waray.spendhound.data.repository.HomeRepository(db)
+                val txRepo = com.waray.spendhound.data.repository.TransactionRepository(db)
+                
+                // Collect at least one item from each flow to trigger the cache logic (fetch fresh if stale)
+                try {
+                    homeRepo.getHomeData(userId).firstOrNull()
+                } catch (e: Exception) { Log.w("MainActivity", "Warmup home data failed: ${e.message}") }
+                
+                try {
+                    txRepo.getRecentTransactions(userId).firstOrNull()
+                } catch (e: Exception) { Log.w("MainActivity", "Warmup recent tx failed: ${e.message}") }
+                
+                try {
+                    txRepo.getTransactions(userId).firstOrNull()
+                } catch (e: Exception) { Log.w("MainActivity", "Warmup all tx failed: ${e.message}") }
+                
+                // Borrow data
+                val borrowRepo = com.waray.spendhound.data.repository.BorrowRepository(db)
+                try {
+                    borrowRepo.getBorrowData(userId).firstOrNull()
+                } catch (e: Exception) { Log.w("MainActivity", "Warmup borrow data failed: ${e.message}") }
+                
+                // Profile data
+                if (authId.isNotEmpty()) {
+                    val profileRepo = com.waray.spendhound.data.repository.ProfileRepository(db)
+                    try {
+                        profileRepo.getProfile(userId, authId).firstOrNull()
+                    } catch (e: Exception) { Log.w("MainActivity", "Warmup profile failed: ${e.message}") }
+                    
+                    try {
+                        profileRepo.getProfileGroups(userId).firstOrNull()
+                    } catch (e: Exception) { Log.w("MainActivity", "Warmup profile groups failed: ${e.message}") }
+                }
+                
+                Log.d("MainActivity", "warmUpCaches: Warm-up complete")
+            } catch (e: Exception) {
+                Log.e("MainActivity", "warmUpCaches: Error during warm-up: ${e.message}")
             }
         }
     }

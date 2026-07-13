@@ -105,7 +105,7 @@ class HomeFragment : Fragment() {
         binding = FragmentHomeBinding.inflate(inflater, container, false)
         val view = binding!!.root
 
-        mAuth = DeclareDatabase.auth
+        mAuth = try { DeclareDatabase.auth } catch (e: Exception) { null }
 
         btnWeekly = view.findViewById(R.id.btnWeekly)
         btnMonthly = view.findViewById(R.id.btnMonthly)
@@ -197,22 +197,26 @@ class HomeFragment : Fragment() {
         }
 
         // Still check auth and update user info in background
-        val authId = mAuth?.currentUserOrNull()?.id
+        val authId = try { mAuth?.currentUserOrNull()?.id } catch (e: Exception) { null }
         if (authId != null) {
             viewLifecycleOwner.lifecycleScope.launch {
-                val user = withContext(Dispatchers.IO) {
-                    DeclareDatabase.usersTable.select(Columns.list("username", "user_id")) {
-                        filter { eq("auth_id", authId) }
-                    }.decodeSingleOrNull<User>()
-                }
-                if (user != null) {
-                    val isNewId = currentUserNumericId != user.id
-                    currentUserNumericId = user.id
-                    (activity as? MainActivity)?.currentNickname = user.username
-                    (activity as? MainActivity)?.currentUserNumericId = user.id
-                    if (isNewId) {
-                        user.id?.let { viewModel.load(it) }
+                try {
+                    val user = withContext(Dispatchers.IO) {
+                        DeclareDatabase.usersTable.select(Columns.list("username", "user_id")) {
+                            filter { eq("auth_id", authId) }
+                        }.decodeSingleOrNull<User>()
                     }
+                    if (user != null) {
+                        val isNewId = currentUserNumericId != user.id
+                        currentUserNumericId = user.id
+                        (activity as? MainActivity)?.currentNickname = user.username
+                        (activity as? MainActivity)?.currentUserNumericId = user.id
+                        if (isNewId) {
+                            user.id?.let { viewModel.load(it) }
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("HomeFragment", "Error updating user info: ${e.message}")
                 }
             }
         }

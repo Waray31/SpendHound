@@ -129,7 +129,9 @@ class ProfileFragment : Fragment() {
         inflater: LayoutInflater,
         container: ViewGroup?, savedInstanceState: Bundle?
     ): View {
-        if (mAuth == null) { mAuth = DeclareDatabase.auth }
+        if (mAuth == null) { 
+            mAuth = try { DeclareDatabase.auth } catch (e: Exception) { null }
+        }
         val view: View = inflater.inflate(R.layout.fragment_profile, container, false)
 
         profileImageView = view.findViewById(R.id.profileImageView)
@@ -175,7 +177,7 @@ class ProfileFragment : Fragment() {
         balanceTextView?.setBackgroundResource(R.drawable.button_background_visible)
         balanceTextView?.setTextColor(ContextCompat.getColor(requireContext(), R.color.yellow))
 
-        mAuth = DeclareDatabase.auth
+        mAuth = try { DeclareDatabase.auth } catch (e: Exception) { null }
         profileImageView?.isClickable = false
         setupRecyclerView(view)
         setupCrewSection()

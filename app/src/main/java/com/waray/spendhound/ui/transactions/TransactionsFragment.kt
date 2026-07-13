@@ -11,6 +11,7 @@ import android.widget.AdapterView
 import android.widget.LinearLayout
 import android.widget.Spinner
 import android.widget.TextView
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import androidx.lifecycle.lifecycleScope
@@ -32,23 +33,36 @@ import com.waray.spendhound.TransactionRead
 import com.waray.spendhound.TransactionReadInsert
 import com.waray.spendhound.User
 import com.waray.spendhound.ui.multi_transaction.MultiTransactionActivity
+import com.waray.spendhound.ui.multi_transaction.AppJson
+import com.waray.spendhound.ui.multi_transaction.TransactionEntry
+import com.waray.spendhound.ui.multi_transaction.PayorEntry
 import com.waray.spendhound.ui.multi_transaction.TransactionFull
-import io.github.jan.supabase.postgrest.query.Columns
 import com.waray.spendhound.ui.multi_transaction.TransactionItemFull
 import com.waray.spendhound.ui.multi_transaction.TransactionPayorTable
 import com.waray.spendhound.ui.multi_transaction.TransactionSplitTable
+import com.waray.spendhound.data.local.AppDatabase
+import com.waray.spendhound.data.local.PendingTransaction
+import com.waray.spendhound.workers.PendingTransactionSyncWorker
+import io.github.jan.supabase.postgrest.query.Columns
 import com.waray.spendhound.SkeletonAdapter
 import com.waray.spendhound.utils.LoadingManager
 import com.waray.spendhound.TransactionSettlementActivity
+import androidx.work.Constraints
+import androidx.work.ExistingWorkPolicy
+import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.WorkManager
 import io.github.jan.supabase.gotrue.Auth
 import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import java.text.SimpleDateFormat
 import java.util.Calendar
+import java.util.Date
 import java.util.Locale
 
 class TransactionsFragment : Fragment() {
@@ -89,6 +103,7 @@ class TransactionsFragment : Fragment() {
     private var archivedAdapter: RecentTransactionAdapter? = null
     private var isArchivedExpanded = false
     private var lastSeenUpdate: Long = 0L
+    private var pendingTransactions: List<RecentTransaction> = emptyList()
 
     private val viewModel: TransactionsViewModel by viewModels()
 
@@ -99,7 +114,7 @@ class TransactionsFragment : Fragment() {
     ): View {
         val root: View = inflater.inflate(R.layout.fragment_transactions, container, false)
 
-        mAuth = DeclareDatabase.auth
+        mAuth = try { DeclareDatabase.auth } catch (e: Exception) { null }
         transactionList = ArrayList()
         groupNames = ArrayList()
         groupIds = ArrayList()
@@ -139,15 +154,151 @@ class TransactionsFragment : Fragment() {
                 pullToRefreshHelper?.stopRefreshing()
             }
         }
+        
+        viewLifecycleOwner.lifecycleScope.launch {
+            val context = context ?: return@launch
+            val database = AppDatabase.getInstance(context.applicationContext)
+            database.pendingTransactionDao().getCount().collectLatest {
+                loadPendingTransactions()
+            }
+        }
+    }
+
+    private fun loadPendingTransactions() {
+        val appContext = context?.applicationContext ?: return
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            try {
+                val database = AppDatabase.getInstance(appContext)
+                val pending = try {
+                    database.pendingTransactionDao().getAll()
+                } catch (e: Exception) {
+                    emptyList()
+                }
+                
+                val mapped = pending.map { pt ->
+                    try {
+                        val entries = try {
+                            AppJson.decodeFromString<List<TransactionEntry>>(pt.itemsJson)
+                        } catch (e: Exception) {
+                            emptyList<TransactionEntry>()
+                        }
+
+                        RecentTransaction().apply {
+                            transactionId = null // Local only
+                            val isoSdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss", Locale.getDefault())
+                            val displaySdf = SimpleDateFormat("MMM dd, yyyy", Locale.getDefault())
+                            val date = try { isoSdf.parse(pt.createdAt) } catch (e: Exception) { null } ?: Date()
+                            
+                            mostRecentDate = displaySdf.format(date)
+                            mostRecentTransactionType = if (entries.size == 1) entries[0].category.ifBlank { "Expense" } else "Multiple"
+                            mostRecentDetails = pt.description
+                            mostRecentPaymentAmountStr = CurrencyUtils.formatAmountWithCurrency(pt.totalAmount)
+                            timestamp = date.time
+                            transactionStatus = "Pending Sync"
+                            lacksInfo = pt.groupId == null
+                            groupId = pt.groupId
+                            createdBy = "You"
+                            timeKey = pt.localId
+
+                            // Populate items for expanded view
+                            transactionItems = entries.mapIndexed { index, entry ->
+                                TransactionItemFull(
+                                    id = index.toLong() + 1000000, // Dummy ID
+                                    amount = entry.amount,
+                                    category = entry.category,
+                                    itemDescription = entry.title
+                                )
+                            }
+                            
+                            // Mock payors and splits for expanded view
+                            val payors = mutableListOf<TransactionPayorTable>()
+                            val splits = mutableListOf<TransactionSplitTable>()
+                            
+                            entries.forEachIndexed { itemIndex, entry ->
+                                val itemId = itemIndex.toLong() + 1000000
+                                entry.payors.forEach { p ->
+                                    payors.add(TransactionPayorTable(
+                                        transactionId = 0,
+                                        userId = p.userId,
+                                        initialAmountPaid = p.amount,
+                                        currentAmountPaid = p.amount,
+                                        transactionItemsId = itemId
+                                    ))
+                                }
+                                entry.includedMemberIds.forEach { uid ->
+                                    splits.add(TransactionSplitTable(
+                                        transactionId = 0,
+                                        userId = uid,
+                                        amount = if (entry.includedMemberIds.isNotEmpty()) entry.amount / entry.includedMemberIds.size else 0.0,
+                                        transactionItemsId = itemId
+                                    ))
+                                }
+                            }
+                            rawPayorRows = payors
+                            rawSplitRows = splits
+                            
+                            // Essential for RecentTransactionAdapter's setupPayors()
+                            val contributorIds = entries.flatMap { it.payors.map { p -> p.userId } }.distinct()
+                            payorUserIds = contributorIds.map { it.toString() }.toMutableList()
+                            payorsList = contributorIds.map { "You" }.toMutableList() // Mock name
+                            amountsPaidList = contributorIds.map { uid -> 
+                                entries.flatMap { it.payors }.filter { it.userId == uid }.sumOf { it.amount }
+                            }.toMutableList()
+                        }
+                    } catch (e: Exception) {
+                        null
+                    }
+                }.filterNotNull()
+                
+                withContext(Dispatchers.Main) {
+                    if (isAdded) {
+                        pendingTransactions = mapped.sortedByDescending { it.timestamp }
+                        applyStatusFilter()
+                    }
+                }
+            } catch (e: Exception) {
+                android.util.Log.e("TransactionsFragment", "Error loading pending transactions: ${e.message}")
+            }
+        }
     }
 
     private fun resolveUserThenLoad() {
-        val authUserId = mAuth?.currentUserOrNull()?.id ?: return
+        // Fallback: Immediate load if MainActivity already has a cached/resolved ID
+        (activity as? MainActivity)?.currentUserNumericId?.let { cachedId ->
+            if (currentUserNumericId == null) {
+                currentUserNumericId = cachedId
+                viewModel.load(cachedId)
+                loadUserGroups()
+            }
+        }
+
+        val authUserId = mAuth?.currentUserOrNull()?.id
+        if (authUserId == null) {
+            if (currentUserNumericId == null) {
+                // If we have absolutely no ID, check local database directly as a last resort
+                viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+                    val db = AppDatabase.getInstance(requireContext().applicationContext)
+                    val cachedId = db.jsonBlobDao().get("current_user_id")?.json?.toLongOrNull()
+                    if (cachedId != null) {
+                        withContext(Dispatchers.Main) {
+                            currentUserNumericId = cachedId
+                            viewModel.load(cachedId)
+                            loadUserGroups()
+                        }
+                    } else {
+                        withContext(Dispatchers.Main) { hideLoading() }
+                    }
+                }
+            }
+            return
+        }
+        
         if (currentUserNumericId != null) {
             viewModel.load(currentUserNumericId!!)
             loadUserGroups()
             return
         }
+
         showLoading(true)
         viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
             try {
@@ -199,6 +350,12 @@ class TransactionsFragment : Fragment() {
 
         adapter = RecentTransactionAdapter(transactionList, { refreshTransactions() }, { tx ->
             if (tx == null) return@RecentTransactionAdapter
+            
+            if (tx.transactionStatus == "Pending Sync" || tx.transactionStatus == "Sync Failed") {
+                editTransaction(tx)
+                return@RecentTransactionAdapter
+            }
+
             tx.isExpanded = !tx.isExpanded
             val pos = transactionList.indexOf(tx)
             if (tx.isUnread && currentUserNumericId != null) {
@@ -206,7 +363,12 @@ class TransactionsFragment : Fragment() {
             }
             if (pos != -1) adapter?.notifyItemChanged(pos)
         }) { transaction, view ->
-            showTransactionPopup(transaction, view)
+            if (transaction.transactionStatus == "Pending Sync" || transaction.transactionStatus == "Sync Failed") {
+                // Allow long press for popup (Edit only)
+                showTransactionPopup(transaction, view)
+            } else {
+                showTransactionPopup(transaction, view)
+            }
         }
         
         archivedAdapter = RecentTransactionAdapter(arrayListOf(), { refreshTransactions() }, { tx ->
@@ -277,6 +439,15 @@ class TransactionsFragment : Fragment() {
         }
         
         transactionList.clear()
+        
+        // Add pending transactions at the top
+        transactionList.addAll(pendingTransactions.filter { pt ->
+            val dateOk = pt.timestamp in startDate..endDate
+            // Group filter might not be applicable if we don't fetch group names for pending
+            val groupOk = selectedGroupId == -1L || pt.groupId == selectedGroupId
+            dateOk && (selectedGroupId == -1L || pt.groupId == selectedGroupId)
+        })
+
         transactionList.addAll(filtered)
         adapter?.notifyDataSetChanged()
         
@@ -474,22 +645,33 @@ class TransactionsFragment : Fragment() {
             popup.x = (location[0] - rootLocation[0]).toFloat()
             popup.y = (location[1] - rootLocation[1] + anchorView.height + 8).toFloat()
             
+            val isPending = transaction.transactionStatus == "Pending Sync" || transaction.transactionStatus == "Sync Failed"
+
             // Setup click listeners
-            popup.findViewById<TextView>(R.id.tvEdit)?.setOnClickListener {
-                editTransaction(transaction)
-                dismissPopup()
+            popup.findViewById<TextView>(R.id.tvEdit)?.apply {
+                visibility = View.VISIBLE
+                setOnClickListener {
+                    editTransaction(transaction)
+                    dismissPopup()
+                }
             }
             
-            popup.findViewById<TextView>(R.id.tvSettle)?.setOnClickListener {
-                val intent = Intent(requireContext(), TransactionSettlementActivity::class.java)
-                intent.putExtra(TransactionSettlementActivity.EXTRA_TRANSACTION_JSON, Json.encodeToString(RecentTransaction.serializer(), transaction))
-                startActivity(intent)
-                dismissPopup()
+            popup.findViewById<TextView>(R.id.tvSettle)?.apply {
+                visibility = if (isPending) View.GONE else View.VISIBLE
+                setOnClickListener {
+                    val intent = Intent(requireContext(), TransactionSettlementActivity::class.java)
+                    intent.putExtra(TransactionSettlementActivity.EXTRA_TRANSACTION_JSON, Json.encodeToString(RecentTransaction.serializer(), transaction))
+                    startActivity(intent)
+                    dismissPopup()
+                }
             }
             
-            popup.findViewById<TextView>(R.id.tvArchive)?.setOnClickListener {
-                archiveTransaction(transaction)
-                dismissPopup()
+            popup.findViewById<TextView>(R.id.tvArchive)?.apply {
+                visibility = if (isPending) View.GONE else View.VISIBLE
+                setOnClickListener {
+                    archiveTransaction(transaction)
+                    dismissPopup()
+                }
             }
             
             popup.findViewById<TextView>(R.id.tvCancel)?.setOnClickListener {
@@ -542,7 +724,11 @@ class TransactionsFragment : Fragment() {
     
     private fun editTransaction(transaction: RecentTransaction) {
         val intent = Intent(requireContext(), MultiTransactionActivity::class.java)
-        intent.putExtra("TRANSACTION_ID", transaction.transactionId)
+        if (transaction.transactionId != null) {
+            intent.putExtra("TRANSACTION_ID", transaction.transactionId)
+        } else if (transaction.timeKey != null) {
+            intent.putExtra("LOCAL_ID", transaction.timeKey)
+        }
         intent.putExtra("EDIT_MODE", true)
         startActivity(intent)
     }
@@ -605,6 +791,8 @@ class TransactionsFragment : Fragment() {
         updateArchivedSection()
         applyStatusFilter() // This will add it back to main list
     }
+    
+
     
     private fun updateArchivedSection() {
         val hasArchived = archivedTransactions.isNotEmpty()
