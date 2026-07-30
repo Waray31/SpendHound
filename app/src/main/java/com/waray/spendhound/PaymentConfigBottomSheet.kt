@@ -273,8 +273,6 @@ class PaymentConfigBottomSheet : BottomSheetDialogFragment() {
         
         btnConfirm.isEnabled = isBalanced
         btnConfirm.setBackgroundResource(if (isBalanced) R.drawable.rounded_button else R.drawable.greyed_out_rounded_button)
-        
-        membersAdapter.notifyDataSetChanged()
     }
     
     private fun setupKeyboardDismissal(view: View) {
@@ -357,14 +355,14 @@ class MembersAdapter(
             holder.layoutMemberAmount.visibility = View.VISIBLE
             holder.tvCoveredStatus.visibility = View.GONE
             val paidText = if (memberState.amountPaid > 0) String.format("%.2f", memberState.amountPaid) else ""
-            if (holder.etMemberAmount.text.toString() != paidText) {
+            if (!holder.etMemberAmount.isFocused && holder.etMemberAmount.text.toString() != paidText) {
                 holder.etMemberAmount.setText(paidText)
             }
         }
         
         // Custom Split Amount
         val customSplitText = if (memberState.customSplitAmount != null && memberState.customSplitAmount!! > 0) String.format("%.2f", memberState.customSplitAmount) else ""
-        if (holder.etCustomSplit.text.toString() != customSplitText) {
+        if (!holder.etCustomSplit.isFocused && holder.etCustomSplit.text.toString() != customSplitText) {
             holder.etCustomSplit.setText(customSplitText)
         }
 
@@ -402,6 +400,10 @@ class MembersAdapter(
                 if (memberStates[currentPos].amountPaid != amount) {
                     memberStates[currentPos] = memberStates[currentPos].copy(amountPaid = amount)
                     onStateChanged()
+                    
+                    // Update warning icon immediately without full list refresh
+                    val showWarning = amount > 0 && !memberStates[currentPos].isIncludedInSplit
+                    holder.ivWarningIcon.visibility = if (showWarning) View.VISIBLE else View.GONE
                 }
             }
         }
